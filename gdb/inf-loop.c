@@ -1,12 +1,12 @@
 /* Handling of inferior events for the event loop for GDB, the GNU debugger.
-   Copyright (C) 1999, 2007, 2008 Free Software Foundation, Inc.
+   Copyright 1999 Free Software Foundation, Inc.
    Written by Elena Zannoni <ezannoni@cygnus.com> of Cygnus Solutions.
 
    This file is part of GDB.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
+   the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
@@ -15,7 +15,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA. */
 
 #include "defs.h"
 #include "inferior.h"		/* For fetch_inferior_event. */
@@ -23,18 +25,9 @@
 #include "event-loop.h"
 #include "event-top.h"
 #include "inf-loop.h"
-#include "remote.h"
-#include "exceptions.h"
-#include "language.h"
-#include "gdbthread.h"
 
 static int fetch_inferior_event_wrapper (gdb_client_data client_data);
-
-void
-inferior_event_handler_wrapper (gdb_client_data client_data)
-{
-  inferior_event_handler (INF_QUIT_REQ, client_data);
-}
+static void complete_execution (void);
 
 /* General function to handle events in the inferior. So far it just
    takes care of detecting errors reported by select() or poll(),
@@ -44,17 +37,14 @@ void
 inferior_event_handler (enum inferior_event_type event_type, 
 			gdb_client_data client_data)
 {
-  struct gdb_exception e;
-  int was_sync = 0;
   switch (event_type)
     {
     case INF_ERROR:
-      printf_unfiltered (_("error detected from target.\n"));
+      printf_unfiltered ("error detected from target.\n");
       target_async (NULL, 0);
       pop_target ();
-      discard_all_intermediate_continuations ();
       discard_all_continuations ();
-      async_enable_stdin ();
+      do_exec_error_cleanups (ALL_CLEANUPS);
       break;
 
     case INF_REG_EVENT:
@@ -67,77 +57,24 @@ inferior_event_handler (enum inferior_event_type event_type,
 	{
 	  target_async (NULL, 0);
 	  pop_target ();
-	  discard_all_intermediate_continuations ();
 	  discard_all_continuations ();
-	  async_enable_stdin ();
+	  do_exec_error_cleanups (ALL_CLEANUPS);
 	  display_gdb_prompt (0);
 	}
       break;
 
     case INF_EXEC_COMPLETE:
-
-      if (!non_stop)
-	{
-	  /* Unregister the inferior from the event loop. This is done
-	     so that when the inferior is not running we don't get
-	     distracted by spurious inferior output.  */
-	  if (target_has_execution)
-	    target_async (NULL, 0);
-	}
-
-      /* The call to async_enable_stdin below resets 'sync_execution'.
-	 However, if sync_execution is 1 now, we also need to show the
-	 prompt below, so save the current value.  */
-      was_sync = sync_execution;
-      async_enable_stdin ();
-
-      /* If we were doing a multi-step (eg: step n, next n), but it
-	 got interrupted by a breakpoint, still do the pending
-	 continuations.  The continuation itself is responsible for
-	 distinguishing the cases.  The continuations are allowed to
-	 touch the inferior memory, e.g. to remove breakpoints, so run
-	 them before running breakpoint commands, which may resume the
-	 target.  */
-      do_all_intermediate_continuations ();
-
-      /* Always finish the previous command before running any
-	 breakpoint commands.  Any stop cancels the previous command.
-	 E.g. a "finish" or "step-n" command interrupted by an
-	 unrelated breakpoint is canceled.  */
-      do_all_continuations ();
-
-      if (current_language != expected_language
-	  && language_mode == language_mode_auto)
-	language_info (1);	/* Print what changed.  */
-
-      /* Don't propagate breakpoint commands errors.  Either we're
-	 stopping or some command resumes the inferior.  The user will
-	 be informed.  */
-      TRY_CATCH (e, RETURN_MASK_ALL)
-	{
-	  bpstat_do_actions (&stop_bpstat);
-	}
-
-      if (!was_sync && !is_running (inferior_ptid) && exec_done_display_p)
-	printf_unfiltered (_("completed.\n"));
-      break;
-
-    case INF_EXEC_CONTINUE:
       /* Is there anything left to do for the command issued to
          complete? */
-      do_all_intermediate_continuations ();
+      do_all_continuations ();
+      /* Reset things after target has stopped for the async commands. */
+      complete_execution ();
       break;
 
-    case INF_QUIT_REQ: 
-      /* FIXME: ezannoni 1999-10-04. This call should really be a
-	 target vector entry, so that it can be used for any kind of
-	 targets. */
-      async_remote_interrupt_twice (NULL);
-      break;
-
+    case INF_QUIT_REQ:
     case INF_TIMER:
     default:
-      printf_unfiltered (_("Event type not recognized.\n"));
+      printf_unfiltered ("Event type not recognized.\n");
       break;
     }
 }
@@ -147,4 +84,30 @@ fetch_inferior_event_wrapper (gdb_client_data client_data)
 {
   fetch_inferior_event (client_data);
   return 1;
+}
+
+/* Reset proper settings after an asynchronous command has finished.
+   If the execution command was in synchronous mode, register stdin
+   with the event loop, and reset the prompt. */
+
+static void
+complete_execution (void)
+{
+  target_executing = 0;
+  
+  /* Unregister the inferior from the event loop. This is done so that
+     when the inferior is not running we don't get distracted by
+     spurious inferior output. */
+  target_async (NULL, 0);
+
+  if (sync_execution)
+    {
+      do_exec_error_cleanups (ALL_CLEANUPS);
+      display_gdb_prompt (0);
+    }
+  else
+    {
+      if (exec_done_display_p)
+	printf_unfiltered ("completed.\n");
+    }
 }
