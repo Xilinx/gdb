@@ -4607,7 +4607,7 @@ create_breakpoints (struct symtabs_and_lines sals, char **addr_string,
    addresses found. ADDR_STRING contains a vector of (canonical)
    address strings. ARG points to the end of the SAL. */
 
-void
+static void
 parse_breakpoint_sals (char **address,
 		       struct symtabs_and_lines *sals,
 		       char ***addr_string)
@@ -4674,7 +4674,7 @@ parse_breakpoint_sals (char **address,
 /* Convert each SAL into a real PC.  Verify that the PC can be
    inserted as a breakpoint.  If it can't throw an error. */
 
-void
+static void
 breakpoint_sals_to_pc (struct symtabs_and_lines *sals,
 		       char *address)
 {    
@@ -6082,7 +6082,7 @@ handle_gnu_v3_exceptions (int tempflag, char *cond_string,
   sals = decode_line_1 (&nameptr, 1, NULL, 0, NULL);
   if (sals.nelts == 0)
     {
-      free (trigger_func_name);
+      xfree (trigger_func_name);
       return 0;
     }
 
@@ -6098,7 +6098,7 @@ handle_gnu_v3_exceptions (int tempflag, char *cond_string,
   b->disposition = tempflag ? disp_del : disp_donttouch;
   b->ops = &gnu_v3_exception_catchpoint_ops;
 
-  free (sals.sals);
+  xfree (sals.sals);
   mention (b);
   return 1;
 }

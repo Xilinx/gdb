@@ -1,9 +1,85 @@
-2003-05-28  Jim Blandy  <jimb@redhat.com>
+2003-06-12  Jeff Johnston  <jjohnstn@redhat.com>
 
-	* gdb.asm/asm-source.exp: Don't handle powerpc64-*-* along with
-	powerpc-*-*; treat the former as an architecture this test doesn't
-	support.  At the moment, the asm-source test program hangs and
-	becomes an unkillable process on PPC64 Linux.
+	* gdb.base/float.exp: Add ia64 support.
+
+2003-06-12  Corinna Vinschen  <vinschen@redhat.com>
+
+	* gdb.base/fileio.exp: Run only on remote targets.
+
+2003-06-10  Corinna Vinschen  <vinschen@redhat.com>
+
+	* gdb.base/fileio.c: New file, testing File-I/O.
+	* gdb.base/fileio.exp: Ditto.
+
+2003-06-09  Raoul Gough  <RaoulGough@yahoo.co.uk>
+
+	* gdb.base/shreloc.exp: New file, check symbol values obtained from
+	shared objects after relocation at load time (gdb PR/1132).
+	* gdb.base/shreloc.c, gdb.base/shreloc1.c, gdb.base/shreloc2.c:
+        as above, part of the shared object relocation test.
+
+2003-06-08  Mark Kettenis  <kettenis@gnu.org>
+
+	* gdb.base/readline.exp: Add tests for operate-and-get-next with a
+	fully filled history list.
+	* gdb.base/gdb_history: New file.
+
+	* gdb.base/signals.exp: XFAIL "continue to func1" on
+	i*86-*-freebsd*.
+
+	* gdb.base/attach.exp: When trying to attach to a nonexistent
+	process, make it possible to specify the PID based on the target,
+	and do so for *-*-freebsd*.
+
+2003-06-02  Richard Henderson  <rth@redhat.com>
+
+	* gdb.base/float.exp: Add expected regexp for alpha-*-*.
+
+2003-06-02  Richard Henderson  <rth@redhat.com>
+
+	* gdb.base/selftest.exp: Next over lim_at_start initialization.
+
+2003-06-02  Richard Henderson  <rth@redhat.com>
+
+	* gdb.base/dump.exp [alpha*-*-*]: Add -taso linker switch.
+
+2003-06-01  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gdb.asm/asm-source.exp: Dissassemble from &globalvar instead
+	of globalvar.
+
+2003-06-01  Mark Kettenis  <kettenis@gnu.org>
+
+	* gdb.asm/asm-source.exp: Check for memory read errors in
+	disassembler test on *BSD too.
+
+2003-06-01  Richard Henderson  <rth@redhat.com>
+
+	* gdb.asm/alpha.inc (gdbasm_enter): Use numeric register names
+	for .frame.
+	(gdbasm_call): Lose ldgp.
+	(gdbasm_startup): Add frame information.
+	* gdb.asm/asm-source.exp (alpha*-*): Add -no-mdebug to asm-flags.
+
+2003-05-31  Mark Kettenis  <kettenis@gnu.org>
+
+	* gdb.base/float.exp: Expect similar output for x86_64-*-* as for
+	i?86-*-*.
+
+2003-05-30  Mark Kettenis  <kettenis@gnu.org>
+
+	* gdb.asm/asm-source.exp: Make sure the final link succeeds on
+	FreeBSD.
+
+2003-05-29  Richard Henderson  <rth@redhat.com>
+
+	* gdb.asm/alpha.inc: New file.
+	* gdb.asm/asm-source.exp: Use it.
+
+2003-05-29  Jim Blandy  <jimb@redhat.com>
+
+	* gdb.base/corefile.exp: Find corefiles on Linux, which names them
+	'core.PID'.
 
 2003-05-22  Jim Blandy  <jimb@redhat.com>
 

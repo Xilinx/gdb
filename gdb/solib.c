@@ -91,6 +91,7 @@ static char *solib_search_path = NULL;
    * If path is absolute, look in SOLIB_ABSOLUTE_PREFIX.
    * If path is absolute or relative, look for it literally (unmodified).
    * Look in SOLIB_SEARCH_PATH.
+   * If available, use target defined search function.
    * Look in inferior's $PATH.
    * Look in inferior's $LD_LIBRARY_PATH.
 
@@ -381,7 +382,7 @@ symbol_add_stub (void *arg)
    the section table.  But we only use this for core files and
    processes we've just attached to, so that's okay.  */
 
-void
+static void
 update_solib_list (int from_tty, struct target_ops *target)
 {
   struct so_list *inferior = TARGET_SO_CURRENT_SOS ();
@@ -855,6 +856,8 @@ reload_shared_libraries (char *ignored, int from_tty)
   no_shared_libraries (NULL, from_tty);
   solib_add (NULL, from_tty, NULL, auto_solib_add);
 }
+
+extern initialize_file_ftype _initialize_solib; /* -Wmissing-prototypes */
 
 void
 _initialize_solib (void)

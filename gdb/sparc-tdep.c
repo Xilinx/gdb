@@ -508,7 +508,7 @@ sparc_frame_saved_pc (struct frame_info *frame)
          stack layout has changed or the stack is corrupt.  */
       target_read_memory (sigcontext_addr + saved_pc_offset,
 			  scbuf, sizeof (scbuf));
-      return extract_address (scbuf, sizeof (scbuf));
+      return extract_unsigned_integer (scbuf, sizeof (scbuf));
     }
   else if (get_frame_extra_info (frame)->in_prologue ||
 	   (get_next_frame (frame) != NULL &&
@@ -534,7 +534,7 @@ sparc_frame_saved_pc (struct frame_info *frame)
     return PC_ADJUST (read_register (O7_REGNUM));
 
   read_memory (addr, buf, SPARC_INTREG_SIZE);
-  return PC_ADJUST (extract_address (buf, SPARC_INTREG_SIZE));
+  return PC_ADJUST (extract_unsigned_integer (buf, SPARC_INTREG_SIZE));
 }
 
 /* Since an individual frame in the frame cache is defined by two
@@ -1796,7 +1796,7 @@ get_longjmp_target (CORE_ADDR *pc)
 			  LONGJMP_TARGET_SIZE))
     return 0;
 
-  *pc = extract_address (buf, LONGJMP_TARGET_SIZE);
+  *pc = extract_unsigned_integer (buf, LONGJMP_TARGET_SIZE);
 
   return 1;
 }
@@ -2104,20 +2104,7 @@ sparc_print_registers (struct gdbarch *gdbarch,
 	  continue;
 	}
 
-      /* FIXME: cagney/2002-08-03: This code shouldn't be necessary.
-         The function frame_register_read() should have returned the
-         pre-cooked register so no conversion is necessary.  */
-      /* Convert raw data to virtual format if necessary.  */
-      if (REGISTER_CONVERTIBLE (i))
-	{
-	  REGISTER_CONVERT_TO_VIRTUAL (i, REGISTER_VIRTUAL_TYPE (i),
-				       raw_buffer, virtual_buffer);
-	}
-      else
-	{
-	  memcpy (virtual_buffer, raw_buffer,
-		  REGISTER_VIRTUAL_SIZE (i));
-	}
+      memcpy (virtual_buffer, raw_buffer, REGISTER_VIRTUAL_SIZE (i));
 
       /* If virtual format is floating, print it that way, and in raw
          hex.  */
@@ -2199,7 +2186,7 @@ sparc_do_registers_info (int regnum, int all)
 #endif
 
 
-int
+static int
 gdb_print_insn_sparc (bfd_vma memaddr, disassemble_info *info)
 {
   /* It's necessary to override mach again because print_insn messes it up. */
@@ -2461,7 +2448,7 @@ sparc_extract_struct_value_address (struct regcache *regcache)
 
 /* FIXME: kettenis/2003/05/24: Still used for sparc64.  */
 
-void
+static void
 sparc_store_return_value (struct type *type, char *valbuf)
 {
   int regno;
@@ -2610,6 +2597,8 @@ static struct gdbarch * sparc_gdbarch_init (struct gdbarch_info info,
 					    struct gdbarch_list *arches);
 static void sparc_dump_tdep (struct gdbarch *, struct ui_file *);
 
+extern initialize_file_ftype _initialize_sparc_tdep; /* -Wmissing-prototypes */
+
 void
 _initialize_sparc_tdep (void)
 {
@@ -2624,7 +2613,7 @@ _initialize_sparc_tdep (void)
 /* Compensate for stack bias. Note that we currently don't handle
    mixed 32/64 bit code. */
 
-CORE_ADDR
+static CORE_ADDR
 sparc64_read_sp (void)
 {
   CORE_ADDR sp = read_register (SP_REGNUM);
@@ -2634,7 +2623,7 @@ sparc64_read_sp (void)
   return sp;
 }
 
-CORE_ADDR
+static CORE_ADDR
 sparc64_read_fp (void)
 {
   CORE_ADDR fp = read_register (DEPRECATED_FP_REGNUM);
@@ -2644,7 +2633,7 @@ sparc64_read_fp (void)
   return fp;
 }
 
-void
+static void
 sparc64_write_sp (CORE_ADDR val)
 {
   CORE_ADDR oldsp = read_register (SP_REGNUM);
@@ -2668,7 +2657,7 @@ sparc64_write_sp (CORE_ADDR val)
    for both; this means that if the arguments alternate between
    int and float, we will waste every other register of both types.  */
 
-CORE_ADDR
+static CORE_ADDR
 sparc64_push_arguments (int nargs, struct value **args, CORE_ADDR sp,
 			int struct_return, CORE_ADDR struct_retaddr)
 {
@@ -2785,7 +2774,7 @@ sparc64_push_arguments (int nargs, struct value **args, CORE_ADDR sp,
 /* Values <= 32 bytes are returned in o0-o3 (floating-point values are
    returned in f0-f3). */
 
-void
+static void
 sp64_extract_return_value (struct type *type, char *regbuf, char *valbuf,
 			   int bitoffset)
 {
@@ -2842,7 +2831,7 @@ sp64_extract_return_value (struct type *type, char *regbuf, char *valbuf,
     }
 }
 
-extern void
+static void
 sparc64_extract_return_value (struct type *type, char *regbuf, char *valbuf)
 {
   sp64_extract_return_value (type, regbuf, valbuf, 0);
@@ -2868,7 +2857,7 @@ sparc32_stack_align (CORE_ADDR addr)
   return ((addr + 7) & -8);
 }
 
-extern CORE_ADDR
+static CORE_ADDR
 sparc64_stack_align (CORE_ADDR addr)
 {
   return ((addr + 15) & -16);
@@ -3006,7 +2995,7 @@ sparc64_register_name (int regno)
 // OBSOLETE }
 #endif
 
-CORE_ADDR
+static CORE_ADDR
 sparc_push_return_address (CORE_ADDR pc_unused, CORE_ADDR sp)
 {
   if (CALL_DUMMY_LOCATION == AT_ENTRY_POINT)
@@ -3165,19 +3154,6 @@ sparc_saved_pc_after_call (struct frame_info *fi)
   return sparc_pc_adjust (read_register (RP_REGNUM));
 }
 
-/* Convert registers between 'raw' and 'virtual' formats.
-   They are the same on sparc, so there's nothing to do.  */
-
-static void
-sparc_convert_to_virtual (int regnum, struct type *type, char *from, char *to)
-{	/* do nothing (should never be called) */
-}
-
-static void
-sparc_convert_to_raw (struct type *type, int regnum, char *from, char *to)
-{	/* do nothing (should never be called) */
-}
-
 /* Init saved regs: nothing to do, just a place-holder function.  */
 
 static void
@@ -3212,7 +3188,7 @@ sparc_call_dummy_address (void)
 
 /* Supply the Y register number to those that need it.  */
 
-int
+static int
 sparc_y_regnum (void)
 {
   return gdbarch_tdep (current_gdbarch)->y_regnum;
@@ -3227,7 +3203,7 @@ sparc_reg_struct_has_addr (int gcc_p, struct type *type)
     return (gcc_p != 1);
 }
 
-int
+static int
 sparc_intreg_size (void)
 {
   return SPARC_INTREG_SIZE;
@@ -3241,6 +3217,16 @@ sparc_return_value_on_stack (struct type *type)
     return 1;
   else
     return 0;
+}
+
+/* Get the ith function argument for the current function.  */
+static CORE_ADDR
+sparc_fetch_pointer_argument (struct frame_info *frame, int argi,
+			      struct type *type)
+{
+  CORE_ADDR addr;
+  frame_read_register (frame, O0_REGNUM + argi, &addr);
+  return addr;
 }
 
 /*
@@ -3323,7 +3309,6 @@ sparc_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_fp0_regnum (gdbarch, SPARC_FP0_REGNUM);
   set_gdbarch_deprecated_frame_chain (gdbarch, sparc_frame_chain);
   set_gdbarch_deprecated_frame_init_saved_regs (gdbarch, sparc_frame_init_saved_regs);
-  set_gdbarch_frame_num_args (gdbarch, frame_num_args_unknown);
   set_gdbarch_deprecated_frame_saved_pc (gdbarch, sparc_frame_saved_pc);
   set_gdbarch_frameless_function_invocation (gdbarch, 
 					     frameless_look_for_prologue);
@@ -3338,12 +3323,6 @@ sparc_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_deprecated_pop_frame (gdbarch, sparc_pop_frame);
   set_gdbarch_deprecated_push_return_address (gdbarch, sparc_push_return_address);
   set_gdbarch_deprecated_push_dummy_frame (gdbarch, sparc_push_dummy_frame);
-  set_gdbarch_read_pc (gdbarch, generic_target_read_pc);
-  set_gdbarch_register_convert_to_raw (gdbarch, sparc_convert_to_raw);
-  set_gdbarch_register_convert_to_virtual (gdbarch, 
-					   sparc_convert_to_virtual);
-  set_gdbarch_register_convertible (gdbarch, 
-				    generic_register_convertible_not);
   set_gdbarch_reg_struct_has_addr (gdbarch, sparc_reg_struct_has_addr);
   set_gdbarch_return_value_on_stack (gdbarch, sparc_return_value_on_stack);
   set_gdbarch_deprecated_saved_pc_after_call (gdbarch, sparc_saved_pc_after_call);
@@ -3353,6 +3332,9 @@ sparc_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_sp_regnum (gdbarch, SPARC_SP_REGNUM);
   set_gdbarch_deprecated_use_generic_dummy_frames (gdbarch, 0);
   set_gdbarch_write_pc (gdbarch, generic_target_write_pc);
+
+  /* Helper for function argument information.  */
+  set_gdbarch_fetch_pointer_argument (gdbarch, sparc_fetch_pointer_argument);
 
   /*
    * Settings that depend only on 32/64 bit word size 
@@ -3443,14 +3425,12 @@ sparc_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
       set_gdbarch_pc_regnum (gdbarch, SPARC32_PC_REGNUM);
       set_gdbarch_ptr_bit (gdbarch, 4 * TARGET_CHAR_BIT);
       set_gdbarch_deprecated_push_arguments (gdbarch, sparc32_push_arguments);
-      set_gdbarch_read_sp (gdbarch, generic_target_read_sp);
 
-      set_gdbarch_register_byte (gdbarch, sparc32_register_byte);
-      set_gdbarch_register_raw_size (gdbarch, sparc32_register_size);
+      set_gdbarch_deprecated_register_byte (gdbarch, sparc32_register_byte);
+      set_gdbarch_deprecated_register_raw_size (gdbarch, sparc32_register_size);
       set_gdbarch_deprecated_register_size (gdbarch, 4);
-      set_gdbarch_register_virtual_size (gdbarch, sparc32_register_size);
-      set_gdbarch_register_virtual_type (gdbarch, 
-					 sparc32_register_virtual_type);
+      set_gdbarch_deprecated_register_virtual_size (gdbarch, sparc32_register_size);
+      set_gdbarch_deprecated_register_virtual_type (gdbarch, sparc32_register_virtual_type);
 #ifdef SPARC32_CALL_DUMMY_ON_STACK
       set_gdbarch_deprecated_sizeof_call_dummy_words (gdbarch, sizeof (call_dummy_32));
 #else
@@ -3461,7 +3441,7 @@ sparc_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
       set_gdbarch_deprecated_store_struct_return (gdbarch, sparc32_store_struct_return);
       set_gdbarch_use_struct_convention (gdbarch, 
 					 generic_use_struct_convention);
-      set_gdbarch_deprecated_dummy_write_sp (gdbarch, generic_target_write_sp);
+      set_gdbarch_deprecated_dummy_write_sp (gdbarch, deprecated_write_sp);
       tdep->y_regnum = SPARC32_Y_REGNUM;
       tdep->fp_max_regnum = SPARC_FP0_REGNUM + 32;
       tdep->intreg_size = 4;
@@ -3499,12 +3479,11 @@ sparc_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
       set_gdbarch_read_sp (gdbarch, sparc64_read_sp);
       /* Some of the registers aren't 64 bits, but it's a lot simpler just
 	 to assume they all are (since most of them are).  */
-      set_gdbarch_register_byte (gdbarch, sparc64_register_byte);
-      set_gdbarch_register_raw_size (gdbarch, sparc64_register_size);
+      set_gdbarch_deprecated_register_byte (gdbarch, sparc64_register_byte);
+      set_gdbarch_deprecated_register_raw_size (gdbarch, sparc64_register_size);
       set_gdbarch_deprecated_register_size (gdbarch, 8);
-      set_gdbarch_register_virtual_size (gdbarch, sparc64_register_size);
-      set_gdbarch_register_virtual_type (gdbarch, 
-					 sparc64_register_virtual_type);
+      set_gdbarch_deprecated_register_virtual_size (gdbarch, sparc64_register_size);
+      set_gdbarch_deprecated_register_virtual_type (gdbarch, sparc64_register_virtual_type);
 #ifdef SPARC64_CALL_DUMMY_ON_STACK
       set_gdbarch_deprecated_sizeof_call_dummy_words (gdbarch, sizeof (call_dummy_64));
 #else

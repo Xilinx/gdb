@@ -32,13 +32,9 @@ struct gdbarch_info;
 extern int gdbarch_debug;
 
 /* Fallback for register convertible. */
-extern gdbarch_register_convertible_ftype generic_register_convertible_not;
+extern gdbarch_deprecated_register_convertible_ftype deprecated_register_convertible_not;
 
 extern CORE_ADDR generic_cannot_extract_struct_value_address (char *dummy);
-
-/* Helper function for targets that don't know how my arguments are
-   being passed */
-extern gdbarch_frame_num_args_ftype frame_num_args_unknown;
 
 /* Implementation of extract return value that grubs around in the
    register cache.  */
@@ -84,15 +80,6 @@ extern int core_addr_greaterthan (CORE_ADDR lhs, CORE_ADDR rhs);
 /* Floating point values. */
 extern const struct floatformat *default_float_format (struct gdbarch *gdbarch);
 extern const struct floatformat *default_double_format (struct gdbarch *gdbarch);
-
-/* Helper function for targets that don't know how my arguments are
-   being passed */
-extern int frame_num_args_unknown (struct frame_info *fi);
-
-/* Return the start address of ABFD.  This is exactly like
-   bfd_get_start_address, except that it's a gdbarch function.  */
-extern CORE_ADDR generic_bfd_entry_point (struct gdbarch *gdbarch, bfd *abfd);
-
 
 /* The following DEPRECATED interfaces are for pre- multi-arch legacy
    targets. */

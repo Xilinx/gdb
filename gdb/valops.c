@@ -35,6 +35,8 @@
 #include "cp-abi.h"
 #include "block.h"
 #include "infcall.h"
+#include "dictionary.h"
+#include "cp-support.h"
 
 #include <errno.h>
 #include "gdb_string.h"
@@ -605,10 +607,7 @@ value_assign (struct value *toval, struct value *fromval)
 	  }
 	else
 	  {
-	    for (frame = get_current_frame ();
-		 frame && get_frame_base (frame) != VALUE_FRAME (toval);
-		 frame = get_prev_frame (frame))
-	      ;
+	    frame = frame_find_by_id (VALUE_FRAME_ID (toval));
 	    value_reg = VALUE_FRAME_REGNUM (toval);
 	  }
 
@@ -2478,7 +2477,6 @@ value_of_local (const char *name, int complain)
 {
   struct symbol *func, *sym;
   struct block *b;
-  int i;
   struct value * ret;
 
   if (deprecated_selected_frame == 0)
@@ -2499,8 +2497,7 @@ value_of_local (const char *name, int complain)
     }
 
   b = SYMBOL_BLOCK_VALUE (func);
-  i = BLOCK_NSYMS (b);
-  if (i <= 0)
+  if (dict_empty (BLOCK_DICT (b)))
     {
       if (complain)
 	error ("no args, no `%s'", name);

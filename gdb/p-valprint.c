@@ -222,13 +222,12 @@ pascal_val_print (struct type *type, char *valaddr, int embedded_offset,
 		  struct value *vt_val;
 		  struct symbol *wsym = (struct symbol *) NULL;
 		  struct type *wtype;
-		  struct symtab *s;
 		  struct block *block = (struct block *) NULL;
 		  int is_this_fld;
 
 		  if (msymbol != NULL)
 		    wsym = lookup_symbol (DEPRECATED_SYMBOL_NAME (msymbol), block,
-					  VAR_DOMAIN, &is_this_fld, &s);
+					  VAR_DOMAIN, &is_this_fld, NULL);
 
 		  if (wsym)
 		    {
@@ -1098,6 +1097,7 @@ pascal_object_print_class_member (char *valaddr, struct type *domain,
     fprintf_filtered (stream, "%ld", (long int) (val >> 3));
 }
 
+extern initialize_file_ftype _initialize_pascal_valprint; /* -Wmissing-prototypes */
 
 void
 _initialize_pascal_valprint (void)

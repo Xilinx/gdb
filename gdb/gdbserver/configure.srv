@@ -23,7 +23,7 @@ case "${target}" in
 			srv_linux_usrregs=yes
 			srv_linux_thread_db=yes
 			;;
-  i[3456]86-*-linux*)	srv_regobj=reg-i386-linux.o
+  i[34567]86-*-linux*)	srv_regobj=reg-i386-linux.o
 			srv_tgtobj="linux-low.o linux-i386-low.o i387-fp.o"
 			srv_linux_usrregs=yes
 			srv_linux_regsets=yes
@@ -42,13 +42,8 @@ case "${target}" in
 			srv_linux_usrregs=yes
 			srv_linux_thread_db=yes
 			;;
-  powerpc-*-linux*)	srv_regobj=reg-ppc.o
+  powerpc*-*-linux*)	srv_regobj=reg-ppc.o
 			srv_tgtobj="linux-low.o linux-ppc-low.o"
-			srv_linux_usrregs=yes
-			srv_linux_thread_db=yes
-			;;
-  powerpc64-*-linux*)	srv_regobj=reg-ppc64.o
-			srv_tgtobj="linux-low.o linux-ppc64-low.o"
 			srv_linux_usrregs=yes
 			srv_linux_thread_db=yes
 			;;

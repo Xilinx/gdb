@@ -847,13 +847,13 @@ m68k_get_longjmp_target (CORE_ADDR *pc)
 			  buf, TARGET_PTR_BIT / TARGET_CHAR_BIT))
     return 0;
 
-  jb_addr = extract_address (buf, TARGET_PTR_BIT / TARGET_CHAR_BIT);
+  jb_addr = extract_unsigned_integer (buf, TARGET_PTR_BIT / TARGET_CHAR_BIT);
 
   if (target_read_memory (jb_addr + tdep->jb_pc * tdep->jb_elt_size, buf,
 			  TARGET_PTR_BIT / TARGET_CHAR_BIT))
     return 0;
 
-  *pc = extract_address (buf, TARGET_PTR_BIT / TARGET_CHAR_BIT);
+  *pc = extract_unsigned_integer (buf, TARGET_PTR_BIT / TARGET_CHAR_BIT);
   return 1;
 }
 
@@ -929,18 +929,16 @@ m68k_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_deprecated_frame_init_saved_regs (gdbarch, m68k_frame_init_saved_regs);
   set_gdbarch_frameless_function_invocation (gdbarch,
 					     m68k_frameless_function_invocation);
-  /* OK to default this value to 'unknown'. */
-  set_gdbarch_frame_num_args (gdbarch, frame_num_args_unknown);
   set_gdbarch_frame_args_skip (gdbarch, 8);
 
-  set_gdbarch_register_raw_size (gdbarch, m68k_register_raw_size);
-  set_gdbarch_register_virtual_size (gdbarch, m68k_register_virtual_size);
+  set_gdbarch_deprecated_register_raw_size (gdbarch, m68k_register_raw_size);
+  set_gdbarch_deprecated_register_virtual_size (gdbarch, m68k_register_virtual_size);
   set_gdbarch_deprecated_max_register_raw_size (gdbarch, 12);
   set_gdbarch_deprecated_max_register_virtual_size (gdbarch, 12);
-  set_gdbarch_register_virtual_type (gdbarch, m68k_register_virtual_type);
+  set_gdbarch_deprecated_register_virtual_type (gdbarch, m68k_register_virtual_type);
   set_gdbarch_register_name (gdbarch, m68k_register_name);
   set_gdbarch_deprecated_register_size (gdbarch, 4);
-  set_gdbarch_register_byte (gdbarch, m68k_register_byte);
+  set_gdbarch_deprecated_register_byte (gdbarch, m68k_register_byte);
   set_gdbarch_num_regs (gdbarch, 29);
   set_gdbarch_register_bytes_ok (gdbarch, m68k_register_bytes_ok);
   set_gdbarch_deprecated_register_bytes (gdbarch, (16 * 4 + 8 + 8 * 12 + 3 * 4));
@@ -964,7 +962,10 @@ m68k_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_deprecated_pop_frame (gdbarch, m68k_pop_frame);
 
   /* Should be using push_dummy_call.  */
-  set_gdbarch_deprecated_dummy_write_sp (gdbarch, generic_target_write_sp);
+  set_gdbarch_deprecated_dummy_write_sp (gdbarch, deprecated_write_sp);
+
+  /* Disassembler.  */
+  set_gdbarch_print_insn (gdbarch, print_insn_m68k);
 
 #if defined JB_PC && defined JB_ELEMENT_SIZE
   tdep->jb_pc = JB_PC;
@@ -995,9 +996,10 @@ m68k_dump_tdep (struct gdbarch *current_gdbarch, struct ui_file *file)
     return;
 }
 
+extern initialize_file_ftype _initialize_m68k_tdep; /* -Wmissing-prototypes */
+
 void
 _initialize_m68k_tdep (void)
 {
   gdbarch_register (bfd_arch_m68k, m68k_gdbarch_init, m68k_dump_tdep);
-  deprecated_tm_print_insn = print_insn_m68k;
 }
