@@ -11,7 +11,7 @@ INSTALL_ROOT	=
 
 BUILD_DIR	= ../../build
 
-TARGET		= Wish
+TARGET		= Tcl
 
 DEVBUILDSTYLE	= Development
 DEPBUILDSTYLE	= Deployment
@@ -35,7 +35,7 @@ install: install-develop install-deploy
 
 embedded: embedded-develop embedded-deploy
 
-install-embedded: install-embedded-develop install-embedded-deploy cleanup-embedded
+install-embedded: install-embedded-develop install-embedded-deploy
 
 clean: clean-develop clean-deploy
 
@@ -70,17 +70,5 @@ clean-develop:
 
 clean-deploy:
 	${DEPBUILD} clean
-
-################################################################################
-
-cleanup-embedded:
-	@( \
-	cd ${INSTALL_ROOT}; \
-	rm -f Frameworks; \
-	rm -rf @executable_path; \
-	rm -rf Library/Frameworks/Tcl.framework; \
-	rm -rf Library/Frameworks/Tk.framework; \
-	if [ -d Library/Frameworks ]; then rmdir -p Library/Frameworks; fi; \
-	)
 
 ################################################################################
