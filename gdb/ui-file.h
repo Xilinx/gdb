@@ -1,11 +1,11 @@
 /* UI_FILE - a generic STDIO like output stream.
-   Copyright (C) 1999, 2000, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
+   the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
@@ -14,7 +14,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #ifndef UI_FILE_H
 #define UI_FILE_H
@@ -38,9 +40,6 @@ extern void set_ui_file_write (struct ui_file *stream, ui_file_write_ftype *fput
 
 typedef void (ui_file_fputs_ftype) (const char *, struct ui_file * stream);
 extern void set_ui_file_fputs (struct ui_file *stream, ui_file_fputs_ftype * fputs);
-
-typedef long (ui_file_read_ftype) (struct ui_file * stream, char *buf, long length_buf);
-extern void set_ui_file_read (struct ui_file *stream, ui_file_read_ftype *fread);
 
 typedef int (ui_file_isatty_ftype) (struct ui_file * stream);
 extern void set_ui_file_isatty (struct ui_file *stream, ui_file_isatty_ftype * isatty);
@@ -79,8 +78,6 @@ extern char *ui_file_xstrdup (struct ui_file *file, long *length);
 
 
 
-extern long ui_file_read (struct ui_file *file, char *buf, long length_buf);
-
 /* Create/open a memory based file. Can be used as a scratch buffer
    for collecting output. */
 extern struct ui_file *mem_fileopen (void);
@@ -93,11 +90,4 @@ extern struct ui_file *stdio_fileopen (FILE *file);
 /* Open NAME returning an STDIO based UI_FILE. */
 extern struct ui_file *gdb_fopen (char *name, char *mode);
 
-/* Create a file which writes to both ONE and TWO.  CLOSE_ONE
-   and CLOSE_TWO indicate whether the original files should be
-   closed when the new file is closed.  */
-struct ui_file *tee_file_new (struct ui_file *one,
-			      int close_one,
-			      struct ui_file *two,
-			      int close_two);
 #endif
