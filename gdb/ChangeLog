@@ -1,3 +1,8 @@
+2004-02-28  Andrew Cagney  <cagney@redhat.com>
+
+	GDB 6.1 branch created.
+	* version.in: Bump to version 6.0.90_0000-00-00-cvs.
+
 2004-02-28  Mark Kettenis  <kettenis@gnu.org>
 
 	* amd64-nat.c: Include "gdb_string.h".
