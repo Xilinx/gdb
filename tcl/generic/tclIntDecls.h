@@ -285,14 +285,8 @@ EXTERN void		TclResetShadowedCmdRefs _ANSI_ARGS_((
 EXTERN int		TclServiceIdle _ANSI_ARGS_((void));
 /* Slot 99 is reserved */
 /* Slot 100 is reserved */
-#if !defined(__WIN32__) && !defined(MAC_TCL) /* UNIX */
 /* 101 */
 EXTERN char *		TclSetPreInitScript _ANSI_ARGS_((char * string));
-#endif /* UNIX */
-#ifdef __WIN32__
-/* 101 */
-EXTERN char *		TclSetPreInitScript _ANSI_ARGS_((char * string));
-#endif /* __WIN32__ */
 /* 102 */
 EXTERN void		TclSetupEnv _ANSI_ARGS_((Tcl_Interp * interp));
 /* 103 */
@@ -624,15 +618,7 @@ typedef struct TclIntStubs {
     int (*tclServiceIdle) _ANSI_ARGS_((void)); /* 98 */
     void *reserved99;
     void *reserved100;
-#if !defined(__WIN32__) && !defined(MAC_TCL) /* UNIX */
     char * (*tclSetPreInitScript) _ANSI_ARGS_((char * string)); /* 101 */
-#endif /* UNIX */
-#ifdef __WIN32__
-    char * (*tclSetPreInitScript) _ANSI_ARGS_((char * string)); /* 101 */
-#endif /* __WIN32__ */
-#ifdef MAC_TCL
-    void *reserved101;
-#endif /* MAC_TCL */
     void (*tclSetupEnv) _ANSI_ARGS_((Tcl_Interp * interp)); /* 102 */
     int (*tclSockGetPort) _ANSI_ARGS_((Tcl_Interp * interp, char * str, char * proto, int * portPtr)); /* 103 */
 #if !defined(__WIN32__) && !defined(MAC_TCL) /* UNIX */
@@ -1045,18 +1031,10 @@ extern TclIntStubs *tclIntStubsPtr;
 #endif
 /* Slot 99 is reserved */
 /* Slot 100 is reserved */
-#if !defined(__WIN32__) && !defined(MAC_TCL) /* UNIX */
 #ifndef TclSetPreInitScript
 #define TclSetPreInitScript \
 	(tclIntStubsPtr->tclSetPreInitScript) /* 101 */
 #endif
-#endif /* UNIX */
-#ifdef __WIN32__
-#ifndef TclSetPreInitScript
-#define TclSetPreInitScript \
-	(tclIntStubsPtr->tclSetPreInitScript) /* 101 */
-#endif
-#endif /* __WIN32__ */
 #ifndef TclSetupEnv
 #define TclSetupEnv \
 	(tclIntStubsPtr->tclSetupEnv) /* 102 */
