@@ -8,7 +8,7 @@
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 2, or
+   as published by the Free Software Foundation; either version 1, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -19,7 +19,7 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
+   675 Mass Ave, Cambridge, MA 02139, USA. */
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
@@ -47,8 +47,7 @@
 #include "readline.h"
 #include "history.h"
 
-#include "rlprivate.h"
-#include "xmalloc.h"
+#define SWAP(s, e)  do { int t; t = s; s = e; e = t; } while (0)
 
 /* Non-zero tells rl_delete_text and rl_insert_text to not add to
    the undo list. */
@@ -85,7 +84,7 @@ rl_add_undo (what, start, end, text)
 
 /* Free the existing undo list. */
 void
-rl_free_undo_list ()
+free_undo_list ()
 {
   while (rl_undo_list)
     {
@@ -106,18 +105,17 @@ int
 rl_do_undo ()
 {
   UNDO_LIST *release;
-  int waiting_for_begin, start, end;
+  int waiting_for_begin = 0;
+  int start, end;
 
 #define TRANS(i) ((i) == -1 ? rl_point : ((i) == -2 ? rl_end : (i)))
 
-  start = end = waiting_for_begin = 0;
   do
     {
       if (!rl_undo_list)
 	return (0);
 
       _rl_doing_an_undo = 1;
-      RL_SETSTATE(RL_STATE_UNDOING);
 
       /* To better support vi-mode, a start or end value of -1 means
 	 rl_point, and a value of -2 means rl_end. */
@@ -152,12 +150,11 @@ rl_do_undo ()
 	  if (waiting_for_begin)
 	    waiting_for_begin--;
 	  else
-	    rl_ding ();
+	    ding ();
 	  break;
 	}
 
       _rl_doing_an_undo = 0;
-      RL_UNSETSTATE(RL_STATE_UNDOING);
 
       release = rl_undo_list;
       rl_undo_list = rl_undo_list->next;
@@ -232,17 +229,12 @@ rl_revert_line (count, key)
      int count, key;
 {
   if (!rl_undo_list)
-    rl_ding ();
+    ding ();
   else
     {
       while (rl_undo_list)
 	rl_do_undo ();
-#if defined (VI_MODE)
-      if (rl_editing_mode == vi_mode)
-	rl_point = rl_mark = 0;		/* rl_end should be set correctly */
-#endif
     }
-    
   return 0;
 }
 
@@ -260,7 +252,7 @@ rl_undo_command (count, key)
 	count--;
       else
 	{
-	  rl_ding ();
+	  ding ();
 	  break;
 	}
     }

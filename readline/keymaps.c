@@ -7,7 +7,7 @@
 
    Readline is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by the
-   Free Software Foundation; either version 2, or (at your option) any
+   Free Software Foundation; either version 1, or (at your option) any
    later version.
 
    Readline is distributed in the hope that it will be useful, but
@@ -17,7 +17,7 @@
 
    You should have received a copy of the GNU General Public License
    along with Readline; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place, Suite 330, Boston, MA 02111 USA. */
+   Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
@@ -30,18 +30,18 @@
 #  include "ansi_stdlib.h"
 #endif /* HAVE_STDLIB_H */
 
-#include <stdio.h>	/* for FILE * definition for readline.h */
-
-#include "readline.h"
 #include "rlconf.h"
-
+#include "keymaps.h"
 #include "emacs_keymap.c"
 
 #if defined (VI_MODE)
 #include "vi_keymap.c"
 #endif
 
-#include "xmalloc.h"
+extern int rl_do_lowercase_version ();
+extern int rl_rubout (), rl_insert ();
+
+extern char *xmalloc (), *xrealloc ();
 
 /* **************************************************************** */
 /*								    */
@@ -61,16 +61,14 @@ rl_make_bare_keymap ()
   for (i = 0; i < KEYMAP_SIZE; i++)
     {
       keymap[i].type = ISFUNC;
-      keymap[i].function = (rl_command_func_t *)NULL;
+      keymap[i].function = (Function *)NULL;
     }
 
-#if 0
   for (i = 'A'; i < ('Z' + 1); i++)
     {
       keymap[i].type = ISFUNC;
       keymap[i].function = rl_do_lowercase_version;
     }
-#endif
 
   return (keymap);
 }
@@ -81,9 +79,8 @@ rl_copy_keymap (map)
      Keymap map;
 {
   register int i;
-  Keymap temp;
+  Keymap temp = rl_make_bare_keymap ();
 
-  temp = rl_make_bare_keymap ();
   for (i = 0; i < KEYMAP_SIZE; i++)
     {
       temp[i].type = map[i].type;
@@ -112,8 +109,12 @@ rl_make_keymap ()
   newmap[CTRL('H')].function = rl_rubout;
 
 #if KEYMAP_SIZE > 128
-  /* Printing characters in ISO Latin-1 and some 8-bit character sets. */
-  for (i = 128; i < 256; i++)
+  /* Printing characters in some 8-bit character sets. */
+  for (i = 128; i < 160; i++)
+    newmap[i].function = rl_insert;
+
+  /* ISO Latin-1 printing characters should self-insert. */
+  for (i = 160; i < 256; i++)
     newmap[i].function = rl_insert;
 #endif /* KEYMAP_SIZE > 128 */
 
@@ -123,7 +124,7 @@ rl_make_keymap ()
 /* Free the storage associated with MAP. */
 void
 rl_discard_keymap (map)
-     Keymap map;
+     Keymap (map);
 {
   int i;
 

@@ -7,7 +7,7 @@
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 2, or
+   as published by the Free Software Foundation; either version 1, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -18,7 +18,7 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
+   675 Mass Ave, Cambridge, MA 02139, USA. */
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
@@ -26,8 +26,6 @@
 #endif
 
 #include <sys/types.h>
-
-#include <stdio.h>
 
 #if defined (HAVE_UNISTD_H)
 #  include <unistd.h>
@@ -46,9 +44,13 @@
 #include <ctype.h>
 
 #include "rldefs.h"
-#include "readline.h"
-#include "rlshell.h"
-#include "rlprivate.h"
+
+extern int _rl_convert_meta_chars_to_ascii;
+extern int _rl_output_meta_chars;
+extern int _rl_meta_flag;
+
+/* Functions imported from shell.c */
+extern char *get_env_value ();
 
 #if !defined (HAVE_SETLOCALE)    
 /* A list of legal values for the LANG or LC_CTYPE environment variables.
@@ -68,30 +70,14 @@ static char *legal_lang_values[] =
  "iso88599",
  "iso885910",
  "koi8r",
+ "koi8-r", 
   0
 };
 
-static char *normalize_codeset PARAMS((char *));
-static char *find_codeset PARAMS((char *, size_t *));
+static char *normalize_codeset ();
+static char *find_codeset ();
 #endif /* !HAVE_SETLOCALE */
 
-static char *_rl_get_locale_var PARAMS((const char *));
-
-static char *
-_rl_get_locale_var (v)
-     const char *v;
-{
-  char *lspec;
-
-  lspec = sh_get_env_value ("LC_ALL");
-  if (lspec == 0 || *lspec == 0)
-    lspec = sh_get_env_value (v);
-  if (lspec == 0 || *lspec == 0)
-    lspec = sh_get_env_value ("LANG");
-
-  return lspec;
-}
-  
 /* Check for LC_ALL, LC_CTYPE, and LANG and use the first with a value
    to decide the defaults for 8-bit character input and output.  Returns
    1 if we set eight-bit mode. */
@@ -101,21 +87,10 @@ _rl_init_eightbit ()
 /* If we have setlocale(3), just check the current LC_CTYPE category
    value, and go into eight-bit mode if it's not C or POSIX. */
 #if defined (HAVE_SETLOCALE)
-  char *lspec, *t;
+  char *t;
 
   /* Set the LC_CTYPE locale category from environment variables. */
-  lspec = _rl_get_locale_var ("LC_CTYPE");
-  /* Since _rl_get_locale_var queries the right environment variables,
-     we query the current locale settings with setlocale(), and, if
-     that doesn't return anything, we set lspec to the empty string to
-     force the subsequent call to setlocale() to define the `native'
-     environment. */
-  if (lspec == 0 || *lspec == 0)
-    lspec = setlocale (LC_CTYPE, (char *)NULL);
-  if (lspec == 0)
-    lspec = "";
-  t = setlocale (LC_CTYPE, lspec);
-
+  t = setlocale (LC_CTYPE, "");
   if (t && *t && (t[0] != 'C' || t[1]) && (STREQ (t, "POSIX") == 0))
     {
       _rl_meta_flag = 1;
@@ -133,8 +108,9 @@ _rl_init_eightbit ()
   /* We don't have setlocale.  Finesse it.  Check the environment for the
      appropriate variables and set eight-bit mode if they have the right
      values. */
-  lspec = _rl_get_locale_var ("LC_CTYPE");
-
+  lspec = get_env_value ("LC_ALL");
+  if (lspec == 0) lspec = get_env_value ("LC_CTYPE");
+  if (lspec == 0) lspec = get_env_value ("LANG");
   if (lspec == 0 || (t = normalize_codeset (lspec)) == 0)
     return (0);
   for (i = 0; t && legal_lang_values[i]; i++)
@@ -168,10 +144,10 @@ normalize_codeset (codeset)
   all_digits = 1;
   for (len = 0, i = 0; i < namelen; i++)
     {
-      if (ISALNUM ((unsigned char)codeset[i]))
+      if (isalnum (codeset[i]))
 	{
 	  len++;
-	  all_digits &= _rl_digit_p (codeset[i]);
+	  all_digits &= isdigit (codeset[i]);
 	}
     }
 
@@ -189,9 +165,9 @@ normalize_codeset (codeset)
     }
 
   for (i = 0; i < namelen; i++)
-    if (ISALPHA ((unsigned char)codeset[i]))
-      *wp++ = _rl_to_lower (codeset[i]);
-    else if (_rl_digit_p (codeset[i]))
+    if (isalpha (codeset[i]))
+      *wp++ = (isupper (codeset[i])) ? tolower (codeset[i]) : codeset[i];
+    else if (isdigit (codeset[i]))
       *wp++ = codeset[i];
   *wp = '\0';
 

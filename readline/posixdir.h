@@ -6,7 +6,7 @@
 
    Bash is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
+   the Free Software Foundation; either version 1, or (at your option)
    any later version.
 
    Bash is distributed in the hope that it will be useful, but WITHOUT
@@ -16,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with Bash; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place, Suite 330, Boston, MA 02111 USA. */
+   Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 /* This file should be included instead of <dirent.h> or <sys/dir.h>. */
 
@@ -25,11 +25,7 @@
 
 #if defined (HAVE_DIRENT_H)
 #  include <dirent.h>
-#  if defined (HAVE_STRUCT_DIRENT_D_NAMLEN)
-#    define D_NAMLEN(d)	((d)->d_namlen)
-#  else
-#    define D_NAMLEN(d)   (strlen ((d)->d_name))
-#  endif /* !HAVE_STRUCT_DIRENT_D_NAMLEN */
+#  define D_NAMLEN(d)   (strlen ((d)->d_name))
 #else
 #  if defined (HAVE_SYS_NDIR_H)
 #    include <sys/ndir.h>
@@ -46,16 +42,8 @@
 #  define D_NAMLEN(d)   ((d)->d_namlen)
 #endif /* !HAVE_DIRENT_H */
 
-#if defined (HAVE_STRUCT_DIRENT_D_INO) && !defined (HAVE_STRUCT_DIRENT_D_FILENO)
+#if defined (STRUCT_DIRENT_HAS_D_INO) && !defined (STRUCT_DIRENT_HAS_D_FILENO)
 #  define d_fileno d_ino
 #endif
-
-#if defined (_POSIX_SOURCE) && (!defined (HAVE_STRUCT_DIRENT_D_INO) || defined (BROKEN_DIRENT_D_INO))
-/* Posix does not require that the d_ino field be present, and some
-   systems do not provide it. */
-#  define REAL_DIR_ENTRY(dp) 1
-#else
-#  define REAL_DIR_ENTRY(dp) (dp->d_ino != 0)
-#endif /* _POSIX_SOURCE */
 
 #endif /* !_POSIXDIR_H_ */

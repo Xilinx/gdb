@@ -1,66 +1,59 @@
-/* config.h.in.  Maintained by hand. */
+/* config.h.in.  Generated automatically from configure.in by autoheader.  */
 
-/* Define NO_MULTIBYTE_SUPPORT to not compile in support for multibyte
-   characters, even if the OS supports them. */
-#undef NO_MULTIBYTE_SUPPORT
+/* Define if you have the strcoll function and it is properly defined.  */
+#undef HAVE_STRCOLL
 
 /* Define if on MINIX.  */
 #undef _MINIX
 
+/* Define if the system does not provide POSIX.1 features except
+   with this defined.  */
+#undef _POSIX_1_SOURCE
+
+/* Define if you need to in order for stat and other things to work.  */
+#undef _POSIX_SOURCE
+
 /* Define as the return type of signal handlers (int or void).  */
 #undef RETSIGTYPE
-
-#undef VOID_SIGHANDLER
-
-/* Characteristics of the compiler. */
-#undef const
-
-#undef size_t
-
-#undef ssize_t
-
-#undef PROTOTYPES
-
-#undef __CHAR_UNSIGNED__
 
 /* Define if the `S_IS*' macros in <sys/stat.h> do not work properly.  */
 #undef STAT_MACROS_BROKEN
 
-/* Define if you have the fcntl function. */
-#undef HAVE_FCNTL
+/* Definitions pulled in from aclocal.m4. */
+#undef VOID_SIGHANDLER
 
-/* Define if you have the getpwent function. */
-#undef HAVE_GETPWENT
+#undef TIOCSTAT_IN_SYS_IOCTL
 
-/* Define if you have the getpwnam function. */
-#undef HAVE_GETPWNAM
+#undef HAVE_GETPW_DECLS
 
-/* Define if you have the getpwuid function. */
-#undef HAVE_GETPWUID
+#undef FIONREAD_IN_SYS_IOCTL
 
-/* Define if you have the isascii function. */
-#undef HAVE_ISASCII
+#undef HAVE_BSD_SIGNALS
 
-/* Define if you have the isxdigit function. */
-#undef HAVE_ISXDIGIT
-
-/* Define if you have the kill function. */
-#undef HAVE_KILL
-
-/* Define if you have the lstat function. */
 #undef HAVE_LSTAT
 
-/* Define if you have the mbrlen function. */
-#undef HAVE_MBRLEN
+#undef HAVE_POSIX_SIGNALS
 
-/* Define if you have the mbrtowc function. */
-#undef HAVE_MBRTOWC
+#undef HAVE_POSIX_SIGSETJMP
 
-/* Define if you have the mbsrtowcs function. */
-#undef HAVE_MBSRTOWCS
+#undef HAVE_USG_SIGHOLD
 
-/* Define if you have the memmove function. */
-#undef HAVE_MEMMOVE
+#undef MUST_REINSTALL_SIGHANDLERS
+
+#undef SPEED_T_IN_SYS_TYPES
+
+#undef STRCOLL_BROKEN
+
+#undef STRUCT_DIRENT_HAS_D_FILENO
+
+#undef STRUCT_DIRENT_HAS_D_INO
+
+#undef STRUCT_WINSIZE_IN_SYS_IOCTL
+
+#undef STRUCT_WINSIZE_IN_TERMIOS
+
+/* Define if you have the lstat function.  */
+#undef HAVE_LSTAT
 
 /* Define if you have the putenv function.  */
 #undef HAVE_PUTENV
@@ -71,57 +64,23 @@
 /* Define if you have the setenv function.  */
 #undef HAVE_SETENV
 
-/* Define if you have the setlocale function. */
+/* Define if you have the setlocale function.  */
 #undef HAVE_SETLOCALE
 
 /* Define if you have the strcasecmp function.  */
 #undef HAVE_STRCASECMP
 
-/* Define if you have the strcoll function.  */
-#undef HAVE_STRCOLL
-
-#undef STRCOLL_BROKEN
-
-/* Define if you have the strpbrk function.  */
-#undef HAVE_STRPBRK
-
 /* Define if you have the tcgetattr function.  */
 #undef HAVE_TCGETATTR
-
-/* Define if you have the vsnprintf function.  */
-#undef HAVE_VSNPRINTF
-
-/* Define if you have the wctomb function.  */
-#undef HAVE_WCTOMB 
-
-/* Define if you have the wcwidth function.  */
-#undef HAVE_WCWIDTH
-
-#undef STDC_HEADERS
 
 /* Define if you have the <dirent.h> header file.  */
 #undef HAVE_DIRENT_H
 
-/* Define if you have the <fcntl.h> header file.  */
-#undef HAVE_FCNTL_H
-
-/* Define if you have the <langinfo.h> header file.  */
-#undef HAVE_LANGINFO_H
-
-/* Define if you have the <limits.h> header file.  */
-#undef HAVE_LIMITS_H
-
 /* Define if you have the <locale.h> header file.  */
 #undef HAVE_LOCALE_H
 
-/* Define if you have the <memory.h> header file.  */
-#undef HAVE_MEMORY_H
-
 /* Define if you have the <ndir.h> header file.  */
 #undef HAVE_NDIR_H
-
-/* Define if you have the <pwd.h> header file.  */
-#undef HAVE_PWD_H
 
 /* Define if you have the <stdarg.h> header file.  */
 #undef HAVE_STDARG_H
@@ -131,9 +90,6 @@
 
 /* Define if you have the <string.h> header file.  */
 #undef HAVE_STRING_H
-
-/* Define if you have the <strings.h> header file.  */
-#undef HAVE_STRINGS_H
 
 /* Define if you have the <sys/dir.h> header file.  */
 #undef HAVE_SYS_DIR_H
@@ -170,51 +126,7 @@
 
 /* Define if you have the <varargs.h> header file.  */
 #undef HAVE_VARARGS_H
-
-/* Define if you have the <wchar.h> header file.  */
-#undef HAVE_WCHAR_H
-
-/* Define if you have the <varargs.h> header file.  */
-#undef HAVE_WCTYPE_H
-
-#undef HAVE_MBSTATE_T
-
-/* Define if you have <langinfo.h> and nl_langinfo(CODESET). */
-#undef HAVE_LANGINFO_CODESET
-
-/* Definitions pulled in from aclocal.m4. */
-#undef VOID_SIGHANDLER
-
-#undef GWINSZ_IN_SYS_IOCTL
-
-#undef STRUCT_WINSIZE_IN_SYS_IOCTL
-
-#undef STRUCT_WINSIZE_IN_TERMIOS
-
-#undef TIOCSTAT_IN_SYS_IOCTL
-
-#undef FIONREAD_IN_SYS_IOCTL
-
-#undef SPEED_T_IN_SYS_TYPES
-
-#undef HAVE_GETPW_DECLS
-
-#undef STRUCT_DIRENT_HAS_D_INO
-
-#undef STRUCT_DIRENT_HAS_D_FILENO
-
-#undef HAVE_BSD_SIGNALS
-
-#undef HAVE_POSIX_SIGNALS
-
-#undef HAVE_USG_SIGHOLD
-
-#undef MUST_REINSTALL_SIGHANDLERS
-
-#undef HAVE_POSIX_SIGSETJMP
-
-#undef CTYPE_NON_ASCII
-
+/* config.h.bot */
 /* modify settings or make new ones based on what autoconf tells us. */
 
 /* Ultrix botches type-ahead when switching from canonical to

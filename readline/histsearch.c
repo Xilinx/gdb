@@ -7,7 +7,7 @@
 
    The Library is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
+   the Free Software Foundation; either version 1, or (at your option)
    any later version.
 
    The Library is distributed in the hope that it will be useful, but
@@ -18,7 +18,7 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
+   675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #define READLINE_LIBRARY
 
@@ -32,22 +32,27 @@
 #else
 #  include "ansi_stdlib.h"
 #endif /* HAVE_STDLIB_H */
-
 #if defined (HAVE_UNISTD_H)
 #  ifdef _MINIX
 #    include <sys/types.h>
 #  endif
 #  include <unistd.h>
 #endif
+#if defined (HAVE_STRING_H)
+#  include <string.h>
+#else
+#  include <strings.h>
+#endif /* !HAVE_STRING_H */
 
 #include "history.h"
 #include "histlib.h"
 
+/* Variables imported from other history library files. */
+extern int history_offset;
+
 /* The list of alternate characters that can delimit a history search
    string. */
 char *history_search_delimiter_chars = (char *)NULL;
-
-static int history_search_internal PARAMS((const char *, int, int));
 
 /* Search the history for STRING, starting at history_offset.
    If DIRECTION < 0, then the search is through previous entries, else
@@ -61,7 +66,7 @@ static int history_search_internal PARAMS((const char *, int, int));
 
 static int
 history_search_internal (string, direction, anchored)
-     const char *string;
+     char *string;
      int direction, anchored;
 {
   register int i, reverse;
@@ -77,11 +82,11 @@ history_search_internal (string, direction, anchored)
   if (string == 0 || *string == '\0')
     return (-1);
 
-  if (!history_length || ((i >= history_length) && !reverse))
+  if (!history_length || ((i == history_length) && !reverse))
     return (-1);
 
-  if (reverse && (i >= history_length))
-    i = history_length - 1;
+  if (reverse && (i == history_length))
+    i--;
 
 #define NEXT_LINE() do { if (reverse) i--; else i++; } while (0)
 
@@ -157,7 +162,7 @@ history_search_internal (string, direction, anchored)
 /* Do a non-anchored search for STRING through the history in DIRECTION. */
 int
 history_search (string, direction)
-     const char *string;
+     char *string;
      int direction;
 {
   return (history_search_internal (string, direction, NON_ANCHORED_SEARCH));
@@ -166,7 +171,7 @@ history_search (string, direction)
 /* Do an anchored search for string through the history in DIRECTION. */
 int
 history_search_prefix (string, direction)
-     const char *string;
+     char *string;
      int direction;
 {
   return (history_search_internal (string, direction, ANCHORED_SEARCH));
@@ -177,7 +182,7 @@ history_search_prefix (string, direction)
    which point to begin searching. */
 int
 history_search_pos (string, dir, pos)
-     const char *string;
+     char *string;
      int dir, pos;
 {
   int ret, old;

@@ -7,7 +7,7 @@
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 2, or
+   as published by the Free Software Foundation; either version 1, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -18,23 +18,23 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
+   675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifndef _KEYMAPS_H_
 #define _KEYMAPS_H_
 
-#ifdef __cplusplus
-extern "C" {
+#if defined (READLINE_LIBRARY)
+#  include "chardefs.h"
+#else
+#  include <readline/chardefs.h>
 #endif
 
-#if defined (READLINE_LIBRARY)
-#  include "rlstdc.h"
-#  include "chardefs.h"
-#  include "rltypedefs.h"
-#else
-#  include <readline/rlstdc.h>
-#  include <readline/chardefs.h>
-#  include <readline/rltypedefs.h>
+#if !defined (_FUNCTION_DEF)
+#  define _FUNCTION_DEF
+typedef int Function ();
+typedef void VFunction ();
+typedef char *CPFunction ();
+typedef char **CPPFunction ();
 #endif
 
 /* A keymap contains one entry for each key in the ASCII set.
@@ -44,17 +44,16 @@ extern "C" {
    TYPE says which kind of thing FUNCTION is. */
 typedef struct _keymap_entry {
   char type;
-  rl_command_func_t *function;
+  Function *function;
 } KEYMAP_ENTRY;
 
 /* This must be large enough to hold bindings for all of the characters
    in a desired character set (e.g, 128 for ASCII, 256 for ISO Latin-x,
-   and so on) plus one for subsequence matching. */
-#define KEYMAP_SIZE 257
-#define ANYOTHERKEY KEYMAP_SIZE-1
+   and so on). */
+#define KEYMAP_SIZE 256
 
 /* I wanted to make the above structure contain a union of:
-   union { rl_command_func_t *function; struct _keymap_entry *keymap; } value;
+   union { Function *function; struct _keymap_entry *keymap; } value;
    but this made it impossible for me to create a static array.
    Maybe I need C lessons. */
 
@@ -71,33 +70,26 @@ extern KEYMAP_ENTRY_ARRAY vi_insertion_keymap, vi_movement_keymap;
 
 /* Return a new, empty keymap.
    Free it with free() when you are done. */
-extern Keymap rl_make_bare_keymap PARAMS((void));
+extern Keymap rl_make_bare_keymap ();
 
 /* Return a new keymap which is a copy of MAP. */
-extern Keymap rl_copy_keymap PARAMS((Keymap));
+extern Keymap rl_copy_keymap ();
 
 /* Return a new keymap with the printing characters bound to rl_insert,
    the lowercase Meta characters bound to run their equivalents, and
    the Meta digits bound to produce numeric arguments. */
-extern Keymap rl_make_keymap PARAMS((void));
+extern Keymap rl_make_keymap ();
 
-/* Free the storage associated with a keymap. */
-extern void rl_discard_keymap PARAMS((Keymap));
-
-/* These functions actually appear in bind.c */
+extern void rl_discard_keymap ();
 
 /* Return the keymap corresponding to a given name.  Names look like
-   `emacs' or `emacs-meta' or `vi-insert'.  */
-extern Keymap rl_get_keymap_by_name PARAMS((const char *));
+   `emacs' or `emacs-meta' or `vi-insert'. */
+extern Keymap rl_get_keymap_by_name ();
 
 /* Return the current keymap. */
-extern Keymap rl_get_keymap PARAMS((void));
+extern Keymap rl_get_keymap ();
 
 /* Set the current keymap to MAP. */
-extern void rl_set_keymap PARAMS((Keymap));
-
-#ifdef __cplusplus
-}
-#endif
+extern void rl_set_keymap ();
 
 #endif /* _KEYMAPS_H_ */

@@ -1,13 +1,13 @@
 /* util.c -- readline utility functions */
 
-/* Copyright (C) 1987-2005 Free Software Foundation, Inc.
+/* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 2, or
+   as published by the Free Software Foundation; either version 1, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -18,7 +18,7 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
+   675 Mass Ave, Cambridge, MA 02139, USA. */
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
@@ -44,7 +44,6 @@
 
 /* System-specific feature definitions and include files. */
 #include "rldefs.h"
-#include "rlmbutil.h"
 
 #if defined (TIOCSTAT_IN_SYS_IOCTL)
 #  include <sys/ioctl.h>
@@ -53,8 +52,23 @@
 /* Some standard library routines. */
 #include "readline.h"
 
-#include "rlprivate.h"
-#include "xmalloc.h"
+#define SWAP(s, e)  do { int t; t = s; s = e; e = t; } while (0)
+
+/* Pseudo-globals imported from readline.c */
+extern int readline_echoing_p;
+extern procenv_t readline_top_level;
+extern int rl_line_buffer_len;
+extern Function *rl_last_func;
+
+extern int _rl_defining_kbd_macro;
+extern char *_rl_executing_macro;
+
+/* Pseudo-global functions imported from other library files. */
+extern void _rl_pop_executing_macro ();
+extern void _rl_set_the_line ();
+extern void _rl_init_argument ();
+
+extern char *xmalloc (), *xrealloc ();
 
 /* **************************************************************** */
 /*								    */
@@ -66,10 +80,10 @@
    in words, or 1 if it is. */
 
 int _rl_allow_pathname_alphabetic_chars = 0;
-static const char *pathname_alphabetic_chars = "/-_=~.#$";
+static char *pathname_alphabetic_chars = "/-_=~.#$";
 
 int
-rl_alphabetic (c)
+alphabetic (c)
      int c;
 {
   if (ALPHABETIC (c))
@@ -79,36 +93,20 @@ rl_alphabetic (c)
 	    strchr (pathname_alphabetic_chars, c) != NULL);
 }
 
-#if defined (HANDLE_MULTIBYTE)
-int
-_rl_walphabetic (wc)
-     wchar_t wc;
-{
-  int c;
-
-  if (iswalnum (wc))
-    return (1);     
-
-  c = wc & 0177;
-  return (_rl_allow_pathname_alphabetic_chars &&
-	    strchr (pathname_alphabetic_chars, c) != NULL);
-}
-#endif
-
 /* How to abort things. */
 int
 _rl_abort_internal ()
 {
-  rl_ding ();
+  ding ();
   rl_clear_message ();
-  _rl_reset_argument ();
-  rl_clear_pending_input ();
+  _rl_init_argument ();
+  rl_pending_input = 0;
 
-  RL_UNSETSTATE (RL_STATE_MACRODEF);
-  while (rl_executing_macro)
+  _rl_defining_kbd_macro = 0;
+  while (_rl_executing_macro)
     _rl_pop_executing_macro ();
 
-  rl_last_func = (rl_command_func_t *)NULL;
+  rl_last_func = (Function *)NULL;
   longjmp (readline_top_level, 1);
   return (0);
 }
@@ -126,9 +124,9 @@ rl_tty_status (count, key)
 {
 #if defined (TIOCSTAT)
   ioctl (1, TIOCSTAT, (char *)0);
-  rl_refresh_line (count, key);
+  rl_refresh_line ();
 #else
-  rl_ding ();
+  ding ();
 #endif
   return 0;
 }
@@ -147,7 +145,7 @@ rl_copy_text (from, to)
     SWAP (from, to);
 
   length = to - from;
-  copy = (char *)xmalloc (1 + length);
+  copy = xmalloc (1 + length);
   strncpy (copy, rl_line_buffer + from, length);
   copy[length] = '\0';
   return (copy);
@@ -162,7 +160,7 @@ rl_extend_line_buffer (len)
   while (len >= rl_line_buffer_len)
     {
       rl_line_buffer_len += DEFAULT_BUFFER_SIZE;
-      rl_line_buffer = (char *)xrealloc (rl_line_buffer, rl_line_buffer_len);
+      rl_line_buffer = xrealloc (rl_line_buffer, rl_line_buffer_len);
     }
 
   _rl_set_the_line ();
@@ -208,7 +206,7 @@ rl_tilde_expand (ignore, key)
   if (rl_line_buffer[start] == '~')
     {
       len = end - start + 1;
-      temp = (char *)xmalloc (len + 1);
+      temp = xmalloc (len + 1);
       strncpy (temp, rl_line_buffer + start, len);
       temp[len] = '\0';
       homedir = tilde_expand (temp);
@@ -230,50 +228,15 @@ rl_tilde_expand (ignore, key)
    match in s1.  The compare is case insensitive. */
 char *
 _rl_strindex (s1, s2)
-     register const char *s1, *s2;
+     register char *s1, *s2;
 {
   register int i, l, len;
 
   for (i = 0, l = strlen (s2), len = strlen (s1); (len - i) >= l; i++)
     if (_rl_strnicmp (s1 + i, s2, l) == 0)
-      return ((char *) (s1 + i));
+      return (s1 + i);
   return ((char *)NULL);
 }
-
-#ifndef HAVE_STRPBRK
-/* Find the first occurrence in STRING1 of any character from STRING2.
-   Return a pointer to the character in STRING1. */
-char *
-_rl_strpbrk (string1, string2)
-     const char *string1, *string2;
-{
-  register const char *scan;
-#if defined (HANDLE_MULTIBYTE)
-  mbstate_t ps;
-  register int i, v;
-
-  memset (&ps, 0, sizeof (mbstate_t));
-#endif
-
-  for (; *string1; string1++)
-    {
-      for (scan = string2; *scan; scan++)
-	{
-	  if (*string1 == *scan)
-	    return ((char *)string1);
-	}
-#if defined (HANDLE_MULTIBYTE)
-      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
-	{
-	  v = _rl_get_char_len (string1, &ps);
-	  if (v > 1)
-	    string1 += v - 1;	/* -1 to account for auto-increment in loop */
-	}
-#endif
-    }
-  return ((char *)NULL);
-}
-#endif
 
 #if !defined (HAVE_STRCASECMP)
 /* Compare at most COUNT characters from string1 to string2.  Case
@@ -333,23 +296,69 @@ _rl_qsort_string_compare (s1, s2)
 #endif
 }
 
-/* Function equivalents for the macros defined in chardefs.h. */
-#define FUNCTION_FOR_MACRO(f)	int (f) (c) int c; { return f (c); }
+/* Function equivalents for the macros defined in chartypes.h. */
+#undef _rl_uppercase_p
+int
+_rl_uppercase_p (c)
+     int c;
+{
+  return (isupper (c));
+}
 
-FUNCTION_FOR_MACRO (_rl_digit_p)
-FUNCTION_FOR_MACRO (_rl_digit_value)
-FUNCTION_FOR_MACRO (_rl_lowercase_p)
-FUNCTION_FOR_MACRO (_rl_pure_alphabetic)
-FUNCTION_FOR_MACRO (_rl_to_lower)
-FUNCTION_FOR_MACRO (_rl_to_upper)
-FUNCTION_FOR_MACRO (_rl_uppercase_p)
+#undef _rl_lowercase_p
+int
+_rl_lowercase_p (c)
+     int c;
+{
+  return (islower (c));
+}
+
+#undef _rl_pure_alphabetic
+int
+_rl_pure_alphabetic (c)
+     int c;
+{
+  return (isupper (c) || islower (c));
+}
+
+#undef _rl_digit_p
+int
+_rl_digit_p (c)
+     int c;
+{
+  return (isdigit (c));
+}
+
+#undef _rl_to_lower
+int
+_rl_to_lower (c)
+     int c;
+{
+  return (isupper (c) ? tolower (c) : c);
+}
+
+#undef _rl_to_upper
+int
+_rl_to_upper (c)
+     int c;
+{
+  return (islower (c) ? toupper (c) : c);
+}
+
+#undef _rl_digit_value
+int
+_rl_digit_value (c)
+     int c;
+{
+  return (isdigit (c) ? c - '0' : c);
+}
 
 /* Backwards compatibility, now that savestring has been removed from
    all `public' readline header files. */
 #undef _rl_savestring
 char *
 _rl_savestring (s)
-     const char *s;
+     char *s;
 {
-  return (strcpy ((char *)xmalloc (1 + (int)strlen (s)), (s)));
+  return ((char *)strcpy (xmalloc (1 + (int)strlen (s)), (s)));
 }

@@ -8,7 +8,7 @@
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 2, or
+   as published by the Free Software Foundation; either version 1, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -19,16 +19,17 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
+   675 Mass Ave, Cambridge, MA 02139, USA. */
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
 #  include <config.h>
 #endif
 
-#include <sys/types.h>
-
 #if defined (HAVE_UNISTD_H)
+#  ifdef _MINIX
+#    include <sys/types.h>
+#  endif
 #  include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 
@@ -44,59 +45,34 @@
 #  include <strings.h>
 #endif /* !HAVE_STRING_H */
 
-#if defined (HAVE_LIMITS_H)
-#  include <limits.h>
+extern char *xmalloc (), *xrealloc ();
+
+#if !defined (SHELL)
+
+#ifdef savestring
+#undef savestring
 #endif
 
-#if defined (HAVE_FCNTL_H)
-#include <fcntl.h>
+/* Backwards compatibility, now that savestring has been removed from
+   all `public' readline header files. */
+#if 0
+char *
+savestring (s)
+     char *s;
+{
+  return ((char *)strcpy (xmalloc (1 + (int)strlen (s)), (s)));
+}
 #endif
-#if defined (HAVE_PWD_H)
-#include <pwd.h>
-#endif
-
-#include <stdio.h>
-
-#include "rlstdc.h"
-#include "rlshell.h"
-#include "xmalloc.h"
-
-#if defined (HAVE_GETPWUID) && !defined (HAVE_GETPW_DECLS)
-extern struct passwd *getpwuid PARAMS((uid_t));
-#endif /* HAVE_GETPWUID && !HAVE_GETPW_DECLS */
-
-#ifndef NULL
-#  define NULL 0
-#endif
-
-#ifndef CHAR_BIT
-#  define CHAR_BIT 8
-#endif
-
-/* Nonzero if the integer type T is signed.  */
-#define TYPE_SIGNED(t) (! ((t) 0 < (t) -1))
-
-/* Bound on length of the string representing an integer value of type T.
-   Subtract one for the sign bit if T is signed;
-   302 / 1000 is log10 (2) rounded up;
-   add one for integer division truncation;
-   add one more for a minus sign if t is signed.  */
-#define INT_STRLEN_BOUND(t) \
-  ((sizeof (t) * CHAR_BIT - TYPE_SIGNED (t)) * 302 / 1000 \
-   + 1 + TYPE_SIGNED (t))
-
-/* All of these functions are resolved from bash if we are linking readline
-   as part of bash. */
 
 /* Does shell-like quoting using single quotes. */
 char *
-sh_single_quote (string)
+single_quote (string)
      char *string;
 {
   register int c;
   char *result, *r, *s;
 
-  result = (char *)xmalloc (3 + (4 * strlen (string)));
+  result = (char *)xmalloc (3 + (3 * strlen (string)));
   r = result;
   *r++ = '\'';
 
@@ -121,88 +97,44 @@ sh_single_quote (string)
 /* Set the environment variables LINES and COLUMNS to lines and cols,
    respectively. */
 void
-sh_set_lines_and_columns (lines, cols)
+set_lines_and_columns (lines, cols)
      int lines, cols;
 {
   char *b;
 
-#if defined (HAVE_SETENV)
-  b = (char *)xmalloc (INT_STRLEN_BOUND (int) + 1);
-  sprintf (b, "%d", lines);
-  setenv ("LINES", b, 1);
-  free (b);
-
-  b = (char *)xmalloc (INT_STRLEN_BOUND (int) + 1);
-  sprintf (b, "%d", cols);
-  setenv ("COLUMNS", b, 1);
-  free (b);
-#else /* !HAVE_SETENV */
-#  if defined (HAVE_PUTENV)
-  b = (char *)xmalloc (INT_STRLEN_BOUND (int) + sizeof ("LINES=") + 1);
+#if defined (HAVE_PUTENV)
+  b = xmalloc (24);
   sprintf (b, "LINES=%d", lines);
   putenv (b);
-
-  b = (char *)xmalloc (INT_STRLEN_BOUND (int) + sizeof ("COLUMNS=") + 1);
+  b = xmalloc (24);
   sprintf (b, "COLUMNS=%d", cols);
   putenv (b);
-#  endif /* HAVE_PUTENV */
-#endif /* !HAVE_SETENV */
+#else /* !HAVE_PUTENV */
+#  if defined (HAVE_SETENV)
+  b = xmalloc (8);
+  sprintf (b, "%d", lines);
+  setenv ("LINES", b, 1);
+  b = xmalloc (8);
+  sprintf (b, "%d", cols);
+  setenv ("COLUMNS", b, 1);
+#  endif /* HAVE_SETENV */
+#endif /* !HAVE_PUTENV */
 }
 
 char *
-sh_get_env_value (varname)
-     const char *varname;
+get_env_value (varname)
+     char *varname;
 {
   return ((char *)getenv (varname));
 }
 
+#else /* SHELL */
+extern char *get_string_value ();
+
 char *
-sh_get_home_dir ()
+get_env_value (varname)
+     char *varname;
 {
-  char *home_dir;
-  struct passwd *entry;
-
-  home_dir = (char *)NULL;
-#if defined (HAVE_GETPWUID)
-  entry = getpwuid (getuid ());
-  if (entry)
-    home_dir = entry->pw_dir;
-#endif
-  return (home_dir);
-}
-
-#if !defined (O_NDELAY)
-#  if defined (FNDELAY)
-#    define O_NDELAY FNDELAY
-#  endif
-#endif
-
-int
-sh_unset_nodelay_mode (fd)
-     int fd;
-{
-#if defined (HAVE_FCNTL)
-  int flags, bflags;
-
-  if ((flags = fcntl (fd, F_GETFL, 0)) < 0)
-    return -1;
-
-  bflags = 0;
-
-#ifdef O_NONBLOCK
-  bflags |= O_NONBLOCK;
-#endif
-
-#ifdef O_NDELAY
-  bflags |= O_NDELAY;
-#endif
-
-  if (flags & bflags)
-    {
-      flags &= ~bflags;
-      return (fcntl (fd, F_SETFL, flags));
-    }
-#endif
-
-  return 0;
-}
+  return get_string_value (varname);
+}	
+#endif /* SHELL */
