@@ -142,7 +142,7 @@ TkpDefineNativeBitmaps()
 Pixmap
 TkpCreateNativeBitmap(
     Display *display,
-    char * source)		/* Info about the icon to build. */
+    CONST char * source)		/* Info about the icon to build. */
 {
     Pixmap pix;
     GWorldPtr destPort;
@@ -277,4 +277,3 @@ TkpGetNativeAppBitmap(
     SetGWorld(saveWorld, saveDevice);
     return pix;
 }
-
