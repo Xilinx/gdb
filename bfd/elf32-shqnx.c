@@ -1,8 +1,7 @@
-/* Definitions to make GDB run on the GNU Hurd on an Intel 386
-   Copyright 1986, 1987, 1989, 1991, 1996, 2000
-   Free Software Foundation, Inc.
+/* Hitachi SH QNX specific support for 32-bit ELF
+   Copyright 2002   Free Software Foundation, Inc.
 
-   This file is part of GDB.
+   This file is part of BFD, the Binary File Descriptor library.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +15,17 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-#define HOST_LONG_DOUBLE_FORMAT &floatformat_i387_ext
+#define ELF32_SH_C_INCLUDED
+#include "elf32-sh.c"
 
-/* Do implement the attach and detach commands.  */
-#define ATTACH_DETACH	1
+#include "elf32-qnx.h"
+
+#undef  TARGET_LITTLE_SYM 
+#define TARGET_LITTLE_SYM       bfd_elf32_shlqnx_vec
+#undef  TARGET_BIG_SYM
+#define TARGET_BIG_SYM          bfd_elf32_shqnx_vec
+
+#include "elf32-target.h"
+

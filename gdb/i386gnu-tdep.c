@@ -1,6 +1,5 @@
-/* Macro definitions for i386, Unix System V.
-   Copyright 1986, 1987, 1989, 1991, 1992, 1993, 1994, 1995, 1998, 1999,
-   2000, 2001 Free Software Foundation, Inc.
+/* Target-dependent code for the GNU Hurd.
+   Copyright 2002 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -19,18 +18,26 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-#ifndef TM_I386V_H
-#define TM_I386V_H 1
+#include "defs.h"
 
-/* First pick up the generic *86 target file. */
+#include "i386-tdep.h"
 
-#include "i386/tm-i386.h"
+static void
+i386gnu_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
+{
+  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
 
-/* Number of traps that happen between exec'ing the shell to run an
-   inferior, and when we finally get to the inferior code.  This is
-   2 on most implementations.  Override here to 4. */
+  /* GNU uses ELF.  */
+  i386_elf_init_abi (info, gdbarch);
 
-#undef  START_INFERIOR_TRAPS_EXPECTED
-#define START_INFERIOR_TRAPS_EXPECTED 4
+  tdep->jb_pc_offset = 20;	/* From <bits/setjmp.h>.  */
+}
 
-#endif /* ifndef TM_I386V_H */
+/* Provide a prototype to silence -Wmissing-prototypes.  */
+extern void _initialize_i386gnu_tdep (void);
+
+void
+_initialize_i386gnu_tdep (void)
+{
+  gdbarch_register_osabi (bfd_arch_i386, GDB_OSABI_HURD, i386gnu_init_abi);
+}
