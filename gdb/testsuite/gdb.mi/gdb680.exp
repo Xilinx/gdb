@@ -1,4 +1,4 @@
-#   Copyright 1999 Free Software Foundation, Inc.
+# Copyright 2002 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,24 +17,40 @@
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-gdb@prep.ai.mit.edu
 
-
-# Some basic checks for the CLI.
+#
+# test gdb/680
+#
 
 load_lib mi-support.exp
-set MIFLAGS "-i=mi0"
+set MIFLAGS "-i=mi"
 
 gdb_exit
 if [mi_gdb_start] {
     continue
 }
 
-mi_gdb_test "show architecture" \
-	"&\"show architecture\\\\n\"\r\n~\"The target architecture.*\"\r\n\\^done" \
-	"show architecture"
+proc do_test {count} {
+  mi_gdb_test "-data-list-register-names -1" \
+    {\^error,msg=\"bad register number\"} \
+    "-data-list-register-names -1, try $count"
+}
 
-mi_gdb_test "47show architecture" \
-	"&\"show architecture\\\\n\"\r\n~\"The target architecture.*\"\r\n47\\^done" \
-	"47show architecture"
+# Tests a bug with ui-out and nested uiout types. When 
+# an error is encountered building a nest typed, like
+# lists or tuples, the uiout is not reset to some sane
+# state. As a result, uiout still thinks it is building
+# this nested type. Execute enough of these errors and
+# an assertion failure occurs. This is most obvious
+# with invalid register number and the register commands.
+
+# MAX_UIOUT_LEVELS is set to 5.
+set counter 0
+for {set i 0} {$i < 4} {incr i} {
+  do_test $i
+}
+
+#setup_kfail "gdb/680"
+do_test $i
 
 mi_gdb_exit
 return 0

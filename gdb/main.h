@@ -1,5 +1,6 @@
-/* Macro definitions for i386 running under NetBSD.
-   Copyright 2000, 2002 Free Software Foundation, Inc.
+/* Main interface for GDB, the GNU debugger.
+
+   Copyright 2002 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -18,9 +19,16 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-#ifndef TM_NBSDAOUT_H
-#define TM_NBSDAOUT_H
+#ifndef MAIN_H
+#define MAIN_H
 
-#include "i386/tm-nbsd.h"
+struct captured_main_args
+{
+  int argc;
+  char **argv;
+  int use_windows;
+};
 
-#endif /* TM_NBSDAOUT_H */
+extern int gdb_main (struct captured_main_args *);
+
+#endif
