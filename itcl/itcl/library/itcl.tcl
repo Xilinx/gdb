@@ -27,7 +27,7 @@
 #  alive until a procedure exits.
 # ----------------------------------------------------------------------
 proc ::itcl::local {class name args} {
-    set ptr [uplevel eval [list $class $name] $args]
+    set ptr [uplevel [list $class $name] $args]
     uplevel [list set itcl-local-$ptr $ptr]
     set cmd [uplevel namespace which -command $ptr]
     uplevel [list trace variable itcl-local-$ptr u \
