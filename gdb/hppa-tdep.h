@@ -1,4 +1,5 @@
-/* Copyright 1991, 1993, 1994, 1995 Free Software Foundation, Inc.
+/* Common target dependent code for GDB on HPPA systems.
+   Copyright 2003 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -17,14 +18,15 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-/* This is for the iris. */
+#ifndef HPPA_TDEP_H
+#define HPPA_TDEP_H
 
-#define HAVE_TERMIO
+/* Target-dependent structure in gdbarch.  */
+struct gdbarch_tdep
+{
+  /* The number of bytes in an address.  For now, this field is designed
+     to allow us to differentiate hppa32 from hppa64 targets.  */
+  int bytes_per_address;
+};
 
-/* Override register locations in upage for SGI machines */
-#undef REGISTER_U_ADDR
-#define REGISTER_U_ADDR(addr, blockend, regno) 		\
-  if (regno < PC_REGNUM)				\
-      addr = regno;					\
-  else							\
-      addr = regno + NSIG_HNDLRS;	/* Skip over signal handlers */
+#endif  /* HPPA_TDEP_H */

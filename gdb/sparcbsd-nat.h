@@ -1,5 +1,6 @@
-/* Macro defintions for an Apollo.
-   Copyright (C) 1986, 1987, 1989, 1992 Free Software Foundation, Inc.
+/* Native-dependent code for SPARC BSD's.
+
+   Copyright 2003 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -18,4 +19,19 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-#define	FETCH_INFERIOR_REGISTERS
+#ifndef SPARCBSD_NAT_H
+#define SPARCBSD_NAT_H
+
+/* Functions translating between `struct reg' and `struct fpreg' and
+   GDB's register cache.  */
+extern void (*sparcbsd_supply_reg)(const char *, int);
+extern void (*sparcbsd_fill_reg)(char *, int);
+extern void (*sparcbsd_supply_fpreg)(const char *, int);
+extern void (*sparcbsd_fill_fpreg)(char *, int);
+
+/* Functions indication whether `struct reg' or `struct fpreg' provides
+   a certain register.  */
+extern int (*sparcbsd_reg_supplies_p)(int);
+extern int (*sparcbsd_fpreg_supplies_p)(int);
+
+#endif /* sparcbsd-nat.h */
