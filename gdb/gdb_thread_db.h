@@ -1,8 +1,4 @@
-#ifdef HAVE_THREAD_DB_H
-#include <thread_db.h>
-#else
-
-/* Copyright (C) 1999, 2000, 2007, 2008 Free Software Foundation, Inc.
+/* Copyright (C) 1999 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -17,8 +13,8 @@
 
    You should have received a copy of the GNU Library General Public
    License along with the GNU C Library; see the file COPYING.LIB.  If not,
-   write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02110-1301, USA.  */
+   write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #ifndef _THREAD_DB_H
 #define _THREAD_DB_H	1
@@ -27,35 +23,35 @@
    modelled closely after the interface with same names in Solaris with
    the goal to share the same code in the debugger.  */
 #include <pthread.h>
+#include <stdint.h>
 #include <sys/types.h>
-#include <sys/procfs.h>
+/*#include <sys/ucontext.h>*/
 
 
 /* Error codes of the library.  */
 typedef enum
 {
-  TD_OK,	  /* No error.  */
-  TD_ERR,	  /* No further specified error.  */
-  TD_NOTHR,	  /* No matching thread found.  */
-  TD_NOSV,	  /* No matching synchronization handle found.  */
-  TD_NOLWP,	  /* No matching light-weighted process found.  */
-  TD_BADPH,	  /* Invalid process handle.  */
-  TD_BADTH,	  /* Invalid thread handle.  */
-  TD_BADSH,	  /* Invalid synchronization handle.  */
-  TD_BADTA,	  /* Invalid thread agent.  */
-  TD_BADKEY,	  /* Invalid key.  */
-  TD_NOMSG,	  /* No event available.  */
-  TD_NOFPREGS,	  /* No floating-point register content available.  */
-  TD_NOLIBTHREAD, /* Application not linked with thread library.  */
-  TD_NOEVENT,	  /* Requested event is not supported.  */
-  TD_NOCAPAB,	  /* Capability not available.  */
-  TD_DBERR,	  /* Internal debug library error.  */
-  TD_NOAPLIC,	  /* Operation is not applicable.  */
-  TD_NOTSD,	  /* No thread-specific data available.  */
-  TD_MALLOC,	  /* Out of memory.  */
-  TD_PARTIALREG,  /* Not entire register set was read or written.  */
-  TD_NOXREGS,	  /* X register set not available for given thread.  */
-  TD_NOTALLOC	  /* TLS memory not yet allocated.  */
+  TD_OK,	/* No error.  */
+  TD_ERR,	/* No further specified error.  */
+  TD_NOTHR,	/* No matching thread found.  */
+  TD_NOSV,	/* No matching synchronization handle found.  */
+  TD_NOLWP,	/* No matching light-weighted process found.  */
+  TD_BADPH,	/* Invalid process handle.  */
+  TD_BADTH,	/* Invalid thread handle.  */
+  TD_BADSH,	/* Invalid synchronization handle.  */
+  TD_BADTA,	/* Invalid thread agent.  */
+  TD_BADKEY,	/* Invalid key.  */
+  TD_NOMSG,	/* No event available.  */
+  TD_NOFPREGS,	/* No floating-point register content available.  */
+  TD_NOLIBTHREAD,	/* Application not linked with thread library.  */
+  TD_NOEVENT,	/* Requested event is not supported.  */
+  TD_NOCAPAB,	/* Capability not available.  */
+  TD_DBERR,	/* Internal debug library error.  */
+  TD_NOAPLIC,	/* Operation is not applicable.  */
+  TD_NOTSD,	/* No thread-specific data available.  */
+  TD_MALLOC,	/* Out of memory.  */
+  TD_PARTIALREG,/* Not entire register set was read or written.  */
+  TD_NOXREGS	/* X register set not available for given thread.  */
 } td_err_e;
 
 
@@ -84,6 +80,9 @@ typedef enum
 
 
 /* Types of the debugging library.  */
+
+/* Addresses.  */
+/*typedef void *psaddr_t;*/
 
 /* Handle for a process.  This type is opaque.  */
 typedef struct td_thragent td_thragent_t;
@@ -190,16 +189,6 @@ typedef struct td_notify
   } u;
 } td_notify_t;
 
-/* Some people still have libc5 or old glibc with no uintptr_t.
-   They lose.  glibc 2.1.3 was released on 2000-02-25, and it has
-   uintptr_t, so it's reasonable to force these people to upgrade.  */
-
-#ifndef HAVE_UINTPTR_T
-#error No uintptr_t available; your C library is too old.
-/* Inhibit further compilation errors after this error.  */
-#define uintptr_t void *
-#endif
-
 /* Structure used to report event.  */
 typedef struct td_event_msg
 {
@@ -207,20 +196,12 @@ typedef struct td_event_msg
   const td_thrhandle_t *th_p;	/* Thread reporting the event.  */
   union
   {
-#if 0
+# if 0
     td_synchandle_t *sh;	/* Handle of synchronization object.  */
 #endif
     uintptr_t data;		/* Event specific data.  */
   } msg;
 } td_event_msg_t;
-
-/* Structure containing event data available in each thread structure.  */
-typedef struct
-{
-  td_thr_events_t eventmask;	/* Mask of enabled events.  */
-  td_event_e eventnum;		/* Number of last event.  */
-  void *eventdata;		/* Data associated with event.  */
-} td_eventbuf_t;
 
 
 /* Gathered statistics about the process.  */
@@ -248,17 +229,25 @@ typedef struct td_ta_stats
 typedef pthread_t thread_t;
 typedef pthread_key_t thread_key_t;
 
+/* Linux has different names for the register set types.  */
+/*typedef gregset_t prgregset_t;*/
+/*typedef fpregset_t prfpregset_t;*/
+
 
 /* Callback for iteration over threads.  */
-typedef int td_thr_iter_f (const td_thrhandle_t *, void *);
+typedef int td_thr_iter_f __P ((const td_thrhandle_t *, void *));
 
 /* Callback for iteration over thread local data.  */
-typedef int td_key_iter_f (thread_key_t, void (*) (void *), void *);
+typedef int td_key_iter_f __P ((thread_key_t, void (*) (void *), void *));
 
 
 
 /* Forward declaration.  This has to be defined by the user.  */
 struct ps_prochandle;
+
+/* We don't have any differences between processes and threads, therefore
+   have only one PID type.  */
+/*typedef pid_t lwpid_t;*/
 
 
 /* Information about the thread.  */
@@ -283,7 +272,7 @@ typedef struct td_thrinfo
   intptr_t ti_sp;			/* Unused.  */
   short int ti_flags;			/* Unused.  */
   int ti_pri;				/* Thread priority.  */
-  lwpid_t ti_lid;			/* Kernel pid for this thread.  */
+  lwpid_t ti_lid;			/* Unused.  */
   sigset_t ti_sigmask;			/* Signal mask.  */
   unsigned char ti_traceme;		/* Nonzero if event reporting
 					   enabled.  */
@@ -344,18 +333,6 @@ extern td_err_e td_ta_tsd_iter (const td_thragent_t *__ta, td_key_iter_f *__ki,
 /* Get event address for EVENT.  */
 extern td_err_e td_ta_event_addr (const td_thragent_t *__ta,
 				  td_event_e __event, td_notify_t *__ptr);
-
-/* Enable EVENT in global mask.  */
-extern td_err_e td_ta_set_event (const td_thragent_t *__ta,
-				 td_thr_events_t *__event);
-
-/* Disable EVENT in global mask.  */
-extern td_err_e td_ta_clear_event (const td_thragent_t *__ta,
-				   td_thr_events_t *__event);
-
-/* Return information about last event.  */
-extern td_err_e td_ta_event_getmsg (const td_thragent_t *__ta,
-				    td_event_msg_t *msg);
 
 
 /* Set suggested concurrency level for process associated with TA.  */
@@ -448,5 +425,3 @@ extern td_err_e td_thr_dbsuspend (const td_thrhandle_t *__th);
 extern td_err_e td_thr_dbresume (const td_thrhandle_t *__th);
 
 #endif	/* thread_db.h */
-
-#endif /* HAVE_THREAD_DB_H */

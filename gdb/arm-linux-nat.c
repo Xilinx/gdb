@@ -1,12 +1,11 @@
 /* GNU/Linux on ARM native support.
-   Copyright (C) 1999, 2000, 2001, 2002, 2004, 2005, 2006, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright 1999 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
+   the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
@@ -15,51 +14,51 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include "inferior.h"
 #include "gdbcore.h"
 #include "gdb_string.h"
-#include "regcache.h"
-#include "target.h"
-#include "linux-nat.h"
-#include "target-descriptions.h"
-
-#include "arm-tdep.h"
-#include "arm-linux-tdep.h"
 
 #include <sys/user.h>
 #include <sys/ptrace.h>
 #include <sys/utsname.h>
-#include <sys/procfs.h>
-
-/* Prototypes for supply_gregset etc. */
-#include "gregset.h"
-
-/* Defines ps_err_e, struct ps_prochandle.  */
-#include "gdb_proc_service.h"
-
-#include "features/arm-with-iwmmxt.c"
-
-#ifndef PTRACE_GET_THREAD_AREA
-#define PTRACE_GET_THREAD_AREA 22
-#endif
-
-#ifndef PTRACE_GETWMMXREGS
-#define PTRACE_GETWMMXREGS 18
-#define PTRACE_SETWMMXREGS 19
-#endif
-
-/* A flag for whether the WMMX registers are available.  */
-static int arm_linux_has_wmmx_registers;
 
 extern int arm_apcs_32;
 
-/* The following variables are used to determine the version of the
-   underlying GNU/Linux operating system.  Examples:
+#define		typeNone		0x00
+#define		typeSingle		0x01
+#define		typeDouble		0x02
+#define		typeExtended		0x03
+#define 	FPWORDS			28
+#define		CPSR_REGNUM		16
 
-   GNU/Linux 2.0.35             GNU/Linux 2.2.12
+typedef union tagFPREG
+  {
+    unsigned int fSingle;
+    unsigned int fDouble[2];
+    unsigned int fExtended[3];
+  }
+FPREG;
+
+typedef struct tagFPA11
+  {
+    FPREG fpreg[8];		/* 8 floating point registers */
+    unsigned int fpsr;		/* floating point status register */
+    unsigned int fpcr;		/* floating point control register */
+    unsigned char fType[8];	/* type of floating point value held in
+				   floating point registers.  */
+    int initflag;		/* NWFPE initialization flag.  */
+  }
+FPA11;
+
+/* The following variables are used to determine the version of the
+   underlying Linux operating system.  Examples:
+
+   Linux 2.0.35                 Linux 2.2.12
    os_version = 0x00020023      os_version = 0x0002020c
    os_major = 2                 os_major = 2
    os_minor = 0                 os_minor = 2
@@ -72,377 +71,227 @@ extern int arm_apcs_32;
 
 static unsigned int os_version, os_major, os_minor, os_release;
 
-/* On GNU/Linux, threads are implemented as pseudo-processes, in which
-   case we may be tracing more than one process at a time.  In that
-   case, inferior_ptid will contain the main process ID and the
-   individual thread (process) ID.  get_thread_id () is used to get
-   the thread id if it's available, and the process id otherwise.  */
-
-int
-get_thread_id (ptid_t ptid)
+static void
+fetch_nw_fpe_single (unsigned int fn, FPA11 * fpa11, unsigned int *pmem)
 {
-  int tid = TIDGET (ptid);
-  if (0 == tid)
-    tid = PIDGET (ptid);
-  return tid;
-}
-#define GET_THREAD_ID(PTID)	get_thread_id (PTID)
+  unsigned int mem[3];
 
-/* Get the value of a particular register from the floating point
-   state of the process and store it into regcache.  */
+  mem[0] = fpa11->fpreg[fn].fSingle;
+  mem[1] = 0;
+  mem[2] = 0;
+  supply_register (F0_REGNUM + fn, (char *) &mem[0]);
+}
 
 static void
-fetch_fpregister (struct regcache *regcache, int regno)
+fetch_nw_fpe_double (unsigned int fn, FPA11 * fpa11, unsigned int *pmem)
 {
-  int ret, tid;
-  gdb_byte fp[ARM_LINUX_SIZEOF_NWFPE];
-  
-  /* Get the thread id for the ptrace call.  */
-  tid = GET_THREAD_ID (inferior_ptid);
+  unsigned int mem[3];
+
+  mem[0] = fpa11->fpreg[fn].fDouble[1];
+  mem[1] = fpa11->fpreg[fn].fDouble[0];
+  mem[2] = 0;
+  supply_register (F0_REGNUM + fn, (char *) &mem[0]);
+}
+
+static void
+fetch_nw_fpe_none (unsigned int fn, FPA11 * fpa11, unsigned int *pmem)
+{
+  unsigned int mem[3] =
+  {0, 0, 0};
+
+  supply_register (F0_REGNUM + fn, (char *) &mem[0]);
+}
+
+static void
+fetch_nw_fpe_extended (unsigned int fn, FPA11 * fpa11, unsigned int *pmem)
+{
+  unsigned int mem[3];
+
+  mem[0] = fpa11->fpreg[fn].fExtended[0];	/* sign & exponent */
+  mem[1] = fpa11->fpreg[fn].fExtended[2];	/* ls bits */
+  mem[2] = fpa11->fpreg[fn].fExtended[1];	/* ms bits */
+  supply_register (F0_REGNUM + fn, (char *) &mem[0]);
+}
+
+static void
+store_nw_fpe_single (unsigned int fn, FPA11 * fpa11)
+{
+  unsigned int mem[3];
+
+  read_register_gen (F0_REGNUM + fn, (char *) &mem[0]);
+  fpa11->fpreg[fn].fSingle = mem[0];
+  fpa11->fType[fn] = typeSingle;
+}
+
+static void
+store_nw_fpe_double (unsigned int fn, FPA11 * fpa11)
+{
+  unsigned int mem[3];
+
+  read_register_gen (F0_REGNUM + fn, (char *) &mem[0]);
+  fpa11->fpreg[fn].fDouble[1] = mem[0];
+  fpa11->fpreg[fn].fDouble[0] = mem[1];
+  fpa11->fType[fn] = typeDouble;
+}
+
+void
+store_nw_fpe_extended (unsigned int fn, FPA11 * fpa11)
+{
+  unsigned int mem[3];
+
+  read_register_gen (F0_REGNUM + fn, (char *) &mem[0]);
+  fpa11->fpreg[fn].fExtended[0] = mem[0];	/* sign & exponent */
+  fpa11->fpreg[fn].fExtended[2] = mem[1];	/* ls bits */
+  fpa11->fpreg[fn].fExtended[1] = mem[2];	/* ms bits */
+  fpa11->fType[fn] = typeDouble;
+}
+
+/* Get the whole floating point state of the process and store the
+   floating point stack into registers[].  */
+
+static void
+fetch_fpregs (void)
+{
+  int ret, regno;
+  FPA11 fp;
 
   /* Read the floating point state.  */
-  ret = ptrace (PT_GETFPREGS, tid, 0, fp);
+  ret = ptrace (PT_GETFPREGS, inferior_pid, 0, &fp);
   if (ret < 0)
     {
-      warning (_("Unable to fetch floating point register."));
+      warning ("Unable to fetch the floating point state.");
       return;
     }
 
   /* Fetch fpsr.  */
-  if (ARM_FPS_REGNUM == regno)
-    regcache_raw_supply (regcache, ARM_FPS_REGNUM,
-			 fp + NWFPE_FPSR_OFFSET);
-
-  /* Fetch the floating point register.  */
-  if (regno >= ARM_F0_REGNUM && regno <= ARM_F7_REGNUM)
-    supply_nwfpe_register (regcache, regno, fp);
-}
-
-/* Get the whole floating point state of the process and store it
-   into regcache.  */
-
-static void
-fetch_fpregs (struct regcache *regcache)
-{
-  int ret, regno, tid;
-  gdb_byte fp[ARM_LINUX_SIZEOF_NWFPE];
-
-  /* Get the thread id for the ptrace call.  */
-  tid = GET_THREAD_ID (inferior_ptid);
-  
-  /* Read the floating point state.  */
-  ret = ptrace (PT_GETFPREGS, tid, 0, fp);
-  if (ret < 0)
-    {
-      warning (_("Unable to fetch the floating point registers."));
-      return;
-    }
-
-  /* Fetch fpsr.  */
-  regcache_raw_supply (regcache, ARM_FPS_REGNUM,
-		       fp + NWFPE_FPSR_OFFSET);
+  supply_register (FPS_REGNUM, (char *) &fp.fpsr);
 
   /* Fetch the floating point registers.  */
-  for (regno = ARM_F0_REGNUM; regno <= ARM_F7_REGNUM; regno++)
-    supply_nwfpe_register (regcache, regno, fp);
-}
-
-/* Save a particular register into the floating point state of the
-   process using the contents from regcache.  */
-
-static void
-store_fpregister (const struct regcache *regcache, int regno)
-{
-  int ret, tid;
-  gdb_byte fp[ARM_LINUX_SIZEOF_NWFPE];
-
-  /* Get the thread id for the ptrace call.  */
-  tid = GET_THREAD_ID (inferior_ptid);
-  
-  /* Read the floating point state.  */
-  ret = ptrace (PT_GETFPREGS, tid, 0, fp);
-  if (ret < 0)
+  for (regno = F0_REGNUM; regno <= F7_REGNUM; regno++)
     {
-      warning (_("Unable to fetch the floating point registers."));
-      return;
-    }
+      int fn = regno - F0_REGNUM;
+      unsigned int *p = (unsigned int *) &registers[REGISTER_BYTE (regno)];
 
-  /* Store fpsr.  */
-  if (ARM_FPS_REGNUM == regno && regcache_valid_p (regcache, ARM_FPS_REGNUM))
-    regcache_raw_collect (regcache, ARM_FPS_REGNUM, fp + NWFPE_FPSR_OFFSET);
+      switch (fp.fType[fn])
+	{
+	case typeSingle:
+	  fetch_nw_fpe_single (fn, &fp, p);
+	  break;
 
-  /* Store the floating point register.  */
-  if (regno >= ARM_F0_REGNUM && regno <= ARM_F7_REGNUM)
-    collect_nwfpe_register (regcache, regno, fp);
+	case typeDouble:
+	  fetch_nw_fpe_double (fn, &fp, p);
+	  break;
 
-  ret = ptrace (PTRACE_SETFPREGS, tid, 0, fp);
-  if (ret < 0)
-    {
-      warning (_("Unable to store floating point register."));
-      return;
+	case typeExtended:
+	  fetch_nw_fpe_extended (fn, &fp, p);
+	  break;
+
+	default:
+	  fetch_nw_fpe_none (fn, &fp, p);
+	}
     }
 }
 
 /* Save the whole floating point state of the process using
-   the contents from regcache.  */
+   the contents from registers[].  */
 
 static void
-store_fpregs (const struct regcache *regcache)
+store_fpregs (void)
 {
-  int ret, regno, tid;
-  gdb_byte fp[ARM_LINUX_SIZEOF_NWFPE];
-
-  /* Get the thread id for the ptrace call.  */
-  tid = GET_THREAD_ID (inferior_ptid);
-  
-  /* Read the floating point state.  */
-  ret = ptrace (PT_GETFPREGS, tid, 0, fp);
-  if (ret < 0)
-    {
-      warning (_("Unable to fetch the floating point registers."));
-      return;
-    }
+  int ret, regno;
+  unsigned int mem[3];
+  FPA11 fp;
 
   /* Store fpsr.  */
-  if (regcache_valid_p (regcache, ARM_FPS_REGNUM))
-    regcache_raw_collect (regcache, ARM_FPS_REGNUM, fp + NWFPE_FPSR_OFFSET);
+  if (register_valid[FPS_REGNUM])
+    read_register_gen (FPS_REGNUM, (char *) &fp.fpsr);
 
   /* Store the floating point registers.  */
-  for (regno = ARM_F0_REGNUM; regno <= ARM_F7_REGNUM; regno++)
-    if (regcache_valid_p (regcache, regno))
-      collect_nwfpe_register (regcache, regno, fp);
+  for (regno = F0_REGNUM; regno <= F7_REGNUM; regno++)
+    {
+      if (register_valid[regno])
+	{
+	  unsigned int fn = regno - F0_REGNUM;
+	  switch (fp.fType[fn])
+	    {
+	    case typeSingle:
+	      store_nw_fpe_single (fn, &fp);
+	      break;
 
-  ret = ptrace (PTRACE_SETFPREGS, tid, 0, fp);
+	    case typeDouble:
+	      store_nw_fpe_double (fn, &fp);
+	      break;
+
+	    case typeExtended:
+	      store_nw_fpe_extended (fn, &fp);
+	      break;
+	    }
+	}
+    }
+
+  ret = ptrace (PTRACE_SETFPREGS, inferior_pid, 0, &fp);
   if (ret < 0)
     {
-      warning (_("Unable to store floating point registers."));
+      warning ("Unable to store floating point state.");
       return;
-    }
-}
-
-/* Fetch a general register of the process and store into
-   regcache.  */
-
-static void
-fetch_register (struct regcache *regcache, int regno)
-{
-  int ret, tid;
-  elf_gregset_t regs;
-
-  /* Get the thread id for the ptrace call.  */
-  tid = GET_THREAD_ID (inferior_ptid);
-  
-  ret = ptrace (PTRACE_GETREGS, tid, 0, &regs);
-  if (ret < 0)
-    {
-      warning (_("Unable to fetch general register."));
-      return;
-    }
-
-  if (regno >= ARM_A1_REGNUM && regno < ARM_PC_REGNUM)
-    regcache_raw_supply (regcache, regno, (char *) &regs[regno]);
-
-  if (ARM_PS_REGNUM == regno)
-    {
-      if (arm_apcs_32)
-        regcache_raw_supply (regcache, ARM_PS_REGNUM,
-			     (char *) &regs[ARM_CPSR_REGNUM]);
-      else
-        regcache_raw_supply (regcache, ARM_PS_REGNUM,
-			     (char *) &regs[ARM_PC_REGNUM]);
-    }
-    
-  if (ARM_PC_REGNUM == regno)
-    { 
-      regs[ARM_PC_REGNUM] = gdbarch_addr_bits_remove
-			      (get_regcache_arch (regcache),
-			       regs[ARM_PC_REGNUM]);
-      regcache_raw_supply (regcache, ARM_PC_REGNUM,
-			   (char *) &regs[ARM_PC_REGNUM]);
     }
 }
 
 /* Fetch all general registers of the process and store into
-   regcache.  */
+   registers[].  */
 
 static void
-fetch_regs (struct regcache *regcache)
+fetch_regs (void)
 {
-  int ret, regno, tid;
-  elf_gregset_t regs;
+  int ret, regno;
+  struct pt_regs regs;
 
-  /* Get the thread id for the ptrace call.  */
-  tid = GET_THREAD_ID (inferior_ptid);
-  
-  ret = ptrace (PTRACE_GETREGS, tid, 0, &regs);
+  ret = ptrace (PTRACE_GETREGS, inferior_pid, 0, &regs);
   if (ret < 0)
     {
-      warning (_("Unable to fetch general registers."));
+      warning ("Unable to fetch general registers.");
       return;
     }
 
-  for (regno = ARM_A1_REGNUM; regno < ARM_PC_REGNUM; regno++)
-    regcache_raw_supply (regcache, regno, (char *) &regs[regno]);
+  for (regno = A1_REGNUM; regno < PC_REGNUM; regno++)
+    supply_register (regno, (char *) &regs.uregs[regno]);
 
   if (arm_apcs_32)
-    regcache_raw_supply (regcache, ARM_PS_REGNUM,
-			 (char *) &regs[ARM_CPSR_REGNUM]);
+    supply_register (PS_REGNUM, (char *) &regs.uregs[CPSR_REGNUM]);
   else
-    regcache_raw_supply (regcache, ARM_PS_REGNUM,
-			 (char *) &regs[ARM_PC_REGNUM]);
+    supply_register (PS_REGNUM, (char *) &regs.uregs[PC_REGNUM]);
 
-  regs[ARM_PC_REGNUM] = gdbarch_addr_bits_remove
-			  (get_regcache_arch (regcache), regs[ARM_PC_REGNUM]);
-  regcache_raw_supply (regcache, ARM_PC_REGNUM,
-		       (char *) &regs[ARM_PC_REGNUM]);
+  regs.uregs[PC_REGNUM] = ADDR_BITS_REMOVE (regs.uregs[PC_REGNUM]);
+  supply_register (PC_REGNUM, (char *) &regs.uregs[PC_REGNUM]);
 }
 
 /* Store all general registers of the process from the values in
-   regcache.  */
+   registers[].  */
 
 static void
-store_register (const struct regcache *regcache, int regno)
+store_regs (void)
 {
-  int ret, tid;
-  elf_gregset_t regs;
-  
-  if (!regcache_valid_p (regcache, regno))
-    return;
+  int ret, regno;
+  struct pt_regs regs;
 
-  /* Get the thread id for the ptrace call.  */
-  tid = GET_THREAD_ID (inferior_ptid);
-  
-  /* Get the general registers from the process.  */
-  ret = ptrace (PTRACE_GETREGS, tid, 0, &regs);
+  ret = ptrace (PTRACE_GETREGS, inferior_pid, 0, &regs);
   if (ret < 0)
     {
-      warning (_("Unable to fetch general registers."));
+      warning ("Unable to fetch general registers.");
       return;
     }
 
-  if (regno >= ARM_A1_REGNUM && regno <= ARM_PC_REGNUM)
-    regcache_raw_collect (regcache, regno, (char *) &regs[regno]);
-  else if (arm_apcs_32 && regno == ARM_PS_REGNUM)
-    regcache_raw_collect (regcache, regno,
-			 (char *) &regs[ARM_CPSR_REGNUM]);
-  else if (!arm_apcs_32 && regno == ARM_PS_REGNUM)
-    regcache_raw_collect (regcache, ARM_PC_REGNUM,
-			 (char *) &regs[ARM_PC_REGNUM]);
-
-  ret = ptrace (PTRACE_SETREGS, tid, 0, &regs);
-  if (ret < 0)
+  for (regno = A1_REGNUM; regno <= PC_REGNUM; regno++)
     {
-      warning (_("Unable to store general register."));
-      return;
-    }
-}
-
-static void
-store_regs (const struct regcache *regcache)
-{
-  int ret, regno, tid;
-  elf_gregset_t regs;
-
-  /* Get the thread id for the ptrace call.  */
-  tid = GET_THREAD_ID (inferior_ptid);
-  
-  /* Fetch the general registers.  */
-  ret = ptrace (PTRACE_GETREGS, tid, 0, &regs);
-  if (ret < 0)
-    {
-      warning (_("Unable to fetch general registers."));
-      return;
+      if (register_valid[regno])
+	read_register_gen (regno, (char *) &regs.uregs[regno]);
     }
 
-  for (regno = ARM_A1_REGNUM; regno <= ARM_PC_REGNUM; regno++)
-    {
-      if (regcache_valid_p (regcache, regno))
-	regcache_raw_collect (regcache, regno, (char *) &regs[regno]);
-    }
-
-  if (arm_apcs_32 && regcache_valid_p (regcache, ARM_PS_REGNUM))
-    regcache_raw_collect (regcache, ARM_PS_REGNUM,
-			 (char *) &regs[ARM_CPSR_REGNUM]);
-
-  ret = ptrace (PTRACE_SETREGS, tid, 0, &regs);
+  ret = ptrace (PTRACE_SETREGS, inferior_pid, 0, &regs);
 
   if (ret < 0)
     {
-      warning (_("Unable to store general registers."));
-      return;
-    }
-}
-
-/* Fetch all WMMX registers of the process and store into
-   regcache.  */
-
-#define IWMMXT_REGS_SIZE (16 * 8 + 6 * 4)
-
-static void
-fetch_wmmx_regs (struct regcache *regcache)
-{
-  char regbuf[IWMMXT_REGS_SIZE];
-  int ret, regno, tid;
-
-  /* Get the thread id for the ptrace call.  */
-  tid = GET_THREAD_ID (inferior_ptid);
-
-  ret = ptrace (PTRACE_GETWMMXREGS, tid, 0, regbuf);
-  if (ret < 0)
-    {
-      warning (_("Unable to fetch WMMX registers."));
-      return;
-    }
-
-  for (regno = 0; regno < 16; regno++)
-    regcache_raw_supply (regcache, regno + ARM_WR0_REGNUM,
-			 &regbuf[regno * 8]);
-
-  for (regno = 0; regno < 2; regno++)
-    regcache_raw_supply (regcache, regno + ARM_WCSSF_REGNUM,
-			 &regbuf[16 * 8 + regno * 4]);
-
-  for (regno = 0; regno < 4; regno++)
-    regcache_raw_supply (regcache, regno + ARM_WCGR0_REGNUM,
-			 &regbuf[16 * 8 + 2 * 4 + regno * 4]);
-}
-
-static void
-store_wmmx_regs (const struct regcache *regcache)
-{
-  char regbuf[IWMMXT_REGS_SIZE];
-  int ret, regno, tid;
-
-  /* Get the thread id for the ptrace call.  */
-  tid = GET_THREAD_ID (inferior_ptid);
-
-  ret = ptrace (PTRACE_GETWMMXREGS, tid, 0, regbuf);
-  if (ret < 0)
-    {
-      warning (_("Unable to fetch WMMX registers."));
-      return;
-    }
-
-  for (regno = 0; regno < 16; regno++)
-    if (regcache_valid_p (regcache, regno + ARM_WR0_REGNUM))
-      regcache_raw_collect (regcache, regno + ARM_WR0_REGNUM,
-			    &regbuf[regno * 8]);
-
-  for (regno = 0; regno < 2; regno++)
-    if (regcache_valid_p (regcache, regno + ARM_WCSSF_REGNUM))
-      regcache_raw_collect (regcache, regno + ARM_WCSSF_REGNUM,
-			    &regbuf[16 * 8 + regno * 4]);
-
-  for (regno = 0; regno < 4; regno++)
-    if (regcache_valid_p (regcache, regno + ARM_WCGR0_REGNUM))
-      regcache_raw_collect (regcache, regno + ARM_WCGR0_REGNUM,
-			    &regbuf[16 * 8 + 2 * 4 + regno * 4]);
-
-  ret = ptrace (PTRACE_SETWMMXREGS, tid, 0, regbuf);
-
-  if (ret < 0)
-    {
-      warning (_("Unable to store WMMX registers."));
+      warning ("Unable to store general registers.");
       return;
     }
 }
@@ -451,101 +300,219 @@ store_wmmx_regs (const struct regcache *regcache)
    regno == -1, otherwise fetch all general registers or all floating
    point registers depending upon the value of regno.  */
 
-static void
-arm_linux_fetch_inferior_registers (struct regcache *regcache, int regno)
+void
+fetch_inferior_registers (int regno)
 {
-  if (-1 == regno)
-    {
-      fetch_regs (regcache);
-      fetch_fpregs (regcache);
-      if (arm_linux_has_wmmx_registers)
-	fetch_wmmx_regs (regcache);
-    }
-  else 
-    {
-      if (regno < ARM_F0_REGNUM || regno == ARM_PS_REGNUM)
-        fetch_register (regcache, regno);
-      else if (regno >= ARM_F0_REGNUM && regno <= ARM_FPS_REGNUM)
-        fetch_fpregister (regcache, regno);
-      else if (arm_linux_has_wmmx_registers
-	       && regno >= ARM_WR0_REGNUM && regno <= ARM_WCGR7_REGNUM)
-	fetch_wmmx_regs (regcache);
-    }
+  if ((regno < F0_REGNUM) || (regno > FPS_REGNUM))
+    fetch_regs ();
+
+  if (((regno >= F0_REGNUM) && (regno <= FPS_REGNUM)) || (regno == -1))
+    fetch_fpregs ();
 }
 
 /* Store registers back into the inferior.  Store all registers if
    regno == -1, otherwise store all general registers or all floating
    point registers depending upon the value of regno.  */
 
-static void
-arm_linux_store_inferior_registers (struct regcache *regcache, int regno)
+void
+store_inferior_registers (int regno)
 {
-  if (-1 == regno)
-    {
-      store_regs (regcache);
-      store_fpregs (regcache);
-      if (arm_linux_has_wmmx_registers)
-	store_wmmx_regs (regcache);
-    }
-  else
-    {
-      if (regno < ARM_F0_REGNUM || regno == ARM_PS_REGNUM)
-        store_register (regcache, regno);
-      else if ((regno >= ARM_F0_REGNUM) && (regno <= ARM_FPS_REGNUM))
-        store_fpregister (regcache, regno);
-      else if (arm_linux_has_wmmx_registers
-	       && regno >= ARM_WR0_REGNUM && regno <= ARM_WCGR7_REGNUM)
-	store_wmmx_regs (regcache);
-    }
+  if ((regno < F0_REGNUM) || (regno > FPS_REGNUM))
+    store_regs ();
+
+  if (((regno >= F0_REGNUM) && (regno <= FPS_REGNUM)) || (regno == -1))
+    store_fpregs ();
 }
 
-/* Wrapper functions for the standard regset handling, used by
-   thread debugging.  */
+#ifdef GET_LONGJMP_TARGET
+
+/* Figure out where the longjmp will land.  We expect that we have
+   just entered longjmp and haven't yet altered r0, r1, so the
+   arguments are still in the registers.  (A1_REGNUM) points at the
+   jmp_buf structure from which we extract the pc (JB_PC) that we will
+   land at.  The pc is copied into ADDR.  This routine returns true on
+   success. */
+
+#define LONGJMP_TARGET_SIZE 	sizeof(int)
+#define JB_ELEMENT_SIZE		sizeof(int)
+#define JB_SL			18
+#define JB_FP			19
+#define JB_SP			20
+#define JB_PC			21
+
+int
+arm_get_longjmp_target (CORE_ADDR * pc)
+{
+  CORE_ADDR jb_addr;
+  char buf[LONGJMP_TARGET_SIZE];
+
+  jb_addr = read_register (A1_REGNUM);
+
+  if (target_read_memory (jb_addr + JB_PC * JB_ELEMENT_SIZE, buf,
+			  LONGJMP_TARGET_SIZE))
+    return 0;
+
+  *pc = extract_address (buf, LONGJMP_TARGET_SIZE);
+  return 1;
+}
+
+#endif /* GET_LONGJMP_TARGET */
+
+/*
+   Dynamic Linking on ARM Linux
+   ----------------------------
+
+   Note: PLT = procedure linkage table
+   GOT = global offset table
+
+   As much as possible, ELF dynamic linking defers the resolution of
+   jump/call addresses until the last minute. The technique used is
+   inspired by the i386 ELF design, and is based on the following
+   constraints.
+
+   1) The calling technique should not force a change in the assembly
+   code produced for apps; it MAY cause changes in the way assembly
+   code is produced for position independent code (i.e. shared
+   libraries).
+
+   2) The technique must be such that all executable areas must not be
+   modified; and any modified areas must not be executed.
+
+   To do this, there are three steps involved in a typical jump:
+
+   1) in the code
+   2) through the PLT
+   3) using a pointer from the GOT
+
+   When the executable or library is first loaded, each GOT entry is
+   initialized to point to the code which implements dynamic name
+   resolution and code finding.  This is normally a function in the
+   program interpreter (on ARM Linux this is usually ld-linux.so.2,
+   but it does not have to be).  On the first invocation, the function
+   is located and the GOT entry is replaced with the real function
+   address.  Subsequent calls go through steps 1, 2 and 3 and end up
+   calling the real code.
+
+   1) In the code: 
+
+   b    function_call
+   bl   function_call
+
+   This is typical ARM code using the 26 bit relative branch or branch
+   and link instructions.  The target of the instruction
+   (function_call is usually the address of the function to be called.
+   In position independent code, the target of the instruction is
+   actually an entry in the PLT when calling functions in a shared
+   library.  Note that this call is identical to a normal function
+   call, only the target differs.
+
+   2) In the PLT:
+
+   The PLT is a synthetic area, created by the linker. It exists in
+   both executables and libraries. It is an array of stubs, one per
+   imported function call. It looks like this:
+
+   PLT[0]:
+   str     lr, [sp, #-4]!       @push the return address (lr)
+   ldr     lr, [pc, #16]   @load from 6 words ahead
+   add     lr, pc, lr      @form an address for GOT[0]
+   ldr     pc, [lr, #8]!   @jump to the contents of that addr
+
+   The return address (lr) is pushed on the stack and used for
+   calculations.  The load on the second line loads the lr with
+   &GOT[3] - . - 20.  The addition on the third leaves:
+
+   lr = (&GOT[3] - . - 20) + (. + 8)
+   lr = (&GOT[3] - 12)
+   lr = &GOT[0]
+
+   On the fourth line, the pc and lr are both updated, so that:
+
+   pc = GOT[2]
+   lr = &GOT[0] + 8
+   = &GOT[2]
+
+   NOTE: PLT[0] borrows an offset .word from PLT[1]. This is a little
+   "tight", but allows us to keep all the PLT entries the same size.
+
+   PLT[n+1]:
+   ldr     ip, [pc, #4]    @load offset from gotoff
+   add     ip, pc, ip      @add the offset to the pc
+   ldr     pc, [ip]        @jump to that address
+   gotoff: .word   GOT[n+3] - .
+
+   The load on the first line, gets an offset from the fourth word of
+   the PLT entry.  The add on the second line makes ip = &GOT[n+3],
+   which contains either a pointer to PLT[0] (the fixup trampoline) or
+   a pointer to the actual code.
+
+   3) In the GOT:
+
+   The GOT contains helper pointers for both code (PLT) fixups and
+   data fixups.  The first 3 entries of the GOT are special. The next
+   M entries (where M is the number of entries in the PLT) belong to
+   the PLT fixups. The next D (all remaining) entries belong to
+   various data fixups. The actual size of the GOT is 3 + M + D.
+
+   The GOT is also a synthetic area, created by the linker. It exists
+   in both executables and libraries.  When the GOT is first
+   initialized , all the GOT entries relating to PLT fixups are
+   pointing to code back at PLT[0].
+
+   The special entries in the GOT are:
+
+   GOT[0] = linked list pointer used by the dynamic loader
+   GOT[1] = pointer to the reloc table for this module
+   GOT[2] = pointer to the fixup/resolver code
+
+   The first invocation of function call comes through and uses the
+   fixup/resolver code.  On the entry to the fixup/resolver code:
+
+   ip = &GOT[n+3]
+   lr = &GOT[2]
+   stack[0] = return address (lr) of the function call
+   [r0, r1, r2, r3] are still the arguments to the function call
+
+   This is enough information for the fixup/resolver code to work
+   with.  Before the fixup/resolver code returns, it actually calls
+   the requested function and repairs &GOT[n+3].  */
+
+CORE_ADDR
+arm_skip_solib_resolver (CORE_ADDR pc)
+{
+  /* FIXME */
+  return 0;
+}
+
+int
+arm_linux_register_u_addr (int blockend, int regnum)
+{
+  return blockend + REGISTER_BYTE (regnum);
+}
+
+int
+arm_linux_kernel_u_size (void)
+{
+  return (sizeof (struct user));
+}
+
+/* Extract from an array REGBUF containing the (raw) register state
+   a function return value of type TYPE, and copy that, in virtual format,
+   into VALBUF.  */
 
 void
-fill_gregset (const struct regcache *regcache,	
-	      gdb_gregset_t *gregsetp, int regno)
+arm_linux_extract_return_value (struct type *type,
+				char regbuf[REGISTER_BYTES],
+				char *valbuf)
 {
-  arm_linux_collect_gregset (NULL, regcache, regno, gregsetp, 0);
-}
+  /* ScottB: This needs to be looked at to handle the different
+     floating point emulators on ARM Linux.  Right now the code
+     assumes that fetch inferior registers does the right thing for
+     GDB.  I suspect this won't handle NWFPE registers correctly, nor
+     will the default ARM version (arm_extract_return_value()).  */
 
-void
-supply_gregset (struct regcache *regcache, const gdb_gregset_t *gregsetp)
-{
-  arm_linux_supply_gregset (NULL, regcache, -1, gregsetp, 0);
-}
-
-void
-fill_fpregset (const struct regcache *regcache,
-	       gdb_fpregset_t *fpregsetp, int regno)
-{
-  arm_linux_collect_nwfpe (NULL, regcache, regno, fpregsetp, 0);
-}
-
-/* Fill GDB's register array with the floating-point register values
-   in *fpregsetp.  */
-
-void
-supply_fpregset (struct regcache *regcache, const gdb_fpregset_t *fpregsetp)
-{
-  arm_linux_supply_nwfpe (NULL, regcache, -1, fpregsetp, 0);
-}
-
-/* Fetch the thread-local storage pointer for libthread_db.  */
-
-ps_err_e
-ps_get_thread_area (const struct ps_prochandle *ph,
-                    lwpid_t lwpid, int idx, void **base)
-{
-  if (ptrace (PTRACE_GET_THREAD_AREA, lwpid, NULL, base) != 0)
-    return PS_ERR;
-
-  /* IDX is the bias from the thread pointer to the beginning of the
-     thread descriptor.  It has to be subtracted due to implementation
-     quirks in libthread_db.  */
-  *base = (void *) ((char *)*base - idx);
-
-  return PS_OK;
+  int regnum = (TYPE_CODE_FLT == TYPE_CODE (type)) ? F0_REGNUM : A1_REGNUM;
+  memcpy (valbuf, &regbuf[REGISTER_BYTE (regnum)], TYPE_LENGTH (type));
 }
 
 static unsigned int
@@ -558,7 +525,7 @@ get_linux_version (unsigned int *vmajor,
 
   if (-1 == uname (&info))
     {
-      warning (_("Unable to determine GNU/Linux version."));
+      warning ("Unable to determine Linux version.");
       return -1;
     }
 
@@ -573,46 +540,8 @@ get_linux_version (unsigned int *vmajor,
   return ((*vmajor << 16) | (*vminor << 8) | *vrelease);
 }
 
-static const struct target_desc *
-arm_linux_read_description (struct target_ops *ops)
-{
-  int ret;
-  char regbuf[IWMMXT_REGS_SIZE];
-
-  ret = ptrace (PTRACE_GETWMMXREGS, GET_THREAD_ID (inferior_ptid),
-		0, regbuf);
-  if (ret < 0)
-    arm_linux_has_wmmx_registers = 0;
-  else
-    arm_linux_has_wmmx_registers = 1;
-
-  if (arm_linux_has_wmmx_registers)
-    return tdesc_arm_with_iwmmxt;
-  else
-    return NULL;
-}
-
-void _initialize_arm_linux_nat (void);
-
 void
 _initialize_arm_linux_nat (void)
 {
-  struct target_ops *t;
-
   os_version = get_linux_version (&os_major, &os_minor, &os_release);
-
-  /* Fill in the generic GNU/Linux methods.  */
-  t = linux_target ();
-
-  /* Add our register access methods.  */
-  t->to_fetch_registers = arm_linux_fetch_inferior_registers;
-  t->to_store_registers = arm_linux_store_inferior_registers;
-
-  t->to_read_description = arm_linux_read_description;
-
-  /* Register the target.  */
-  linux_nat_add_target (t);
-
-  /* Initialize the standard target descriptions.  */
-  initialize_tdesc_arm_with_iwmmxt ();
 }
