@@ -1,6 +1,6 @@
-/* Target machine parameters for MIPS r4000
-   Copyright 1994, 1996, 1997, 1998, 2000 Free Software Foundation, Inc.
-   Contributed by Ian Lance Taylor (ian@cygnus.com)
+/* Unwinder test program.
+
+   Copyright 2003 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -8,30 +8,35 @@
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-
+   
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
+   
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-/* Use eight byte registers.  */
-#define MIPS_REGSIZE 8
+void
+trap (void)
+{
+  asm ("int $0x03");
+}
 
-/* define 8 byte register type */
-#define MIPS_REGISTER_TYPE(N) \
-        (((N) >= FP0_REGNUM && (N) < FP0_REGNUM+32) ? builtin_type_double \
-	 : ((N) == 32 /*SR*/) ? builtin_type_uint32 \
-	 : ((N) >= 70 && (N) <= 89) ? builtin_type_uint32 \
-	 : builtin_type_long_long)
+/* Make sure that main directly follows a function without an
+   epilogue.  */
 
-/* Load double words in CALL_DUMMY.  */
-#define OP_LDFPR 065		/* ldc1 */
-#define OP_LDGPR 067		/* ld */
-
-/* Get the basic MIPS definitions.  */
-#include "mips/tm-mips.h"
+asm(".text\n"
+    "    .align 8\n"
+    "    .globl gdb1435\n"
+    "gdb1435:\n"
+    "    pushl %ebp\n"
+    "    mov   %esp, %ebp\n"
+    "    call  trap\n"
+    "    .globl main\n"
+    "main:\n"
+    "    pushl %ebp\n"
+    "    mov   %esp, %ebp\n"
+    "    call  gdb1435\n");

@@ -1,4 +1,5 @@
-/* Copyright 1993, 1997, 1999, 2000 Free Software Foundation, Inc.
+/* Macro definitions for ARM running under NetBSD.
+   Copyright 2003 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -17,16 +18,9 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-#include "mips/tm-mips.h"
+#ifndef TM_NBSD_H
+#define TM_NBSD_H
 
-#undef  MIPS_REGISTER_NAMES
-#define MIPS_REGISTER_NAMES 	\
-    {	"sr",	"lo",	"hi",	"bad",	"cause","pc", \
-	"",   	"",   	"",   	"",   	"",   	"",   	"",   	"", \
-	"",   	"",   	"",  	"",  	"",  	"",  	"",  	"", \
-	"",  	"",  	"",  	"",  	"",  	"",  	"",  	"", \
-	"",  	"",  	"",  	"",  	"",  	"",  	"",  	"", \
-	"",  	"",  	"",	"", \
-	"",	"",	"",	"",	"",	"",	"",	"", \
-	"",	"", "config", "cache", "debug", "depc", "epc",	"" \
-    }
+#include "solib.h"
+
+#endif /* TM_NBSD_H */
