@@ -9,8 +9,6 @@ host.  GDB and GDBserver communicate using the standard remote serial protocol
 implemented in remote.c, and various *-stub.c files.  They communicate via
 either a serial line or a TCP connection.
 
-For more information about GDBserver, see the GDB manual.
-
 Usage (server (target) side):
 
 First, you need to have a copy of the program you want to debug put onto
@@ -46,14 +44,6 @@ GDBs `target remote' command, which will be described shortly.  Note that if
 you chose a port number that conflicts with another service, gdbserver will
 print an error message and exit.
 
-On some targets, gdbserver can also attach to running programs.  This is
-accomplished via the --attach argument.  The syntax is:
-
-	target> gdbserver --attach COMM PID
-
-PID is the process ID of a currently running process.  It isn't necessary
-to point gdbserver at a binary for the running process.
-
 Usage (host side):
 
 You need an unstripped copy of the target program on your host system, since
@@ -77,27 +67,7 @@ TCP connections, you must start up gdbserver prior to using the `target remote'
 command, otherwise you may get an error that looks something like
 `Connection refused'.
 
-Building gdbserver:
-
-The supported targets as of November 2006 are:
-	arm-*-linux*
-	crisv32-*-linux*
-	cris-*-linux*
-	i[34567]86-*-cygwin*
-	i[34567]86-*-linux*
-	i[34567]86-*-mingw*
-	ia64-*-linux*
-	m32r*-*-linux*
-	m68*-*-linux*
-	m68*-*-uclinux*
-	mips*64*-*-linux*
-	mips*-*-linux*
-	powerpc[64]-*-linux*
-	s390[x]-*-linux*
-	sh-*-linux*
-	spu*-*-*
-	x86_64-*-linux*
-	xscale*-*-linux*
+Building:
 
 Configuring gdbserver you should specify the same machine for host and
 target (which are the machine that gdbserver is going to run on.  This
@@ -106,21 +76,27 @@ gdbserver automatically as part of building a whole tree of tools does
 not currently work if cross-compilation is involved (we don't get the
 right CC in the Makefile, to start with)).
 
-Building gdbserver for your target is very straightforward.  If you build
-GDB natively on a target which gdbserver supports, it will be built
-automatically when you build GDB.  You can also build just gdbserver:
+gdbserver should work on sparc-sun-sunos4* or Lynx.  The following
+instructions pertain to Lynx.  To build the server for Lynx, make a
+new copy of the distribution onto a disk that is NFS shared with the
+Lynx system.  Lets say that's in a directory called xyzzy.  Then,
+follow these steps under the host system:
 
-	% mkdir obj
-	% cd obj
-	% path-to-gdbserver-sources/configure
-	% make
+	1) cd xyzzy/gdb/gdbserver
+	2) ../../configure i386-none-lynx
 
-If you prefer to cross-compile to your target, then you can also build
-gdbserver that way.  In a Bourne shell, for example:
+When that completes, do the following on the Lynx system:
 
-	% export CC=your-cross-compiler
-	% path-to-gdbserver-sources/configure your-target-name
-	% make
+	3) cd xyzzy/gdb/gdbserver
+	4) make CC=gcc
+
+It should build with only a minor complaint about NULL being redefined.  That's
+a LynxOS problem, and can be ignored.
+
+It's also possible that you may have a cross-compiler to Lynx.  In that case,
+you can skip the stuff about NFS.  You would replace steps 3 & 4 with:
+
+	make CC=lynx-target-compiler...
 
 Using GDBreplay:
 

@@ -1,7 +1,5 @@
 #include <errno.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
 int
 main ()
 {
@@ -30,7 +28,6 @@ main ()
       else
 	write (1, &x, 1);
     }
-  return 0;
 }
 
 int

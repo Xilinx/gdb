@@ -1,4 +1,4 @@
-static int barx = 'b' + 'a' + 'r';
+static int barx __attribute__ ((section (".data01"))) = 'b' + 'a' + 'r';
 
 int bar (int x)
 {

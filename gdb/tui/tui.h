@@ -1,102 +1,120 @@
-/* External/Public TUI Header File.
-
-   Copyright (C) 1998, 1999, 2000, 2001, 2004, 2007, 2008
-   Free Software Foundation, Inc.
-
-   Contributed by Hewlett-Packard Company.
-
-   This file is part of GDB.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+/* External/Public TUI Header File */
 
 #ifndef TUI_H
 #define TUI_H
+#include <curses.h>
 
-struct ui_file;
+#ifdef ANSI_PROTOTYPES
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
 
-extern void strcat_to_buf (char *, int, const char *);
+#include "ansidecl.h"
 
-/* Types of error returns.  */
-enum tui_status
-{
-  TUI_SUCCESS,
-  TUI_FAILURE
-};
+#if defined(reg)
+#undef reg
+#endif
+#if defined(chtype)
+#undef chtype
+#endif
 
-/* Types of windows.  */
-enum tui_win_type
-{
-  SRC_WIN = 0,
-  DISASSEM_WIN,
-  DATA_WIN,
-  CMD_WIN,
-  /* This must ALWAYS be AFTER the major windows last.  */
-  MAX_MAJOR_WINDOWS,
-  /* Auxillary windows.  */
-  LOCATOR_WIN,
-  EXEC_INFO_WIN,
-  DATA_ITEM_WIN,
-  /* This must ALWAYS be next to last.  */
-  MAX_WINDOWS,
-  UNDEFINED_WIN		/* LAST */
-};
+/* Opaque data type */
+typedef char *Opaque;
+typedef Opaque (*OpaqueFuncPtr) PARAMS ((va_list));
+typedef char **OpaqueList;
+typedef OpaqueList OpaquePtr;
+
+/* Generic function pointer */
+typedef     void              (*TuiVoidFuncPtr) PARAMS ((va_list));
+typedef     int               (*TuiIntFuncPtr) PARAMS ((va_list));
+/*
+typedef     Opaque            (*TuiOpaqueFuncPtr) PARAMS ((va_list));
+*/
+typedef     OpaqueFuncPtr     TuiOpaqueFuncPtr;
+
+extern Opaque vcatch_errors PARAMS ((OpaqueFuncPtr, ...));
+extern Opaque va_catch_errors PARAMS ((OpaqueFuncPtr, va_list));
+
+extern void strcat_to_buf PARAMS ((char *, int, char *));
+extern void strcat_to_buf_with_fmt PARAMS ((char *, int, char *, ...));
+
+/* Types of error returns */
+typedef enum {
+    TUI_SUCCESS,
+    TUI_FAILURE
+} TuiStatus, *TuiStatusPtr;
+
+/* Types of windows */
+typedef enum {
+    SRC_WIN = 0,
+    DISASSEM_WIN,
+    DATA_WIN,
+    CMD_WIN,
+    /* This must ALWAYS be AFTER the major windows last */
+    MAX_MAJOR_WINDOWS,
+    /* auxillary windows */
+    LOCATOR_WIN,
+    EXEC_INFO_WIN,
+    DATA_ITEM_WIN,
+    /* This must ALWAYS be next to last */
+    MAX_WINDOWS,
+    UNDEFINED_WIN /* LAST */
+} TuiWinType, *TuiWinTypePtr;
+
+/* This is a point definition */
+typedef struct _TuiPoint {
+    int x, y;
+} TuiPoint, *TuiPointPtr;
+
+/* Generic window information */
+typedef struct _TuiGenWinInfo {
+    WINDOW          *handle; /* window handle */
+    TuiWinType      type; /* type of window */
+    int             width; /* window width */
+    int             height; /* window height */
+    TuiPoint        origin; /* origin of window */
+    OpaquePtr       content; /* content of window */
+    int             contentSize; /* Size of content (# of elements) */
+    int             contentInUse; /* Can it be used, or is it already used? */
+    int             viewportHeight; /* viewport height */
+    int             lastVisibleLine; /* index of last visible line */
+    int             isVisible; /* whether the window is visible or not */
+} TuiGenWinInfo, *TuiGenWinInfoPtr;
 
 /* GENERAL TUI FUNCTIONS */
 /* tui.c */
-extern CORE_ADDR tui_get_low_disassembly_address (CORE_ADDR, 
-						  CORE_ADDR);
-extern void tui_show_assembly (CORE_ADDR addr);
-extern int tui_is_window_visible (enum tui_win_type type);
-extern int tui_get_command_dimension (unsigned int *width,
-				      unsigned int *height);
+extern void          tuiInit PARAMS ((char *argv0));
+extern void          tuiInitWindows PARAMS ((void));
+extern void          tuiResetScreen PARAMS ((void));
+extern void          tuiCleanUp PARAMS ((void));
+extern void          tuiError PARAMS ((char *, int));
+extern void          tui_vError PARAMS ((va_list));
+extern void          tuiFree PARAMS ((char *));
+extern Opaque        tuiDo PARAMS ((TuiOpaqueFuncPtr, ...));
+extern Opaque        tuiDoAndReturnToTop PARAMS ((TuiOpaqueFuncPtr, ...));
+extern Opaque        tuiGetLowDisassemblyAddress PARAMS ((Opaque, Opaque));
+extern Opaque        tui_vGetLowDisassemblyAddress PARAMS ((va_list));
+extern void          tui_vSelectSourceSymtab PARAMS ((va_list));
 
-/* Initialize readline and configure the keymap for the switching
-   key shortcut.  */
-extern void tui_initialize_readline (void);
+/* tuiDataWin.c */
+extern void		tui_vCheckDataValues PARAMS ((va_list));
 
-/* Enter in the tui mode (curses).  */
-extern void tui_enable (void);
+/* tuiIO.c */
+extern void		tui_vStartNewLines PARAMS ((va_list));
 
-/* Leave the tui mode.  */
-extern void tui_disable (void);
+/* tuiLayout.c */
+extern void		tui_vAddWinToLayout PARAMS ((va_list));
+extern TuiStatus	tui_vSetLayoutTo PARAMS ((va_list));
 
-enum tui_key_mode
-{
-  /* Plain command mode to enter gdb commands.  */
-  TUI_COMMAND_MODE,
+/* tuiSourceWin.c */
+extern void		tuiDisplayMainFunction PARAMS ((void));
+extern void		tuiUpdateAllExecInfos PARAMS ((void));
+extern void		tuiUpdateOnEnd PARAMS ((void));
+extern void		tui_vAllSetHasBreakAt PARAMS ((va_list));
+extern void		tui_vUpdateSourceWindowsWithAddr PARAMS ((va_list));
 
-  /* SingleKey mode with some keys bound to gdb commands.  */
-  TUI_SINGLE_KEY_MODE,
-
-  /* Read/edit one command and return to SingleKey after it's
-     processed.  */
-  TUI_ONE_COMMAND_MODE
-};
-
-extern enum tui_key_mode tui_current_key_mode;
-
-/* Change the TUI key mode by installing the appropriate readline
-   keymap.  */
-extern void tui_set_key_mode (enum tui_key_mode mode);
-
-extern int tui_active;
-
-extern void tui_show_source (const char *file, int line);
-
-extern struct ui_out *tui_out_new (struct ui_file *stream);
-
-/* tui-layout.c */
-extern enum tui_status tui_set_layout_for_display_command (const char *);
-
-#endif
+/* tuiStack.c */
+extern void		tui_vShowFrameInfo PARAMS ((va_list));
+extern void		tui_vUpdateLocatorFilename PARAMS ((va_list));
+#endif /* TUI_H */

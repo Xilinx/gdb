@@ -58,7 +58,6 @@ do { \
 } while (0)
 
 #define ZALLOC(TYPE) (TYPE*)zalloc(sizeof(TYPE))
-#define NZALLOC(TYPE,N) ((TYPE*) zalloc (sizeof(TYPE) * (N)))
 
 extern void *zalloc
 (long size);

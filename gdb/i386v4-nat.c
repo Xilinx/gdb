@@ -1,164 +1,172 @@
-/* Native-dependent code for Unix SVR4 running on i386's.
+/* Native-dependent code for SVR4 Unix running on i386's, for GDB.
+   Copyright 1988, 1989, 1991, 1992, 1996, 1998 Free Software Foundation, Inc.
 
-   Copyright (C) 1988, 1989, 1991, 1992, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2004, 2007, 2008 Free Software Foundation, Inc.
+This file is part of GDB.
 
-   This file is part of GDB.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include "value.h"
-#include "inferior.h"
-#include "regcache.h"
 
 #ifdef HAVE_SYS_REG_H
 #include <sys/reg.h>
 #endif
 
-#include "i386-tdep.h"
-#include "i387-tdep.h"
 
 #ifdef HAVE_SYS_PROCFS_H
 
 #include <sys/procfs.h>
 
-/* We must not compile this code for 64-bit Solaris x86.  */
-#if !defined (PR_MODEL_NATIVE) || (PR_MODEL_NATIVE == PR_MODEL_ILP32)
+/*  The /proc interface divides the target machine's register set up into
+    two different sets, the general register set (gregset) and the floating
+    point register set (fpregset).  For each set, there is an ioctl to get
+    the current register set and another ioctl to set the current values.
 
-#include "gregset.h"
+    The actual structure passed through the ioctl interface is, of course,
+    naturally machine dependent, and is different for each set of registers.
+    For the i386 for example, the general register set is typically defined
+    by:
 
-/* The `/proc' interface divides the target machine's register set up
-   into two different sets, the general purpose register set (gregset)
-   and the floating-point register set (fpregset).  For each set,
-   there is an ioctl to get the current register set and another ioctl
-   to set the current values.
+	typedef int gregset_t[19];		(in <sys/regset.h>)
 
-   The actual structure passed through the ioctl interface is, of
-   course, naturally machine dependent, and is different for each set
-   of registers.  For the i386 for example, the general-purpose
-   register set is typically defined by:
+	#define GS	0			(in <sys/reg.h>)
+	#define FS	1
+	...
+	#define UESP	17
+	#define SS	18
 
-   typedef int gregset_t[19];           (in <sys/regset.h>)
+    and the floating point set by:
 
-   #define GS   0                       (in <sys/reg.h>)
-   #define FS   1
-   ...
-   #define UESP 17
-   #define SS   18
+	typedef struct fpregset
+	  {
+	    union
+	      {
+		struct fpchip_state	// fp extension state //
+		{
+		  int state[27];	// 287/387 saved state //
+		  int status;		// status word saved at exception //
+		} fpchip_state;
+		struct fp_emul_space	// for emulators //
+		{
+		  char fp_emul[246];
+		  char fp_epad[2];
+		} fp_emul_space;
+		int f_fpregs[62];	// union of the above //
+	      } fp_reg_set;
+	    long f_wregs[33];		// saved weitek state //
+	} fpregset_t;
 
-   and the floating-point set by:
+    These routines provide the packing and unpacking of gregset_t and
+    fpregset_t formatted data.
 
-   typedef struct fpregset   {
-           union {
-                   struct fpchip_state            // fp extension state //
-                   {
-                           int     state[27];     // 287/387 saved state //
-                           int     status;        // status word saved at //
-                                                  // exception //
-                   } fpchip_state;
-                   struct fp_emul_space           // for emulators //
-                   {
-                           char    fp_emul[246];
-                           char    fp_epad[2];
-                   } fp_emul_space;
-                   int     f_fpregs[62];          // union of the above //
-           } fp_reg_set;
-           long            f_wregs[33];           // saved weitek state //
-   } fpregset_t;
-
-   Incidentally fpchip_state contains the FPU state in the same format
-   as used by the "fsave" instruction, and that's the only thing we
-   support here.  I don't know how the emulator stores it state.  The
-   Weitek stuff definitely isn't supported.
-
-   The routines defined here, provide the packing and unpacking of
-   gregset_t and fpregset_t formatted data.  */
+ */
 
 #ifdef HAVE_GREGSET_T
 
-/* Mapping between the general-purpose registers in `/proc'
-   format and GDB's register array layout.  */
-static int regmap[] =
+/* This is a duplicate of the table in i386-xdep.c. */
+
+static int regmap[] = 
 {
   EAX, ECX, EDX, EBX,
   UESP, EBP, ESI, EDI,
   EIP, EFL, CS, SS,
-  DS, ES, FS, GS
+  DS, ES, FS, GS,
 };
 
-/* Fill GDB's register array with the general-purpose register values
-   in *GREGSETP.  */
+/* Prototypes for local functions */
+
+void fill_gregset PARAMS ((gregset_t *, int));
+
+void supply_gregset PARAMS ((gregset_t *));
+
+void supply_fpregset PARAMS ((fpregset_t *));
+
+void fill_fpregset PARAMS ((fpregset_t *, int));
+
+
+/*  FIXME:  These routine absolutely depends upon (NUM_REGS - NUM_FREGS)
+    being less than or equal to the number of registers that can be stored
+    in a gregset_t.  Note that with the current scheme there will typically
+    be more registers actually stored in a gregset_t that what we know
+    about.  This is bogus and should be fixed. */
+
+/*  Given a pointer to a general register set in /proc format (gregset_t *),
+    unpack the register contents and supply them as gdb's idea of the current
+    register values. */
 
 void
-supply_gregset (struct regcache *regcache, const gregset_t *gregsetp)
+supply_gregset (gregsetp)
+     gregset_t *gregsetp;
 {
-  const greg_t *regp = (const greg_t *) gregsetp;
-  int regnum;
+  register int regi;
+  register greg_t *regp = (greg_t *) gregsetp;
+  extern int regmap[];
 
-  for (regnum = 0; regnum < I386_NUM_GREGS; regnum++)
-    regcache_raw_supply (regcache, regnum, regp + regmap[regnum]);
+  for (regi = 0 ; regi < (NUM_REGS - NUM_FREGS) ; regi++)
+    {
+      supply_register (regi, (char *) (regp + regmap[regi]));
+    }
 }
-
-/* Fill register REGNUM (if it is a general-purpose register) in
-   *GREGSETPS with the value in GDB's register array.  If REGNUM is -1,
-   do this for all registers.  */
 
 void
-fill_gregset (const struct regcache *regcache,
-	      gregset_t *gregsetp, int regnum)
+fill_gregset (gregsetp, regno)
+     gregset_t *gregsetp;
+     int regno;
 {
-  greg_t *regp = (greg_t *) gregsetp;
-  int i;
+  int regi;
+  register greg_t *regp = (greg_t *) gregsetp;
+  extern char registers[];
+  extern int regmap[];
 
-  for (i = 0; i < I386_NUM_GREGS; i++)
-    if (regnum == -1 || regnum == i)
-      regcache_raw_collect (regcache, i, regp + regmap[i]);
+  for (regi = 0 ; regi < (NUM_REGS - NUM_FREGS) ; regi++)
+    {
+      if ((regno == -1) || (regno == regi))
+	{
+	  *(regp + regmap[regi]) = *(int *) &registers[REGISTER_BYTE (regi)];
+	}
+    }
 }
 
-#endif /* HAVE_GREGSET_T */
+#endif	/* HAVE_GREGSET_T */
 
-#ifdef HAVE_FPREGSET_T
+#if defined (FP0_REGNUM) && defined (HAVE_FPREGSET_T)
 
-/* Fill GDB's register array with the floating-point register values in
-   *FPREGSETP.  */
+/*  Given a pointer to a floating point register set in /proc format
+    (fpregset_t *), unpack the register contents and supply them as gdb's
+    idea of the current floating point register values. */
+
+void 
+supply_fpregset (fpregsetp)
+     fpregset_t *fpregsetp;
+{
+  /* FIXME: see m68k-tdep.c for an example, for the m68k. */
+}
+
+/*  Given a pointer to a floating point register set in /proc format
+    (fpregset_t *), update the register specified by REGNO from gdb's idea
+    of the current floating point register set.  If REGNO is -1, update
+    them all. */
 
 void
-supply_fpregset (struct regcache *regcache, const fpregset_t *fpregsetp)
+fill_fpregset (fpregsetp, regno)
+     fpregset_t *fpregsetp;
+     int regno;
 {
-  if (gdbarch_fp0_regnum (get_regcache_arch (regcache)) == 0)
-    return;
-
-  i387_supply_fsave (regcache, -1, fpregsetp);
+  /* FIXME: see m68k-tdep.c for an example, for the m68k. */
 }
 
-/* Fill register REGNO (if it is a floating-point register) in
-   *FPREGSETP with the value in GDB's register array.  If REGNO is -1,
-   do this for all registers.  */
+#endif	/* defined (FP0_REGNUM) && defined (HAVE_FPREGSET_T) */
 
-void
-fill_fpregset (const struct regcache *regcache,
-	       fpregset_t *fpregsetp, int regno)
-{
-  if (gdbarch_fp0_regnum (get_regcache_arch (regcache)) == 0)
-    return;
-
-  i387_collect_fsave (regcache, regno, fpregsetp);
-}
-
-#endif /* HAVE_FPREGSET_T */
-
-#endif /* not 64-bit.  */
-
-#endif /* HAVE_SYS_PROCFS_H */
+#endif	/* HAVE_SYS_PROCFS_H */

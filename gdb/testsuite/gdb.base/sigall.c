@@ -1,5 +1,4 @@
 #include <signal.h>
-#include <unistd.h>
 
 #ifdef __sh__
 #define signal(a,b)	/* Signals not supported on this target - make them go away */
@@ -8,784 +7,429 @@
 /* Signal handlers, we set breakpoints in them to make sure that the
    signals really get delivered.  */
 
-#ifdef PROTOTYPES
-void
-handle_ABRT (int sig)
-#else
 void
 handle_ABRT (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_HUP (int sig)
-#else
 void
 handle_HUP (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_QUIT (int sig)
-#else
 void
 handle_QUIT (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_ILL (int sig)
-#else
 void
 handle_ILL (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_EMT (int sig)
-#else
 void
 handle_EMT (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_FPE (int sig)
-#else
 void
 handle_FPE (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_BUS (int sig)
-#else
 void
 handle_BUS (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_SEGV (int sig)
-#else
 void
 handle_SEGV (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_SYS (int sig)
-#else
 void
 handle_SYS (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_PIPE (int sig)
-#else
 void
 handle_PIPE (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_ALRM (int sig)
-#else
 void
 handle_ALRM (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_URG (int sig)
-#else
 void
 handle_URG (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_TSTP (int sig)
-#else
 void
 handle_TSTP (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_CONT (int sig)
-#else
 void
 handle_CONT (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_CHLD (int sig)
-#else
 void
 handle_CHLD (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_TTIN (int sig)
-#else
 void
 handle_TTIN (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_TTOU (int sig)
-#else
 void
 handle_TTOU (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_IO (int sig)
-#else
 void
 handle_IO (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_XCPU (int sig)
-#else
 void
 handle_XCPU (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_XFSZ (int sig)
-#else
 void
 handle_XFSZ (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_VTALRM (int sig)
-#else
 void
 handle_VTALRM (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_PROF (int sig)
-#else
 void
 handle_PROF (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_WINCH (int sig)
-#else
 void
 handle_WINCH (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_LOST (int sig)
-#else
 void
 handle_LOST (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_USR1 (int sig)
-#else
 void
 handle_USR1 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_USR2 (int sig)
-#else
 void
 handle_USR2 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_PWR (int sig)
-#else
 void
 handle_PWR (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_POLL (int sig)
-#else
 void
 handle_POLL (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_WIND (int sig)
-#else
 void
 handle_WIND (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_PHONE (int sig)
-#else
 void
 handle_PHONE (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_WAITING (int sig)
-#else
 void
 handle_WAITING (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_LWP (int sig)
-#else
 void
 handle_LWP (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_DANGER (int sig)
-#else
 void
 handle_DANGER (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_GRANT (int sig)
-#else
 void
 handle_GRANT (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_RETRACT (int sig)
-#else
 void
 handle_RETRACT (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_MSG (int sig)
-#else
 void
 handle_MSG (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_SOUND (int sig)
-#else
 void
 handle_SOUND (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_SAK (int sig)
-#else
 void
 handle_SAK (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_PRIO (int sig)
-#else
 void
 handle_PRIO (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_33 (int sig)
-#else
 void
 handle_33 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_34 (int sig)
-#else
 void
 handle_34 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_35 (int sig)
-#else
 void
 handle_35 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_36 (int sig)
-#else
 void
 handle_36 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_37 (int sig)
-#else
 void
 handle_37 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_38 (int sig)
-#else
 void
 handle_38 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_39 (int sig)
-#else
 void
 handle_39 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_40 (int sig)
-#else
 void
 handle_40 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_41 (int sig)
-#else
 void
 handle_41 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_42 (int sig)
-#else
 void
 handle_42 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_43 (int sig)
-#else
 void
 handle_43 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_44 (int sig)
-#else
 void
 handle_44 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_45 (int sig)
-#else
 void
 handle_45 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_46 (int sig)
-#else
 void
 handle_46 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_47 (int sig)
-#else
 void
 handle_47 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_48 (int sig)
-#else
 void
 handle_48 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_49 (int sig)
-#else
 void
 handle_49 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_50 (int sig)
-#else
 void
 handle_50 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_51 (int sig)
-#else
 void
 handle_51 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_52 (int sig)
-#else
 void
 handle_52 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_53 (int sig)
-#else
 void
 handle_53 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_54 (int sig)
-#else
 void
 handle_54 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_55 (int sig)
-#else
 void
 handle_55 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_56 (int sig)
-#else
 void
 handle_56 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_57 (int sig)
-#else
 void
 handle_57 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_58 (int sig)
-#else
 void
 handle_58 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_59 (int sig)
-#else
 void
 handle_59 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_60 (int sig)
-#else
 void
 handle_60 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_61 (int sig)
-#else
 void
 handle_61 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_62 (int sig)
-#else
 void
 handle_62 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_63 (int sig)
-#else
 void
 handle_63 (sig)
      int sig;
-#endif
 {
 }
 
-#ifdef PROTOTYPES
-void
-handle_TERM (int sig)
-#else
 void
 handle_TERM (sig)
      int sig;
-#endif
 {
 }
 
@@ -794,7 +438,6 @@ int
 gen_ABRT ()
 {
   kill (getpid (), SIGABRT);
-  return 0;
 }  
 
 int
@@ -805,7 +448,6 @@ gen_HUP ()
 #else
   handle_HUP (0);
 #endif
-return 0;
 }  
 
 int
@@ -816,7 +458,6 @@ gen_QUIT ()
 #else
   handle_QUIT (0);
 #endif
-return 0;
 }
 
 int
@@ -827,7 +468,6 @@ gen_ILL ()
 #else
   handle_ILL (0);
 #endif
-return 0;
 }
 
 int
@@ -838,7 +478,6 @@ gen_EMT ()
 #else
   handle_EMT (0);
 #endif
-return 0;
 }
 
 int x;
@@ -860,7 +499,6 @@ gen_FPE ()
 #else
   kill (getpid (), SIGFPE);
 #endif
-return 0;
 }
 
 int
@@ -871,7 +509,6 @@ gen_BUS ()
 #else
   handle_BUS (0);
 #endif
-return 0;
 }
 
 int
@@ -882,7 +519,6 @@ gen_SEGV ()
 #else
   handle_SEGV (0);
 #endif
-return 0;
 }
 
 int
@@ -893,7 +529,6 @@ gen_SYS ()
 #else
   handle_SYS (0);
 #endif
-return 0;
 }
 
 int
@@ -904,7 +539,6 @@ gen_PIPE ()
 #else
   handle_PIPE (0);
 #endif
-return 0;
 }
 
 int
@@ -915,7 +549,6 @@ gen_ALRM ()
 #else
   handle_ALRM (0);
 #endif
-return 0;
 }
 
 int
@@ -926,7 +559,6 @@ gen_URG ()
 #else
   handle_URG (0);
 #endif
-return 0;
 }
 
 int
@@ -937,7 +569,6 @@ gen_TSTP ()
 #else
   handle_TSTP (0);
 #endif
-return 0;
 }
 
 int
@@ -948,7 +579,6 @@ gen_CONT ()
 #else
   handle_CONT (0);
 #endif
-return 0;
 }
 
 int
@@ -959,7 +589,6 @@ gen_CHLD ()
 #else
   handle_CHLD (0);
 #endif
-return 0;
 }
 
 int
@@ -970,7 +599,6 @@ gen_TTIN ()
 #else
   handle_TTIN (0);
 #endif
-return 0;
 }
 
 int
@@ -981,7 +609,6 @@ gen_TTOU ()
 #else
   handle_TTOU (0);
 #endif
-return 0;
 }
 
 int
@@ -992,7 +619,6 @@ gen_IO ()
 #else
   handle_IO (0);
 #endif
-return 0;
 }
 
 int
@@ -1003,7 +629,6 @@ gen_XCPU ()
 #else
   handle_XCPU (0);
 #endif
-return 0;
 }
 
 int
@@ -1014,7 +639,6 @@ gen_XFSZ ()
 #else
   handle_XFSZ (0);
 #endif
-return 0;
 }
 
 int
@@ -1025,7 +649,6 @@ gen_VTALRM ()
 #else
   handle_VTALRM (0);
 #endif
-return 0;
 }
 
 int
@@ -1036,7 +659,6 @@ gen_PROF ()
 #else
   handle_PROF (0);
 #endif
-return 0;
 }
 
 int
@@ -1047,7 +669,6 @@ gen_WINCH ()
 #else
   handle_WINCH (0);
 #endif
-return 0;
 }
 
 int
@@ -1058,7 +679,6 @@ gen_LOST ()
 #else
   handle_LOST (0);
 #endif
-return 0;
 }
 
 int
@@ -1069,7 +689,6 @@ gen_USR1 ()
 #else
   handle_USR1 (0);
 #endif
-return 0;
 }
 
 int
@@ -1080,7 +699,6 @@ gen_USR2 ()
 #else
   handle_USR2 (0);
 #endif
-return 0;
 }  
 
 int
@@ -1091,7 +709,6 @@ gen_PWR ()
 #else
   handle_PWR (0);
 #endif
-return 0;
 }
 
 int
@@ -1102,7 +719,6 @@ gen_POLL ()
 #else
   handle_POLL (0);
 #endif
-return 0;
 }
 
 int
@@ -1113,7 +729,6 @@ gen_WIND ()
 #else
   handle_WIND (0);
 #endif
-return 0;
 }
 
 int
@@ -1124,7 +739,6 @@ gen_PHONE ()
 #else
   handle_PHONE (0);
 #endif
-return 0;
 }
 
 int
@@ -1135,7 +749,6 @@ gen_WAITING ()
 #else
   handle_WAITING (0);
 #endif
-return 0;
 }
 
 int
@@ -1146,7 +759,6 @@ gen_LWP ()
 #else
   handle_LWP (0);
 #endif
-return 0;
 }
 
 int
@@ -1157,7 +769,6 @@ gen_DANGER ()
 #else
   handle_DANGER (0);
 #endif
-return 0;
 }
 
 int
@@ -1168,7 +779,6 @@ gen_GRANT ()
 #else
   handle_GRANT (0);
 #endif
-return 0;
 }
 
 int
@@ -1179,7 +789,6 @@ gen_RETRACT ()
 #else
   handle_RETRACT (0);
 #endif
-return 0;
 }
 
 int
@@ -1190,7 +799,6 @@ gen_MSG ()
 #else
   handle_MSG (0);
 #endif
-return 0;
 }
 
 int
@@ -1201,7 +809,6 @@ gen_SOUND ()
 #else
   handle_SOUND (0);
 #endif
-return 0;
 }
 
 int
@@ -1212,7 +819,6 @@ gen_SAK ()
 #else
   handle_SAK (0);
 #endif
-return 0;
 }
 
 int
@@ -1223,7 +829,6 @@ gen_PRIO ()
 #else
   handle_PRIO (0);
 #endif
-return 0;
 }
 
 int
@@ -1234,7 +839,6 @@ gen_33 ()
 #else
   handle_33 (0);
 #endif
-return 0;
 }
 
 int
@@ -1245,7 +849,6 @@ gen_34 ()
 #else
   handle_34 (0);
 #endif
-return 0;
 }
 
 int
@@ -1256,7 +859,6 @@ gen_35 ()
 #else
   handle_35 (0);
 #endif
-return 0;
 }
 
 int
@@ -1267,7 +869,6 @@ gen_36 ()
 #else
   handle_36 (0);
 #endif
-return 0;
 }
 
 int
@@ -1278,7 +879,6 @@ gen_37 ()
 #else
   handle_37 (0);
 #endif
-return 0;
 }
 
 int
@@ -1289,7 +889,6 @@ gen_38 ()
 #else
   handle_38 (0);
 #endif
-return 0;
 }
 
 int
@@ -1300,7 +899,6 @@ gen_39 ()
 #else
   handle_39 (0);
 #endif
-return 0;
 }
 
 int
@@ -1311,7 +909,6 @@ gen_40 ()
 #else
   handle_40 (0);
 #endif
-return 0;
 }
 
 int
@@ -1322,7 +919,6 @@ gen_41 ()
 #else
   handle_41 (0);
 #endif
-return 0;
 }
 
 int
@@ -1333,7 +929,6 @@ gen_42 ()
 #else
   handle_42 (0);
 #endif
-return 0;
 }
 
 int
@@ -1344,7 +939,6 @@ gen_43 ()
 #else
   handle_43 (0);
 #endif
-return 0;
 }
 
 int
@@ -1355,7 +949,6 @@ gen_44 ()
 #else
   handle_44 (0);
 #endif
-return 0;
 }
 
 int
@@ -1366,7 +959,6 @@ gen_45 ()
 #else
   handle_45 (0);
 #endif
-return 0;
 }
 
 int
@@ -1377,7 +969,6 @@ gen_46 ()
 #else
   handle_46 (0);
 #endif
-return 0;
 }
 
 int
@@ -1388,7 +979,6 @@ gen_47 ()
 #else
   handle_47 (0);
 #endif
-return 0;
 }
 
 int
@@ -1399,7 +989,6 @@ gen_48 ()
 #else
   handle_48 (0);
 #endif
-return 0;
 }
 
 int
@@ -1410,7 +999,6 @@ gen_49 ()
 #else
   handle_49 (0);
 #endif
-return 0;
 }
 
 int
@@ -1421,7 +1009,6 @@ gen_50 ()
 #else
   handle_50 (0);
 #endif
-return 0;
 }
 
 int
@@ -1432,7 +1019,6 @@ gen_51 ()
 #else
   handle_51 (0);
 #endif
-return 0;
 }
 
 int
@@ -1443,7 +1029,6 @@ gen_52 ()
 #else
   handle_52 (0);
 #endif
-return 0;
 }
 
 int
@@ -1454,7 +1039,6 @@ gen_53 ()
 #else
   handle_53 (0);
 #endif
-return 0;
 }
 
 int
@@ -1465,7 +1049,6 @@ gen_54 ()
 #else
   handle_54 (0);
 #endif
-return 0;
 }
 
 int
@@ -1476,7 +1059,6 @@ gen_55 ()
 #else
   handle_55 (0);
 #endif
-return 0;
 }
 
 int
@@ -1487,7 +1069,6 @@ gen_56 ()
 #else
   handle_56 (0);
 #endif
-return 0;
 }
 
 int
@@ -1498,7 +1079,6 @@ gen_57 ()
 #else
   handle_57 (0);
 #endif
-return 0;
 }
 
 int
@@ -1509,7 +1089,6 @@ gen_58 ()
 #else
   handle_58 (0);
 #endif
-return 0;
 }
 
 int
@@ -1520,7 +1099,6 @@ gen_59 ()
 #else
   handle_59 (0);
 #endif
-return 0;
 }
 
 int
@@ -1531,7 +1109,6 @@ gen_60 ()
 #else
   handle_60 (0);
 #endif
-return 0;
 }
 
 int
@@ -1542,7 +1119,6 @@ gen_61 ()
 #else
   handle_61 (0);
 #endif
-return 0;
 }
 
 int
@@ -1553,7 +1129,6 @@ gen_62 ()
 #else
   handle_62 (0);
 #endif
-return 0;
 }
 
 int
@@ -1564,14 +1139,12 @@ gen_63 ()
 #else
   handle_63 (0);
 #endif
-return 0;
 }
 
 int
 gen_TERM ()
 {
   kill (getpid (), SIGTERM);
-return 0;
 }  
 
 int
@@ -1581,18 +1154,6 @@ main ()
   set_debug_traps ();
   breakpoint ();
 #endif
-
-#ifdef SIG_SETMASK
-  /* Ensure all the signals aren't blocked.
-     The environment in which the testsuite is run may have blocked some
-     for whatever reason.  */
-  {
-    sigset_t newset;
-    sigemptyset (&newset);
-    sigprocmask (SIG_SETMASK, &newset, NULL);
-  }
-#endif
-
   signal (SIGABRT, handle_ABRT);
 #ifdef SIGHUP
   signal (SIGHUP, handle_HUP);

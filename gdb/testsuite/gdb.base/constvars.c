@@ -166,11 +166,6 @@ main (void)
 
   const volatile char              * const volatile vagary = &victor;
   const volatile unsigned char     * const volatile vendor = &vicar;
-  
-  /* various structs with const members */
-
-  struct crass { char * const ptr; } crass = { lamprey };
-  struct crisp { char * const *ptr; } crisp = { &lamprey };
 
   /* misc. references */
   /*

@@ -1,18 +1,19 @@
 /* New version of run front end support for simulators.
-   Copyright (C) 1997, 2004, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 1997 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <signal.h>
 #include "sim-main.h"
@@ -21,11 +22,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #ifdef HAVE_ENVIRON
 extern char **environ;
-#endif
-
-#ifdef HAVE_UNISTD_H
-/* For chdir.  */
-#include <unistd.h>
 #endif
 
 static void usage (void);
@@ -51,7 +47,7 @@ main (int argc, char **argv)
 {
   char *name;
   char **prog_argv = NULL;
-  struct bfd *prog_bfd;
+  struct _bfd *prog_bfd;
   enum sim_stop reason;
   int sigrc = 0;
   int single_step = 0;
@@ -80,12 +76,6 @@ main (int argc, char **argv)
       fprintf (stderr, "Internal error - bad magic number in simulator struct\n");
       abort ();
     }
-
-  /* We can't set the endianness in the callback structure until
-     sim_config is called, which happens in sim_open.  */
-  default_callback.target_endian
-    = (CURRENT_TARGET_BYTE_ORDER == BIG_ENDIAN
-       ? BFD_ENDIAN_BIG : BFD_ENDIAN_LITTLE);
 
   /* Was there a program to run?  */
   prog_argv = STATE_PROG_ARGV (sd);
@@ -127,16 +117,6 @@ main (int argc, char **argv)
   sim_create_inferior (sd, prog_bfd, prog_argv, NULL);
 #endif
 
-  /* To accommodate relative file paths, chdir to sysroot now.  We
-     mustn't do this until BFD has opened the program, else we wouldn't
-     find the executable if it has a relative file path.  */
-  if (simulator_sysroot[0] != '\0' && chdir (simulator_sysroot) < 0)
-    {
-      fprintf (stderr, "%s: can't change directory to \"%s\"\n",
-	       myname, simulator_sysroot);
-      exit (1);
-    }
-
   /* Run/Step the program.  */
   if (single_step)
     {
@@ -157,45 +137,46 @@ main (int argc, char **argv)
 	     ((reason == sim_stopped) && 
 	      (STATE_ENVIRONMENT (sd) == OPERATING_ENVIRONMENT)));
     }
-  else 
+  else do
     {
-      do
-	{
 #if defined (HAVE_SIGACTION) && defined (SA_RESTART)
-	  struct sigaction sa, osa;
-	  sa.sa_handler = cntrl_c;
-	  sigemptyset (&sa.sa_mask);
-	  sa.sa_flags = 0;
-	  sigaction (SIGINT, &sa, &osa);
-	  prev_sigint = osa.sa_handler;
+      struct sigaction sa, osa;
+      sa.sa_handler = cntrl_c;
+      sigemptyset (&sa.sa_mask);
+      sa.sa_flags = 0;
+      sigaction (SIGINT, &sa, &osa);
+      prev_sigint = osa.sa_handler;
 #else
-	  prev_sigint = signal (SIGINT, cntrl_c);
+      prev_sigint = signal (SIGINT, cntrl_c);
 #endif
-	  sim_resume (sd, 0, sigrc);
-	  signal (SIGINT, prev_sigint);
-	  sim_stop_reason (sd, &reason, &sigrc);
-	  
-	  if ((reason == sim_stopped) &&
-	      (sigrc == sim_signal_to_host (sd, SIM_SIGINT)))
-	    break; /* exit on control-C */
-	  
-	  /* remain on signals in oe mode */
-	} while ((reason == sim_stopped) &&
-		 (STATE_ENVIRONMENT (sd) == OPERATING_ENVIRONMENT));
-      
-    }
+      sim_resume (sd, 0, sigrc);
+      signal (SIGINT, prev_sigint);
+      sim_stop_reason (sd, &reason, &sigrc);
+
+      if ((reason == sim_stopped) &&
+	  (sigrc == sim_signal_to_host (sd, SIM_SIGINT)))
+	break; /* exit on control-C */
+
+      /* remain on signals in oe mode */
+    } while ((reason == sim_stopped) &&
+	     (STATE_ENVIRONMENT (sd) == OPERATING_ENVIRONMENT));
+
   /* Print any stats the simulator collected.  */
-  if (STATE_VERBOSE_P (sd))
-    sim_info (sd, 0);
-  
+  sim_info (sd, 0);
+
   /* Shutdown the simulator.  */
   sim_close (sd, 0);
-  
+
   /* If reason is sim_exited, then sigrc holds the exit code which we want
      to return.  If reason is sim_stopped or sim_signalled, then sigrc holds
      the signal that the simulator received; we want to return that to
      indicate failure.  */
-  
+
+#ifdef SIM_H8300 /* FIXME: Ugh.  grep for SLEEP in compile.c  */
+  if (sigrc == SIGILL)
+    abort ();
+  sigrc = 0;
+#else
   /* Why did we stop? */
   switch (reason)
     {
@@ -213,6 +194,7 @@ main (int argc, char **argv)
       break;
 
     }
+#endif
 
   return sigrc;
 }
@@ -224,3 +206,9 @@ usage ()
   fprintf (stderr, "Run `%s --help' for full list of options.\n", myname);
   exit (1);
 }
+
+
+#ifdef __CYGWIN32__
+/* no-op GUI update hook for standalone sim */
+void (*ui_loop_hook) PARAMS ((int)) = NULL;
+#endif

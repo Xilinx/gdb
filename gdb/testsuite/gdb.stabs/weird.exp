@@ -1,18 +1,18 @@
-# Copyright 1997, 1998, 1999, 2001, 2003, 2004, 2006, 2007, 2008
-# Free Software Foundation, Inc.
+#   Copyright (C) 1997 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
+# the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
 
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-gdb@prep.ai.mit.edu
@@ -32,24 +32,6 @@ if ![file isdirectory ${objdir}/${subdir}] then {
 
 set prms_id 0
 set bug_id 0
-
-set testfile weird
-set srcfile ${objdir}/${subdir}/weird.s
-set binfile ${objdir}/${subdir}/weirdx.o
-
-if { [ get_compiler_info "$binfile" ] } {
-    return -1
-}
-
-if { $hp_cc_compiler || $hp_aCC_compiler } {
-    # The native hp-ux assembler does not support stabs at all.
-    # If the compiler is native hp-ux, of course the assembler is too.
-    # But if someone builds gcc with the native assembler (not recommended)
-    # rather than the gnu assembler, then this logic will not suppress it.
-    # -- chastain 2004-01-07
-    unsupported "stabs with hp-ux assembler"
-    continue
-}
 
 proc do_tests {} {
 	global binfile
@@ -188,9 +170,9 @@ field3 = 0x77888877\}" "print struct constant"
 
 	# GDB does not yet support arrays indexed by anything at all unusual
 	setup_xfail "*-*-*"
-	gdb_test "p array0" " = \\{42, 43, 44, 45, 46, 47\\}" "array0 with strange index"
+	gdb_test "p array0" " = \{42, 43, 44, 45, 46, 47\}" "array0 with strange index"
 	setup_xfail "*-*-*"
-	gdb_test "p array1" " = \\{42, 43, 44\\}" "array1 with strange index"
+	gdb_test "p array1" " = \{42, 43, 44\}" "array1 with strange index"
 
 	# GDB does not yet support this feature
 	gdb_test "whatis one_var" "type = inttype_one" \
@@ -220,6 +202,9 @@ field3 = 0x77888877\}" "print struct constant"
 	gdb_test "p common0var1" "= 24"
 	setup_xfail "*-*-*"
 	gdb_test "p common0var2" "= 22"
+
+	# this long line must be continous, not with "/" escaping the newline
+	gdb_test "p v_comb" "{<> = {<> = {x = 42}, \[_a-zA-Z$.\]* = \[0-9xa-fA-F\]*, a = 43}, <> = {\[_a-zA-Z$.\]* = \[0-9xa-fA-F\]*, b = 44}, comb = 45}"
 }
 
 proc print_weird_var { var } {
@@ -227,13 +212,16 @@ proc print_weird_var { var } {
 
 	# Make sure that the variable gets printed out correctly, without
 	# any sort of warning message.
-        gdb_test_multiple "print $var" "variable $var printed property" {  
+	send_gdb "print $var\n"
+	gdb_expect {
 		-re "^print $var\r*\n.\[0-9\]* = 42.*$gdb_prompt $" {
 			pass "variable $var printed properly"
 		}
 		-re ".*$gdb_prompt $" {
-			fail "variable $var printed properly"
+			fail "variable $var not printed properly"
 		}
+		timeout { fail "variable $var not printed (timeout)" }
+		eof { fail "(eof) variable $var not printed" }
 	}
 
 	# Make sure that the stabs did get loaded in a sensible way.
@@ -251,6 +239,9 @@ proc print_weird_var { var } {
 
 # Don't use gdb_load; it doesn't bitch if the loading produced some
 # error messages during symbol reading.
+set testfile weird
+set srcfile ${objdir}/${subdir}/weird.s
+set binfile ${objdir}/${subdir}/weirdx.o
 
 global target_os
 set sedscript ${srcdir}/${subdir}/aout.sed
@@ -278,6 +269,7 @@ switch -glob ${target_triplet} {
     }
 }
 
+
 # Hope this is a Unix box.
 set exec_output [remote_exec build "sed" "-f ${sedscript}" "${srcdir}/${subdir}/weird.def" "${srcfile}"]
 if { [lindex $exec_output 0] != 0 } {
@@ -286,8 +278,7 @@ if { [lindex $exec_output 0] != 0 } {
 }
 
 if  { [gdb_compile "${srcfile}" "${binfile}" object ""] != "" } {
-     untested weird.exp
-     return -1
+     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
 }
 
 remote_file build delete ${srcfile}
@@ -310,11 +301,11 @@ gdb_expect 60 {
     -re "^file (\[^ \]| +\008)*\r*\n" {
 	exp_continue
     }
-    -re "A program is being debugged already.\[\r\n\]+Are you sure you want to change the file\\? \\(y or n\\)" {
+    -re "A program is being debugged already.  Kill it\\? \\(y or n\\)" {
 	send_gdb "y\n"
 	exp_continue
     }
-    -re "^Reading symbols from .*$binfile\\.\\.\\.done\.(|\r\nUsing host libthread_db library .*libthread_db.so.*\\.)\r\n$gdb_prompt $" {
+    -re "^Reading symbols from $binfile\\.\\.\\.done\.\r*\n$gdb_prompt $" {
 	pass "weirdx.o read without error"
     }
     -re ".*$gdb_prompt $" {

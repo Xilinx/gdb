@@ -1,21 +1,22 @@
 /* Simulator cache routines for CGEN simulators (and maybe others).
-   Copyright (C) 1996, 1997, 1998, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
 This file is part of GDB, the GNU debugger.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #define SCACHE_DEFINE_INLINE
 
@@ -116,6 +117,8 @@ static SIM_RC
 scache_option_handler (SIM_DESC sd, sim_cpu *cpu, int opt,
 		       char *arg, int is_command)
 {
+  int n;
+
   switch (opt)
     {
     case 'c' :
@@ -310,8 +313,6 @@ scache_flush_cpu (SIM_CPU *cpu)
 SCACHE *
 scache_lookup (SIM_CPU *cpu, IADDR pc)
 {
-  /* FIXME: hash computation is wrong, doesn't take into account
-     NUM_HASH_CHAIN_ENTRIES.  A lot of the hash table will be unused!  */
   unsigned int slot = HASH_PC (pc) & (CPU_SCACHE_NUM_HASH_CHAINS (cpu) - 1);
   int i, max_i = CPU_SCACHE_NUM_HASH_CHAIN_ENTRIES (cpu);
   SCACHE_MAP *scm;
@@ -342,8 +343,6 @@ scache_lookup (SIM_CPU *cpu, IADDR pc)
 SCACHE *
 scache_lookup_or_alloc (SIM_CPU *cpu, IADDR pc, int n, SCACHE **bufp)
 {
-  /* FIXME: hash computation is wrong, doesn't take into account
-     NUM_HASH_CHAIN_ENTRIES.  A lot of the hash table will be unused!  */
   unsigned int slot = HASH_PC (pc) & (CPU_SCACHE_NUM_HASH_CHAINS (cpu) - 1);
   int i, max_i = CPU_SCACHE_NUM_HASH_CHAIN_ENTRIES (cpu);
   SCACHE_MAP *scm;
@@ -373,7 +372,6 @@ scache_lookup_or_alloc (SIM_CPU *cpu, IADDR pc, int n, SCACHE **bufp)
       static int next_free = 0;
 
       scm = & CPU_SCACHE_HASH_TABLE (cpu) [slot];
-      /* FIXME: This seems rather clumsy.  */
       for (i = 0; i < next_free; ++i, ++scm)
 	continue;
       ++next_free;
@@ -383,8 +381,6 @@ scache_lookup_or_alloc (SIM_CPU *cpu, IADDR pc, int n, SCACHE **bufp)
 
   /* At this point SCM points to the hash table entry to use.
      Now make sure there's room in the cache.  */
-  /* FIXME: Kinda weird to use a next_free adjusted scm when cache is
-     flushed.  */
 
   {
     int elm_size = IMP_PROPS_SCACHE_ELM_SIZE (MACH_IMP_PROPS (CPU_MACH (cpu)));

@@ -5,18 +5,6 @@
 
 #include "ovlymgr.h"
 
-#ifdef __SPU__
-/* SPU tool chain provides its own overlay manager.  */
-bool
-OverlayLoad (unsigned long ovlyno)
-{
-}
-bool
-OverlayUnload (unsigned long ovlyno)
-{
-}
-#else /* __SPU__ */
-
 /* Local functions and data: */
 
 extern unsigned long _ovly_table[][4];
@@ -40,15 +28,6 @@ FlushCache (void)
   volatile char *mspr = (char *) 0xfffffff7;
   *mspr = 1;
 #endif
-}
-
-/* _ovly_debug_event:
- * Debuggers may set a breakpoint here, to be notified 
- * when the overlay table has been modified.
- */
-static void
-_ovly_debug_event (void)
-{
 }
 
 /* OverlayLoad:
@@ -78,7 +57,7 @@ OverlayLoad (unsigned long ovlyno)
 	     _ovly_table[ovlyno][SIZE]);
 
   FlushCache ();
-  _ovly_debug_event ();
+
   return TRUE;
 }
 
@@ -101,7 +80,6 @@ OverlayUnload (unsigned long ovlyno)
 	     _ovly_table[ovlyno][VMA],
 	     _ovly_table[ovlyno][SIZE]);
 
-  _ovly_debug_event ();
   return TRUE;
 }
 
@@ -207,6 +185,11 @@ D10VTranslate (unsigned long logical,
 static void
 ovly_copy (unsigned long dst, unsigned long src, long size)
 {
+#ifdef  __M32R__
+  memcpy ((void *) dst, (void *) src, size);
+  return;
+#endif /* M32R */
+
 #ifdef  __D10V__
   unsigned long *s, *d, tmp;
   short dmap_src, dmap_dst;
@@ -237,10 +220,6 @@ ovly_copy (unsigned long dst, unsigned long src, long size)
 	D10VTranslate (dst, &dmap_dst, &d);
     }
   DMAP = dmap_save;
-#else
-  memcpy ((void *) dst, (void *) src, size);
 #endif /* D10V */
-  return;
 }
 
-#endif /* __SPU__ */

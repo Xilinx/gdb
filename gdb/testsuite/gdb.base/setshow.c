@@ -3,15 +3,10 @@
 
 #include <stdio.h>
 
-#ifdef PROTOTYPES
-int
-main(int argc, char **argv)
-#else
 int 
 main(argc, argv)
      int argc;
      char **argv;
-#endif
 {
   int i = 1;
 #ifdef usestubs

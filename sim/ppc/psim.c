@@ -1,6 +1,6 @@
 /*  This file is part of the program psim.
 
-    Copyright 1994, 1995, 1996, 1997, 2003 Andrew Cagney
+    Copyright (C) 1994-1997, Andrew Cagney <cagney@highland.com.au>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -49,8 +49,7 @@
 
 
 #include "bfd.h"
-#include "libiberty.h"
-#include "gdb/signals.h"
+
 
 /* system structure, actual size of processor array determined at
    runtime */
@@ -119,7 +118,7 @@ find_arg(char *err_msg,
 
 INLINE_PSIM\
 (void)
-psim_usage(int verbose, int help)
+psim_usage(int verbose)
 {
   printf_filtered("Usage:\n");
   printf_filtered("\n");
@@ -217,14 +216,11 @@ psim_usage(int verbose, int help)
     printf_filtered("\n");
     print_options();
   }
-
-  if (REPORT_BUGS_TO[0])
-    printf ("Report bugs to %s\n", REPORT_BUGS_TO);
-  exit (help ? 0 : 1);
+  error("");
 }
 
 /* Test "string" for containing a string of digits that form a number
-between "min" and "max".  The return value is the number or "err". */
+between "min" and "max".  The return value is the number of "err". */
 static
 int is_num( char *string, int min, int max, int err)
 {
@@ -261,7 +257,7 @@ psim_options(device *root,
     while (*p != '\0') {
       switch (*p) {
       default:
-	psim_usage(0, 0);
+	psim_usage(0);
 	error ("");
 	break;
       case 'c':
@@ -282,7 +278,7 @@ psim_options(device *root,
 	else
 	  {
 	    printf_filtered ("Invalid <endian> option for -E (target-endian)\n");
-	    psim_usage (0, 0);
+	    psim_usage (0);
 	  }
 	break;
       case 'f':
@@ -291,10 +287,10 @@ psim_options(device *root,
 	break;
       case 'h':
       case '?':
-	psim_usage(1, 1);
+	psim_usage(1);
 	break;
       case 'H':
-	psim_usage(2, 1);
+	psim_usage(2);
 	break;
       case 'i':
 	if (isdigit(p[1])) {
@@ -320,6 +316,7 @@ psim_options(device *root,
 	break;
       case 'o':
 	param = find_arg("Missing <dev-spec> option for -o\n", &argp, argv);
+#ifdef WITH_OPTION_MPC860C0
 	if (memcmp(param, "mpc860c0", 8) == 0)
         {
           if (param[8] == '\0')
@@ -331,6 +328,7 @@ psim_options(device *root,
           else error("Invalid mpc860c0 option for -o\n");
         }
 	else
+#endif // WITH_OPTION_MPC860C0
           current = tree_parse(current, "%s", param);
 	break;
       case 'r':
@@ -345,27 +343,6 @@ psim_options(device *root,
 	else
 	  tree_parse(root, "/openprom/trace/%s 1", param);
 	break;
-      case '-':
-	/* it's a long option of the form --optionname=optionvalue.
-	   Such options can be passed through if we are invoked by
-	   gdb.  */
-	if (strstr(argv[argp], "architecture") != NULL) {
-          /* we must consume the argument here, so that we get out
-             of the loop.  */
-	  p = argv[argp] + strlen(argv[argp]) - 1;
-	  printf_filtered("Warning - architecture parameter ignored\n");
-        }
-	else if (strcmp (argv[argp], "--help") == 0)
-	  psim_usage (0, 1);
-	else if (strcmp (argv[argp], "--version") == 0)
-	  {
-	    extern const char version[];
-	    printf ("GNU simulator %s%s\n", PKGVERSION, version);
-	    exit (0);
-	  }
-	else
-	  error("Unrecognized option");
-	break;
       }
       p += 1;
     }
@@ -377,10 +354,9 @@ psim_options(device *root,
 	       NULL, 0,
 	       device_ioctl_set_trace);
 
-  {
-    void semantic_init(device* root);
-    semantic_init(root);
-  }
+#ifdef WITH_OPTION_MPC860C0
+  semantic_init(root);
+#endif // WITH_OPTION_MPC860C0
 
   /* return where the options end */
   return argv + argp;
@@ -583,7 +559,7 @@ cntrl_c_simulation(void *data)
   psim_halt(system,
 	    psim_nr_cpus(system),
 	    was_continuing,
-	    TARGET_SIGNAL_INT);
+	    SIGINT);
 }
 
 INLINE_PSIM\
@@ -741,8 +717,7 @@ psim_stack(psim *system,
 					  "/openprom/init/stack");
   if (stack_device != (device*)0) {
     unsigned_word stack_pointer;
-    ASSERT (psim_read_register(system, 0, &stack_pointer, "sp",
-			       cooked_transfer) > 0);
+    psim_read_register(system, 0, &stack_pointer, "sp", cooked_transfer);
     device_ioctl(stack_device,
 		 NULL, /*cpu*/
 		 0, /*cia*/
@@ -779,7 +754,7 @@ psim_run(psim *system)
 /* storage manipulation functions */
 
 INLINE_PSIM\
-(int)
+(void)
 psim_read_register(psim *system,
 		   int which_cpu,
 		   void *buf,
@@ -787,7 +762,7 @@ psim_read_register(psim *system,
 		   transfer_mode mode)
 {
   register_descriptions description;
-  char *cooked_buf;
+  char cooked_buf[sizeof(unsigned_8)];
   cpu *processor;
 
   /* find our processor */
@@ -805,8 +780,7 @@ psim_read_register(psim *system,
   /* find the register description */
   description = register_description(reg);
   if (description.type == reg_invalid)
-    return 0;
-  cooked_buf = alloca (description.size);
+    error("psim_read_register() invalid register name `%s'\n", reg);
 
   /* get the cooked value */
   switch (description.type) {
@@ -860,30 +834,6 @@ psim_read_register(psim *system,
     *(unsigned_word*)cooked_buf = model_get_number_of_cycles(cpu_model(processor));
     break;
 
-#ifdef WITH_ALTIVEC
-  case reg_vr:
-    *(vreg*)cooked_buf = cpu_registers(processor)->altivec.vr[description.index];
-    break;
-
-  case reg_vscr:
-    *(vscreg*)cooked_buf = cpu_registers(processor)->altivec.vscr;
-    break;
-#endif
-
-#ifdef WITH_E500
-  case reg_gprh:
-    *(gpreg*)cooked_buf = cpu_registers(processor)->e500.gprh[description.index];
-    break;
-
-  case reg_evr:
-    *(unsigned64*)cooked_buf = EVR(description.index);
-    break;
-
-  case reg_acc:
-    *(accreg*)cooked_buf = cpu_registers(processor)->e500.acc;
-    break;
-#endif
-
   default:
     printf_filtered("psim_read_register(processor=0x%lx,buf=0x%lx,reg=%s) %s\n",
 		    (unsigned long)processor, (unsigned long)buf, reg,
@@ -909,34 +859,18 @@ psim_read_register(psim *system,
     case 8:
       *(unsigned_8*)buf = H2T_8(*(unsigned_8*)cooked_buf);
       break;
-#ifdef WITH_ALTIVEC
-    case 16:
-      if (CURRENT_HOST_BYTE_ORDER != CURRENT_TARGET_BYTE_ORDER)
-        {
-	  union { vreg v; unsigned_8 d[2]; } h, t;
-          memcpy(&h.v/*dest*/, cooked_buf/*src*/, description.size);
-	  { _SWAP_8(t.d[0] =, h.d[1]); }
-	  { _SWAP_8(t.d[1] =, h.d[0]); }
-          memcpy(buf/*dest*/, &t/*src*/, description.size);
-          break;
-        }
-      else
-        memcpy(buf/*dest*/, cooked_buf/*src*/, description.size);
-      break;
-#endif
     }
   }
   else {
     memcpy(buf/*dest*/, cooked_buf/*src*/, description.size);
   }
 
-  return description.size;
 }
 
 
 
 INLINE_PSIM\
-(int)
+(void)
 psim_write_register(psim *system,
 		    int which_cpu,
 		    const void *buf,
@@ -945,7 +879,7 @@ psim_write_register(psim *system,
 {
   cpu *processor;
   register_descriptions description;
-  char *cooked_buf;
+  char cooked_buf[sizeof(unsigned_8)];
 
   /* find our processor */
   if (which_cpu == MAX_NR_PROCESSORS) {
@@ -955,22 +889,20 @@ psim_write_register(psim *system,
     else
       which_cpu = system->last_cpu;
   }
-
-  /* find the description of the register */
-  description = register_description(reg);
-  if (description.type == reg_invalid)
-    return 0;
-  cooked_buf = alloca (description.size);
-
   if (which_cpu == -1) {
     int i;
     for (i = 0; i < system->nr_cpus; i++)
       psim_write_register(system, i, buf, reg, mode);
-    return description.size;
+    return;
   }
   ASSERT(which_cpu >= 0 && which_cpu < system->nr_cpus);
 
   processor = system->processors[which_cpu];
+
+  /* find the description of the register */
+  description = register_description(reg);
+  if (description.type == reg_invalid)
+    error("psim_write_register() invalid register name %s\n", reg);
 
   /* If the data is comming in raw (target order), need to cook it
      into host order before putting it into PSIM's internal structures */
@@ -988,20 +920,6 @@ psim_write_register(psim *system,
     case 8:
       *(unsigned_8*)cooked_buf = T2H_8(*(unsigned_8*)buf);
       break;
-#ifdef WITH_ALTIVEC
-    case 16:
-      if (CURRENT_HOST_BYTE_ORDER != CURRENT_TARGET_BYTE_ORDER)
-        {
-	  union { vreg v; unsigned_8 d[2]; } h, t;
-          memcpy(&t.v/*dest*/, buf/*src*/, description.size);
-	  { _SWAP_8(h.d[0] =, t.d[1]); }
-	  { _SWAP_8(h.d[1] =, t.d[0]); }
-          memcpy(cooked_buf/*dest*/, &h/*src*/, description.size);
-          break;
-        }
-      else
-        memcpy(cooked_buf/*dest*/, buf/*src*/, description.size);
-#endif
     }
   }
   else {
@@ -1043,35 +961,6 @@ psim_write_register(psim *system,
     cpu_registers(processor)->fpscr = *(fpscreg*)cooked_buf;
     break;
 
-#ifdef WITH_E500
-  case reg_gprh:
-    cpu_registers(processor)->e500.gprh[description.index] = *(gpreg*)cooked_buf;
-    break;
-
-  case reg_evr:
-    {
-      unsigned64 v;
-      v = *(unsigned64*)cooked_buf;
-      cpu_registers(processor)->e500.gprh[description.index] = v >> 32;
-      cpu_registers(processor)->gpr[description.index] = v;
-      break;
-    }
-
-  case reg_acc:
-    cpu_registers(processor)->e500.acc = *(accreg*)cooked_buf;
-    break;
-#endif
-
-#ifdef WITH_ALTIVEC
-  case reg_vr:
-    cpu_registers(processor)->altivec.vr[description.index] = *(vreg*)cooked_buf;
-    break;
-
-  case reg_vscr:
-    cpu_registers(processor)->altivec.vscr = *(vscreg*)cooked_buf;
-    break;
-#endif
-
   default:
     printf_filtered("psim_write_register(processor=0x%lx,cooked_buf=0x%lx,reg=%s) %s\n",
 		    (unsigned long)processor, (unsigned long)cooked_buf, reg,
@@ -1080,7 +969,6 @@ psim_write_register(psim *system,
 
   }
 
-  return description.size;
 }
 
 

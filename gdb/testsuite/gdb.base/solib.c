@@ -7,12 +7,12 @@
 #include <stdio.h>
 #include <dl.h>
 
-int main ()
+main ()
 {
   shl_t  solib_handle;
   int  dummy;
   int  status;
-  int  (*solib_main) (int);
+  int  (*solib_main) ();
 
   /* Load a shlib, with immediate binding of all symbols.
 
@@ -56,5 +56,4 @@ int main ()
 
   /* All done. */
   dummy = -1;
-  return 0;
 }

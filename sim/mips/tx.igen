@@ -38,9 +38,4 @@
     GPR[RD] = LO;
 }
 
-000000,CODE.20,001110::CO1:::SDBBP
-"sdbbp"
-*r3900:
-{
-  SignalException (DebugBreakPoint, instruction);
-}
+

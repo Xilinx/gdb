@@ -44,22 +44,18 @@
 */
 
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 /* bit based */
 typedef char natural8;
 typedef short natural16;
-typedef int natural32;
+typedef long natural32;
 
 typedef signed char signed8;
 typedef signed short signed16;
-typedef signed int signed32;
+typedef signed long signed32;
 
 typedef unsigned char unsigned8;
 typedef unsigned short unsigned16;
-typedef unsigned int unsigned32;
+typedef unsigned long unsigned32;
 
 #ifdef __GNUC__
 typedef long long natural64;

@@ -8,7 +8,7 @@ struct foo *getfoo ()
     return (&afoo);
 }
 
-#ifdef PROTOTYPES
+#ifdef __STDC__
 void putfoo (struct foo *foop)
 #else
 void putfoo (foop)

@@ -1,18 +1,18 @@
-# Copyright 1998, 1999, 2001, 2003, 2004, 2007, 2008
-# Free Software Foundation, Inc.
+# Copyright (C) 1998 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
+# the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-gdb@prep.ai.mit.edu
@@ -34,31 +34,16 @@ set bug_id 0
 
 set testfile "break"
 set srcfile ${testfile}.c
-set srcfile1 ${testfile}1.c
 set binfile ${objdir}/${subdir}/${testfile}
 
-if  { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}0.o" object {debug nowarnings}] != "" } {
-     untested define.exp
-     return -1
-}
-
-if  { [gdb_compile "${srcdir}/${subdir}/${srcfile1}" "${binfile}1.o" object {debug nowarnings}] != "" } {
-     untested define.exp
-     return -1
-}
-
-if  { [gdb_compile "${binfile}0.o ${binfile}1.o" "${binfile}" executable {debug nowarnings}] != "" } {
-     untested define.exp
-     return -1
+if  { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable {debug additional_flags=-w}] != "" } {
+    gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
 }
 
 gdb_exit
 gdb_start
 gdb_reinitialize_dir $srcdir/$subdir
 gdb_load ${binfile}
-
-set bp_location1 [gdb_get_line_number "set breakpoint 1 here"]
-set bp_location11 [gdb_get_line_number "set breakpoint 11 here"]
 
 if ![runto_main] then { fail "define tests suppressed" }
 
@@ -83,7 +68,7 @@ gdb_expect {
 #
 send_gdb "nextwhere\n"
 gdb_expect {
-  -re ".*$bp_location1\[ \t\]*printf.*#0\[ \t\]*main.*:$bp_location1.*$gdb_prompt $"\
+  -re ".*64\[ \t\]*printf.*#0\[ \t\]*main.*:64.*$gdb_prompt $"\
           {pass "use user command: nextwhere"}
   -re "$gdb_prompt $"\
           {fail "use user command: nextwhere"}
@@ -175,8 +160,8 @@ gdb_expect {
            }
           }
   -re "$gdb_prompt $"\
-          {fail "document user command: nextwhere"}
-  timeout {fail "(timeout) document user command: nextwhere"}
+          {fail "documenting user command: nextwhere"}
+  timeout {fail "(timeout) documenting user command: nextwhere"}
 }
 
 send_gdb "document nextwhere\n"
@@ -185,13 +170,13 @@ gdb_expect {
           {send_gdb "A next command that first shows you where you're stepping from.\nend\n"
            gdb_expect {
              -re "$gdb_prompt $"\
-                     {pass "re-document user command: nextwhere"}
-             timeout {fail "(timeout) re-document user command: nextwhere"}
+                     {pass "document user command: nextwhere"}
+             timeout {fail "(timeout) document user command: nextwhere"}
            }
           }
   -re "$gdb_prompt $"\
-          {fail "re-document user command: nextwhere"}
-  timeout {fail "(timeout) re-document user command: nextwhere"}
+          {fail "documenting user command: nextwhere"}
+  timeout {fail "(timeout) documenting user command: nextwhere"}
 }
 
 send_gdb "help nextwhere\n"
@@ -202,40 +187,6 @@ gdb_expect {
           {fail "help user command: nextwhere"}
   timeout {fail "(timeout) help user command: nextwhere"}
 }
-
-# Verify that the command parser doesn't require a space after an 'if'
-# command in a user defined function.
-#
-gdb_test_multiple "define ifnospace" "define user command: ifnospace" \
-{
-  -re "Type commands for definition of \"ifnospace\".\r\nEnd with a line saying just \"end\".\r\n>$" \
-    {
-      gdb_test_multiple "if(3<4)\nprint \"hi there\\n\"\nend\nend" "send body of ifnospace"  \
-        {
-         -re "$gdb_prompt $"\
-                 {pass "define user command: ifnospace"}
-        }
-    }
-}
-
-gdb_test "ifnospace" ".*hi there.*" "test ifnospace is parsed correctly"
-
-# Verify that the command parser doesn't require a space after an 'while'
-# command in a user defined function.
-#
-gdb_test_multiple "define whilenospace" "define user command: whilenospace" \
-{
-  -re "Type commands for definition of \"whilenospace\".\r\nEnd with a line saying just \"end\".\r\n>$" \
-    {
-      gdb_test_multiple "set \$i=1\nwhile(\$i<2)\nset \$i=2\nprint \"hi there\\n\"\nend\nend" "send body of whilenospace" \
-         {
-           -re "$gdb_prompt $" \
-                   {pass "define user command: whilenospace"}
-         }
-    }
-}
-
-gdb_test "whilenospace" ".*hi there.*" "test whilenospace is parsed correctly"
 
 # Verify that the user can "hook" a builtin command.  We choose to
 # hook the "stop" pseudo command, and we'll define it to use a user-
@@ -273,7 +224,7 @@ gdb_expect {
 
 send_gdb "next\n"
 gdb_expect {
-  -re "#0\[ \t\]*main.*:$bp_location11.*$gdb_prompt $"\
+  -re "#0\[ \t\]*main.*:66.*$gdb_prompt $"\
           {pass "use hook-stop command"}
   -re "$gdb_prompt $"\
           {fail "use hook-stop command"}

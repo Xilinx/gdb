@@ -1,22 +1,22 @@
 /* General Cpu tools GENerated simulator support.
-   Copyright (C) 1996, 1997, 1998, 1999, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
 This file is part of GDB, the GNU debugger.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef CGEN_DEFS_H
 #define CGEN_DEFS_H
@@ -92,15 +92,6 @@ typedef SCACHE *SEM_PC;
 #else
 typedef IADDR SEM_PC;
 #endif
-
-/* Kinds of branches.  */
-typedef enum {
-  SEM_BRANCH_UNTAKEN,
-  /* Branch to an uncacheable address (e.g. j reg).  */
-  SEM_BRANCH_UNCACHEABLE,
-  /* Branch to a cacheable (fixed) address.  */
-  SEM_BRANCH_CACHEABLE
-} SEM_BRANCH_TYPE;
 
 /* Virtual insn support.  */
 
@@ -115,7 +106,7 @@ typedef enum {
   VIRTUAL_INSN_X_CHAIN= -4, VIRTUAL_INSN_X_CTI_CHAIN = -5
 } CGEN_INSN_VIRTUAL_TYPE;
 
-/* Return non-zero if CGEN_INSN* INSN is a virtual insn.  */
+/* Return non-zero if OPCODE is a virtual insn.  */
 #define CGEN_INSN_VIRTUAL_P(insn) \
   CGEN_INSN_ATTR_VALUE ((insn), CGEN_INSN_VIRTUAL)
 
@@ -130,7 +121,7 @@ typedef enum {
 #define CASE(N, X) case_##N##_##X
 #define BREAK(N) goto end_switch_##N
 #define DEFAULT(N) default_##N
-#define ENDSWITCH(N) end_switch_##N:;
+#define ENDSWITCH(N) end_switch_##N:
 #else
 #define SWITCH(N, X) switch (X)
 #define CASE(N, X) case X /* FIXME: old sem-switch had (@arch@_,X) here */
@@ -177,7 +168,7 @@ extern CPU_INSN_NAME_FN cgen_insn_name;
    language [or suggest a better way].  */
 extern int cgen_cpu_max_extra_bytes (void);
 
-/* Target supplied routine to process an invalid instruction.  */
-extern SEM_PC sim_engine_invalid_insn (SIM_CPU *, IADDR, SEM_PC);
+/* Called to process an invalid instruction.  */
+extern void sim_engine_invalid_insn (SIM_CPU *, IADDR);
 
 #endif /* CGEN_DEFS_H */

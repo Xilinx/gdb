@@ -1,17 +1,18 @@
-#   Copyright 1998, 1999, 2007, 2008 Free Software Foundation, Inc.
+#   Copyright (C) 1998 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
+# the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-gdb@prep.ai.mit.edu
@@ -23,6 +24,11 @@ if $tracelevel then {
 set prms_id 0
 set bug_id 0
 
+# are we on a target board
+if ![isnative] then {
+  return 0
+}
+
 clear_xfail "*-*-*"
 
 set testfile "jump"
@@ -30,9 +36,8 @@ set srcfile ${testfile}.c
 set binfile ${objdir}/${subdir}/${testfile}
 
 # Build the test case
-if  { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable {debug nowarnings}] != "" } {
-     untested jump.exp
-     return -1
+if  { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable {debug additional_flags=-w}] != "" } {
+     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
     }
 
 
@@ -51,10 +56,10 @@ if ![runto_main] then {
 # Set a breakpoint on the statement that we're about to jump to.
 # The statement doesn't contain a function call.
 #
-send_gdb "break 22\n"
+send_gdb "break 18\n"
 set bp_on_non_call 0
 gdb_expect {
-  -re "\[Bb\]reakpoint (\[0-9\]*) at 0x\[0-9a-fA-F\]*: file .*${srcfile}, line 22.*$gdb_prompt $"\
+  -re "\[Bb\]reakpoint (\[0-9\]*) at 0x\[0-9a-fA-F\]*: file .*${srcfile}, line 18.*$gdb_prompt $"\
           {set bp_on_non_call $expect_out(1,string)
            pass "break before jump to non-call"}
   -re "$gdb_prompt $"\
@@ -64,9 +69,9 @@ gdb_expect {
 
 # Can we jump to the statement?  Do we stop there?
 #
-send_gdb "jump 22\n"
+send_gdb "jump 18\n"
 gdb_expect {
-  -re "Breakpoint \[0-9\]*, .*${srcfile}:22.*$gdb_prompt $"\
+  -re "Breakpoint \[0-9\]*, .*${srcfile}:18.*$gdb_prompt $"\
           {pass "jump to non-call"}
   -re "$gdb_prompt $"\
           {fail "jump to non-call"}
@@ -76,10 +81,10 @@ gdb_expect {
 # Set a breakpoint on the statement that we're about to jump to.
 # The statement does contain a function call.
 #
-send_gdb "break 21\n"
+send_gdb "break 17\n"
 set bp_on_call 0
 gdb_expect {
-  -re "\[Bb\]reakpoint (\[0-9\]*) at 0x\[0-9a-fA-F\]*: file .*${srcfile}, line 21.*$gdb_prompt $"\
+  -re "\[Bb\]reakpoint (\[0-9\]*) at 0x\[0-9a-fA-F\]*: file .*${srcfile}, line 17.*$gdb_prompt $"\
           {set bp_on_call $expect_out(1,string)
            pass "break before jump to call"}
   -re "$gdb_prompt $"\
@@ -89,9 +94,9 @@ gdb_expect {
 
 # Can we jump to the statement?  Do we stop there?
 #
-send_gdb "jump 21\n"
+send_gdb "jump 17\n"
 gdb_expect {
-  -re "Breakpoint \[0-9\]*, .*${srcfile}:21.*$gdb_prompt $"\
+  -re "Breakpoint \[0-9\]*, .*${srcfile}:17.*$gdb_prompt $"\
           {pass "jump to call"}
   -re "$gdb_prompt $"\
           {fail "jump to call"}
@@ -109,9 +114,9 @@ gdb_expect {
   timeout {fail "(timeout) disable breakpoint on call"}
 }
 
-send_gdb "jump 21\n"
+send_gdb "jump 17\n"
 gdb_expect {
-  -re "Breakpoint \[0-9\]*, .*${srcfile}:22.*$gdb_prompt $"\
+  -re "Breakpoint \[0-9\]*, .*${srcfile}:18.*$gdb_prompt $"\
           {pass "jump to call with disabled breakpoint"}
   -re "$gdb_prompt $"\
           {fail "jump to call with disabled breakpoint"}
@@ -133,7 +138,7 @@ gdb_expect {
 # Verify that GDB responds gracefully to the "jump" command with
 # trailing junk.
 #
-send_gdb "jump 21 100\n"
+send_gdb "jump 17 100\n"
 gdb_expect {
   -re "Junk at end of line specification: 100.*$gdb_prompt $"\
           {pass "jump with trailing argument junk"}
@@ -149,9 +154,9 @@ gdb_expect {
 #
 # Try it both ways: confirming and not confirming the jump.
 #
-send_gdb "jump 12\n"
+send_gdb "jump 8\n"
 gdb_expect {
-  -re "Line 12 is not in `main'.  Jump anyway.*y or n. $"\
+  -re "Line 8 is not in `main'.  Jump anyway.*y or n. $"\
           {send_gdb "n\n"
            gdb_expect {
              -re "Not confirmed.*$gdb_prompt $"\
@@ -166,9 +171,9 @@ gdb_expect {
   timeout {fail "(timeout) aborted jump out of current function"}
 }
 
-send_gdb "jump 12\n"
+send_gdb "jump 8\n"
 gdb_expect {
-  -re "Line 12 is not in `main'.  Jump anyway.*y or n. $"\
+  -re "Line 8 is not in `main'.  Jump anyway.*y or n. $"\
           {send_gdb "y\n"
            gdb_expect {
              -re "Continuing at.*$gdb_prompt $"\

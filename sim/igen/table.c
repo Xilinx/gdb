@@ -1,24 +1,22 @@
-/* The IGEN simulator generator for GDB, the GNU Debugger.
+/*  This file is part of the program psim.
 
-   Copyright 2002, 2007, 2008 Free Software Foundation, Inc.
+    Copyright (C) 1994-1995,1997 Andrew Cagney <cagney@highland.com.au>
 
-   Contributed by Andrew Cagney.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
 
-   This file is part of GDB.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
-
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+ 
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ 
+    */
 
 
 #include <sys/types.h>
@@ -41,8 +39,7 @@
 #endif
 
 typedef struct _open_table open_table;
-struct _open_table
-{
+struct _open_table {
   size_t size;
   char *buffer;
   char *pos;
@@ -51,14 +48,13 @@ struct _open_table
   open_table *parent;
   table *root;
 };
-struct _table
-{
+struct _table {
   open_table *current;
 };
 
 
 static line_ref *
-current_line (open_table * file)
+current_line (open_table *file)
 {
   line_ref *entry = ZALLOC (line_ref);
   *entry = file->pseudo_line;
@@ -66,7 +62,8 @@ current_line (open_table * file)
 }
 
 static table_entry *
-new_table_entry (open_table * file, table_entry_type type)
+new_table_entry (open_table *file,
+		 table_entry_type type)
 {
   table_entry *entry;
   entry = ZALLOC (table_entry);
@@ -77,16 +74,19 @@ new_table_entry (open_table * file, table_entry_type type)
 }
 
 static void
-set_nr_table_entry_fields (table_entry *entry, int nr_fields)
+set_nr_table_entry_fields (table_entry *entry,
+			   int nr_fields)
 {
-  entry->field = NZALLOC (char *, nr_fields + 1);
+  entry->field = NZALLOC (char*, nr_fields + 1);
   entry->nr_fields = nr_fields;
 }
 
 
 void
 table_push (table *root,
-	    line_ref *line, table_include *includes, const char *file_name)
+	    line_ref *line,
+	    table_include *includes,
+	    const char *file_name)
 {
   FILE *ff;
   open_table *file;
@@ -111,8 +111,7 @@ table_push (table *root,
   while (1)
     {
       /* save the file name */
-      char *dup_name =
-	NZALLOC (char, strlen (include->dir) + strlen (file_name) + 2);
+      char *dup_name = NZALLOC (char, strlen (include->dir) + strlen (file_name) + 2);
       if (dup_name == NULL)
 	{
 	  perror (file_name);
@@ -140,7 +139,7 @@ table_push (table *root,
 	  exit (1);
 	}
       include = include->next;
-    }
+  }
 
 
   /* determine the size */
@@ -149,7 +148,7 @@ table_push (table *root,
   fseek (ff, 0, SEEK_SET);
 
   /* allocate this much memory */
-  file->buffer = (char *) zalloc (file->size + 1);
+  file->buffer = (char*) zalloc (file->size + 1);
   if (file->buffer == NULL)
     {
       perror (file_name);
@@ -158,16 +157,15 @@ table_push (table *root,
   file->pos = file->buffer;
 
   /* read it all in */
-  if (fread (file->buffer, 1, file->size, ff) < file->size)
-    {
-      perror (file_name);
-      exit (1);
-    }
+  if (fread (file->buffer, 1, file->size, ff) < file->size) {
+    perror (file_name);
+    exit (1);
+  }
   file->buffer[file->size] = '\0';
 
   /* set the initial line numbering */
-  file->real_line.line_nr = 1;	/* specifies current line */
-  file->pseudo_line.line_nr = 1;	/* specifies current line */
+  file->real_line.line_nr = 1; /* specifies current line */
+  file->pseudo_line.line_nr = 1; /* specifies current line */
 
   /* done */
   fclose (ff);
@@ -195,7 +193,9 @@ skip_spaces (char *chp)
 {
   while (1)
     {
-      if (*chp == '\0' || *chp == '\n' || !isspace (*chp))
+      if (*chp == '\0'
+	  || *chp == '\n'
+	  || !isspace (*chp))
 	return chp;
       chp++;
     }
@@ -207,7 +207,8 @@ back_spaces (char *start, char *chp)
 {
   while (1)
     {
-      if (chp <= start || !isspace (chp[-1]))
+      if (chp <= start
+	  || !isspace (chp[-1]))
 	return chp;
       chp--;
     }
@@ -218,14 +219,17 @@ skip_digits (char *chp)
 {
   while (1)
     {
-      if (*chp == '\0' || *chp == '\n' || !isdigit (*chp))
+      if (*chp == '\0'
+	  || *chp == '\n'
+	  || !isdigit (*chp))
 	return chp;
       chp++;
     }
 }
 
 char *
-skip_to_separator (char *chp, char *separators)
+skip_to_separator (char *chp,
+		   char *separators)
 {
   while (1)
     {
@@ -250,14 +254,14 @@ skip_to_null (char *chp)
 
 
 static char *
-skip_to_nl (char *chp)
+skip_to_nl (char * chp)
 {
   return skip_to_separator (chp, "\n");
 }
 
 
 static void
-next_line (open_table * file)
+next_line (open_table *file)
 {
   file->pos = skip_to_nl (file->pos);
   if (*file->pos == '0')
@@ -274,7 +278,7 @@ table_read (table *root)
 {
   open_table *file = root->current;
   table_entry *entry = NULL;
-  while (1)
+  while(1)
     {
 
       /* end-of-file? */
@@ -293,7 +297,7 @@ table_read (table *root)
       if (*file->pos == '{')
 	{
 	  char *chp;
-	  next_line (file);	/* discard leading brace */
+	  next_line (file); /* discard leading brace */
 	  entry = new_table_entry (file, table_code_entry);
 	  chp = file->pos;
 	  /* determine how many lines are involved - look for <nl> "}" */
@@ -360,7 +364,7 @@ table_read (table *root)
 		if (*chp == '\t')
 		  entry->field[line_nr] = chp + 1;
 		else
-		  entry->field[line_nr] = "";	/* blank */
+		  entry->field[line_nr] = ""; /* blank */
 		chp = skip_to_null (chp) + 1;
 	      }
 	  }
@@ -381,28 +385,27 @@ table_read (table *root)
 	      char *file_name;
 	      file->pos = chp;
 	      /* parse the number */
-	      line_nr = atoi (file->pos) - 1;
+	      line_nr = atoi(file->pos) - 1;
 	      /* skip to the file name */
 	      while (file->pos[0] != '0'
-		     && file->pos[0] != '"' && file->pos[0] != '\0')
+		     && file->pos[0] != '"'
+		     && file->pos[0] != '\0')
 		file->pos++;
 	      if (file->pos[0] != '"')
-		error (&file->real_line,
-		       "Missing opening quote in cpp directive\n");
+		error (&file->real_line, "Missing opening quote in cpp directive\n");
 	      /* parse the file name */
 	      file->pos++;
 	      file_name = file->pos;
-	      while (file->pos[0] != '"' && file->pos[0] != '\0')
+	      while (file->pos[0] != '"'
+		     && file->pos[0] != '\0')
 		file->pos++;
 	      if (file->pos[0] != '"')
-		error (&file->real_line,
-		       "Missing closing quote in cpp directive\n");
+		error (&file->real_line, "Missing closing quote in cpp directive\n");
 	      file->pos[0] = '\0';
 	      file->pos++;
 	      file->pos = skip_to_nl (file->pos);
 	      if (file->pos[0] != '\n')
-		error (&file->real_line,
-		       "Missing newline in cpp directive\n");
+		error (&file->real_line, "Missing newline in cpp directive\n");
 	      file->pseudo_line.file_name = file_name;
 	      file->pseudo_line.line_nr = line_nr;
 	      next_line (file);
@@ -491,35 +494,40 @@ table_read (table *root)
 }
 
 extern void
-table_print_code (lf *file, table_entry *entry)
+table_print_code (lf *file,
+		  table_entry *entry)
 {
   int field_nr;
   int nr = 0;
-  for (field_nr = 0; field_nr < entry->nr_fields; field_nr++)
+  for (field_nr = 0;
+       field_nr < entry->nr_fields;
+       field_nr++)
     {
       char *chp = entry->field[field_nr];
       int in_bit_field = 0;
       if (*chp == '#')
-	lf_indent_suppress (file);
-      while (*chp != '\0')
+	lf_indent_suppress(file);
+      while (*chp != '\0') 
 	{
-	  if (chp[0] == '{' && !isspace (chp[1]) && chp[1] != '\0')
+	  if (chp[0] == '{'
+	      && !isspace(chp[1])
+	      && chp[1] != '\0')
 	    {
 	      in_bit_field = 1;
-	      nr += lf_putchr (file, '_');
+	      nr += lf_putchr(file, '_');
 	    }
 	  else if (in_bit_field && chp[0] == ':')
 	    {
-	      nr += lf_putchr (file, '_');
+	      nr += lf_putchr(file, '_');
 	    }
 	  else if (in_bit_field && *chp == '}')
 	    {
-	      nr += lf_putchr (file, '_');
+	      nr += lf_putchr(file, '_');
 	      in_bit_field = 0;
 	    }
-	  else
+	  else 
 	    {
-	      nr += lf_putchr (file, *chp);
+	      nr += lf_putchr(file, *chp);
 	    }
 	  chp++;
 	}
@@ -529,14 +537,17 @@ table_print_code (lf *file, table_entry *entry)
 	  line.line_nr += field_nr;
 	  error (&line, "Bit field brace miss match\n");
 	}
-      nr += lf_putchr (file, '\n');
+      nr += lf_putchr(file, '\n');
     }
 }
 
 
 
 void
-dump_line_ref (lf *file, char *prefix, const line_ref *line, char *suffix)
+dump_line_ref (lf *file,
+		 char *prefix,
+		 const line_ref *line,
+		 char *suffix)
 {
   lf_printf (file, "%s(line_ref*) 0x%lx", prefix, (long) line);
   if (line != NULL)
@@ -555,17 +566,17 @@ table_entry_type_to_str (table_entry_type type)
 {
   switch (type)
     {
-    case table_code_entry:
-      return "code-entry";
-    case table_colon_entry:
-      return "colon-entry";
+    case table_code_entry: return "code-entry";
+    case table_colon_entry: return "colon-entry";
     }
   return "*invalid*";
 }
 
 void
-dump_table_entry (lf *file,
-		  char *prefix, const table_entry *entry, char *suffix)
+dump_table_entry(lf *file,
+		 char *prefix,
+		 const table_entry *entry,
+		 char *suffix)
 {
   lf_printf (file, "%s(table_entry*) 0x%lx", prefix, (long) entry);
   if (entry != NULL)
@@ -589,7 +600,7 @@ dump_table_entry (lf *file,
 
 #ifdef MAIN
 int
-main (int argc, char **argv)
+main(int argc, char **argv)
 {
   table *t;
   table_entry *entry;
@@ -598,7 +609,7 @@ main (int argc, char **argv)
 
   if (argc != 2)
     {
-      printf ("Usage: table <file>\n");
+      printf("Usage: table <file>\n");
       exit (1);
     }
 
@@ -610,7 +621,7 @@ main (int argc, char **argv)
     {
       char line[10];
       entry = table_read (t);
-      line_nr++;
+      line_nr ++;
       sprintf (line, "(%d ", line_nr);
       dump_table_entry (l, line, entry, ")\n");
     }

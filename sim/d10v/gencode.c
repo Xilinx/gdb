@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include "ansidecl.h"
+#include "callback.h"
 #include "opcode/d10v.h"
 
 static void write_header PARAMS ((void));

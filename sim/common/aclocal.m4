@@ -22,6 +22,8 @@ AC_DEFUN(SIM_AC_COMMON,
 [
 # autoconf.info says this should be called right after AC_INIT.
 AC_CONFIG_HEADER(ifelse([$1],,config.h,[$1]):config.in)
+
+AC_CONFIG_AUX_DIR(`cd $srcdir;pwd`/../..)
 AC_CANONICAL_SYSTEM
 AC_ARG_PROGRAM
 AC_PROG_CC
@@ -44,7 +46,7 @@ AC_PROG_RANLIB
 dnl We don't use gettext, but bfd does.  So we do the appropriate checks
 dnl to see if there are intl libraries we should link against.
 ALL_LINGUAS=
-ZW_GNU_GETTEXT_SISTER_DIR(../../intl)
+CY_GNU_GETTEXT
 
 # Check for common headers.
 # FIXME: Seems to me this can cause problems for i386-windows hosts.
@@ -197,7 +199,7 @@ AC_ARG_ENABLE(sim-profile,
 esac
 if test x"$silent" != x"yes" && test x"$sim_profile" != x""; then
   echo "Setting sim profile = $sim_profile" 6>&1
-fi],[sim_profile="-DPROFILE=1 -DWITH_PROFILE=-1"])dnl
+fi],[sim_profile=""])dnl
 AC_SUBST(sim_profile)
 
 
@@ -205,7 +207,7 @@ dnl Types used by common code
 AC_TYPE_SIGNAL
 
 dnl Detect exe extension
-AC_EXEEXT
+AM_EXEEXT
 
 dnl These are available to append to as desired.
 sim_link_files=
@@ -527,7 +529,7 @@ AC_ARG_ENABLE(sim-scache,
 [case "${enableval}" in
   yes)	sim_scache="-DWITH_SCACHE=${default_sim_scache}";;
   no)	sim_scache="-DWITH_SCACHE=0" ;;
-  [[0-9]]*) sim_scache="-DWITH_SCACHE=${enableval}";;
+  [[0-9]]*) sim_cache=${enableval};;
   *)	AC_MSG_ERROR("Bad value $enableval passed to --enable-sim-scache");
 	sim_scache="";;
 esac
@@ -593,8 +595,9 @@ else
   # remove duplicates
   sim_hw=""
   sim_hw_objs="\$(SIM_COMMON_HW_OBJS)"
-  for i in $hardware ; do
-    case " $sim_hw " in
+  for i in x $hardware ; do
+    case " $f " in
+      x) ;;
       *" $i "*) ;;
       *) sim_hw="$sim_hw $i" ; sim_hw_objs="$sim_hw_objs dv-$i.o";;
     esac
@@ -784,79 +787,23 @@ dnl --enable-build-warnings is for developers of the simulator.
 dnl it enables extra GCC specific warnings.
 AC_DEFUN(SIM_AC_OPTION_WARNINGS,
 [
-# NOTE: Don't add -Wall or -Wunused, they both include
-# -Wunused-parameter which reports bogus warnings.
-# NOTE: If you add to this list, remember to update
-# gdb/doc/gdbint.texinfo.
-build_warnings="-Wimplicit -Wreturn-type -Wcomment -Wtrigraphs \
--Wformat -Wparentheses -Wpointer-arith"
-# GCC supports -Wuninitialized only with -O or -On, n != 0.
-if test x${CFLAGS+set} = xset; then
-  case "${CFLAGS}" in
-    *"-O0"* ) ;;
-    *"-O"* )
-      build_warnings="${build_warnings} -Wuninitialized"
-    ;;
-  esac
-else
-  build_warnings="${build_warnings} -Wuninitialized"
-fi
-# Up for debate: -Wswitch -Wcomment -trigraphs -Wtrigraphs
-# -Wunused-function -Wunused-label -Wunused-variable -Wunused-value
-# -Wchar-subscripts -Wtraditional -Wshadow -Wcast-qual
-# -Wcast-align -Wwrite-strings -Wconversion -Wstrict-prototypes
-# -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls
-# -Woverloaded-virtual -Winline -Werror"
 AC_ARG_ENABLE(build-warnings,
-[  --enable-build-warnings Enable build-time compiler warnings if gcc is used],
-[case "${enableval}" in
+[  --enable-build-warnings[=LIST]		Enable build-time compiler warnings],
+[build_warnings="-Wall -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations"
+case "${enableval}" in
   yes)	;;
   no)	build_warnings="-w";;
   ,*)   t=`echo "${enableval}" | sed -e "s/,/ /g"`
-        build_warnings="${build_warnings} ${t}";;
+	build_warnings="${build_warnings} ${t}";;
   *,)   t=`echo "${enableval}" | sed -e "s/,/ /g"`
-        build_warnings="${t} ${build_warnings}";;
-  *)    build_warnings=`echo "${enableval}" | sed -e "s/,/ /g"`;;
+	build_warnings="${t} ${build_warnings}";;
+  *)	build_warnings=`echo "${enableval}" | sed -e "s/,/ /g"`;;
 esac
 if test x"$silent" != x"yes" && test x"$build_warnings" != x""; then
-  echo "Setting compiler warning flags = $build_warnings" 6>&1
-fi])dnl
-AC_ARG_ENABLE(sim-build-warnings,
-[  --enable-gdb-build-warnings Enable SIM specific build-time compiler warnings if gcc is used],
-[case "${enableval}" in
-  yes)	;;
-  no)	build_warnings="-w";;
-  ,*)   t=`echo "${enableval}" | sed -e "s/,/ /g"`
-        build_warnings="${build_warnings} ${t}";;
-  *,)   t=`echo "${enableval}" | sed -e "s/,/ /g"`
-        build_warnings="${t} ${build_warnings}";;
-  *)    build_warnings=`echo "${enableval}" | sed -e "s/,/ /g"`;;
-esac
-if test x"$silent" != x"yes" && test x"$build_warnings" != x""; then
-  echo "Setting GDB specific compiler warning flags = $build_warnings" 6>&1
-fi])dnl
-WARN_CFLAGS=""
-WERROR_CFLAGS=""
-if test "x${build_warnings}" != x -a "x$GCC" = xyes
-then
-    AC_MSG_CHECKING(compiler warning flags)
-    # Separate out the -Werror flag as some files just cannot be
-    # compiled with it enabled.
-    for w in ${build_warnings}; do
-	case $w in
-	-Werr*) WERROR_CFLAGS=-Werror ;;
-	*) # Check that GCC accepts it
-	    saved_CFLAGS="$CFLAGS"
-	    CFLAGS="$CFLAGS $w"
-	    AC_TRY_COMPILE([],[],WARN_CFLAGS="${WARN_CFLAGS} $w",)
-	    CFLAGS="$saved_CFLAGS"
-	esac
-    done
-    AC_MSG_RESULT(${WARN_CFLAGS}${WERROR_CFLAGS})
-fi
+  echo "Setting warning flags = $build_warnings" 6>&1
+fi],[build_warnings=""])dnl
 ])
-AC_SUBST(WARN_CFLAGS)
-AC_SUBST(WERROR_CFLAGS)
+AC_SUBST(build_warnings)
 
 
 dnl Generate the Makefile in a target specific directory.
@@ -869,38 +816,418 @@ dnl the target's fragment at the appropriate points.
 AC_DEFUN(SIM_AC_OUTPUT,
 [
 AC_LINK_FILES($sim_link_files, $sim_link_links)
-dnl Make @cgen_breaks@ non-null only if the sim uses CGEN.
-cgen_breaks=""
-if grep CGEN_MAINT $srcdir/Makefile.in >/dev/null; then
-cgen_breaks="break cgen_rtx_error";
-fi
-AC_SUBST(cgen_breaks)
-AC_CONFIG_FILES(Makefile.sim:Makefile.in)
-AC_CONFIG_FILES(Make-common.sim:../common/Make-common.in)
-AC_CONFIG_FILES(.gdbinit:../common/gdbinit.in)
-AC_CONFIG_COMMANDS([Makefile],
-[echo "Merging Makefile.sim+Make-common.sim into Makefile ..."
- rm -f Makesim1.tmp Makesim2.tmp Makefile
- sed -n -e '/^## COMMON_PRE_/,/^## End COMMON_PRE_/ p' <Make-common.sim >Makesim1.tmp
- sed -n -e '/^## COMMON_POST_/,/^## End COMMON_POST_/ p' <Make-common.sim >Makesim2.tmp
- sed -e '/^## COMMON_PRE_/ r Makesim1.tmp' \
+AC_OUTPUT(Makefile.sim:Makefile.in Make-common.sim:../common/Make-common.in .gdbinit:../common/gdbinit.in,
+[case "x$CONFIG_FILES" in
+ xMakefile*)
+   echo "Merging Makefile.sim+Make-common.sim into Makefile ..."
+   rm -f Makesim1.tmp Makesim2.tmp Makefile
+   sed -n -e '/^## COMMON_PRE_/,/^## End COMMON_PRE_/ p' <Make-common.sim >Makesim1.tmp
+   sed -n -e '/^## COMMON_POST_/,/^## End COMMON_POST_/ p' <Make-common.sim >Makesim2.tmp
+   sed -e '/^## COMMON_PRE_/ r Makesim1.tmp' \
 	-e '/^## COMMON_POST_/ r Makesim2.tmp' \
 	<Makefile.sim >Makefile
- rm -f Makefile.sim Make-common.sim Makesim1.tmp Makesim2.tmp
+   rm -f Makefile.sim Make-common.sim Makesim1.tmp Makesim2.tmp
+   ;;
+ esac
+ case "x$CONFIG_HEADERS" in xconfig.h:config.in) echo > stamp-h ;; esac
 ])
-AC_CONFIG_COMMANDS([stamp-h], [echo > stamp-h])
-AC_OUTPUT
 ])
 
-sinclude(../../config/gettext-sister.m4)
-sinclude(../../config/acx.m4)
+# This file is derived from `gettext.m4'.  The difference is that the
+# included macros assume Cygnus-style source and build trees.
+
+# Macro to add for using GNU gettext.
+# Ulrich Drepper <drepper@cygnus.com>, 1995.
+#
+# This file file be copied and used freely without restrictions.  It can
+# be used in projects which are not available under the GNU Public License
+# but which still want to provide support for the GNU gettext functionality.
+# Please note that the actual code is *not* freely available.
+
+# serial 3
+
+AC_DEFUN(CY_WITH_NLS,
+  [AC_MSG_CHECKING([whether NLS is requested])
+    dnl Default is enabled NLS
+    AC_ARG_ENABLE(nls,
+      [  --disable-nls           do not use Native Language Support],
+      USE_NLS=$enableval, USE_NLS=yes)
+    AC_MSG_RESULT($USE_NLS)
+    AC_SUBST(USE_NLS)
+
+    USE_INCLUDED_LIBINTL=no
+
+    dnl If we use NLS figure out what method
+    if test "$USE_NLS" = "yes"; then
+      AC_DEFINE(ENABLE_NLS)
+      AC_MSG_CHECKING([whether included gettext is requested])
+      AC_ARG_WITH(included-gettext,
+        [  --with-included-gettext use the GNU gettext library included here],
+        nls_cv_force_use_gnu_gettext=$withval,
+        nls_cv_force_use_gnu_gettext=no)
+      AC_MSG_RESULT($nls_cv_force_use_gnu_gettext)
+
+      nls_cv_use_gnu_gettext="$nls_cv_force_use_gnu_gettext"
+      if test "$nls_cv_force_use_gnu_gettext" != "yes"; then
+        dnl User does not insist on using GNU NLS library.  Figure out what
+        dnl to use.  If gettext or catgets are available (in this order) we
+        dnl use this.  Else we have to fall back to GNU NLS library.
+	dnl catgets is only used if permitted by option --with-catgets.
+	nls_cv_header_intl=
+	nls_cv_header_libgt=
+	CATOBJEXT=NONE
+
+	AC_CHECK_HEADER(libintl.h,
+	  [AC_CACHE_CHECK([for gettext in libc], gt_cv_func_gettext_libc,
+	    [AC_TRY_LINK([#include <libintl.h>], [return (int) gettext ("")],
+	       gt_cv_func_gettext_libc=yes, gt_cv_func_gettext_libc=no)])
+
+	   if test "$gt_cv_func_gettext_libc" != "yes"; then
+	     AC_CHECK_LIB(intl, bindtextdomain,
+	       [AC_CACHE_CHECK([for gettext in libintl],
+		 gt_cv_func_gettext_libintl,
+		 [AC_TRY_LINK([], [return (int) gettext ("")],
+		 gt_cv_func_gettext_libintl=yes,
+		 gt_cv_func_gettext_libintl=no)])])
+	   fi
+
+	   if test "$gt_cv_func_gettext_libc" = "yes" \
+	      || test "$gt_cv_func_gettext_libintl" = "yes"; then
+	      AC_DEFINE(HAVE_GETTEXT)
+	      AM_PATH_PROG_WITH_TEST(MSGFMT, msgfmt,
+		[test -z "`$ac_dir/$ac_word -h 2>&1 | grep 'dv '`"], no)dnl
+	      if test "$MSGFMT" != "no"; then
+		AC_CHECK_FUNCS(dcgettext)
+		AC_PATH_PROG(GMSGFMT, gmsgfmt, $MSGFMT)
+		AM_PATH_PROG_WITH_TEST(XGETTEXT, xgettext,
+		  [test -z "`$ac_dir/$ac_word -h 2>&1 | grep '(HELP)'`"], :)
+		AC_TRY_LINK(, [extern int _nl_msg_cat_cntr;
+			       return _nl_msg_cat_cntr],
+		  [CATOBJEXT=.gmo
+		   DATADIRNAME=share],
+		  [CATOBJEXT=.mo
+		   DATADIRNAME=lib])
+		INSTOBJEXT=.mo
+	      fi
+	    fi
+	])
+
+	dnl In the standard gettext, we would now check for catgets.
+        dnl However, we never want to use catgets for our releases.
+
+        if test "$CATOBJEXT" = "NONE"; then
+	  dnl Neither gettext nor catgets in included in the C library.
+	  dnl Fall back on GNU gettext library.
+	  nls_cv_use_gnu_gettext=yes
+        fi
+      fi
+
+      if test "$nls_cv_use_gnu_gettext" = "yes"; then
+        dnl Mark actions used to generate GNU NLS library.
+        INTLOBJS="\$(GETTOBJS)"
+        AM_PATH_PROG_WITH_TEST(MSGFMT, msgfmt,
+	  [test -z "`$ac_dir/$ac_word -h 2>&1 | grep 'dv '`"], msgfmt)
+        AC_PATH_PROG(GMSGFMT, gmsgfmt, $MSGFMT)
+        AM_PATH_PROG_WITH_TEST(XGETTEXT, xgettext,
+	  [test -z "`$ac_dir/$ac_word -h 2>&1 | grep '(HELP)'`"], :)
+        AC_SUBST(MSGFMT)
+	USE_INCLUDED_LIBINTL=yes
+        CATOBJEXT=.gmo
+        INSTOBJEXT=.mo
+        DATADIRNAME=share
+	INTLDEPS='$(top_builddir)/../intl/libintl.a'
+	INTLLIBS=$INTLDEPS
+	LIBS=`echo $LIBS | sed -e 's/-lintl//'`
+        nls_cv_header_intl=libintl.h
+        nls_cv_header_libgt=libgettext.h
+      fi
+
+      dnl Test whether we really found GNU xgettext.
+      if test "$XGETTEXT" != ":"; then
+	dnl If it is no GNU xgettext we define it as : so that the
+	dnl Makefiles still can work.
+	if $XGETTEXT --omit-header /dev/null 2> /dev/null; then
+	  : ;
+	else
+	  AC_MSG_RESULT(
+	    [found xgettext programs is not GNU xgettext; ignore it])
+	  XGETTEXT=":"
+	fi
+      fi
+
+      # We need to process the po/ directory.
+      POSUB=po
+    else
+      DATADIRNAME=share
+      nls_cv_header_intl=libintl.h
+      nls_cv_header_libgt=libgettext.h
+    fi
+
+    # If this is used in GNU gettext we have to set USE_NLS to `yes'
+    # because some of the sources are only built for this goal.
+    if test "$PACKAGE" = gettext; then
+      USE_NLS=yes
+      USE_INCLUDED_LIBINTL=yes
+    fi
+
+    dnl These rules are solely for the distribution goal.  While doing this
+    dnl we only have to keep exactly one list of the available catalogs
+    dnl in configure.in.
+    for lang in $ALL_LINGUAS; do
+      GMOFILES="$GMOFILES $lang.gmo"
+      POFILES="$POFILES $lang.po"
+    done
+
+    dnl Make all variables we use known to autoconf.
+    AC_SUBST(USE_INCLUDED_LIBINTL)
+    AC_SUBST(CATALOGS)
+    AC_SUBST(CATOBJEXT)
+    AC_SUBST(DATADIRNAME)
+    AC_SUBST(GMOFILES)
+    AC_SUBST(INSTOBJEXT)
+    AC_SUBST(INTLDEPS)
+    AC_SUBST(INTLLIBS)
+    AC_SUBST(INTLOBJS)
+    AC_SUBST(POFILES)
+    AC_SUBST(POSUB)
+  ])
+
+AC_DEFUN(CY_GNU_GETTEXT,
+  [AC_REQUIRE([AC_PROG_MAKE_SET])dnl
+   AC_REQUIRE([AC_PROG_CC])dnl
+   AC_REQUIRE([AC_PROG_RANLIB])dnl
+   AC_REQUIRE([AC_ISC_POSIX])dnl
+   AC_REQUIRE([AC_HEADER_STDC])dnl
+   AC_REQUIRE([AC_C_CONST])dnl
+   AC_REQUIRE([AC_C_INLINE])dnl
+   AC_REQUIRE([AC_TYPE_OFF_T])dnl
+   AC_REQUIRE([AC_TYPE_SIZE_T])dnl
+   AC_REQUIRE([AC_FUNC_ALLOCA])dnl
+   AC_REQUIRE([AC_FUNC_MMAP])dnl
+
+   AC_CHECK_HEADERS([argz.h limits.h locale.h nl_types.h malloc.h string.h \
+unistd.h values.h sys/param.h])
+   AC_CHECK_FUNCS([getcwd munmap putenv setenv setlocale strchr strcasecmp \
+__argz_count __argz_stringify __argz_next])
+
+   if test "${ac_cv_func_stpcpy+set}" != "set"; then
+     AC_CHECK_FUNCS(stpcpy)
+   fi
+   if test "${ac_cv_func_stpcpy}" = "yes"; then
+     AC_DEFINE(HAVE_STPCPY)
+   fi
+
+   AM_LC_MESSAGES
+   CY_WITH_NLS
+
+   if test "x$CATOBJEXT" != "x"; then
+     if test "x$ALL_LINGUAS" = "x"; then
+       LINGUAS=
+     else
+       AC_MSG_CHECKING(for catalogs to be installed)
+       NEW_LINGUAS=
+       for lang in ${LINGUAS=$ALL_LINGUAS}; do
+         case "$ALL_LINGUAS" in
+          *$lang*) NEW_LINGUAS="$NEW_LINGUAS $lang" ;;
+         esac
+       done
+       LINGUAS=$NEW_LINGUAS
+       AC_MSG_RESULT($LINGUAS)
+     fi
+
+     dnl Construct list of names of catalog files to be constructed.
+     if test -n "$LINGUAS"; then
+       for lang in $LINGUAS; do CATALOGS="$CATALOGS $lang$CATOBJEXT"; done
+     fi
+   fi
+
+   dnl The reference to <locale.h> in the installed <libintl.h> file
+   dnl must be resolved because we cannot expect the users of this
+   dnl to define HAVE_LOCALE_H.
+   if test $ac_cv_header_locale_h = yes; then
+     INCLUDE_LOCALE_H="#include <locale.h>"
+   else
+     INCLUDE_LOCALE_H="\
+/* The system does not provide the header <locale.h>.  Take care yourself.  */"
+   fi
+   AC_SUBST(INCLUDE_LOCALE_H)
+
+   dnl Determine which catalog format we have (if any is needed)
+   dnl For now we know about two different formats:
+   dnl   Linux libc-5 and the normal X/Open format
+   if test -f $srcdir/po2tbl.sed.in; then
+      if test "$CATOBJEXT" = ".cat"; then
+	 AC_CHECK_HEADER(linux/version.h, msgformat=linux, msgformat=xopen)
+
+	 dnl Transform the SED scripts while copying because some dumb SEDs
+         dnl cannot handle comments.
+	 sed -e '/^#/d' $srcdir/$msgformat-msg.sed > po2msg.sed
+      fi
+      dnl po2tbl.sed is always needed.
+      sed -e '/^#.*[^\\]$/d' -e '/^#$/d' \
+	 $srcdir/po2tbl.sed.in > po2tbl.sed
+   fi
+
+   dnl In the intl/Makefile.in we have a special dependency which makes
+   dnl only sense for gettext.  We comment this out for non-gettext
+   dnl packages.
+   if test "$PACKAGE" = "gettext"; then
+     GT_NO="#NO#"
+     GT_YES=
+   else
+     GT_NO=
+     GT_YES="#YES#"
+   fi
+   AC_SUBST(GT_NO)
+   AC_SUBST(GT_YES)
+
+   MKINSTALLDIRS="\$(srcdir)/../../mkinstalldirs"
+   AC_SUBST(MKINSTALLDIRS)
+
+   dnl *** For now the libtool support in intl/Makefile is not for real.
+   l=
+   AC_SUBST(l)
+
+   dnl Generate list of files to be processed by xgettext which will
+   dnl be included in po/Makefile.  But only do this if the po directory
+   dnl exists in srcdir.
+   if test -d $srcdir/po; then
+      test -d po || mkdir po
+      if test "x$srcdir" != "x."; then
+	 if test "x`echo $srcdir | sed 's@/.*@@'`" = "x"; then
+	    posrcprefix="$srcdir/"
+	 else
+	    posrcprefix="../$srcdir/"
+	 fi
+      else
+	 posrcprefix="../"
+      fi
+      rm -f po/POTFILES
+      sed -e "/^#/d" -e "/^\$/d" -e "s,.*,	$posrcprefix& \\\\," -e "\$s/\(.*\) \\\\/\1/" \
+	 < $srcdir/po/POTFILES.in > po/POTFILES
+   fi
+  ])
+
+# Search path for a program which passes the given test.
+# Ulrich Drepper <drepper@cygnus.com>, 1996.
+#
+# This file file be copied and used freely without restrictions.  It can
+# be used in projects which are not available under the GNU Public License
+# but which still want to provide support for the GNU gettext functionality.
+# Please note that the actual code is *not* freely available.
+
+# serial 1
+
+dnl AM_PATH_PROG_WITH_TEST(VARIABLE, PROG-TO-CHECK-FOR,
+dnl   TEST-PERFORMED-ON-FOUND_PROGRAM [, VALUE-IF-NOT-FOUND [, PATH]])
+AC_DEFUN(AM_PATH_PROG_WITH_TEST,
+[# Extract the first word of "$2", so it can be a program name with args.
+set dummy $2; ac_word=[$]2
+AC_MSG_CHECKING([for $ac_word])
+AC_CACHE_VAL(ac_cv_path_$1,
+[case "[$]$1" in
+  /*)
+  ac_cv_path_$1="[$]$1" # Let the user override the test with a path.
+  ;;
+  *)
+  IFS="${IFS= 	}"; ac_save_ifs="$IFS"; IFS="${IFS}:"
+  for ac_dir in ifelse([$5], , $PATH, [$5]); do
+    test -z "$ac_dir" && ac_dir=.
+    if test -f $ac_dir/$ac_word; then
+      if [$3]; then
+	ac_cv_path_$1="$ac_dir/$ac_word"
+	break
+      fi
+    fi
+  done
+  IFS="$ac_save_ifs"
+dnl If no 4th arg is given, leave the cache variable unset,
+dnl so AC_PATH_PROGS will keep looking.
+ifelse([$4], , , [  test -z "[$]ac_cv_path_$1" && ac_cv_path_$1="$4"
+])dnl
+  ;;
+esac])dnl
+$1="$ac_cv_path_$1"
+if test -n "[$]$1"; then
+  AC_MSG_RESULT([$]$1)
+else
+  AC_MSG_RESULT(no)
+fi
+AC_SUBST($1)dnl
+])
+
+# Check whether LC_MESSAGES is available in <locale.h>.
+# Ulrich Drepper <drepper@cygnus.com>, 1995.
+#
+# This file file be copied and used freely without restrictions.  It can
+# be used in projects which are not available under the GNU Public License
+# but which still want to provide support for the GNU gettext functionality.
+# Please note that the actual code is *not* freely available.
+
+# serial 1
+
+AC_DEFUN(AM_LC_MESSAGES,
+  [if test $ac_cv_header_locale_h = yes; then
+    AC_CACHE_CHECK([for LC_MESSAGES], am_cv_val_LC_MESSAGES,
+      [AC_TRY_LINK([#include <locale.h>], [return LC_MESSAGES],
+       am_cv_val_LC_MESSAGES=yes, am_cv_val_LC_MESSAGES=no)])
+    if test $am_cv_val_LC_MESSAGES = yes; then
+      AC_DEFINE(HAVE_LC_MESSAGES)
+    fi
+  fi])
+
+# Check to see if we're running under Cygwin32, without using
+# AC_CANONICAL_*.  If so, set output variable CYGWIN32 to "yes".
+# Otherwise set it to "no".
+
+dnl AM_CYGWIN32()
+dnl You might think we can do this by checking for a cygwin32-specific
+dnl cpp define.
+AC_DEFUN(AM_CYGWIN32,
+[AC_CACHE_CHECK(for Cygwin32 environment, am_cv_cygwin32,
+[AC_TRY_COMPILE(,[int main () { return __CYGWIN32__; }],
+am_cv_cygwin32=yes, am_cv_cygwin32=no)
+rm -f conftest*])
+CYGWIN32=
+test "$am_cv_cygwin32" = yes && CYGWIN32=yes])
+
+# Check to see if we're running under Win32, without using
+# AC_CANONICAL_*.  If so, set output variable EXEEXT to ".exe".
+# Otherwise set it to "".
+
+dnl AM_EXEEXT()
+dnl This knows we add .exe if we're building in the Cygwin32
+dnl environment. But if we're not, then it compiles a test program
+dnl to see if there is a suffix for executables.
+AC_DEFUN(AM_EXEEXT,
+dnl AC_REQUIRE([AC_PROG_CC])AC_REQUIRE([AM_CYGWIN32])
+AC_MSG_CHECKING([for executable suffix])
+[AC_CACHE_VAL(am_cv_exeext,
+[if test "$CYGWIN32" = yes; then
+am_cv_exeext=.exe
+else
+cat > am_c_test.c << 'EOF'
+int main() {
+/* Nothing needed here */
+}
+EOF
+${CC-cc} -o am_c_test $CFLAGS $CPPFLAGS $LDFLAGS am_c_test.c $LIBS 1>&5
+am_cv_exeext=`ls am_c_test.* | grep -v am_c_test.c | sed -e s/am_c_test//`
+rm -f am_c_test*])
+test x"${am_cv_exeext}" = x && am_cv_exeext=no
+fi
+EXEEXT=""
+test x"${am_cv_exeext}" != xno && EXEEXT=${am_cv_exeext}
+AC_MSG_RESULT(${am_cv_exeext})
+AC_SUBST(EXEEXT)])
+
 
 dnl --enable-cgen-maint support
 AC_DEFUN(SIM_AC_OPTION_CGEN_MAINT,
 [
 cgen_maint=no
 dnl Default is to use one in build tree.
-cgen=guile
+cgen=../../cgen/cgen
 cgendir='$(srcdir)/../../cgen'
 dnl Having --enable-maintainer-mode take arguments is another way to go.
 dnl ??? One can argue --with is more appropriate if one wants to specify
@@ -917,7 +1244,7 @@ AC_ARG_ENABLE(cgen-maint,
 	# Having a `share' directory might be more appropriate for the .scm,
 	# .cpu, etc. files.
 	cgendir=${cgen_maint}/lib/cgen
-	cgen=guile
+	cgen=${cgendir}/bin/cgen
 	;;
 esac])dnl
 dnl AM_CONDITIONAL(CGEN_MAINT, test x${cgen_maint} != xno)
@@ -930,71 +1257,3 @@ AC_SUBST(CGEN_MAINT)
 AC_SUBST(cgendir)
 AC_SUBST(cgen)
 ])
-dnl FIXME: When upgrading to modern autoconf, remove
-dnl        SIM_CHECK_MEMBER and SIM_CHECK_MEMBERS et al and use
-dnl        AC_CHECK_MEMBERS from autoconf.
-dnl
-dnl Translated from a FC2 autoconf-2.59-3 installation.
-dnl  AC_CHECK_MEMBER(AGGREGATE.MEMBER,
-dnl                  [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND],
-dnl                  [INCLUDES])
-dnl
-dnl  ---------------------------------------------------------
-dnl  AGGREGATE.MEMBER is for instance `struct passwd.pw_gecos', shell
-dnl  variables are not a valid argument.
-AC_DEFUN([SIM_CHECK_MEMBER],
-dnl Extract the aggregate name, and the member name
-[AC_CACHE_CHECK([for $1], [ac_]patsubst([$1], [[\. ]], [_]),
-[ac_]patsubst([$1], [[\. ]], [_])[=no;]
-AC_TRY_COMPILE([$4],[
-dnl AGGREGATE ac_aggr;
-static ]patsubst([$1], [\..*])[ ac_aggr;
-dnl ac_aggr.MEMBER;
-if (ac_aggr.]patsubst([$1], [^[^.]*\.])[)
-return 0;],[ac_]patsubst([$1], [[\. ]], [_])[=yes;],
-AC_TRY_COMPILE([$4],[
-dnl AGGREGATE ac_aggr;
-static ]patsubst([$1], [\..*])[ ac_aggr;
-dnl ac_aggr.MEMBER;
-if (sizeof ac_aggr.]patsubst([$1], [^[^.]*\.])[)
-return 0;],
-[ac_]patsubst([$1], [[\. ]], [_])[=yes;],
-[ac_]patsubst([$1], [[\. ]], [_])[=no;]))
-[if test [$]ac_]patsubst([$1], [[\. ]], [_])[ = yes; then :; [$2]
-else :; [$3]
-fi])
-])dnl SIM_CHECK_MEMBER
-dnl
-dnl Translated from a FC2 autoconf-2.59-3 installation.
-dnl  SIM_CHECK_MEMBERS([AGGREGATE.MEMBER, ...])
-dnl except we just work with a limited set of fixed includes.
-dnl
-AC_DEFUN([SIM_CHECK_MEMBERS_1],
-[ifelse($#, 1,
-[SIM_CHECK_MEMBER([$1],
-AC_DEFINE_UNQUOTED([HAVE_]translit([$1], [a-z .], [A-Z__]), 1,
-[Define to 1 if ]patsubst([$1],
-[^[^.]*\.])[ is a member of ]patsubst([$1], [\..*])[. ]),,
-[#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif])],
-[SIM_CHECK_MEMBER([$1],
-AC_DEFINE_UNQUOTED([HAVE_]translit([$1], [a-z .], [A-Z__]), 1,
-[Define to 1 if ]patsubst([$1],
-[^[^.]*\.])[ is a member of ]patsubst([$1], [\..*])[. ]),,
-[#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif])
-SIM_CHECK_MEMBERS_1(builtin(shift,$@))])])dnl SIM_CHECK_MEMBERS
-dnl
-AC_DEFUN([SIM_CHECK_MEMBERS],
-[ifelse($#, 1, [SIM_CHECK_MEMBERS_1($1)],
-[errprint(__file__:__line__:
-[This SIM_CHECK_MEMBERS only supports one argument,]
-[the list of struct tests])])])dnl SIM_CHECK_MEMBERS

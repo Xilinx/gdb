@@ -1,30 +1,27 @@
-/* The common simulator framework for GDB, the GNU Debugger.
+/*  This file is part of the program psim.
 
-   Copyright 2002, 2007, 2008 Free Software Foundation, Inc.
+    Copyright (C) 1994-1998, Andrew Cagney <cagney@highland.com.au>
 
-   Contributed by Andrew Cagney and Red Hat.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
 
-   This file is part of GDB.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
-
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+ 
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ 
+    */
 
 #include "hw-main.h"
 #include "hw-base.h"
 #include "hw-tree.h"
 
-#include "sim-io.h"
 #include "sim-assert.h"
 
 #ifdef HAVE_STDLIB_H
@@ -636,7 +633,7 @@ parse_integer_property (struct hw *current,
 	{
 	  H2BE (words[i]);
 	}
-      /* perhaps integer array property is better */
+      /* perhaphs integer array property is better */
       hw_add_array_property (current, property_name, words,
 			     sizeof(words[0]) * nr_entries);
     }
@@ -683,7 +680,7 @@ parse_string_property (struct hw *current,
       /* copy it in */
       if (*chp == '"')
 	{
-	  /* a quoted string - watch for '\' et al. */
+	  /* a quoted string - watch for '\' et.al. */
 	  /* estimate the size and allocate space for it */
 	  int pos;
 	  chp++;

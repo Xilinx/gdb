@@ -1,24 +1,22 @@
-/* The IGEN simulator generator for GDB, the GNU Debugger.
+/*  This file is part of the program psim.
 
-   Copyright 2002, 2007, 2008 Free Software Foundation, Inc.
+    Copyright (C) 1994-1997, Andrew Cagney <cagney@highland.com.au>
 
-   Contributed by Andrew Cagney.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
 
-   This file is part of GDB.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
-
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+ 
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ 
+    */
 
 
 #include <stdio.h>
@@ -44,7 +42,9 @@
    trailing '\n' */
 
 void
-error (const line_ref *line, char *msg, ...)
+error (const line_ref *line,
+       char *msg,
+       ...)
 {
   va_list ap;
   if (line != NULL)
@@ -56,7 +56,9 @@ error (const line_ref *line, char *msg, ...)
 }
 
 void
-warning (const line_ref *line, char *msg, ...)
+warning (const line_ref *line,
+	 char *msg,
+	 ...)
 {
   va_list ap;
   if (line != NULL)
@@ -67,23 +69,25 @@ warning (const line_ref *line, char *msg, ...)
 }
 
 void
-notify (const line_ref *line, char *msg, ...)
+notify (const line_ref *line,
+	char *msg,
+	...)
 {
   va_list ap;
   if (line != NULL)
     fprintf (stdout, "%s %d: info: ", line->file_name, line->line_nr);
-  va_start (ap, msg);
+  va_start(ap, msg);
   vfprintf (stdout, msg, ap);
-  va_end (ap);
+  va_end(ap);
 }
 
 void *
-zalloc (long size)
+zalloc(long size)
 {
-  void *memory = malloc (size);
+  void *memory = malloc(size);
   if (memory == NULL)
     ERROR ("zalloc failed");
-  memset (memory, 0, size);
+  memset(memory, 0, size);
   return memory;
 }
 
@@ -95,14 +99,16 @@ a2i (const char *a)
   int base = 10;
   unsigned long long num = 0;
   int looping;
-
+  
   while (isspace (*a))
     a++;
-
-  if (strcmp (a, "true") == 0 || strcmp (a, "TRUE") == 0)
+  
+  if (strcmp (a, "true") == 0
+      || strcmp (a, "TRUE") == 0)
     return 1;
 
-  if (strcmp (a, "false") == 0 || strcmp (a, "false") == 0)
+  if (strcmp (a, "false") == 0
+      || strcmp (a, "false") == 0)
     return 0;
 
   if (*a == '-')
@@ -110,7 +116,7 @@ a2i (const char *a)
       neg = 1;
       a++;
     }
-
+  
   if (*a == '0')
     {
       if (a[1] == 'x' || a[1] == 'X')
@@ -126,18 +132,18 @@ a2i (const char *a)
       else
 	base = 8;
     }
-
+  
   looping = 1;
   while (looping)
     {
       int ch = *a++;
-
+      
       switch (base)
 	{
 	default:
 	  looping = 0;
 	  break;
-
+	  
 	case 2:
 	  if (ch >= '0' && ch <= '1')
 	    {
@@ -148,7 +154,7 @@ a2i (const char *a)
 	      looping = 0;
 	    }
 	  break;
-
+	  
 	case 10:
 	  if (ch >= '0' && ch <= '9')
 	    {
@@ -159,7 +165,7 @@ a2i (const char *a)
 	      looping = 0;
 	    }
 	  break;
-
+	  
 	case 8:
 	  if (ch >= '0' && ch <= '7')
 	    {
@@ -170,7 +176,7 @@ a2i (const char *a)
 	      looping = 0;
 	    }
 	  break;
-
+	  
 	case 16:
 	  if (ch >= '0' && ch <= '9')
 	    {
@@ -191,24 +197,26 @@ a2i (const char *a)
 	  break;
 	}
     }
-
+  
   if (neg)
-    num = -num;
+    num = - num;
 
   return num;
 }
 
 unsigned
-target_a2i (int ms_bit_nr, const char *a)
+target_a2i(int ms_bit_nr,
+	   const char *a)
 {
   if (ms_bit_nr)
-    return (ms_bit_nr - a2i (a));
+    return (ms_bit_nr - a2i(a));
   else
-    return a2i (a);
+    return a2i(a);
 }
 
 unsigned
-i2target (int ms_bit_nr, unsigned bit)
+i2target(int ms_bit_nr,
+	 unsigned bit)
 {
   if (ms_bit_nr)
     return ms_bit_nr - bit;
@@ -218,19 +226,20 @@ i2target (int ms_bit_nr, unsigned bit)
 
 
 int
-name2i (const char *names, const name_map * map)
+name2i (const char *names,
+        const name_map *map)
 {
   const name_map *curr;
   const char *name = names;
   while (*name != '\0')
     {
       /* find our name */
-      char *end = strchr (name, ',');
+      char *end = strchr(name, ',');
       char *next;
       unsigned len;
       if (end == NULL)
 	{
-	  end = strchr (name, '\0');
+	  end = strchr(name, '\0');
 	  next = end;
 	}
       else
@@ -261,7 +270,8 @@ name2i (const char *names, const name_map * map)
 }
 
 const char *
-i2name (const int i, const name_map * map)
+i2name (const int i,
+        const name_map *map)
 {
   while (map->name != NULL)
     {

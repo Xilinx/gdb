@@ -1,23 +1,22 @@
-/* The IGEN simulator generator for GDB, the GNU Debugger.
+/*  This file is part of the program psim.
 
-   Copyright 2002, 2007, 2008 Free Software Foundation, Inc.
+    Copyright (C) 1994-1998, Andrew Cagney <cagney@highland.com.au>
 
-   Contributed by Andrew Cagney.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
 
-   This file is part of GDB.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+ 
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ 
+    */
 
 #include "misc.h"
 #include "lf.h"
@@ -42,8 +41,10 @@ print_engine_issue_prefix_hook (lf *file)
 {
   lf_printf (file, "\n");
   lf_indent_suppress (file);
-  lf_printf (file, "#if defined (ENGINE_ISSUE_PREFIX_HOOK)\n");
-  lf_printf (file, "ENGINE_ISSUE_PREFIX_HOOK();\n");
+  lf_printf (file, "#if defined (%sENGINE_ISSUE_PREFIX_HOOK)\n",
+	     options.module.global.prefix.l);
+  lf_printf (file, "%sENGINE_ISSUE_PREFIX_HOOK();\n",
+	     options.module.global.prefix.l);
   lf_indent_suppress (file);
   lf_printf (file, "#endif\n");
   lf_printf (file, "\n");
@@ -54,8 +55,10 @@ print_engine_issue_postfix_hook (lf *file)
 {
   lf_printf (file, "\n");
   lf_indent_suppress (file);
-  lf_printf (file, "#if defined (ENGINE_ISSUE_POSTFIX_HOOK)\n");
-  lf_printf (file, "ENGINE_ISSUE_POSTFIX_HOOK();\n");
+  lf_printf (file, "#if defined (%sENGINE_ISSUE_POSTFIX_HOOK)\n",
+	     options.module.global.prefix.l);
+  lf_printf (file, "%sENGINE_ISSUE_POSTFIX_HOOK();\n",
+	     options.module.global.prefix.l);
   lf_indent_suppress (file);
   lf_printf (file, "#endif\n");
   lf_printf (file, "\n");
@@ -63,25 +66,25 @@ print_engine_issue_postfix_hook (lf *file)
 
 
 static void
-print_run_body (lf *file, gen_entry *table)
+print_run_body (lf *file,
+	        gen_entry *table)
 {
   /* Output the function to execute real code:
-
+     
      Unfortunatly, there are multiple cases to consider vis:
-
+     
      <icache> X <smp>
-
+     
      Consequently this function is written in multiple different ways */
-
+  
   lf_printf (file, "{\n");
   lf_indent (file, +2);
   if (!options.gen.smp)
     {
-      lf_printf (file, "%sinstruction_address cia;\n",
-		 options.module.global.prefix.l);
+      lf_printf (file, "%sinstruction_address cia;\n", options.module.global.prefix.l);
     }
   lf_printf (file, "int current_cpu = next_cpu_nr;\n");
-
+  
   if (options.gen.icache)
     {
       lf_printf (file, "/* flush the icache of a possible break insn */\n");
@@ -91,25 +94,25 @@ print_run_body (lf *file, gen_entry *table)
       lf_printf (file, "    cpu_flush_icache (STATE_CPU (sd, cpu_nr));\n");
       lf_printf (file, "}\n");
     }
-
+  
   if (!options.gen.smp)
     {
+      
+      lf_putstr (file, "
+/* CASE 1: NO SMP (with or with out instruction cache).
 
-      lf_putstr (file, "\
-/* CASE 1: NO SMP (with or with out instruction cache).\n\
-\n\
-In this case, we can take advantage of the fact that the current\n\
-instruction address (CIA) does not need to be read from / written to\n\
-the CPU object after the execution of an instruction.\n\
-\n\
-Instead, CIA is only saved when the main loop exits.  This occures\n\
-when either sim_engine_halt or sim_engine_restart is called.  Both of\n\
-these functions save the current instruction address before halting /\n\
-restarting the simulator.\n\
-\n\
-As a variation, there may also be support for an instruction cracking\n\
-cache. */\n\
-\n\
+In this case, we can take advantage of the fact that the current
+instruction address (CIA) does not need to be read from / written to
+the CPU object after the execution of an instruction.
+
+Instead, CIA is only saved when the main loop exits.  This occures
+when either sim_engine_halt or sim_engine_restart is called.  Both of
+these functions save the current instruction address before halting /
+restarting the simulator.
+
+As a variation, there may also be support for an instruction cracking
+cache. */
+
 ");
 
       lf_putstr (file, "\n");
@@ -122,16 +125,16 @@ cache. */\n\
       lf_putstr (file, "while (1)\n");
       lf_putstr (file, "  {\n");
       lf_indent (file, +4);
-
+      
       lf_printf (file, "%sinstruction_address nia;\n",
 		 options.module.global.prefix.l);
 
       lf_printf (file, "\n");
       if (!options.gen.icache)
 	{
-	  lf_printf (file,
-		     "%sinstruction_word instruction_0 = IMEM%d (cia);\n",
-		     options.module.global.prefix.l, options.insn_bit_size);
+	  lf_printf (file, "%sinstruction_word instruction_0 = IMEM%d (cia);\n",
+		     options.module.global.prefix.l,
+		     options.insn_bit_size);
 	  print_engine_issue_prefix_hook (file);
 	  print_idecode_body (file, table, "nia = ");
 	  print_engine_issue_postfix_hook (file);
@@ -144,8 +147,7 @@ cache. */\n\
 	  lf_putstr (file, "  {\n");
 	  lf_indent (file, -4);
 	  lf_putstr (file, "/* cache hit */\n");
-	  lf_putstr (file,
-		     "idecode_semantic *const semantic = cache_entry->semantic;\n");
+	  lf_putstr (file, "idecode_semantic *const semantic = cache_entry->semantic;\n");
 	  lf_putstr (file, "cia = semantic (cpu, cache_entry, cia);\n");
 	  /* tail */
 	  lf_indent (file, -4);
@@ -161,8 +163,7 @@ cache. */\n\
 	  lf_printf (file, "instruction_word instruction = IMEM%d (cia);\n",
 		     options.insn_bit_size);
 	  lf_putstr (file, "if (WITH_MON != 0)\n");
-	  lf_putstr (file,
-		     "  mon_event (mon_event_icache_miss, cpu, cia);\n");
+	  lf_putstr (file, "  mon_event (mon_event_icache_miss, cpu, cia);\n");
 	  if (options.gen.semantic_icache)
 	    {
 	      lf_putstr (file, "{\n");
@@ -183,7 +184,7 @@ cache. */\n\
 	  lf_indent (file, -4);
 	  lf_putstr (file, "  }\n");
 	}
-
+      
       /* update the cpu if necessary */
       switch (options.gen.nia)
 	{
@@ -210,23 +211,22 @@ cache. */\n\
       lf_indent (file, -4);
       lf_printf (file, "  }\n");
     }
-
+  
   if (options.gen.smp)
     {
+      
+      lf_putstr (file, "
+/* CASE 2: SMP (With or without ICACHE)
 
-      lf_putstr (file, "\
-/* CASE 2: SMP (With or without ICACHE)\n\
-\n\
-The complexity here comes from needing to correctly halt the simulator\n\
-when it is aborted.  For instance, if cpu0 requests a restart then\n\
-cpu1 will normally be the next cpu that is run.  Cpu0 being restarted\n\
-after all the other CPU's and the event queue have been processed */\n\
-\n\
+The complexity here comes from needing to correctly halt the simulator
+when it is aborted.  For instance, if cpu0 requests a restart then
+cpu1 will normally be the next cpu that is run.  Cpu0 being restarted
+after all the other CPU's and the event queue have been processed */
+
 ");
-
+      
       lf_putstr (file, "\n");
-      lf_printf (file,
-		 "/* have ensured that the event queue is NOT next */\n");
+      lf_printf (file, "/* have ensured that the event queue is NOT next */\n");
       lf_printf (file, "SIM_ASSERT (current_cpu >= 0);\n");
       lf_printf (file, "SIM_ASSERT (current_cpu <= nr_cpus - 1);\n");
       lf_printf (file, "SIM_ASSERT (nr_cpus <= MAX_NR_PROCESSORS);\n");
@@ -248,7 +248,7 @@ after all the other CPU's and the event queue have been processed */\n\
 	  lf_putstr (file, "CIA_SET (cpu, cia);\n");
 	  print_engine_issue_postfix_hook (file);
 	}
-
+      
       if (options.gen.icache)
 	{
 	  lf_putstr (file, "engine_cache *cache_entry =\n");
@@ -259,10 +259,8 @@ after all the other CPU's and the event queue have been processed */\n\
 	    lf_indent (file, +2);
 	    lf_putstr (file, "\n");
 	    lf_putstr (file, "/* cache hit */\n");
-	    lf_putstr (file,
-		       "engine_semantic *semantic = cache_entry->semantic;\n");
-	    lf_putstr (file,
-		       "cia = semantic(processor, cache_entry, cia);\n");
+	    lf_putstr (file, "engine_semantic *semantic = cache_entry->semantic;\n");
+	    lf_putstr (file, "cia = semantic(processor, cache_entry, cia);\n");
 	    /* tail */
 	    lf_putstr (file, "cpu_set_program_counter(processor, cia);\n");
 	    lf_putstr (file, "\n");
@@ -281,14 +279,13 @@ after all the other CPU's and the event queue have been processed */\n\
 	    lf_printf (file, "instruction_word instruction = IMEM%d (cia);\n",
 		       options.insn_bit_size);
 	    lf_putstr (file, "if (WITH_MON != 0)\n");
-	    lf_putstr (file,
-		       "  mon_event(mon_event_icache_miss, processors[current_cpu], cia);\n");
+	    lf_putstr (file, "  mon_event(mon_event_icache_miss, processors[current_cpu], cia);\n");
 	    if (options.gen.semantic_icache)
 	      {
 		lf_putstr (file, "{\n");
 		lf_indent (file, +2);
 		print_engine_issue_prefix_hook (file);
-		print_idecode_body (file, table, "cia =");
+		print_idecode_body(file, table, "cia =");
 		print_engine_issue_postfix_hook (file);
 		lf_indent (file, -2);
 		lf_putstr (file, "}\n");
@@ -296,9 +293,8 @@ after all the other CPU's and the event queue have been processed */\n\
 	    else
 	      {
 		print_engine_issue_prefix_hook (file);
-		print_idecode_body (file, table, "semantic = ");
-		lf_putstr (file,
-			   "cia = semantic(processor, cache_entry, cia);\n");
+		print_idecode_body(file, table, "semantic = ");
+		lf_putstr (file, "cia = semantic(processor, cache_entry, cia);\n");
 		print_engine_issue_postfix_hook (file);
 	      }
 	    /* tail */
@@ -308,7 +304,7 @@ after all the other CPU's and the event queue have been processed */\n\
 	  }
 	  lf_putstr (file, "}\n");
 	}
-
+      
       lf_putstr (file, "\n");
       lf_putstr (file, "current_cpu += 1;\n");
       lf_putstr (file, "if (current_cpu == nr_cpus)\n");
@@ -319,13 +315,13 @@ after all the other CPU's and the event queue have been processed */\n\
       lf_putstr (file, "      }\n");
       lf_putstr (file, "    current_cpu = 0;\n");
       lf_putstr (file, "  }\n");
-
+      
       /* tail */
       lf_indent (file, -4);
       lf_putstr (file, "  }\n");
     }
-
-
+  
+  
   lf_indent (file, -2);
   lf_putstr (file, "}\n");
 }
@@ -335,7 +331,8 @@ after all the other CPU's and the event queue have been processed */\n\
 
 #if 0
 static void
-print_jump (lf *file, int is_tail)
+print_jump (lf *file,
+	    int is_tail)
 {
   if (!options.gen.smp)
     {
@@ -346,7 +343,7 @@ print_jump (lf *file, int is_tail)
       lf_putstr (file, "  }\n");
       lf_putstr (file, "}\n");
     }
-
+  
   if (options.gen.smp)
     {
       if (is_tail)
@@ -363,7 +360,7 @@ print_jump (lf *file, int is_tail)
       lf_putstr (file, "processor = processors[current_cpu];\n");
       lf_putstr (file, "nia = cpu_get_program_counter(processor);\n");
     }
-
+  
   if (options.gen.icache)
     {
       lf_putstr (file, "cache_entry = cpu_icache_entry(processor, nia);\n");
@@ -371,17 +368,16 @@ print_jump (lf *file, int is_tail)
       lf_putstr (file, "  /* cache hit */\n");
       lf_putstr (file, "  goto *cache_entry->semantic;\n");
       lf_putstr (file, "}\n");
-      if (is_tail)
-	{
-	  lf_putstr (file, "goto cache_miss;\n");
-	}
+      if (is_tail) {
+	lf_putstr (file, "goto cache_miss;\n");
+      }
     }
-
+  
   if (!options.gen.icache && is_tail)
     {
       lf_printf (file, "goto engine;\n");
     }
-
+  
 }
 #endif
 
@@ -389,9 +385,10 @@ print_jump (lf *file, int is_tail)
 #if 0
 static void
 print_jump_insn (lf *file,
-		 insn_entry * instruction,
+		 insn_entry *instruction,
 		 opcode_bits *expanded_bits,
-		 opcode_field *opcodes, cache_entry *cache_rules)
+		 opcode_field *opcodes,
+		 cache_entry *cache_rules)
 {
   insn_opcodes opcode_path;
 
@@ -402,8 +399,9 @@ print_jump_insn (lf *file,
   lf_printf (file, "\n");
   print_my_defines (file,
 		    instruction->name,
-		    instruction->format_name, expanded_bits);
-
+		    instruction->format_name,
+		    expanded_bits);
+  
   /* output the icache entry */
   if (options.gen.icache)
     {
@@ -412,18 +410,24 @@ print_jump_insn (lf *file,
       print_function_name (file,
 			   instruction->name,
 			   instruction->format_name,
-			   NULL, expanded_bits, function_name_prefix_icache);
+			   NULL,
+			   expanded_bits,
+			   function_name_prefix_icache);
       lf_printf (file, ":\n");
       lf_indent (file, +1);
       lf_printf (file, "{\n");
       lf_indent (file, +2);
       lf_putstr (file, "const unsigned_word cia = nia;\n");
-      print_itrace (file, instruction, 1 /*putting-value-in-cache */ );
+      print_itrace (file, instruction, 1/*putting-value-in-cache*/);
       print_idecode_validate (file, instruction, &opcode_path);
       lf_printf (file, "\n");
       lf_printf (file, "{\n");
       lf_indent (file, +2);
-      print_icache_body (file, instruction, expanded_bits, cache_rules, 0,	/*use_defines */
+      print_icache_body (file,
+			 instruction,
+			 expanded_bits,
+			 cache_rules,
+			 0, /*use_defines*/
 			 put_values_in_icache);
       lf_printf (file, "cache_entry->address = nia;\n");
       lf_printf (file, "cache_entry->semantic = &&");
@@ -431,13 +435,16 @@ print_jump_insn (lf *file,
 			   instruction->name,
 			   instruction->format_name,
 			   NULL,
-			   expanded_bits, function_name_prefix_semantics);
+			   expanded_bits,
+			   function_name_prefix_semantics);
       lf_printf (file, ";\n");
       if (options.gen.semantic_icache)
 	{
 	  print_semantic_body (file,
-			       instruction, expanded_bits, &opcode_path);
-	  print_jump (file, 1 /*is-tail */ );
+			       instruction,
+			       expanded_bits,
+			       &opcode_path);
+	  print_jump(file, 1/*is-tail*/);
 	}
       else
 	{
@@ -446,7 +453,8 @@ print_jump_insn (lf *file,
 			       instruction->name,
 			       instruction->format_name,
 			       NULL,
-			       expanded_bits, function_name_prefix_semantics);
+			       expanded_bits,
+			       function_name_prefix_semantics);
 	  lf_printf (file, "; */\n");
 	}
       lf_indent (file, -2);
@@ -454,14 +462,16 @@ print_jump_insn (lf *file,
       lf_indent (file, -2);
       lf_printf (file, "}\n");
     }
-
+  
   /* print the semantics */
   lf_printf (file, "\n");
   lf_indent (file, -1);
   print_function_name (file,
 		       instruction->name,
 		       instruction->format_name,
-		       NULL, expanded_bits, function_name_prefix_semantics);
+		       NULL,
+		       expanded_bits,
+		       function_name_prefix_semantics);
   lf_printf (file, ":\n");
   lf_indent (file, +1);
   lf_printf (file, "{\n");
@@ -475,8 +485,12 @@ print_jump_insn (lf *file,
 		      ? define_variables
 		      : declare_variables),
 		     (options.gen.icache
-		      ? get_values_from_icache : do_not_use_icache));
-  print_semantic_body (file, instruction, expanded_bits, &opcode_path);
+		      ? get_values_from_icache
+		      : do_not_use_icache));
+  print_semantic_body (file,
+		       instruction,
+		       expanded_bits,
+		       &opcode_path);
   if (options.gen.direct_access)
     print_icache_body (file,
 		       instruction,
@@ -484,8 +498,9 @@ print_jump_insn (lf *file,
 		       cache_rules,
 		       undef_variables,
 		       (options.gen.icache
-			? get_values_from_icache : do_not_use_icache));
-  print_jump (file, 1 /*is tail */ );
+			? get_values_from_icache
+			: do_not_use_icache));
+  print_jump(file, 1/*is tail*/);
   lf_indent (file, -2);
   lf_printf (file, "}\n");
 }
@@ -494,14 +509,18 @@ print_jump_insn (lf *file,
 
 #if 0
 static void
-print_jump_definition (lf *file, gen_entry *entry, int depth, void *data)
+print_jump_definition (lf *file,
+		       gen_entry *entry,
+		       int depth,
+		       void *data)
 {
-  cache_entry *cache_rules = (cache_entry *) data;
+  cache_entry *cache_rules = (cache_entry*)data;
   if (entry->opcode_rule->with_duplicates)
     {
       ASSERT (entry->nr_insns == 1
 	      && entry->opcode == NULL
-	      && entry->parent != NULL && entry->parent->opcode != NULL);
+	      && entry->parent != NULL
+	      && entry->parent->opcode != NULL);
       ASSERT (entry->nr_insns == 1
 	      && entry->opcode == NULL
 	      && entry->parent != NULL
@@ -509,11 +528,17 @@ print_jump_definition (lf *file, gen_entry *entry, int depth, void *data)
 	      && entry->parent->opcode_rule != NULL);
       print_jump_insn (file,
 		       entry->insns->insn,
-		       entry->expanded_bits, entry->opcode, cache_rules);
+		       entry->expanded_bits,
+		       entry->opcode,
+		       cache_rules);
     }
-  else
+  else 
     {
-      print_jump_insn (file, entry->insns->insn, NULL, NULL, cache_rules);
+      print_jump_insn (file,
+		       entry->insns->insn,
+		       NULL,
+		       NULL,
+		       cache_rules);
     }
 }
 #endif
@@ -521,7 +546,9 @@ print_jump_definition (lf *file, gen_entry *entry, int depth, void *data)
 
 #if 0
 static void
-print_jump_internal_function (lf *file, function_entry * function, void *data)
+print_jump_internal_function (lf *file,
+			      function_entry *function,
+			      void *data)
 {
   if (function->is_internal)
     {
@@ -554,7 +581,9 @@ print_jump_internal_function (lf *file, function_entry * function, void *data)
 #if 0
 static void
 print_jump_body (lf *file,
-		 gen_entry *entry, insn_table *isa, cache_entry *cache_rules)
+		 gen_entry *entry,
+		 insn_table *isa,
+		 cache_entry *cache_rules)
 {
   lf_printf (file, "{\n");
   lf_indent (file, +2);
@@ -571,10 +600,10 @@ print_jump_body (lf *file,
     {
       lf_putstr (file, "int current_cpu = -1;\n");
     }
-
+  
   /* all the switches and tables - they know about jumping */
   print_idecode_lookups (file, entry, cache_rules);
-
+  
   /* start the simulation up */
   if (options.gen.icache)
     {
@@ -585,17 +614,17 @@ print_jump_body (lf *file,
       lf_putstr (file, "    cpu_flush_icache(processors[cpu_nr]);\n");
       lf_putstr (file, "}\n");
     }
-
+  
   lf_putstr (file, "\n");
   lf_putstr (file, "psim_set_halt_and_restart(system, &halt, &restart);\n");
-
+  
   lf_putstr (file, "\n");
   lf_putstr (file, "if (setjmp(halt))\n");
   lf_putstr (file, "  return;\n");
-
+  
   lf_putstr (file, "\n");
   lf_putstr (file, "setjmp(restart);\n");
-
+  
   lf_putstr (file, "\n");
   if (!options.gen.smp)
     {
@@ -606,7 +635,7 @@ print_jump_body (lf *file,
     {
       lf_putstr (file, "current_cpu = psim_last_cpu(system);\n");
     }
-
+  
   if (!options.gen.icache)
     {
       lf_printf (file, "\n");
@@ -614,34 +643,36 @@ print_jump_body (lf *file,
       lf_printf (file, "engine:\n");
       lf_indent (file, +1);
     }
-
-  print_jump (file, 0 /*is_tail */ );
-
+  
+  print_jump(file, 0/*is_tail*/);
+  
   if (options.gen.icache)
     {
       lf_indent (file, -1);
       lf_printf (file, "cache_miss:\n");
       lf_indent (file, +1);
     }
-
-  print_engine_issue_prefix_hook (file);
+  
+	  print_engine_issue_prefix_hook (file);
   lf_putstr (file, "instruction\n");
-  lf_putstr (file,
-	     "  = vm_instruction_map_read(cpu_instruction_map(processor),\n");
+  lf_putstr (file, "  = vm_instruction_map_read(cpu_instruction_map(processor),\n");
   lf_putstr (file, "                            processor, nia);\n");
   print_engine_issue_prefix_hook (file);
   print_idecode_body (file, entry, "/*IGORE*/");
   print_engine_issue_postfix_hook (file);
-
+  
   /* print out a table of all the internals functions */
   function_entry_traverse (file, isa->functions,
-			   print_jump_internal_function, NULL);
-
+			   print_jump_internal_function,
+			   NULL);
+  
   /* print out a table of all the instructions */
   ERROR ("Use the list of semantic functions, not travere_tree");
-  gen_entry_traverse_tree (file, entry, 1, NULL,	/* start */
-			   print_jump_definition,	/* leaf */
-			   NULL,	/* end */
+  gen_entry_traverse_tree (file, entry,
+			   1,
+			   NULL, /* start */
+			   print_jump_definition, /* leaf */
+			   NULL, /* end */
 			   cache_rules);
   lf_indent (file, -2);
   lf_printf (file, "}\n");
@@ -671,8 +702,11 @@ print_engine_run_function_header (lf *file,
       lf_printf (file, "void (*");
       break;
     }
-  indent = print_function_name (file, "run", NULL,	/* format name */
-				processor, NULL,	/* expanded bits */
+  indent = print_function_name (file,
+				"run",
+				NULL, /* format name */
+				processor,
+				NULL, /* expanded bits */
 				function_name_prefix_engine);
   switch (decl_type)
     {
@@ -709,7 +743,9 @@ print_engine_run_function_header (lf *file,
 
 void
 gen_engine_h (lf *file,
-	      gen_table *gen, insn_table *isa, cache_entry *cache_rules)
+	      gen_table *gen,
+	      insn_table *isa,
+	      cache_entry *cache_rules)
 {
   gen_list *entry;
   for (entry = gen->tables; entry != NULL; entry = entry->next)
@@ -717,14 +753,17 @@ gen_engine_h (lf *file,
       print_engine_run_function_header (file,
 					(options.gen.multi_sim
 					 ? entry->model->name
-					 : NULL), is_function_declaration);
+					 : NULL),
+					is_function_declaration);
     }
 }
 
 
 void
-gen_engine_c (lf *file,
-	      gen_table *gen, insn_table *isa, cache_entry *cache_rules)
+gen_engine_c(lf *file,
+	     gen_table *gen,
+	     insn_table *isa,
+	     cache_entry *cache_rules)
 {
   gen_list *entry;
   /* the intro */
@@ -743,22 +782,24 @@ gen_engine_c (lf *file,
 	{
 	case generate_calls:
 	  print_idecode_lookups (file, entry->table, cache_rules);
-
+	  
 	  /* output the main engine routine */
 	  print_engine_run_function_header (file,
 					    (options.gen.multi_sim
 					     ? entry->model->name
-					     : NULL), is_function_definition);
+					     : NULL),
+					    is_function_definition);
 	  print_run_body (file, entry->table);
 	  break;
-
+	  
 	case generate_jumps:
 	  ERROR ("Jumps currently unimplemented");
 #if 0
 	  print_engine_run_function_header (file,
 					    entry->processor,
 					    is_function_definition);
-	  print_jump_body (file, entry->table, isa, cache_rules);
+	  print_jump_body (file, entry->table,
+			   isa, cache_rules);
 #endif
 	  break;
 	}

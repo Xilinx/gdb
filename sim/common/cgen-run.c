@@ -1,21 +1,22 @@
 /* Main simulator loop for CGEN-based simulators.
-   Copyright (C) 1998, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 1998 Free Software Foundation, Inc.
    Contributed by Cygnus Solutions.
 
 This file is part of GDB, the GNU debugger.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* ??? These are old notes, kept around for now.
    Collecting profile data and tracing slow us down so we don't do them in
@@ -92,13 +93,9 @@ sim_resume (SIM_DESC sd, int step, int siggnal)
 	 way to identify this case.  */
       int max_insns = (step
 		       ? 1
-		       : (nr_cpus == 1
-			  /*&& wip:no-events*/
-			  /* Don't do this if running under gdb, need to
-			     poll ui for events.  */
-			  && STATE_OPEN_KIND (sd) == SIM_OPEN_STANDALONE)
+		       : (nr_cpus == 1 /*&& wip:no-events*/)
 		       ? 0
-		       : 8); /*FIXME: magic number*/
+		       : 4); /*FIXME: magic number*/
       int fast_p = STATE_RUN_FAST_P (sd);
 
       sim_events_preprocess (sd, last_cpu_nr >= nr_cpus, next_cpu_nr >= nr_cpus);

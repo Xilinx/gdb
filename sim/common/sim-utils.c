@@ -1,21 +1,22 @@
 /* Miscellaneous simulator utilities.
-   Copyright (C) 1997, 1998, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 1997, 1998 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
 This file is part of GDB, the GNU debugger.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "sim-main.h"
 #include "sim-assert.h"
@@ -286,8 +287,6 @@ sim_analyze_program (sd, prog_name, prog_bfd)
 	break;
       }
 
-  bfd_cache_close (prog_bfd);
-
   return SIM_RC_OK;
 }
 
@@ -313,7 +312,7 @@ sim_elapsed_time_get ()
 }
 
 /* Return the elapsed time in milliseconds since START.
-   The actual time may be cpu usage (preferred) or wall clock.  */
+   The actual time may be cpu usage (prefered) or wall clock.  */
 
 unsigned long
 sim_elapsed_time_since (start)

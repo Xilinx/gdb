@@ -1,12 +1,9 @@
-#include <stdlib.h>
-#include <string.h>
-
 /* Test various kinds of stepping.
 */
-int myglob = 0;
+int glob = 0;
 
 int callee() {
-    myglob++; return 0;
+    glob++;   
 }
 
 /* A structure which, we hope, will need to be passed using memcpy.  */
@@ -17,7 +14,7 @@ struct rhomboidal {
 void
 large_struct_by_value (struct rhomboidal r)
 {
-  myglob += r.rather_large[42]; /* step-test.exp: arrive here 1 */
+  glob += r.rather_large[42]; /* step-test.exp: arrive here 1 */
 }
 
 int main () {

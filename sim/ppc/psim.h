@@ -61,7 +61,7 @@ extern void psim_merge_device_file
  const char *file_name);
 
 extern void psim_usage
-(int verbose, int help);
+(int verbose);
 
 
 /* create a new simulator from the device tree */
@@ -138,24 +138,21 @@ extern event_queue *psim_event_queue
  
 
 
-/* Manipulate the state (registers or memory) of a processor within
+/* manipulate the state (registers or memory) of a processor within
    the system.  In the case of memory, the read/write is performed
    using the specified processors address translation tables.
 
    Where applicable, WHICH_CPU == -1 indicates all processors and
-   WHICH_CPU == <nr_cpus> indicates the `current' processor.
+   WHICH_CPU == <nr_cpus> indicates the `current' processor. */
 
-   The register functions return the size of the register, or 0 if the
-   register's name is not recognized.  */
-
-extern int psim_read_register
+extern void psim_read_register
 (psim *system,
  int which_cpu,
  void *host_ordered_buf,
  const char reg[],
  transfer_mode mode);
 
-extern int psim_write_register
+extern void psim_write_register
 (psim *system,
  int which_cpu,
  const void *buf,

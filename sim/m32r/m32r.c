@@ -1,22 +1,22 @@
 /* m32r simulator support code
-   Copyright (C) 1996, 1997, 1998, 2003, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
-   This file is part of GDB, the GNU debugger.
+This file is part of GDB, the GNU debugger.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #define WANT_CPU m32rbf
 #define WANT_CPU_M32RBF
@@ -39,7 +39,6 @@ m32r_decode_gdb_ctrl_regnum (int gdb_regnum)
       case BPC_REGNUM : return H_CR_BPC;
       case BBPSW_REGNUM : return H_CR_BBPSW;
       case BBPC_REGNUM : return H_CR_BBPC;
-      case EVB_REGNUM : return H_CR_CR5;
     }
   abort ();
 }
@@ -50,7 +49,7 @@ int
 m32rbf_fetch_register (SIM_CPU *current_cpu, int rn, unsigned char *buf, int len)
 {
   if (rn < 16)
-    SETTWI (buf, m32rbf_h_gr_get (current_cpu, rn));
+    SETTWI (buf, a_m32r_h_gr_get (current_cpu, rn));
   else
     switch (rn)
       {
@@ -61,17 +60,17 @@ m32rbf_fetch_register (SIM_CPU *current_cpu, int rn, unsigned char *buf, int len
       case BPC_REGNUM :
       case BBPSW_REGNUM :
       case BBPC_REGNUM :
-	SETTWI (buf, m32rbf_h_cr_get (current_cpu,
+	SETTWI (buf, a_m32r_h_cr_get (current_cpu,
 				      m32r_decode_gdb_ctrl_regnum (rn)));
 	break;
       case PC_REGNUM :
-	SETTWI (buf, m32rbf_h_pc_get (current_cpu));
+	SETTWI (buf, a_m32r_h_pc_get (current_cpu));
 	break;
       case ACCL_REGNUM :
-	SETTWI (buf, GETLODI (m32rbf_h_accum_get (current_cpu)));
+	SETTWI (buf, GETLODI (a_m32r_h_accum_get (current_cpu)));
 	break;
       case ACCH_REGNUM :
-	SETTWI (buf, GETHIDI (m32rbf_h_accum_get (current_cpu)));
+	SETTWI (buf, GETHIDI (a_m32r_h_accum_get (current_cpu)));
 	break;
       default :
 	return 0;
@@ -86,7 +85,7 @@ int
 m32rbf_store_register (SIM_CPU *current_cpu, int rn, unsigned char *buf, int len)
 {
   if (rn < 16)
-    m32rbf_h_gr_set (current_cpu, rn, GETTWI (buf));
+    a_m32r_h_gr_set (current_cpu, rn, GETTWI (buf));
   else
     switch (rn)
       {
@@ -97,25 +96,25 @@ m32rbf_store_register (SIM_CPU *current_cpu, int rn, unsigned char *buf, int len
       case BPC_REGNUM :
       case BBPSW_REGNUM :
       case BBPC_REGNUM :
-	m32rbf_h_cr_set (current_cpu,
+	a_m32r_h_cr_set (current_cpu,
 			 m32r_decode_gdb_ctrl_regnum (rn),
 			 GETTWI (buf));
 	break;
       case PC_REGNUM :
-	m32rbf_h_pc_set (current_cpu, GETTWI (buf));
+	a_m32r_h_pc_set (current_cpu, GETTWI (buf));
 	break;
       case ACCL_REGNUM :
 	{
-	  DI val = m32rbf_h_accum_get (current_cpu);
+	  DI val = a_m32r_h_accum_get (current_cpu);
 	  SETLODI (val, GETTWI (buf));
-	  m32rbf_h_accum_set (current_cpu, val);
+	  a_m32r_h_accum_set (current_cpu, val);
 	  break;
 	}
       case ACCH_REGNUM :
 	{
-	  DI val = m32rbf_h_accum_get (current_cpu);
+	  DI val = a_m32r_h_accum_get (current_cpu);
 	  SETHIDI (val, GETTWI (buf));
-	  m32rbf_h_accum_set (current_cpu, val);
+	  a_m32r_h_accum_set (current_cpu, val);
 	  break;
 	}
       default :

@@ -1,29 +1,26 @@
-/* The IGEN simulator generator for GDB, the GNU Debugger.
+/*  This file is part of the program psim.
 
-   Copyright 2002, 2007, 2008 Free Software Foundation, Inc.
+    Copyright (C) 1994-1998, Andrew Cagney <cagney@highland.com.au>
 
-   Contributed by Andrew Cagney.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
 
-   This file is part of GDB.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
-
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+ 
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ 
+    */
 
 /* code-generation options: */
 
-typedef enum
-{
+typedef enum {
 
   /* Transfer control to an instructions semantic code using the the
      standard call/return mechanism */
@@ -36,22 +33,18 @@ typedef enum
 
   generate_jumps,
 
-}
-igen_code;
+} igen_code;
 
-typedef enum
-{
+typedef enum {
   nia_is_cia_plus_one,
   nia_is_void,
   nia_is_invalid,
-}
-igen_nia;
+} igen_nia;
 
 
 
 typedef struct _igen_gen_options igen_gen_options;
-struct _igen_gen_options
-{
+struct _igen_gen_options {
   int direct_access;
   int semantic_icache;
   int insn_in_icache;
@@ -90,8 +83,7 @@ struct _igen_gen_options
 
 
 typedef struct _igen_trace_options igen_trace_options;
-struct _igen_trace_options
-{
+struct _igen_trace_options {
   int rule_selection;
   int rule_rejection;
   int insn_insertion;
@@ -100,21 +92,16 @@ struct _igen_trace_options
   int combine;
 };
 
-typedef struct _igen_name
-{
+typedef struct _igen_name {
   char *u;
   char *l;
-}
-igen_name;
-typedef struct _igen_module
-{
+} igen_name;
+typedef struct _igen_module {
   igen_name prefix;
   igen_name suffix;
-}
-igen_module;
+} igen_module;
 
-typedef struct _igen_module_options
-{
+typedef struct _igen_module_options {
   igen_module global;
   igen_module engine;
   igen_module icache;
@@ -122,12 +109,10 @@ typedef struct _igen_module_options
   igen_module itable;
   igen_module semantics;
   igen_module support;
-}
-igen_module_options;
+} igen_module_options;
 
-typedef struct _igen_decode_options igen_decode_options;
-struct _igen_decode_options
-{
+typedef struct _igen_decode_options igen_decode_options ;
+struct _igen_decode_options {
 
   /* Combine tables?  Should the generator make a second pass through
      each generated table looking for any sub-entries that contain the
@@ -154,8 +139,7 @@ struct _igen_decode_options
 
 
 typedef struct _igen_warn_options igen_warn_options;
-struct _igen_warn_options
-{
+struct _igen_warn_options {
 
   /* Issue warning about discarded instructions */
   int discard;
@@ -171,8 +155,7 @@ struct _igen_warn_options
 
 
 typedef struct _igen_options igen_options;
-struct _igen_options
-{
+struct _igen_options {
 
   /* What does the instruction look like - bit ordering, size, widths or
      offesets */
@@ -214,7 +197,7 @@ struct _igen_options
 
 extern igen_options options;
 
-/* default options - hopefully backward compatible */
+/* default options - hopefully backward compatible */ \
 #define INIT_OPTIONS() \
 do { \
   memset (&options, 0, sizeof options); \

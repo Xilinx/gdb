@@ -1,6 +1,6 @@
 /*  This file is part of the program psim.
 
-    Copyright 1994, 1995, 1996, 1998, 2003 Andrew Cagney
+    Copyright (C) 1994-1996,1998, Andrew Cagney <cagney@highland.com.au>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,30 +40,39 @@
 #endif
 #endif
 
-#include "libiberty.h"
+#include "defs.h"
 #include "bfd.h"
-#include "gdb/callback.h"
-#include "gdb/remote-sim.h"
-#include "gdb/signals.h"
+#include "callback.h"
+#include "remote-sim.h"
 
-/* Define the rate at which the simulator should poll the host
-   for a quit. */
-#ifndef POLL_QUIT_INTERVAL
-#define POLL_QUIT_INTERVAL 0x20
-#endif
-
-static int poll_quit_count = POLL_QUIT_INTERVAL;
 
 /* Structures used by the simulator, for gdb just have static structures */
 
-psim *simulator;
+static psim *simulator;
 static device *root_device;
 static host_callback *callbacks;
+
+/* We use GDB's reg_names array to map GDB register numbers onto
+   names, which we can then look up in the register table.
+
+   We used to just use the REGISTER_NAMES macro, from GDB's
+   target-dependent header files.  That was kind of nice, because it
+   meant that libsim.a had only a compile-time dependency on GDB;
+   using reg_names directly means that there are now link-time and
+   run-time dependencies too.
+
+   However, the GDB PPC back-end now modifies the reg_names array when
+   the user runs the `set processor' command, which affects the
+   meanings of the register numbers.  So the sim needs to see the
+   register names GDB is actually using.
+
+   Perhaps the host_callback structure could contain a pointer to the
+   register name table; that would be cleaner.  */
 
 SIM_DESC
 sim_open (SIM_OPEN_KIND kind,
 	  host_callback *callback,
-	  struct bfd *abfd,
+	  struct _bfd *abfd,
 	  char **argv)
 {
   callbacks = callback;
@@ -154,6 +163,56 @@ sim_write (SIM_DESC sd, SIM_ADDR mem, unsigned char *buf, int length)
   return result;
 }
 
+
+int
+sim_fetch_register (SIM_DESC sd, int regno, unsigned char *buf, int length)
+{
+  char *regname;
+
+  if (simulator == NULL) {
+    return 0;
+  }
+
+  /* GDB will sometimes ask for the contents of a register named "";
+     we ignore such requests, and leave garbage in *BUF.  In
+     REG_NAMES, the empty string means "the register with this
+     number is not present in the currently selected architecture
+     variant."  That's following the kludge we're using for the MIPS
+     processors.  But there are loops that just walk through the
+     entire list of names and try to get everything.  */
+  regname = REGISTER_NAME (regno);
+  if (! regname || regname[0] == '\0')
+    return -1;
+
+  TRACE(trace_gdb, ("sim_fetch_register(regno=%d(%s), buf=0x%lx)\n",
+		    regno, regname, (long)buf));
+  psim_read_register(simulator, MAX_NR_PROCESSORS,
+		     buf, regname, raw_transfer);
+  return -1;
+}
+
+
+int
+sim_store_register (SIM_DESC sd, int regno, unsigned char *buf, int length)
+{
+  char *regname;
+
+  if (simulator == NULL)
+    return 0;
+
+  /* See comments in sim_fetch_register, above.  */
+  regname = REGISTER_NAME (regno);
+  if (! regname || regname[0] == '\0')
+    return -1;
+
+  TRACE(trace_gdb, ("sim_store_register(regno=%d(%s), buf=0x%lx)\n",
+		    regno, regname, (long)buf));
+  psim_write_register(simulator, MAX_NR_PROCESSORS,
+		      buf, regname, raw_transfer);
+  return -1;
+}
+
+
 void
 sim_info (SIM_DESC sd, int verbose)
 {
@@ -164,7 +223,7 @@ sim_info (SIM_DESC sd, int verbose)
 
 SIM_RC
 sim_create_inferior (SIM_DESC sd,
-		     struct bfd *abfd,
+		     struct _bfd *abfd,
 		     char **argv,
 		     char **envp)
 {
@@ -183,8 +242,8 @@ sim_create_inferior (SIM_DESC sd,
   psim_init(simulator);
   psim_stack(simulator, argv, envp);
 
-  ASSERT (psim_write_register(simulator, -1 /* all start at same PC */,
-			      &entry_point, "pc", cooked_transfer) > 0);
+  psim_write_register(simulator, -1 /* all start at same PC */,
+		      &entry_point, "pc", cooked_transfer);
   return SIM_RC_OK;
 }
 
@@ -198,13 +257,13 @@ sim_stop_reason (SIM_DESC sd, enum sim_stop *reason, int *sigrc)
   case was_continuing:
     *reason = sim_stopped;
     if (status.signal == 0)
-      *sigrc = TARGET_SIGNAL_TRAP;
+      *sigrc = SIGTRAP;
     else
       *sigrc = status.signal;
     break;
   case was_trap:
     *reason = sim_stopped;
-    *sigrc = TARGET_SIGNAL_TRAP;
+    *sigrc = SIGTRAP;
     break;
   case was_exited:
     *reason = sim_exited;
@@ -265,9 +324,8 @@ sim_do_command (SIM_DESC sd, char *cmd)
 void
 sim_io_poll_quit (void)
 {
-  if (callbacks->poll_quit != NULL && poll_quit_count-- < 0)
+  if (callbacks->poll_quit != NULL)
     {
-      poll_quit_count = POLL_QUIT_INTERVAL;
       if (callbacks->poll_quit (callbacks))
 	psim_stop (simulator);
     }
@@ -367,16 +425,6 @@ sim_io_flush_stdoutput(void)
     error("sim_io_read_stdin: unaccounted switch\n");
     break;
   }
-}
-
-void
-sim_io_error (SIM_DESC sd, const char *fmt, ...)
-{
-  va_list ap;
-  va_start(ap, fmt);
-  callbacks->evprintf_filtered (callbacks, fmt, ap);
-  va_end(ap);
-  callbacks->error (callbacks, "");
 }
 
 /****/

@@ -1,21 +1,22 @@
 /* Simulator header for cgen cpus.
-   Copyright (C) 1998, 1999, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
 This file is part of GDB, the GNU debugger.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef CGEN_CPU_H
 #define CGEN_CPU_H
@@ -62,8 +63,8 @@ typedef struct {
   IDESC *idesc;
 #define CPU_IDESC(cpu) ((cpu)->cgen_cpu.idesc)
 
-  /* Whether the read,write,semantic entries (function pointers or computed
-     goto labels) have been initialized or not.  */
+  /* Whether the read,write,semantic entries (computed goto labels) have been
+     initialized or not.  */
   int idesc_read_init_p;
 #define CPU_IDESC_READ_INIT_P(cpu) ((cpu)->cgen_cpu.idesc_read_init_p)
   int idesc_write_init_p;
@@ -81,17 +82,9 @@ typedef struct {
   const CGEN_INSN * (*get_idata) (SIM_CPU *, int);
 #define CPU_GET_IDATA(cpu) ((cpu)->cgen_cpu.get_idata)
 
-  /* Floating point support.  */
-  CGEN_FPU fpu;
-#define CGEN_CPU_FPU(cpu) (& (cpu)->cgen_cpu.fpu)
-
   /* Disassembler.  */
   CGEN_DISASSEMBLER *disassembler;
 #define CPU_DISASSEMBLER(cpu) ((cpu)->cgen_cpu.disassembler)
-
-  /* Queued writes for parallel write-after support.  */
-  CGEN_WRITE_QUEUE write_queue;
-#define CPU_WRITE_QUEUE(cpu) (& (cpu)->cgen_cpu.write_queue)
 
   /* Allow slop in size calcs for case where multiple cpu types are supported
      and space for the specified cpu is malloc'd at run time.  */

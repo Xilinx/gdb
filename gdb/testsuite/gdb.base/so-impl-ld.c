@@ -4,13 +4,9 @@
 
 #include <stdio.h>
 
-#if defined(__cplusplus) || defined(__STDCPP__)
-extern "C" int  solib_main (int  arg);
-#else
-int  solib_main (int  arg);
-#endif
+extern int solib_main (int);
 
-int main ()
+main ()
 {
   int  result;
 
@@ -19,5 +15,4 @@ int main ()
 
   /* Call it again. */
   result = solib_main (result);
-  return 0;
 }

@@ -1,18 +1,19 @@
 #    Makefile template for Configure for simulator common directory
-#    Copyright (C) 1996, 1997, 2007, 2008 Free Software Foundation, Inc.
+#    Copyright (C) 1996, 1997 Free Software Foundation, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
+# the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 default: all
 
@@ -70,14 +71,17 @@ MAKEOVERRIDES=
 
 all:
 
-# Generate nltvals.def for newlib/libgloss using devo and build tree.
+# Generate TARG_VALS_H for newlib/libgloss using devo and build tree.
 # This file is shipped with distributions so we build in the source dir.
+# This is built in srcdir so putting dependencies here is risky.
 # Use `make headers' to rebuild.
-# Note: If gdb releases begin to contain target header files (not a good idea,
-# but if they did ...), targ-vals.def coud be generated at build time.
-# An alternative is to slurp in the tables at runtime.
+headers: nltvals.def
 .PHONY: headers
-headers:
+
+# Note: If gdb releases begin to contain target header files, generate
+# targ-vals.def at build time.
+
+nltvals.def: Makefile gennltvals.sh gentvals.sh
 	rootme=`pwd` ; \
 	cd $(srcdir) ; \
 	rm -f nltvals.new ; \
@@ -99,29 +103,30 @@ tags etags: TAGS
 # And the sim-n-foo.h files create functions that can't be found either.
 TAGS: force
 	cd $(srcdir) && \
-	etags --regex '/^\([a-z_]+\) (/\1/' --regex '/^.*\/[*] TAGS: .*/' \
-		*.c *.h
+	etags --regex '/^\([a-z_]+\) (/\1/' --regex '/^\/[*] TAGS: .*/' \
+		*.[ch]
 
 clean:
 	rm -f *.[oa] *~ core
+	rm -f $(ALL)
 
 distclean mostlyclean maintainer-clean realclean: clean
 	rm -f TAGS
 	rm -f Makefile config.cache config.log config.status
-	rm -f cconfig.h config.h stamp-h
+	rm -f config.h stamp-h
 
 # Dummy target to force execution of dependent targets.
 force:
 
 # Copy the files into directories where they will be run.
-install: install-man
+install:
 
 install-man: installdirs
 	n=`echo run | sed '$(program_transform_name)'`; \
-	$(INSTALL_DATA) $(srcdir)/run.1 $(DESTDIR)$(man1dir)/$$n.1
+	$(INSTALL_DATA) $(srcdir)/run.1 $(man1dir)/$$n.1
 
 installdirs:
-	$(SHELL) $(srcdir)/../../mkinstalldirs $(DESTDIR)$(man1dir)
+	$(SHELL) $(srcdir)/../../mkinstalldirs $(man1dir)
 
 Makefile: Makefile.in config.status
 	$(SHELL) ./config.status

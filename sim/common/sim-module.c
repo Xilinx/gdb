@@ -1,23 +1,22 @@
 /* Module support.
-
-   Copyright 1996, 1997, 1998, 2003, 2007, 2008 Free Software Foundation, Inc.
-
+   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
 This file is part of GDB, the GNU debugger.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "sim-main.h"
 #include "sim-io.h"
@@ -56,6 +55,9 @@ static MODULE_INSTALL_FN * const modules[] = {
 #endif
 #if WITH_SCACHE
   scache_install,
+#endif
+#ifdef SIM_HAVE_BREAKPOINTS
+  sim_break_install,
 #endif
 #if WITH_HW
   sim_hw_install,

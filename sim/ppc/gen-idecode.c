@@ -1,6 +1,6 @@
 /*  This file is part of the program psim.
 
-    Copyright 1994, 1995, 1996, 1997, 2003 Andrew Cagney
+    Copyright (C) 1994-1997, Andrew Cagney <cagney@highland.com.au>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -757,21 +757,21 @@ print_run_until_stop_body(lf *file,
 
   if (!generate_smp) {
 
-    lf_putstr(file, "\n\
-/* CASE 1: NO SMP (with or with out instruction cache).\n\
-\n\
-   In this case, we can take advantage of the fact that the current\n\
-   instruction address does not need to be returned to the cpu object\n\
-   after every execution of an instruction.  Instead it only needs to\n\
-   be saved when either A. the main loop exits or B. A cpu-halt or\n\
-   cpu-restart call forces the loop to be re-enered.  The later\n\
-   functions always save the current cpu instruction address.\n\
-\n\
-   Two subcases also exist that with and that without an instruction\n\
-   cache.\n\
-\n\
-   An additional complexity is the need to ensure that a 1:1 ratio\n\
-   is maintained between the execution of an instruction and the\n\
+    lf_putstr(file, "
+/* CASE 1: NO SMP (with or with out instruction cache).
+
+   In this case, we can take advantage of the fact that the current
+   instruction address does not need to be returned to the cpu object
+   after every execution of an instruction.  Instead it only needs to
+   be saved when either A. the main loop exits or B. A cpu-halt or
+   cpu-restart call forces the loop to be re-enered.  The later
+   functions always save the current cpu instruction address.
+
+   Two subcases also exist that with and that without an instruction
+   cache.
+
+   An additional complexity is the need to ensure that a 1:1 ratio
+   is maintained between the execution of an instruction and the
    incrementing of the simulation clock */");
 
     lf_putstr(file, "\n");
@@ -867,12 +867,12 @@ print_run_until_stop_body(lf *file,
     
   if (generate_smp) {
 
-    lf_putstr(file, "\n\
-/* CASE 2: SMP (With or without ICACHE)\n\
-\n\
-   The complexity here comes from needing to correctly restart the\n\
-   system when it is aborted.  In particular if cpu0 requests a\n\
-   restart, the next cpu is still cpu1.  Cpu0 being restarted after\n\
+    lf_putstr(file, "
+/* CASE 2: SMP (With or without ICACHE)
+
+   The complexity here comes from needing to correctly restart the
+   system when it is aborted.  In particular if cpu0 requests a
+   restart, the next cpu is still cpu1.  Cpu0 being restarted after
    all the other CPU's and the event queue have been processed */");
 
     lf_putstr(file, "\n");
@@ -1448,7 +1448,7 @@ print_idecode_run_function_header(lf *file,
 {
   int indent;
   lf_printf(file, "\n");
-  lf_print_function_type(file, "void", "PSIM_INLINE_IDECODE", (is_definition ? " " : "\n"));
+  lf_print_function_type(file, "void", "INLINE_IDECODE", (is_definition ? " " : "\n"));
   indent = lf_putstr(file, (can_stop ? "idecode_run_until_stop" : "idecode_run"));
   if (is_definition)
     lf_putstr(file, "\n");
@@ -1499,10 +1499,6 @@ gen_idecode_c(lf *file,
   lf_printf(file, "#include \"idecode.h\"\n");
   lf_printf(file, "#include \"semantics.h\"\n");
   lf_printf(file, "#include \"icache.h\"\n");
-  lf_printf(file, "#ifdef HAVE_COMMON_FPU\n");
-  lf_printf(file, "#include \"sim-inline.h\"\n");
-  lf_printf(file, "#include \"sim-fpu.h\"\n");
-  lf_printf(file, "#endif\n");
   lf_printf(file, "#include \"support.h\"\n");
   lf_printf(file, "\n");
   lf_printf(file, "#include <setjmp.h>\n");

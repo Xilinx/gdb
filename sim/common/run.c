@@ -1,27 +1,25 @@
 /* run front end support for all the simulators.
-   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 1992, 93-96, 1997 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* Steve Chamberlain sac@cygnus.com,
    and others at Cygnus.  */
 
-#ifdef HAVE_CONFIG_H
-#include "cconfig.h"
+#include "config.h"
 #include "tconfig.h"
-#endif
 
 #include <signal.h>
 #include <stdio.h>
@@ -45,14 +43,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "libiberty.h"
 #include "bfd.h"
-#include "gdb/callback.h"
-#include "gdb/remote-sim.h"
-#include "ansidecl.h"
-#include "run-sim.h"
-#include "version.h"
+#include "callback.h"
+#include "remote-sim.h"
 
-static void usage PARAMS ((int help));
-static void print_version PARAMS ((void));
+#include "../libiberty/alloca-conf.h"
+
+static void usage PARAMS ((void));
 extern int optind;
 extern char *optarg;
 
@@ -60,17 +56,16 @@ extern host_callback default_callback;
 
 static char *myname;
 
-extern int getopt ();
 
-#ifdef NEED_UI_LOOP_HOOK
-/* Gdb foolery. This is only needed for gdb using a gui.  */
-int (*deprecated_ui_loop_hook) PARAMS ((int signo));
-#endif
+/* NOTE: sim_size() and sim_trace() are going away */
+extern int sim_trace PARAMS ((SIM_DESC sd));
+
+extern int getopt ();
 
 static SIM_DESC sd;
 
 static RETSIGTYPE
-cntrl_c (int sig ATTRIBUTE_UNUSED)
+cntrl_c (int sig)
 {
   if (! sim_stop (sd))
     {
@@ -89,9 +84,6 @@ main (ac, av)
   int i;
   int verbose = 0;
   int trace = 0;
-#ifdef SIM_HAVE_ENVIRONMENT
-  int operating_p = 0;
-#endif
   char *name;
   static char *no_args[4];
   char **sim_argv = &no_args[0];
@@ -112,31 +104,18 @@ main (ac, av)
 
   /* FIXME: This is currently being migrated into sim_open.
      Simulators that use functions such as sim_size() still require
-     this.  */
+     this. */
   default_callback.init (&default_callback);
   sim_set_callbacks (&default_callback);
-
-#ifdef SIM_TARGET_SWITCHES
-  ac = sim_target_parse_command_line (ac, av);
-#endif
-
-  for (i = 1; av[i]; ++i)
-    {
-      if (strcmp (av[i], "--help") == 0)
-        {
-          usage (1);
-        }
-      else if (strcmp (av[i], "--version") == 0)
-        {
-          print_version ();
-          return 0;
-        }
-    }
 
   /* FIXME: This is currently being rewritten to have each simulator
      do all argv processing.  */
 
-  while ((i = getopt (ac, av, "a:c:m:op:s:tv")) != EOF)
+#ifdef SIM_H8300 /* FIXME: quick hack */
+  while ((i = getopt (ac, av, "a:c:m:p:s:htv")) != EOF) 
+#else
+  while ((i = getopt (ac, av, "a:c:m:p:s:tv")) != EOF) 
+#endif
     switch (i)
       {
       case 'a':
@@ -163,13 +142,6 @@ main (ac, av)
 	/* FIXME: Rename to sim_set_mem_size.  */
 	sim_size (atoi (optarg));
 	break;
-#ifdef SIM_HAVE_ENVIRONMENT
-      case 'o':
-	/* Operating enironment where any signals are delivered to the
-           target.  */
-	operating_p = 1;
-	break;
-#endif
 #ifdef SIM_HAVE_PROFILE
       case 'p':
 	sim_set_profile (atoi (optarg));
@@ -180,6 +152,8 @@ main (ac, av)
 #endif
       case 't':
 	trace = 1;
+	/* FIXME: need to allow specification of what to trace.  */
+	/* sim_set_trace (1); */
 	break;
       case 'v':
 	/* Things that are printed with -v are the kinds of things that
@@ -189,14 +163,19 @@ main (ac, av)
 	/* sim_set_verbose (1); */
 	break;
 	/* FIXME: Quick hack, to be replaced by more general facility.  */
+#ifdef SIM_H8300
+      case 'h':
+	set_h8300h (1);
+	break;
+#endif
       default:
-	usage (0);
+	usage ();
       }
 
   ac -= optind;
   av += optind;
   if (ac <= 0)
-    usage (0);
+    usage ();
 
   name = *av;
   prog_args = av;
@@ -207,9 +186,9 @@ main (ac, av)
     }
 
   abfd = bfd_openr (name, 0);
-  if (!abfd)
+  if (!abfd) 
     {
-      fprintf (stderr, "%s: can't open %s: %s\n",
+      fprintf (stderr, "%s: can't open %s: %s\n", 
 	       myname, name, bfd_errmsg (bfd_get_error ()));
       exit (1);
     }
@@ -236,7 +215,7 @@ main (ac, av)
 #endif
 
   /* Ensure that any run-time initialisation that needs to be
-     performed by the simulator can occur.  */
+     performed by the simulator can occur. */
   sd = sim_open (SIM_OPEN_STANDALONE, &default_callback, abfd, sim_argv);
   if (sd == 0)
     exit (1);
@@ -247,45 +226,26 @@ main (ac, av)
   if (sim_create_inferior (sd, abfd, prog_args, NULL) == SIM_RC_FAIL)
     exit (1);
 
-#ifdef SIM_HAVE_ENVIRONMENT
-  /* NOTE: An old simulator supporting the operating environment MUST
-     provide sim_set_trace() and not sim_trace(). That way
-     sim_stop_reason() can be used to determine any stop reason.  */
-  if (trace)
-    sim_set_trace ();
-  sigrc = 0;
-  do
-    {
-      prev_sigint = signal (SIGINT, cntrl_c);
-      sim_resume (sd, 0, sigrc);
-      signal (SIGINT, prev_sigint);
-      sim_stop_reason (sd, &reason, &sigrc);
-    }
-  while (operating_p && reason == sim_stopped && sigrc != SIGINT);
-#else
+  prev_sigint = signal (SIGINT, cntrl_c);
   if (trace)
     {
       int done = 0;
-      prev_sigint = signal (SIGINT, cntrl_c);
       while (!done)
 	{
 	  done = sim_trace (sd);
 	}
-      signal (SIGINT, prev_sigint);
-      sim_stop_reason (sd, &reason, &sigrc);
     }
   else
     {
-      prev_sigint = signal (SIGINT, cntrl_c);
-      sigrc = 0;
-      sim_resume (sd, 0, sigrc);
-      signal (SIGINT, prev_sigint);
-      sim_stop_reason (sd, &reason, &sigrc);
+      sim_resume (sd, 0, 0);
     }
-#endif
+  signal (SIGINT, prev_sigint);
 
   if (verbose)
     sim_info (sd, 0);
+
+  sim_stop_reason (sd, &reason, &sigrc);
+
   sim_close (sd, 0);
 
   /* If reason is sim_exited, then sigrc holds the exit code which we want
@@ -293,66 +253,56 @@ main (ac, av)
      the signal that the simulator received; we want to return that to
      indicate failure.  */
 
+#ifdef SIM_H8300 /* FIXME: Ugh.  grep for SLEEP in compile.c  */
+  if (sigrc == SIGILL)
+    abort ();
+  sigrc = 0;
+#else
   /* Why did we stop? */
   switch (reason)
     {
     case sim_signalled:
     case sim_stopped:
       if (sigrc != 0)
-	fprintf (stderr, "program stopped with signal %d.\n", sigrc);
+        fprintf (stderr, "program stopped with signal %d.\n", sigrc);
       break;
 
     case sim_exited:
       break;
 
     case sim_running:
-    case sim_polling: /* These indicate a serious problem.  */
+    case sim_polling: /* these indicate a serious problem */
       abort ();
       break;
 
     }
+#endif
 
   return sigrc;
 }
 
 static void
-usage (int help)
+usage ()
 {
-  FILE *stream = help ? stdout : stderr;
-
-  fprintf (stream, "Usage: %s [options] program [program args]\n", myname);
-  fprintf (stream, "Options:\n");
-  fprintf (stream, "-a args         Pass `args' to simulator.\n");
+  fprintf (stderr, "Usage: %s [options] program [program args]\n", myname);
+  fprintf (stderr, "Options:\n");
+  fprintf (stderr, "-a args         Pass `args' to simulator.\n");
 #ifdef SIM_HAVE_SIMCACHE
-  fprintf (stream, "-c size         Set simulator cache size to `size'.\n");
+  fprintf (stderr, "-c size         Set simulator cache size to `size'.\n");
 #endif
-  fprintf (stream, "-m size         Set memory size of simulator, in bytes.\n");
-#ifdef SIM_HAVE_ENVIRONMENT
-  fprintf (stream, "-o              Select operating (kernel) environment.\n");
+#ifdef SIM_H8300
+  fprintf (stderr, "-h              Executable is for h8/300h or h8/300s.\n");
 #endif
+  fprintf (stderr, "-m size         Set memory size of simulator, in bytes.\n");
 #ifdef SIM_HAVE_PROFILE
-  fprintf (stream, "-p freq         Set profiling frequency.\n");
-  fprintf (stream, "-s size         Set profiling size.\n");
+  fprintf (stderr, "-p freq         Set profiling frequency.\n");
+  fprintf (stderr, "-s size         Set profiling size.\n");
 #endif
-  fprintf (stream, "-t              Perform instruction tracing.\n");
-  fprintf (stream, "                Note: Very few simulators support tracing.\n");
-  fprintf (stream, "-v              Verbose output.\n");
-  fprintf (stream, "\n");
-  fprintf (stream, "program args    Arguments to pass to simulated program.\n");
-  fprintf (stream, "                Note: Very few simulators support this.\n");
-#ifdef SIM_TARGET_SWITCHES
-  fprintf (stream, "\nTarget specific options:\n");
-  sim_target_display_usage (help);
-#endif
-
-  if (help && REPORT_BUGS_TO[0])
-    printf ("Report bugs to %s\n", REPORT_BUGS_TO);
-
-  exit (help ? 0 : 1);
-}
-
-static void 
-print_version ()
-{
-  printf ("GNU simulator %s%s\n", PKGVERSION, version);
+  fprintf (stderr, "-t              Perform instruction tracing.\n");
+  fprintf (stderr, "                Note: Very few simulators support tracing.\n");
+  fprintf (stderr, "-v              Verbose output.\n");
+  fprintf (stderr, "\n");
+  fprintf (stderr, "program args    Arguments to pass to simulated program.\n");
+  fprintf (stderr, "                Note: Very few simulators support this.\n");
+  exit (1);
 }

@@ -1,327 +1,166 @@
 /* Support for complaint handling during symbol reading in GDB.
+   Copyright (C) 1990, 1991, 1992  Free Software Foundation, Inc.
 
-   Copyright (C) 1990, 1991, 1992, 1993, 1995, 1998, 1999, 2000, 2002, 2004,
-   2005, 2006, 2007, 2008 Free Software Foundation, Inc.
+This file is part of GDB.
 
-   This file is part of GDB.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include "complaints.h"
-#include "gdb_assert.h"
-#include "command.h"
 #include "gdbcmd.h"
-
-extern void _initialize_complaints (void);
-
-/* Should each complaint message be self explanatory, or should we assume that
-   a series of complaints is being produced?  */
-
-/* case 1: First message of a series that must
-   start off with explanation.  case 2: Subsequent message of a series
-   that needs no explanation (the user already knows we have a problem
-   so we can just state our piece).  */
-enum complaint_series {
-  /* Isolated self explanatory message.  */
-  ISOLATED_MESSAGE,
-  /* First message of a series, includes an explanation.  */
-  FIRST_MESSAGE,
-  /* First message of a series, but does not need to include any sort
-     of explanation.  */
-  SHORT_FIRST_MESSAGE,
-  /* Subsequent message of a series that needs no explanation (the
-     user already knows we have a problem so we can just state our
-     piece).  */
-  SUBSEQUENT_MESSAGE
-};
 
 /* Structure to manage complaints about symbol file contents.  */
 
-struct complain
-{
-  const char *file;
-  int line;
-  const char *fmt;
-  int counter;
-  struct complain *next;
+struct complaint complaint_root[1] = {
+  {
+    (char *) NULL,	/* Complaint message */
+    0,			/* Complaint counter */
+    complaint_root	/* Next complaint. */
+  }
 };
 
-/* The explanatory message that should accompany the complaint.  The
-   message is in two parts - pre and post - that are printed around
-   the complaint text.  */
-struct explanation
-{
-  const char *prefix;
-  const char *postfix;
-};
+/* How many complaints about a particular thing should be printed before
+   we stop whining about it?  Default is no whining at all, since so many
+   systems have ill-constructed symbol files.  */
 
-struct complaints
-{
-  struct complain *root;
+static unsigned int stop_whining = 0;
 
-  /* Should each complaint be self explanatory, or should we assume
-     that a series of complaints is being produced?  case 0: Isolated
-     self explanatory message.  case 1: First message of a series that
-     must start off with explanation.  case 2: Subsequent message of a
-     series that needs no explanation (the user already knows we have
-     a problem so we can just state our piece).  */
-  int series;
+/* Should each complaint be self explanatory, or should we assume that
+   a series of complaints is being produced? 
+   case 0:  self explanatory message.
+   case 1:  First message of a series that must start off with explanation.
+   case 2:  Subsequent message, when user already knows we are reading
+            symbols and we can just state our piece.  */
 
-  /* The explanatory messages that should accompany the complaint.
-     NOTE: cagney/2002-08-14: In a desperate attempt at being vaguely
-     i18n friendly, this is an array of two messages.  When present,
-     the PRE and POST EXPLANATION[SERIES] are used to wrap the
-     message.  */
-  const struct explanation *explanation;
-};
+static int complaint_series = 0;
 
-static struct complain complaint_sentinel;
+/* External variables and functions referenced. */
 
-/* The symbol table complaint table.  */
+extern int info_verbose;
 
-static struct explanation symfile_explanations[] = {
-  { "During symbol reading, ", "." },
-  { "During symbol reading...", "..."},
-  { "", "..."},
-  { "", "..."},
-  { NULL, NULL }
-};
+
+/* Functions to handle complaints during symbol reading.  */
 
-static struct complaints symfile_complaint_book = {
-  &complaint_sentinel,
-  0,
-  symfile_explanations
-};
-struct complaints *symfile_complaints = &symfile_complaint_book;
+/* Print a complaint about the input symbols, and link the complaint block
+   into a chain for later handling.  */
 
-/* Wrapper function to, on-demand, fill in a complaints object.  */
-
-static struct complaints *
-get_complaints (struct complaints **c)
-{
-  if ((*c) != NULL)
-    return (*c);
-  (*c) = XMALLOC (struct complaints);
-  (*c)->root = &complaint_sentinel;
-  (*c)->series = ISOLATED_MESSAGE;
-  (*c)->explanation = NULL;
-  return (*c);
-}
-
-static struct complain *
-find_complaint (struct complaints *complaints, const char *file,
-		int line, const char *fmt)
-{
-  struct complain *complaint;
-
-  /* Find the complaint in the table.  A more efficient search
-     algorithm (based on hash table or something) could be used.  But
-     that can wait until someone shows evidence that this lookup is
-     a real bottle neck.  */
-  for (complaint = complaints->root;
-       complaint != NULL;
-       complaint = complaint->next)
-    {
-      if (complaint->fmt == fmt
-	  && complaint->file == file
-	  && complaint->line == line)
-	return complaint;
-    }
-
-  /* Oops not seen before, fill in a new complaint.  */
-  complaint = XMALLOC (struct complain);
-  complaint->fmt = fmt;
-  complaint->file = file;
-  complaint->line = line;
-  complaint->counter = 0;
-  complaint->next = NULL;
-
-  /* File it, return it.  */
-  complaint->next = complaints->root;
-  complaints->root = complaint;
-  return complaint;
-}
-
-
-/* How many complaints about a particular thing should be printed
-   before we stop whining about it?  Default is no whining at all,
-   since so many systems have ill-constructed symbol files.  */
-
-static int stop_whining = 0;
-
-/* Print a complaint, and link the complaint block into a chain for
-   later handling.  */
-
-static void ATTR_FORMAT (printf, 4, 0)
-vcomplaint (struct complaints **c, const char *file, int line, const char *fmt,
-	    va_list args)
-{
-  struct complaints *complaints = get_complaints (c);
-  struct complain *complaint = find_complaint (complaints, file, line, fmt);
-  enum complaint_series series;
-  gdb_assert (complaints != NULL);
-
-  complaint->counter++;
-  if (complaint->counter > stop_whining)
-    return;
-
-  if (info_verbose)
-    series = SUBSEQUENT_MESSAGE;
-  else
-    series = complaints->series;
-
-  if (complaint->file != NULL)
-    internal_vwarning (complaint->file, complaint->line, complaint->fmt, args);
-  else if (deprecated_warning_hook)
-    (*deprecated_warning_hook) (complaint->fmt, args);
-  else
-    {
-      if (complaints->explanation == NULL)
-	/* A [v]warning() call always appends a newline.  */
-	vwarning (complaint->fmt, args);
-      else
-	{
-	  char *msg;
-	  struct cleanup *cleanups;
-	  msg = xstrvprintf (complaint->fmt, args);
-	  cleanups = make_cleanup (xfree, msg);
-	  wrap_here ("");
-	  if (series != SUBSEQUENT_MESSAGE)
-	    begin_line ();
-	  /* XXX: i18n */
-	  fprintf_filtered (gdb_stderr, "%s%s%s",
-			    complaints->explanation[series].prefix, msg,
-			    complaints->explanation[series].postfix);
-	  /* Force a line-break after any isolated message.  For the
-             other cases, clear_complaints() takes care of any missing
-             trailing newline, the wrap_here() is just a hint.  */
-	  if (series == ISOLATED_MESSAGE)
-	    /* It would be really nice to use begin_line() here.
-	       Unfortunately that function doesn't track GDB_STDERR and
-	       consequently will sometimes supress a line when it
-	       shouldn't.  */
-	    fputs_filtered ("\n", gdb_stderr);
-	  else
-	    wrap_here ("");
-	  do_cleanups (cleanups);
-	}
-    }
-
-  switch (series)
-    {
-    case ISOLATED_MESSAGE:
-      break;
-    case FIRST_MESSAGE:
-      complaints->series = SUBSEQUENT_MESSAGE;
-      break;
-    case SUBSEQUENT_MESSAGE:
-    case SHORT_FIRST_MESSAGE:
-      complaints->series = SUBSEQUENT_MESSAGE;
-      break;
-    }
-
-  /* If GDB dumps core, we'd like to see the complaints first.
-     Presumably GDB will not be sending so many complaints that this
-     becomes a performance hog.  */
-
-  gdb_flush (gdb_stderr);
-}
-
+/* VARARGS */
 void
-complaint (struct complaints **complaints, const char *fmt, ...)
+#ifdef ANSI_PROTOTYPES
+complain (struct complaint *complaint, ...)
+#else
+complain (va_alist)
+     va_dcl
+#endif
 {
   va_list args;
-  va_start (args, fmt);
-  vcomplaint (complaints, NULL/*file*/, 0/*line*/, fmt, args);
+#ifdef ANSI_PROTOTYPES
+  va_start (args, complaint);
+#else
+  struct complaint *complaint;
+
+  va_start (args);
+  complaint = va_arg (args, struct complaint *);
+#endif
+
+  complaint -> counter++;
+  if (complaint -> next == NULL)
+    {
+      complaint -> next = complaint_root -> next;
+      complaint_root -> next = complaint;
+    }
+  if (complaint -> counter > stop_whining)
+    {
+      return;
+    }
+  wrap_here ("");
+
+  switch (complaint_series + (info_verbose << 1))
+    {
+
+      /* Isolated messages, must be self-explanatory.  */
+      case 0:
+        begin_line ();
+        puts_filtered ("During symbol reading, ");
+	wrap_here ("");
+	vprintf_filtered (complaint -> message, args);
+	puts_filtered (".\n");
+	break;
+
+      /* First of a series, without `set verbose'.  */
+      case 1:
+        begin_line ();
+	puts_filtered ("During symbol reading...");
+	vprintf_filtered (complaint -> message, args);
+	puts_filtered ("...");
+	wrap_here ("");
+	complaint_series++;
+	break;
+
+      /* Subsequent messages of a series, or messages under `set verbose'.
+	 (We'll already have produced a "Reading in symbols for XXX..."
+	 message and will clean up at the end with a newline.)  */
+      default:
+	vprintf_filtered (complaint -> message, args);
+	puts_filtered ("...");
+	wrap_here ("");
+    }
+  /* If GDB dumps core, we'd like to see the complaints first.  Presumably
+     GDB will not be sending so many complaints that this becomes a
+     performance hog.  */
+  gdb_flush (gdb_stdout);
   va_end (args);
 }
 
-void
-internal_complaint (struct complaints **complaints, const char *file,
-		    int line, const char *fmt, ...)
-{
-  va_list args;
-  va_start (args, fmt);
-  vcomplaint (complaints, file, line, fmt, args);
-  va_end (args);
-}
-
-/* Clear out / initialize all complaint counters that have ever been
-   incremented.  If LESS_VERBOSE is 1, be less verbose about
-   successive complaints, since the messages are appearing all
-   together during a command that is reporting a contiguous block of
-   complaints (rather than being interleaved with other messages).  If
-   noisy is 1, we are in a noisy command, and our caller will print
-   enough context for the user to figure it out.  */
+/* Clear out all complaint counters that have ever been incremented.
+   If sym_reading is 1, be less verbose about successive complaints,
+   since the messages are appearing all together during a command that
+   reads symbols (rather than scattered around as psymtabs get fleshed
+   out into symtabs at random times).  If noisy is 1, we are in a
+   noisy symbol reading command, and our caller will print enough
+   context for the user to figure it out.  */
 
 void
-clear_complaints (struct complaints **c, int less_verbose, int noisy)
+clear_complaints (sym_reading, noisy)
+     int sym_reading;
+     int noisy;
 {
-  struct complaints *complaints = get_complaints (c);
-  struct complain *p;
+  struct complaint *p;
 
-  for (p = complaints->root; p != NULL; p = p->next)
+  for (p = complaint_root -> next; p != complaint_root; p = p -> next)
     {
-      p->counter = 0;
+      p -> counter = 0;
     }
 
-  switch (complaints->series)
+  if (!sym_reading && !noisy && complaint_series > 1)
     {
-    case FIRST_MESSAGE:
-      /* Haven't yet printed anything.  */
-      break;
-    case SHORT_FIRST_MESSAGE:
-      /* Haven't yet printed anything.  */
-      break;
-    case ISOLATED_MESSAGE:
-      /* The code above, always forces a line-break.  No need to do it
-         here.  */
-      break;
-    case SUBSEQUENT_MESSAGE:
-      /* It would be really nice to use begin_line() here.
-         Unfortunately that function doesn't track GDB_STDERR and
-         consequently will sometimes supress a line when it shouldn't.  */
-      fputs_unfiltered ("\n", gdb_stderr);
-      break;
-    default:
-      internal_error (__FILE__, __LINE__, _("bad switch"));
+      /* Terminate previous series, since caller won't.  */
+      puts_filtered ("\n");
     }
 
-  if (!less_verbose)
-    complaints->series = ISOLATED_MESSAGE;
-  else if (!noisy)
-    complaints->series = FIRST_MESSAGE;
-  else
-    complaints->series = SHORT_FIRST_MESSAGE;
-}
-
-static void
-complaints_show_value (struct ui_file *file, int from_tty,
-		       struct cmd_list_element *cmd, const char *value)
-{
-  fprintf_filtered (file, _("Max number of complaints about incorrect"
-			    " symbols is %s.\n"),
-		    value);
+  complaint_series = sym_reading ? 1 + noisy : 0;
 }
 
 void
-_initialize_complaints (void)
+_initialize_complaints ()
 {
-  add_setshow_zinteger_cmd ("complaints", class_support, &stop_whining, _("\
-Set max number of complaints about incorrect symbols."), _("\
-Show max number of complaints about incorrect symbols."), NULL,
-			    NULL, complaints_show_value,
-			    &setlist, &showlist);
+  add_show_from_set
+    (add_set_cmd ("complaints", class_support, var_zinteger,
+		  (char *) &stop_whining,
+		  "Set max number of complaints about incorrect symbols.",
+		  &setlist),
+     &showlist);
+
 }

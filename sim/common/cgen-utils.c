@@ -1,22 +1,22 @@
 /* Support code for various pieces of CGEN simulators.
-   Copyright (C) 1996, 1997, 1998, 1999, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
 This file is part of GDB, the GNU debugger.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "bfd.h"
 #include "sim-main.h"
@@ -32,7 +32,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #define min(a,b) ((a) < (b) ? (a) : (b))
 
 const char *mode_names[] = {
-  "VOID",
+  "VM",
   "BI",
   "QI",
   "HI",
@@ -59,22 +59,28 @@ const char *mode_names[] = {
 static const CGEN_IBASE virtual_insn_entries[] =
 {
   {
-    VIRTUAL_INSN_X_INVALID, "--invalid--", NULL, 0, { V, { 0 } }
+    VIRTUAL_INSN_X_INVALID, "--invalid--", NULL, 0,
+    { CGEN_INSN_NBOOL_ATTRS, V, { 0 } }
   },
   {
-    VIRTUAL_INSN_X_BEFORE, "--before--", NULL, 0, { V, { 0 } }
+    VIRTUAL_INSN_X_BEFORE, "--before--", NULL, 0,
+    { CGEN_INSN_NBOOL_ATTRS, V, { 0 } }
   },
   {
-    VIRTUAL_INSN_X_AFTER, "--after--", NULL, 0, { V, { 0 } }
+    VIRTUAL_INSN_X_AFTER, "--after--", NULL, 0,
+    { CGEN_INSN_NBOOL_ATTRS, V, { 0 } }
   },
   {
-    VIRTUAL_INSN_X_BEGIN, "--begin--", NULL, 0, { V, { 0 } }
+    VIRTUAL_INSN_X_BEGIN, "--begin--", NULL, 0,
+    { CGEN_INSN_NBOOL_ATTRS, V, { 0 } }
   },
   {
-    VIRTUAL_INSN_X_CHAIN, "--chain--", NULL, 0, { V, { 0 } }
+    VIRTUAL_INSN_X_CHAIN, "--chain--", NULL, 0,
+    { CGEN_INSN_NBOOL_ATTRS, V, { 0 } }
   },
   {
-    VIRTUAL_INSN_X_CTI_CHAIN, "--cti-chain--", NULL, 0, { V, { 0 } }
+    VIRTUAL_INSN_X_CTI_CHAIN, "--cti-chain--", NULL, 0,
+    { CGEN_INSN_NBOOL_ATTRS, V, { 0 } }
   }
 };
 
@@ -320,119 +326,3 @@ CONVDISI (val)
 }
 
 #endif /* DI_FN_SUPPORT */
-
-QI
-RORQI (val, shift)
-     QI  val;
-     int shift;
-{
-  if (shift != 0)
-    {
-      int remain = 8 - shift;
-      int mask = (1 << shift) - 1;
-      QI result = (val & mask) << remain;
-      mask = (1 << remain) - 1;
-      result |= (val >> shift) & mask;
-      return result;
-    }
-  return val;
-}
-
-QI
-ROLQI (val, shift)
-     QI  val;
-     int shift;
-{
-  if (shift != 0)
-    {
-      int remain = 8 - shift;
-      int mask = (1 << remain) - 1;
-      QI result = (val & mask) << shift;
-      mask = (1 << shift) - 1;
-      result |= (val >> remain) & mask;
-      return result;
-    }
-  return val;
-}
-
-HI
-RORHI (val, shift)
-     HI  val;
-     int shift;
-{
-  if (shift != 0)
-    {
-      int remain = 16 - shift;
-      int mask = (1 << shift) - 1;
-      HI result = (val & mask) << remain;
-      mask = (1 << remain) - 1;
-      result |= (val >> shift) & mask;
-      return result;
-    }
-  return val;
-}
-
-HI
-ROLHI (val, shift)
-     HI  val;
-     int shift;
-{
-  if (shift != 0)
-    {
-      int remain = 16 - shift;
-      int mask = (1 << remain) - 1;
-      HI result = (val & mask) << shift;
-      mask = (1 << shift) - 1;
-      result |= (val >> remain) & mask;
-      return result;
-    }
-  return val;
-}
-
-SI
-RORSI (val, shift)
-     SI  val;
-     int shift;
-{
-  if (shift != 0)
-    {
-      int remain = 32 - shift;
-      int mask = (1 << shift) - 1;
-      SI result = (val & mask) << remain;
-      mask = (1 << remain) - 1;
-      result |= (val >> shift) & mask;
-      return result;
-    }
-  return val;
-}
-
-SI
-ROLSI (val, shift)
-     SI  val;
-     int shift;
-{
-  if (shift != 0)
-    {
-      int remain = 32 - shift;
-      int mask = (1 << remain) - 1;
-      SI result = (val & mask) << shift;
-      mask = (1 << shift) - 1;
-      result |= (val >> remain) & mask;
-      return result;
-    }
-
-  return val;
-}
-
-/* Emit an error message from CGEN RTL.  */
-
-void
-cgen_rtx_error (SIM_CPU *cpu, const char * msg)
-{
-  SIM_DESC sd = CPU_STATE (cpu);
-
-  sim_io_printf (sd, msg);
-  sim_io_printf (sd, "\n");
-
-  sim_engine_halt (sd, cpu, NULL, CIA_GET (cpu), sim_stopped, SIM_SIGTRAP);
-}

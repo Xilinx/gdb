@@ -1,7 +1,7 @@
 #
 #   This file is part of the program psim.
 #
-#   Copyright 1994, 1995, 1996, 1997, 2003, 2004 Andrew Cagney
+#   Copyright (C) 1994-1997, Andrew Cagney <cagney@highland.com.au>
 #
 #   --
 #
@@ -33,53 +33,6 @@
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #
-
-:cache::::RA:RA:
-:cache:::signed_word *:rA:RA:(cpu_registers(processor)->gpr + RA)
-:cache:::unsigned32:RA_BITMASK:RA:(1 << RA)
-:compute:::int:RA_is_0:RA:(RA == 0)
-:cache::::RT:RT:
-:cache:::signed_word *:rT:RT:(cpu_registers(processor)->gpr + RT)
-:cache:::unsigned32:RT_BITMASK:RT:(1 << RT)
-:cache::::RS:RS:
-:cache:::signed_word *:rS:RS:(cpu_registers(processor)->gpr + RS)
-:cache:::unsigned32:RS_BITMASK:RS:(1 << RS)
-:cache::::RB:RB:
-:cache:::signed_word *:rB:RB:(cpu_registers(processor)->gpr + RB)
-:cache:::unsigned32:RB_BITMASK:RB:(1 << RB)
-:scratch::::FRA:FRA:
-:cache:::unsigned64 *:frA:FRA:(cpu_registers(processor)->fpr + FRA)
-:cache:::unsigned32:FRA_BITMASK:FRA:(1 << FRA)
-:scratch::::FRB:FRB:
-:cache:::unsigned64 *:frB:FRB:(cpu_registers(processor)->fpr + FRB)
-:cache:::unsigned32:FRB_BITMASK:FRB:(1 << FRB)
-:scratch::::FRC:FRC:
-:cache:::unsigned64 *:frC:FRC:(cpu_registers(processor)->fpr + FRC)
-:cache:::unsigned32:FRC_BITMASK:FRC:(1 << FRC)
-:scratch::::FRS:FRS:
-:cache:::unsigned64 *:frS:FRS:(cpu_registers(processor)->fpr + FRS)
-:cache:::unsigned32:FRS_BITMASK:FRS:(1 << FRS)
-:scratch::::FRT:FRT:
-:cache:::unsigned64 *:frT:FRT:(cpu_registers(processor)->fpr + FRT)
-:cache:::unsigned32:FRT_BITMASK:FRT:(1 << FRT)
-:cache:::unsigned_word:EXTS_SI:SI:((signed_word)(signed16)instruction)
-:scratch::::BI:BI:
-:cache::::BIT32_BI:BI:BIT32(BI)
-:cache::::BF:BF:
-:cache:::unsigned32:BF_BITMASK:BF:(1 << BF)
-:scratch::::BA:BA:
-:cache::::BIT32_BA:BA:BIT32(BA)
-:cache:::unsigned32:BA_BITMASK:BA:(1 << BA)
-:scratch::::BB:BB:
-:cache::::BIT32_BB:BB:BIT32(BB)
-:cache:::unsigned32:BB_BITMASK:BB:(1 << BB)
-:cache::::BT:BT:
-:cache:::unsigned32:BT_BITMASK:BT:(1 << BT)
-:cache:::unsigned_word:EXTS_BD_0b00:BD:(((signed_word)(signed16)instruction) & ~3)
-:cache:::unsigned_word:EXTS_LI_0b00:LI:((((signed_word)(signed32)(instruction << 6)) >> 6) & ~0x3)
-:cache:::unsigned_word:EXTS_D:D:((signed_word)(signed16)(instruction))
-:cache:::unsigned_word:EXTS_DS_0b00:DS:(((signed_word)(signed16)instruction) & ~0x3)
-#:compute:::int:SPR_is_256:SPR:(SPR == 256)
 
 # PowerPC models
 ::model:604:ppc604:  PPC_UNIT_BAD,   PPC_UNIT_BAD,   1,  1,  0
@@ -198,8 +151,6 @@
 	  unsigned32 fp_busy;				/* floating point registers that are busy */
 	  unsigned32 cr_fpscr_busy;			/* CR/FPSCR registers that are busy */
 	  signed16 spr_busy;				/* SPR register that is busy or PPC_NO_SPR */
-	  unsigned32 vr_busy;				/* AltiVec registers that are busy */
-	  signed16 vscr_busy;				/* AltiVec status register busy */
 	  signed16 issue;				/* # of cycles until unit can accept another insn */
 	  signed16 done;				/* # of cycles until insn is done */
 	  signed16 nr_writebacks;			/* # of registers this unit writes back */
@@ -230,8 +181,6 @@
 	  unsigned32 fp_busy;				/* floating point registers that are busy */
 	  unsigned32 cr_fpscr_busy;			/* CR/FPSCR registers that are busy */
 	  unsigned8 spr_busy[nr_of_sprs];		/* SPR registers that are busy */
-	  unsigned32 vr_busy;				/* AltiVec registers that are busy */
-	  unsigned8 vscr_busy;				/* AltiVec SC register busy */
 	  unsigned8 busy[nr_ppc_function_units];	/* whether a function is busy or not */
 	};
 
@@ -324,15 +273,6 @@ void::model-static::model_trace_release:model_data *model_ptr, model_busy *busy
 	}
 	if (busy->spr_busy != PPC_NO_SPR)
 	  TRACE(trace_model, ("Register %s is now available.\n", spr_name(busy->spr_busy)));
-	if (busy->vr_busy) {
-	  for(i = 0; i < 32; i++) {
-	    if (((1 << i) & busy->vr_busy) != 0) {
-	      TRACE(trace_model, ("Register v%d is now available.\n", i));
-	    }
-	  }
-	}
-	if (busy->vscr_busy)
-	  TRACE(trace_model, ("VSCR Register is now available.\n", spr_name(busy->spr_busy)));
 
 # Trace making registers busy
 void::model-static::model_trace_make_busy:model_data *model_ptr, unsigned32 int_mask, unsigned32 fp_mask, unsigned32 cr_mask
@@ -411,8 +351,6 @@ void::model-internal::model_new_cycle:model_data *model_ptr
 	      model_ptr->cr_fpscr_busy &= ~cur_busy->cr_fpscr_busy;
 	      if (cur_busy->spr_busy != PPC_NO_SPR)
 		model_ptr->spr_busy[cur_busy->spr_busy] = 0;
-	      model_ptr->vr_busy &= ~cur_busy->vr_busy;
-	      model_ptr->vscr_busy = ~cur_busy->vscr_busy;
 
 	      if (WITH_TRACE && ppc_trace[trace_model])
 		model_trace_release(model_ptr, cur_busy);
@@ -469,8 +407,6 @@ model_busy *::model-internal::model_make_busy:model_data *model_ptr, ppc_functio
 	  busy->fp_busy = 0;
 	  busy->cr_fpscr_busy = 0;
 	  busy->nr_writebacks = 0;
-	  busy->vr_busy = 0;
-	  busy->vscr_busy = 0;
 	}
 
 	busy->unit = unit;
@@ -1281,7 +1217,7 @@ void::function::convert_to_integer:cpu *processor, unsigned_word cia, unsigned64
 	    /* FPSCR[fprf] = undefined */
 	  }
 	/**/
-	LABEL(Done):;
+	LABEL(Done):
 
 
 # extract out raw fields of a FP number
@@ -1504,7 +1440,7 @@ void::function::invalid_zero_divide_operation:cpu *processor, unsigned_word cia,
 *603: PPC_UNIT_BPU,   PPC_UNIT_BPU,   1,  1,  0
 *603e:PPC_UNIT_BPU,   PPC_UNIT_BPU,   1,  1,  0
 *604: PPC_UNIT_BPU,   PPC_UNIT_BPU,   1,  1,  0
-	/* option_mpc860c0:
+	/* WITH_OPTION_MPC860C0
 	No problem here because this branch is predicted taken (unconditional). */
 	if (AA) NIA = IEA(EXTS(LI_0b00));
 	else    NIA = IEA(CIA + EXTS(LI_0b00));
@@ -1533,8 +1469,9 @@ void::function::invalid_zero_divide_operation:cpu *processor, unsigned_word cia,
 	else
 	  succeed = 0;
 	if (LK) LR = (spreg)IEA(CIA + 4);
-	if (option_mpc860c0 && (!BO{0} || !BO{2}) && !BO{4}) {
-	  /* This branch is predicted as "normal".
+	#ifdef WITH_OPTION_MPC860C0
+	if (option_mpc860c0 && (BO{0} && BO{2} || !BO{4})) {
+	  /* This branch is predicted as not-taken.
 	  If this is a forward branch and it is near the end of a page,
 	  we've detected a problematic branch. */
 	  if (succeed && NIA > CIA) {
@@ -1542,6 +1479,7 @@ void::function::invalid_zero_divide_operation:cpu *processor, unsigned_word cia,
 	      program_interrupt(processor, cia, mpc860c0_instruction_program_interrupt);
 	  }
 	}
+	#endif // WITH_OPTION_MPC860C0
 	if (CURRENT_MODEL_ISSUE > 0)
 	  model_branches(cpu_model(processor), succeed, BO);
 	if (! BO{0}) {
@@ -1575,7 +1513,8 @@ void::function::invalid_zero_divide_operation:cpu *processor, unsigned_word cia,
 	else
 	  succeed = 0;
 	if (LK) LR = (spreg)IEA(CIA + 4);
-	if (option_mpc860c0 && (!BO{0} || !BO{2}) && !BO{4}) {
+	#ifdef WITH_OPTION_MPC860C0
+	if (option_mpc860c0 && (BO{0} && BO{2} || !BO{4})) {
 	  /* This branch is predicted as not-taken.
 	  If this is a forward branch and it is near the end of a page,
 	  we've detected a problematic branch. */
@@ -1584,6 +1523,7 @@ void::function::invalid_zero_divide_operation:cpu *processor, unsigned_word cia,
 	      program_interrupt(processor, cia, mpc860c0_instruction_program_interrupt);
 	  }
 	}
+	#endif // WITH_OPTION_MPC860C0
 	if (CURRENT_MODEL_ISSUE > 0) {
 	  model_branches(cpu_model(processor), succeed, BO);
 	  if (! BO{0})
@@ -1606,7 +1546,8 @@ void::function::invalid_zero_divide_operation:cpu *processor, unsigned_word cia,
 	else
 	  succeed = 0;
 	if (LK) LR = (spreg)IEA(CIA + 4);
-	if (option_mpc860c0 && (!BO{0} || !BO{2}) && !BO{4}) {
+	#ifdef WITH_OPTION_MPC860C0
+	if (option_mpc860c0 && (BO{0} && BO{2} || !BO{4})) {
 	  /* This branch is predicted as not-taken.
 	  If this is a forward branch and it is near the end of a page,
 	  we've detected a problematic branch. */
@@ -1615,6 +1556,7 @@ void::function::invalid_zero_divide_operation:cpu *processor, unsigned_word cia,
 	      program_interrupt(processor, cia, mpc860c0_instruction_program_interrupt);
 	  }
 	}
+	#endif // WITH_OPTION_MPC860C0
 	if (CURRENT_MODEL_ISSUE > 0) {
 	  model_branches(cpu_model(processor), succeed, BO);
 	  if (! BO{0})
@@ -2320,7 +2262,6 @@ void::function::invalid_zero_divide_operation:cpu *processor, unsigned_word cia,
 	    GPR(r) = 0;
 	  }
 	  GPR(r) |= INSERTED(MEM(unsigned, EA, 1), i, i+7);
-	  i = i + 8;
 	  if (i == 64) i = 32;
 	  EA = EA + 1;
 	  n = n - 1;
@@ -2340,11 +2281,11 @@ void::function::invalid_zero_divide_operation:cpu *processor, unsigned_word cia,
 	r = RT - 1;
 	i = 32;
 	nr = (n + 3) / 4;
-	if (((RT + nr >= 32)
-	     ? ((RA >= RT || RA < (RT + nr) % 32)
-	        || (RB >= RT || RB < (RT + nr) % 32))
-	     : ((RA >= RT && RA < RT + nr)
-	        || (RB >= RT && RB < RT + nr)))
+	if (((RT + n >= 32)
+	     ? ((RA >= RT || RA < (RT + n) % 32)
+	        || (RB >= RT || RB < (RT + n) % 32))
+	     : ((RA >= RT && RA < RT + n)
+	        || (RB >= RT && RB < RT + n)))
 	    || (RT == RA || RT == RB))
 	  program_interrupt(processor, cia,
 	                  illegal_instruction_program_interrupt);
@@ -2353,7 +2294,7 @@ void::function::invalid_zero_divide_operation:cpu *processor, unsigned_word cia,
 	while (n > 0) {
 	  if (i == 32) {
 	    r = (r + 1) % 32;
-	    GPR(r) = 0;
+	    GPR(i) = 0;
 	  }
 	  GPR(r) |= INSERTED(MEM(unsigned, EA, 1), i, i+7);
 	  i = i + 8;
@@ -3491,7 +3432,7 @@ void::function::invalid_zero_divide_operation:cpu *processor, unsigned_word cia,
 	*rA = EA;
 	PPC_INSN_INT_FLOAT(RA_BITMASK, FRT_BITMASK, (RA_BITMASK & ~1), 0);
 
-0.31,6.FRT,11.RA,16.RB,21.567,31./:X:f::Load Floating-Point Single with Update Indexed
+0.31,6.FRT,11.RA,16.RB,21.576,31./:X:f::Load Floating-Point Single with Update Indexed
 *601: PPC_UNIT_IU,    PPC_UNIT_IU,    3,  3,  0
 *603: PPC_UNIT_LSU,   PPC_UNIT_LSU,   1,  2,  0
 *603e:PPC_UNIT_LSU,   PPC_UNIT_LSU,   1,  2,  0
@@ -3642,18 +3583,6 @@ void::function::invalid_zero_divide_operation:cpu *processor, unsigned_word cia,
 	else         b = *rA;
 	EA = b + *rB;
 	STORE(EA, 8, *frS);
-	PPC_INSN_INT_FLOAT(0, 0, (RA_BITMASK & ~1) | RB_BITMASK, FRS_BITMASK);
-
-0.31,6.FRS,11.RA,16.RB,21.983,31./:X:f::Store Floating-Point Integer Word Indexed
-*603: PPC_UNIT_LSU,   PPC_UNIT_LSU,   1,  2,  0
-*603e:PPC_UNIT_LSU,   PPC_UNIT_LSU,   1,  2,  0
-*604: PPC_UNIT_LSU,   PPC_UNIT_LSU,   1,  3,  0
-	unsigned_word b;
-	unsigned_word EA;
-	if (RA_is_0) b = 0;
-	else         b = *rA;
-	EA = b + *rB;
-	STORE(EA, 4, *frS);
 	PPC_INSN_INT_FLOAT(0, 0, (RA_BITMASK & ~1) | RB_BITMASK, FRS_BITMASK);
 
 0.55,6.FRS,11.RA,16.D:D:f::Store Floating-Point Double with Update
@@ -4359,7 +4288,7 @@ void::function::invalid_zero_divide_operation:cpu *processor, unsigned_word cia,
 	  }
 	    /* G|R|X == zero from above */
 	    while (exp < -126) {
-	      exp = exp + 1;
+	      exp = exp - 1;
 	      frac_grx = (INSERTED64(EXTRACTED64(frac_grx, 0, 54), 1, 55)
 	                  | MASKED64(frac_grx, 55, 55));
 	    }
@@ -4659,7 +4588,7 @@ void::function::invalid_zero_divide_operation:cpu *processor, unsigned_word cia,
 	FPSCR_SET(BFA, 0); /* FPSCR_END fixes up FEX/VX */
 	FPSCR_END(0);
 
-0.63,6.BF,9./,11./,16.U,20./,21.134,31.Rc:X:f::Move To FPSCR Field Immediate
+0.64,6.BF,9./,11./,16.U,20./,21.134,31.Rc:X:f::Move To FPSCR Field Immediate
 	FPSCR_BEGIN;
 	FPSCR_SET(BF, U);
 	FPSCR_END(Rc);
@@ -4693,6 +4622,13 @@ void::function::invalid_zero_divide_operation:cpu *processor, unsigned_word cia,
 	  bit |= fpscr_fx;
 	FPSCR |= bit;
 	FPSCR_END(Rc);
+
+
+#
+# I.A.1.1 Floating-Point Store Instruction
+#
+0.31,6.FRS,11.RA,16.RB,21.983,31./:X:f,o::Store Floating-Point as Integer Word Indexed
+	program_interrupt(processor, cia, optional_instruction_program_interrupt);
 
 #
 # I.A.1.2 Floating-Point Arithmetic Instructions
@@ -4995,6 +4931,3 @@ void::function::invalid_zero_divide_operation:cpu *processor, unsigned_word cia,
 0.31,6.RT,11.RA,16.RB,21.310,31./:X:earwax::External Control In Word Indexed
 
 0.31,6.RS,11.RA,16.RB,21.438,31./:X:earwax::External Control Out Word Indexed
-
-:include:::altivec.igen
-:include:::e500.igen

@@ -1,7 +1,6 @@
 /* Generate targ-vals.h and targ-map.c.  */
 
 #include <stdio.h>
-#include <stdlib.h>
 
 struct tdefs {
   char *symbol;
@@ -69,7 +68,7 @@ gen_targ_map_c ()
   printf ("#include <errno.h>\n");
   printf ("#include <fcntl.h>\n");
   printf ("#include \"ansidecl.h\"\n");
-  printf ("#include \"gdb/callback.h\"\n");
+  printf ("#include \"callback.h\"\n");
   printf ("#include \"targ-vals.h\"\n");
   printf ("\n");
 

@@ -1,20 +1,21 @@
 /*  This file is part of the program GDB, the GNU debugger.
     
-    Copyright (C) 1998, 2007, 2008 Free Software Foundation, Inc.
+    Copyright (C) 1998 Free Software Foundation, Inc.
     Contributed by Cygnus Solutions.
     
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 3 of the License, or
+    the Free Software Foundation; either version 2 of the License, or
     (at your option) any later version.
-
+    
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
+    
     You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
     
     */
 
@@ -584,12 +585,6 @@ write_icr (struct hw *me,
 		     group->gid, val));
 	  group->request &= ~EXTRACT_ID (val);
 	  break;
-	  /* Special backdoor access to SYSEF flag from CPU.  See
-             interp.c:program_interrupt(). */
-	case 3:
-	  HW_TRACE ((me, "write-icr-special group=%d:0 nmi 0x%02x",
-		     group->gid, val));
-	  group->request |= EXTRACT_ID (val);
 	default:
 	  break;
 	}
@@ -820,7 +815,6 @@ mn103int_ioctl(struct hw *me,
   struct mn103int *controller = (struct mn103int *)hw_data(me);
   controller->group[0].request = EXTRACT_ID(4);
   mn103int_port_event(me, 2 /* nmi_port(syserr) */, NULL, 0, 0);
-  return 0;
 }
 
 

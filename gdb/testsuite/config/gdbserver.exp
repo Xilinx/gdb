@@ -1,87 +1,104 @@
-# Copyright 2000, 2002, 2003, 2004, 2005, 2007, 2008
-# Free Software Foundation, Inc.
-
+# Test Framework Driver for GDB using the extended gdb remote protocol
+#   Copyright 1995, 1997 Free Software Foundation, Inc.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
+# the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-# Test framework for GDB (remote protocol) using a "gdbserver",
-# ie. a debug agent running as a native process on the same or
-# a different host.
-
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
 #
-# This module to be used for testing gdb with a "gdbserver" 
-# built either from libremote or from gdb/gdbserver.  
+# For this to function correctly, you need to set a number of variables
+# in your gdb/site.exp file
 #
-
+#	set noargs 1		-- we can't pass arguments (yet)
+#	set noinferiorio 1	-- we can't get io to/from the inferior
+#	set targethost <host>	-- name of the remote system (runs gdbserver)
+#	set debughost <host>	-- name of the system running gdb
+#	set port <number>	-- starting port number for communication
+#	set gdbserver <path>	-- path (on the remote side) to find
+#				   gdbserver
+#       set rsh <path>		-- path (on debughost side) to rsh
+#	set rcp <path>		-- path (on debughost side) to rcp
+#	
+# You will need to be able to spawn processes from gdbhost to run on
+# targethost via rsh (this is how we start gdbserver); similarly
+# you need to be able to rcp files from gdbhost to targethost.
 #
-# To be addressed or set in your baseboard config file:
-#
-#   set_board_info gdb_protocol "remote"
-#	Unles you have a gdbserver that uses a different protocol...
-#
-#   set_board_info use_gdb_stub 1
-#	This tells the rest of the test suite not to do things
-#	like "run" which don't work well on remote targets.
-#
-#   set_board_info gdb,do_reload_on_run 1
-#	Unles you have a gdbserver that can handle multiple sessions.
-#
-#   set_board_info noargs 1
-#	At present there is no provision in the remote protocol
-#	for passing arguments.  This test framework does not
-#	address the issue, so it's best to set this variable
-#	in your baseboard configuration file.  
-#	FIXME: there's no reason why the test harness couldn't
-#	pass commandline args when it spawns gdbserver.
-#
-#   set_board_info gdb,noinferiorio 1
-#	Neither the traditional gdbserver nor the one in libremote
-#	can presently capture stdout and relay it to GDB via the
-#	'O' packet.  This means that tests involving printf will
-#	fail unles you set this varibale in your baseboard
-#	configuration file.
-#   
-#   set_board_info gdb,no_hardware_watchpoints 1
-#	Unles you have a gdbserver that supports hardware watchpoints.
-#	FIXME: gdb should detect if the target doesn't support them,
-#	and fall back to using software watchpoints.
-#
-#   set_board_info gdb_server_prog
-#	This will be the path to the gdbserver program you want to test.
-#	Defaults to "gdbserver".
-#
-#   set_board_info sockethost
-#	The name of the host computer whose socket is being used.
-#	Defaults to "localhost".  Note: old gdbserver requires 
-#	that you define this, but libremote/gdbserver does not.
-#
-#   set_board_info gdb,socketport
-#	Port id to use for socket connection.  If not set explicitly,
-#	it will start at "2345" and increment for each use.
+# We don't do much error checking, if something goes wrong, you'll probably
+# just get a tcl error and everything will die.  FIXME
 #
 
-# The guts live in gdbserver-support.exp now.
+# Load the basic gdb testing library
+load_lib gdb.exp
+load_lib monitor.exp
 
-load_lib gdbserver-support.exp
+#
+# gdb_load -- load a file into the debugger.
+#             return a -1 if anything goes wrong.
+#
+# Loading a file in the gdbsrever framework is a little strange in that
+# we also create the inferior (which is stopped at the first instruction
+# in the program when we get control).
+#
+proc gdb_load { arg } {
+    global verbose
+    global loadpath
+    global loadfile
+    global GDB
+    global gdb_prompt
+    global debughost
+    global port
 
-proc gdbserver_gdb_load { } {
-    return [gdbserver_spawn ""]
+    # bump the port number to avoid conflicts with hung ports
+    set targethost [target_info gdb_server_host];
+    set debughost [target_info gdb_debug_host];
+    if [target_info exists gdb_server_prog] {
+	set gdbserver [target_info gdb_server_prog];
+    } else {
+	set gdbserver "gdbserver";
+    }
+    incr port
+    set serialport $targethost:$port
+     
+    # Copy the file down to the remote host.
+    set file [remote_download host $arg];
+
+    # now start gdbserver on the remote side
+    remote_spawn host "$gdbserver $debughost:$port $file >& /dev/null < /dev/null"
+ 
+    # give it plenty of time to get going (lynx)
+    sleep 30
+
+    # tell gdb we are remote debugging
+    if [gdb_target_monitor $arg] {
+	return -1;
+    }
+
+    return 1
 }
 
-proc gdb_reload { } {
-    return [gdbserver_run ""]
-}
+#
+# gdb_start -- start GDB running.
+#
+proc gdb_start { } {
+    global gdb_prompt
 
-proc gdb_reconnect { } {
-    return [gdbserver_reconnect]
+    # do the usual stuff
+    catch default_gdb_start
+
+    # FIXME: This shouldn't be necessary, but lots of PA tests fail
+    # without it.
+    send "set remotecache 0\n"
+    expect {
+	-re "set remotecache 0\[\r\n\]+.*$gdb_prompt $" {}
+	default { fail "gdb_start"}
+    }
 }

@@ -1,10 +1,10 @@
 # Host: PowerPC, running Linux
 
+XM_FILE= xm-linux.h
+XDEPFILES= ser-tcp.o
 XM_CLIBS=
 
-NAT_FILE= config/nm-linux.h
-NATDEPFILES= inf-ptrace.o fork-child.o \
-	ppc-linux-nat.o proc-service.o linux-thread-db.o \
-	gcore.o linux-nat.o linux-fork.o
+NAT_FILE= ../nm-sysv4.h
+NATDEPFILES= solib.o corelow.o # infptrace.o inftarg.o fork-child.o core-aout.o core-regset.o
 
-LOADLIBES = -ldl -rdynamic
+GDBSERVER_DEPFILES= low-linux.o

@@ -1,5 +1,5 @@
 /* YACC parser for Java expressions, for GDB.
-   Copyright (C) 1997, 1998, 1999, 2000, 2006, 2007, 2008
+   Copyright (C) 1997, 1998, 1999.
    Free Software Foundation, Inc.
 
 This file is part of GDB.
@@ -16,8 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor,
-Boston, MA 02110-1301, USA.  */
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* Parse a Java expression from text in a string,
    and return the result as a  struct expression  pointer.
@@ -49,7 +48,6 @@ Boston, MA 02110-1301, USA.  */
 #include "bfd.h" /* Required by objfiles.h.  */
 #include "symfile.h" /* Required by objfiles.h.  */
 #include "objfiles.h" /* For have_full_symbols and have_partial_symbols */
-#include "block.h"
 
 /* Remap normal yacc parser interface names (yyparse, yylex, yyerror, etc),
    as well as gratuitiously global symbol names, so we can have multiple
@@ -87,8 +85,6 @@ Boston, MA 02110-1301, USA.  */
 #define	yylloc	java_lloc
 #define yyreds	java_reds		/* With YYDEBUG defined */
 #define yytoks	java_toks		/* With YYDEBUG defined */
-#define yyname	java_name		/* With YYDEBUG defined */
-#define yyrule	java_rule		/* With YYDEBUG defined */
 #define yylhs	java_yylhs
 #define yylen	java_yylen
 #define yydefred java_yydefred
@@ -100,23 +96,24 @@ Boston, MA 02110-1301, USA.  */
 #define yycheck	 java_yycheck
 
 #ifndef YYDEBUG
-#define	YYDEBUG 1		/* Default to yydebug support */
+#define	YYDEBUG	0		/* Default to no yydebug support */
 #endif
 
-#define YYFPRINTF parser_fprintf
+int
+yyparse PARAMS ((void));
 
-int yyparse (void);
+static int
+yylex PARAMS ((void));
 
-static int yylex (void);
+void
+yyerror PARAMS ((char *));
 
-void yyerror (char *);
+static struct type * java_type_from_name PARAMS ((struct stoken));
+static void push_expression_name PARAMS ((struct stoken));
+static void push_fieldnames PARAMS ((struct stoken));
 
-static struct type *java_type_from_name (struct stoken);
-static void push_expression_name (struct stoken);
-static void push_fieldnames (struct stoken);
-
-static struct expression *copy_exp (struct expression *, int);
-static void insert_exp (int, struct expression *);
+static struct expression *copy_exp PARAMS ((struct expression *, int));
+static void insert_exp PARAMS ((int, struct expression *));
 
 %}
 
@@ -148,7 +145,8 @@ static void insert_exp (int, struct expression *);
 
 %{
 /* YYSTYPE gets defined by %union */
-static int parse_number (char *, int, int, YYSTYPE *);
+static int
+parse_number PARAMS ((char *, int, int, YYSTYPE *));
 %}
 
 %type <lval> rcurly Dims Dims_opt
@@ -181,7 +179,7 @@ static int parse_number (char *, int, int, YYSTYPE *);
 
 %token <opcode> ASSIGN_MODIFY
 
-%token SUPER NEW
+%token THIS SUPER NEW
 
 %left ','
 %right '=' ASSIGN_MODIFY
@@ -367,6 +365,9 @@ Primary:
 
 PrimaryNoNewArray:
 	Literal
+|	THIS
+		{ write_exp_elt_opcode (OP_THIS);
+		  write_exp_elt_opcode (OP_THIS); }
 |	'(' Expression ')'
 |	ClassInstanceCreationExpression
 |	FieldAccess
@@ -391,8 +392,7 @@ rcurly:
 
 ClassInstanceCreationExpression:
 	NEW ClassType '(' ArgumentList_opt ')'
-		{ internal_error (__FILE__, __LINE__,
-				  _("FIXME - ClassInstanceCreationExpression")); }
+		{ error ("FIXME - ClassInstanceCreationExpression"); }
 ;
 
 ArgumentList:
@@ -410,11 +410,9 @@ ArgumentList_opt:
 
 ArrayCreationExpression:
 	NEW PrimitiveType DimExprs Dims_opt
-		{ internal_error (__FILE__, __LINE__,
-				  _("FIXME - ArrayCreationExpression")); }
+		{ error ("FIXME - ArrayCreatiionExpression"); }
 |	NEW ClassOrInterfaceType DimExprs Dims_opt
-		{ internal_error (__FILE__, __LINE__,
-				  _("FIXME - ArrayCreationExpression")); }
+		{ error ("FIXME - ArrayCreatiionExpression"); }
 ;
 
 DimExprs:
@@ -447,22 +445,13 @@ FieldAccess:
 /*|	SUPER '.' SimpleName { FIXME } */
 ;
 
-FuncStart:
-	Name '('
-                { push_expression_name ($1); }
-;
-
 MethodInvocation:
-	FuncStart
-                { start_arglist(); }
-	ArgumentList_opt ')'
-                { write_exp_elt_opcode (OP_FUNCALL);
-		  write_exp_elt_longcst ((LONGEST) end_arglist ());
-		  write_exp_elt_opcode (OP_FUNCALL); }
+	Name '(' ArgumentList_opt ')'
+		{ error ("method invocation not implemented"); }
 |	Primary '.' SimpleName '(' ArgumentList_opt ')'
-		{ error (_("Form of method invocation not implemented")); }
+		{ error ("method invocation not implemented"); }
 |	SUPER '.' SimpleName '(' ArgumentList_opt ')'
-		{ error (_("Form of method invocation not implemented")); }
+		{ error ("method invocation not implemented"); }
 ;
 
 ArrayAccess:
@@ -552,7 +541,7 @@ CastExpression:
 		  int i;
 		  int base = expout_ptr - last_exp_size - 3;
 		  if (base < 0 || expout->elts[base+2].opcode != OP_TYPE)
-		    error (_("Invalid cast expression"));
+		    error ("invalid cast expression");
 		  type = expout->elts[base+1].type;
 		  /* Remove the 'Expression' and slide the
 		     UnaryExpressionNotPlusMinus down to replace it. */
@@ -692,16 +681,16 @@ Expression:
 
 static int
 parse_number (p, len, parsed_float, putithere)
-     char *p;
-     int len;
+     register char *p;
+     register int len;
      int parsed_float;
      YYSTYPE *putithere;
 {
-  ULONGEST n = 0;
+  register ULONGEST n = 0;
   ULONGEST limit, limit_div_base;
 
-  int c;
-  int base = input_radix;
+  register int c;
+  register int base = input_radix;
 
   struct type *type;
 
@@ -713,8 +702,23 @@ parse_number (p, len, parsed_float, putithere)
       char saved_char = p[len];
 
       p[len] = 0;	/* null-terminate the token */
-      num = sscanf (p, "%" DOUBLEST_SCAN_FORMAT "%c",
-		    &putithere->typed_val_float.dval, &c);
+      if (sizeof (putithere->typed_val_float.dval) <= sizeof (float))
+	num = sscanf (p, "%g%c", (float *) &putithere->typed_val_float.dval, &c);
+      else if (sizeof (putithere->typed_val_float.dval) <= sizeof (double))
+	num = sscanf (p, "%lg%c", (double *) &putithere->typed_val_float.dval, &c);
+      else
+	{
+#ifdef SCANF_HAS_LONG_DOUBLE
+	  num = sscanf (p, "%Lg%c", &putithere->typed_val_float.dval, &c);
+#else
+	  /* Scan it into a double, then assign it to the long double.
+	     This at least wins with values representable in the range
+	     of doubles. */
+	  double temp;
+	  num = sscanf (p, "%lg%c", &temp, &c);
+	  putithere->typed_val_float.dval = temp;
+#endif
+	}
       p[len] = saved_char;	/* restore the input stream */
       if (num != 1) 		/* check scanf found ONLY a float ... */
 	return ERROR;
@@ -764,13 +768,13 @@ parse_number (p, len, parsed_float, putithere)
       }
 
   c = p[len-1];
-  /* A paranoid calculation of (1<<64)-1. */
   limit = (ULONGEST)0xffffffff;
-  limit = ((limit << 16) << 16) | limit;
   if (c == 'l' || c == 'L')
     {
       type = java_long_type;
       len--;
+      /* A paranoid calculation of (1<<64)-1. */
+      limit = ((limit << 16) << 16) | limit;
     }
   else
     {
@@ -793,22 +797,13 @@ parse_number (p, len, parsed_float, putithere)
 	return ERROR;
       if (n > limit_div_base
 	  || (n *= base) > limit - c)
-	error (_("Numeric constant too large"));
+	error ("Numeric constant too large.");
       n += c;
 	}
 
-  /* If the type is bigger than a 32-bit signed integer can be, implicitly
-     promote to long.  Java does not do this, so mark it as builtin_type_uint64
-     rather than java_long_type.  0x80000000 will become -0x80000000 instead
-     of 0x80000000L, because we don't know the sign at this point.
-  */
-  if (type == java_int_type && n > (ULONGEST)0x80000000)
-    type = builtin_type_uint64;
-
-  putithere->typed_val_int.val = n;
-  putithere->typed_val_int.type = type;
-
-  return INTEGER_LITERAL;
+   putithere->typed_val_int.val = n;
+   putithere->typed_val_int.type = type;
+   return INTEGER_LITERAL;
 }
 
 struct token
@@ -862,12 +857,10 @@ yylex ()
   
  retry:
 
-  prev_lexptr = lexptr;
-
   tokstart = lexptr;
   /* See if it is a special token of length 3.  */
   for (i = 0; i < sizeof tokentab3 / sizeof tokentab3[0]; i++)
-    if (strncmp (tokstart, tokentab3[i].operator, 3) == 0)
+    if (STREQN (tokstart, tokentab3[i].operator, 3))
       {
 	lexptr += 3;
 	yylval.opcode = tokentab3[i].opcode;
@@ -876,7 +869,7 @@ yylex ()
 
   /* See if it is a special token of length 2.  */
   for (i = 0; i < sizeof tokentab2 / sizeof tokentab2[0]; i++)
-    if (strncmp (tokstart, tokentab2[i].operator, 2) == 0)
+    if (STREQN (tokstart, tokentab2[i].operator, 2))
       {
 	lexptr += 2;
 	yylval.opcode = tokentab2[i].opcode;
@@ -903,10 +896,10 @@ yylex ()
       if (c == '\\')
 	c = parse_escape (&lexptr);
       else if (c == '\'')
-	error (_("Empty character constant"));
+	error ("Empty character constant.");
 
       yylval.typed_val_int.val = c;
-      yylval.typed_val_int.type = java_char_type;
+      yylval.typed_val_int.type = builtin_type_char;
 
       c = *lexptr++;
       if (c != '\'')
@@ -916,12 +909,12 @@ yylex ()
 	    {
 	      lexptr = tokstart + namelen;
 	      if (lexptr[-1] != '\'')
-		error (_("Unmatched single quote"));
+		error ("Unmatched single quote.");
 	      namelen -= 2;
 	      tokstart++;
 	      goto tryname;
 	    }
-	  error (_("Invalid character constant"));
+	  error ("Invalid character constant.");
 	}
       return INTEGER_LITERAL;
 
@@ -962,7 +955,7 @@ yylex ()
       {
 	/* It's a number.  */
 	int got_dot = 0, got_e = 0, toktype;
-	char *p = tokstart;
+	register char *p = tokstart;
 	int hex = input_radix > 10;
 
 	if (c == '0' && (p[1] == 'x' || p[1] == 'X'))
@@ -1006,7 +999,7 @@ yylex ()
 
 	    memcpy (err_copy, tokstart, p - tokstart);
 	    err_copy[p - tokstart] = 0;
-	    error (_("Invalid number \"%s\""), err_copy);
+	    error ("Invalid number \"%s\".", err_copy);
 	  }
 	lexptr = p;
 	return toktype;
@@ -1078,7 +1071,7 @@ yylex ()
       } while ((*tokptr != '"') && (*tokptr != '\0'));
       if (*tokptr++ != '"')
 	{
-	  error (_("Unterminated string in expression"));
+	  error ("Unterminated string in expression.");
 	}
       tempbuf[tempbufindex] = '\0';	/* See note above */
       yylval.sval.ptr = tempbuf;
@@ -1090,7 +1083,7 @@ yylex ()
   if (!(c == '_' || c == '$'
 	|| (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')))
     /* We must have come across a bad character (e.g. ';').  */
-    error (_("Invalid character '%c' in expression"), c);
+    error ("Invalid character '%c' in expression.", c);
 
   /* It's a name.  See how long it is.  */
   namelen = 0;
@@ -1128,43 +1121,54 @@ yylex ()
   switch (namelen)
     {
     case 7:
-      if (strncmp (tokstart, "boolean", 7) == 0)
+      if (STREQN (tokstart, "boolean", 7))
 	return BOOLEAN;
       break;
     case 6:
-      if (strncmp (tokstart, "double", 6) == 0)      
+      if (STREQN (tokstart, "double", 6))      
 	return DOUBLE;
       break;
     case 5:
-      if (strncmp (tokstart, "short", 5) == 0)
+      if (STREQN (tokstart, "short", 5))
 	return SHORT;
-      if (strncmp (tokstart, "false", 5) == 0)
+      if (STREQN (tokstart, "false", 5))
 	{
 	  yylval.lval = 0;
 	  return BOOLEAN_LITERAL;
 	}
-      if (strncmp (tokstart, "super", 5) == 0)
+      if (STREQN (tokstart, "super", 5))
 	return SUPER;
-      if (strncmp (tokstart, "float", 5) == 0)
+      if (STREQN (tokstart, "float", 5))
 	return FLOAT;
       break;
     case 4:
-      if (strncmp (tokstart, "long", 4) == 0)
+      if (STREQN (tokstart, "long", 4))
 	return LONG;
-      if (strncmp (tokstart, "byte", 4) == 0)
+      if (STREQN (tokstart, "byte", 4))
 	return BYTE;
-      if (strncmp (tokstart, "char", 4) == 0)
+      if (STREQN (tokstart, "char", 4))
 	return CHAR;
-      if (strncmp (tokstart, "true", 4) == 0)
+      if (STREQN (tokstart, "true", 4))
 	{
 	  yylval.lval = 1;
 	  return BOOLEAN_LITERAL;
 	}
+      if (current_language->la_language == language_cplus
+	  && STREQN (tokstart, "this", 4))
+	{
+	  static const char this_name[] =
+				 { CPLUS_MARKER, 't', 'h', 'i', 's', '\0' };
+
+	  if (lookup_symbol (this_name, expression_context_block,
+			     VAR_NAMESPACE, (int *) NULL,
+			     (struct symtab **) NULL))
+	    return THIS;
+	}
       break;
     case 3:
-      if (strncmp (tokstart, "int", 3) == 0)
+      if (STREQN (tokstart, "int", 3))
 	return INT;
-      if (strncmp (tokstart, "new", 3) == 0)
+      if (STREQN (tokstart, "new", 3))
 	return NEW;
       break;
     default:
@@ -1198,13 +1202,7 @@ void
 yyerror (msg)
      char *msg;
 {
-  if (prev_lexptr)
-    lexptr = prev_lexptr;
-
-  if (msg)
-    error (_("%s: near `%s'"), msg, lexptr);
-  else
-    error (_("error in expression, near `%s'"), lexptr);
+  error ("A %s in expression, near `%s'.", (msg ? msg : "error"), lexptr);
 }
 
 static struct type *
@@ -1215,7 +1213,7 @@ java_type_from_name (name)
   char *tmp = copy_name (name);
   struct type *typ = java_lookup_class (tmp);
   if (typ == NULL || TYPE_CODE (typ) != TYPE_CODE_STRUCT)
-    error (_("No class named `%s'"), tmp);
+    error ("No class named %s.", tmp);
   return typ;
 }
 
@@ -1223,13 +1221,15 @@ java_type_from_name (name)
    Otherwise, return 0. */
 
 static int
-push_variable (struct stoken name)
+push_variable (name)
+     struct stoken name;
+ 
 {
   char *tmp = copy_name (name);
   int is_a_field_of_this = 0;
   struct symbol *sym;
-  sym = lookup_symbol (tmp, expression_context_block, VAR_DOMAIN,
-		       &is_a_field_of_this);
+  sym = lookup_symbol (tmp, expression_context_block, VAR_NAMESPACE,
+		       &is_a_field_of_this, (struct symtab **) NULL);
   if (sym && SYMBOL_CLASS (sym) != LOC_TYPEDEF)
     {
       if (symbol_read_needs_frame (sym))
@@ -1265,7 +1265,7 @@ push_variable (struct stoken name)
 }
 
 /* Assuming a reference expression has been pushed, emit the
-   STRUCTOP_PTR ops to access the field named NAME.  If NAME is a
+   STRUCTOP_STRUCT ops to access the field named NAME.  If NAME is a
    qualified name (has '.'), generate a field access for each part. */
 
 static void
@@ -1281,9 +1281,9 @@ push_fieldnames (name)
 	{
 	  /* token.ptr is start of current field name. */
 	  token.length = &name.ptr[i] - token.ptr;
-	  write_exp_elt_opcode (STRUCTOP_PTR);
+	  write_exp_elt_opcode (STRUCTOP_STRUCT);
 	  write_exp_string (token);
-	  write_exp_elt_opcode (STRUCTOP_PTR);
+	  write_exp_elt_opcode (STRUCTOP_STRUCT);
 	  token.ptr += token.length + 1;
 	}
       if (i >= name.length)
@@ -1295,7 +1295,9 @@ push_fieldnames (name)
    Handle a qualified name, where DOT_INDEX is the index of the first '.' */
 
 static void
-push_qualified_expression_name (struct stoken name, int dot_index)
+push_qualified_expression_name (name, dot_index)
+     struct stoken name;
+     int dot_index;
 {
   struct stoken token;
   char *tmp;
@@ -1354,7 +1356,7 @@ push_qualified_expression_name (struct stoken name, int dot_index)
       while (dot_index < name.length && name.ptr[dot_index] != '.')
 	dot_index++;
     }
-  error (_("unknown type `%.*s'"), name.length, name.ptr);
+  error ("unknown type `%.*s'", name.length, name.ptr);
 }
 
 /* Handle Name in an expression (or LHS).
@@ -1403,9 +1405,9 @@ push_expression_name (name)
 			     builtin_type_int);
 	}
       else if (!have_full_symbols () && !have_partial_symbols ())
-	error (_("No symbol table is loaded.  Use the \"file\" command"));
+	error ("No symbol table is loaded.  Use the \"file\" command.");
       else
-	error (_("No symbol \"%s\" in current context"), tmp);
+	error ("No symbol \"%s\" in current context.", tmp);
     }
 
 }

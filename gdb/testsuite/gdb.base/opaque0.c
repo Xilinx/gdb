@@ -7,9 +7,6 @@
 
 struct foo *foop;
 extern struct foo *getfoo ();
-#ifdef PROTOTYPES
-extern void putfoo (struct foo *foop);
-#endif
 
 int main ()
 {

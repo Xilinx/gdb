@@ -1,6 +1,6 @@
 /*  This file is part of the program psim.
 
-    Copyright 1994, 1995, 1996, 2003 Andrew Cagney
+    Copyright (C) 1994,1995,1996, Andrew Cagney <cagney@highland.com.au>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -119,8 +119,6 @@ typedef enum {
   insn_mnemonic,
   insn_name,
   insn_comment,
-  insn_field_6,
-  insn_field_7,
   nr_insn_table_fields
 } insn_table_fields;
 
@@ -135,18 +133,6 @@ typedef enum {
   model_identifer = insn_name,
   model_default = insn_comment,
 } model_table_fields;
-
-typedef enum {
-  include_flags = insn_flags,
-  include_path = insn_name,
-} model_include_fields;
-
-typedef enum {
-  cache_type_def = insn_name,
-  cache_derived_name = insn_comment,
-  cache_name = insn_field_6,
-  cache_expression = insn_field_7,
-} cache_fields;
 
 typedef struct _insn insn;
 struct _insn {
@@ -197,9 +183,7 @@ typedef enum {
 extern insn_table *load_insn_table
 (const char *file_name,
  decode_table *decode_rules,
- filter *filters,
- table_include *includes,
- cache_table **cache_rules);
+ filter *filters);
 
 model *models;
 model *last_model;

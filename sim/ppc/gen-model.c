@@ -25,7 +25,6 @@
 
 #include "filter.h"
 
-#include "ld-cache.h"
 #include "ld-decode.h"
 #include "ld-insn.h"
 
@@ -378,7 +377,7 @@ gen_model_c(insn_table *table, lf *file)
     lf_printf(file, "    }\n");
     lf_printf(file, "  }\n");
     lf_printf(file, "\n");
-    lf_printf(file, "  error(\"Unknown model '%%s', Models which are known are:%%s\\n\",\n");
+    lf_printf(file, "  error(\"Unknown model '%%s', Models which are known are:%%s\n\",\n");
     lf_printf(file, "        name,\n");
     lf_printf(file, "        \"");
     for(model_ptr = models; model_ptr; model_ptr = model_ptr->next) {

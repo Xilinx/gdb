@@ -1,23 +1,22 @@
 /* Simulator pseudo baseclass.
-
-   Copyright 1997, 1998, 2003, 2007, 2008 Free Software Foundation, Inc.
-
+   Copyright (C) 1997-1998 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
 This file is part of GDB, the GNU debugger.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 
 /* Simulator state pseudo baseclass.
@@ -91,6 +90,9 @@ typedef struct _sim_cpu sim_cpu;
 #include "sim-engine.h"
 #include "sim-watch.h"
 #include "sim-memopt.h"
+#ifdef SIM_HAVE_BREAKPOINTS
+#include "sim-break.h"
+#endif
 #include "sim-cpu.h"
 
 /* Global pointer to current state while sim_resume is running.
@@ -170,23 +172,23 @@ typedef struct {
 #define STATE_PROG_ARGV(sd) ((sd)->base.prog_argv)
 
   /* The program's bfd.  */
-  struct bfd *prog_bfd;
+  struct _bfd *prog_bfd;
 #define STATE_PROG_BFD(sd) ((sd)->base.prog_bfd)
 
   /* Symbol table for prog_bfd */
-  struct bfd_symbol **prog_syms;
+  struct symbol_cache_entry **prog_syms;
 #define STATE_PROG_SYMS(sd) ((sd)->base.prog_syms)
 
   /* The program's text section.  */
-  struct bfd_section *text_section;
+  struct sec *text_section;
   /* Starting and ending text section addresses from the bfd.  */
-  bfd_vma text_start, text_end;
+  SIM_ADDR text_start, text_end;
 #define STATE_TEXT_SECTION(sd) ((sd)->base.text_section)
 #define STATE_TEXT_START(sd) ((sd)->base.text_start)
 #define STATE_TEXT_END(sd) ((sd)->base.text_end)
 
   /* Start address, set when the program is loaded from the bfd.  */
-  bfd_vma start_addr;
+  SIM_ADDR start_addr;
 #define STATE_START_ADDR(sd) ((sd)->base.start_addr)
 
   /* Size of the simulator's cache, if any.
@@ -225,15 +227,15 @@ typedef struct {
   sim_watchpoints watchpoints;
 #define STATE_WATCHPOINTS(sd) (&(sd)->base.watchpoints)
 
+  /* Pointer to list of breakpoints */
+  struct sim_breakpoint *breakpoints;
+#define STATE_BREAKPOINTS(sd) ((sd)->base.breakpoints)
+
 #if WITH_HW
   struct sim_hw *hw;
 #define STATE_HW(sd) ((sd)->base.hw)
 #endif
 
-  /* Should image loads be performed using the LMA or VMA?  Older
-     simulators use the VMA while newer simulators prefer the LMA. */
-  int load_at_lma_p;
-#define STATE_LOAD_AT_LMA_P(SD) ((SD)->base.load_at_lma_p)
 
   /* Marker for those wanting to do sanity checks.
      This should remain the last member of this struct to help catch

@@ -1,20 +1,21 @@
 /* Portable <sys/stat.h>
-   Copyright (C) 1995, 2007, 2008 Free Software Foundation, Inc.
+   Copyright 1995 Free Software Foundation, Inc.
 
-   This file is part of GDB.
+This file is part of GDB.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #if !defined(GDB_STAT_H)
 #define GDB_STAT_H
@@ -56,17 +57,12 @@
 #if !defined(S_ISSOCK) && defined(S_IFSOCK)
 #define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
 #endif
-#if !defined(S_ISMPB) && defined(S_IFMPB)	/* V7 */
+#if !defined(S_ISMPB) && defined(S_IFMPB) /* V7 */
 #define S_ISMPB(m) (((m) & S_IFMT) == S_IFMPB)
 #define S_ISMPC(m) (((m) & S_IFMT) == S_IFMPC)
 #endif
-#if !defined(S_ISNWK) && defined(S_IFNWK)	/* HP/UX */
+#if !defined(S_ISNWK) && defined(S_IFNWK) /* HP/UX */
 #define S_ISNWK(m) (((m) & S_IFMT) == S_IFNWK)
 #endif
 
-/* Microsoft C's stat.h doesn't define all the POSIX file modes.  */
-#ifndef S_IROTH
-#define S_IROTH	S_IREAD
-#endif
-
-#endif /* !defined(GDB_STAT_H) */
+#endif	/* !defined(GDB_STAT_H) */

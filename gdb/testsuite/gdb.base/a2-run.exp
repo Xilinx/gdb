@@ -1,26 +1,33 @@
-#   Copyright 1988, 1990, 1991, 1992, 1994, 1995, 1996, 1997, 1999, 2000,
-#   2007, 2008 Free Software Foundation, Inc.
+#   Copyright (C) 1988, 1990, 1991, 1992, 1994, 1997 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
+# the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
 
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-gdb@prep.ai.mit.edu
 
 # This file was written by Rob Savoye. (rob@cygnus.com)
 
-# Can't do this test without stdio support.
-if [gdb_skip_stdio_test "a2run.exp"] {
+# These tests don't work for targets can't take arguments...
+
+if [target_info exists noargs] then {
+    verbose "Skipping a2-run.exp because of noargs."
+    return
+}
+
+if [target_info exists gdb,noinferiorio] {
+    verbose "Skipping a2-run.exp because of noinferiorio."
     return
 }
 
@@ -38,8 +45,7 @@ set testfile "run"
 set srcfile ${testfile}.c
 set binfile ${objdir}/${subdir}/${testfile}
 if  { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable {debug}] != "" } {
-    untested a2-run.exp
-    return -1
+    gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
 }
 
 gdb_exit
@@ -70,21 +76,8 @@ if [istarget "*-*-vxworks*"] then {
     gdb_expect -re "$gdb_prompt $" {}
 } else {
     gdb_expect {
-	-re ".*usage:  factorial <number>.*Program exited with code 01\.\r\n$gdb_prompt $" {
-	    pass "run \"$testfile\" with no args"
-	    pass "no spurious messages at program exit"
-	}
 	-re ".*usage:  factorial <number>.*Program exited with code 01.*$gdb_prompt $" {
 	    pass "run \"$testfile\" with no args"
-	    fail "no spurious messages at program exit"
-	}
-	-re ".*usage:  factorial <number>.* EXIT code 1.*Program exited normally\.\r\n$gdb_prompt $" {
-	    pass "run \"$testfile\" with no args (exit wrapper)"
-	    pass "no spurious messages at program exit"
-	}
-	-re ".*usage:  factorial <number>.* EXIT code 1.*Program exited normally.*$gdb_prompt $" {
-	    pass "run \"$testfile\" with no args (exit wrapper)"
-	    fail "no spurious messages at program exit"
 	}
 	-re ".*$gdb_prompt $" {
 	    fail "run \"$testfile\" with no args"
@@ -95,14 +88,6 @@ if [istarget "*-*-vxworks*"] then {
 	}
     }
 }
-
-# The remaining tests don't work for targets can't take arguments...
-
-if [target_info exists noargs] then {
-    verbose "Skipping rest of a2-run.exp because of noargs."
-    return
-}
-
 # Now run with some arguments
 if [istarget "*-*-vxworks*"] then {
     send_gdb "run vxmain \"5\"\n"
@@ -124,7 +109,7 @@ if [istarget "*-*-vxworks*"] then {
     verbose "Timeout is now $timeout seconds" 2
     gdb_expect -re "$gdb_prompt $" {}
 } else {
-	setup_xfail "mips-idt-*" "arm-*-coff strongarm-*-coff"
+	setup_xfail "mips-idt-*" "arm-*-coff"
 	gdb_run_cmd 5
 	gdb_expect {
 	    -re ".*120.*$gdb_prompt $"\
@@ -152,7 +137,7 @@ if [istarget "*-*-vxworks*"] then {
     verbose "Timeout is now $timeout seconds" 2
     gdb_expect -re "$gdb_prompt $" {}
 } else {
-    setup_xfail "arm-*-coff strongarm-*-coff"
+    setup_xfail "arm-*-coff"
     gdb_expect {
 	    -re ".*120.*$gdb_prompt $"\
 				{ pass "run \"$testfile\" again with same args" }
@@ -230,7 +215,7 @@ if [istarget "*-*-vxworks*"] then {
     verbose "Timeout is now $timeout seconds" 2
     gdb_expect -re "$gdb_prompt $" {}
 } else {
-    setup_xfail "arm-*-coff strongarm-*-coff"
+    setup_xfail "arm-*-coff"
     gdb_expect {
 	    -re ".*720.*$gdb_prompt $" {
 		pass "run \"$testfile\" again after setting args"
@@ -246,7 +231,7 @@ if [istarget "*-*-vxworks*"] then {
 
 # GOAL: Test that shell is being used with "run".  For remote debugging
 # targets, there is no guarantee that a "shell" (whatever that is) is used.
-if ![is_remote target] then {
+if [isnative] then {
     send_gdb "run `echo 8`\n"
     gdb_expect {
 	-re "Starting program.*40320.*$gdb_prompt $" {

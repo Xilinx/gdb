@@ -62,6 +62,9 @@
  *
  *    ?             What was the last sigval ?             SNN   (signal NN)
  *
+ *    bBB..BB	    Set baud rate to BB..BB		   OK or BNN, then sets
+ *							   baud rate
+ *
  * All commands and responses are sent with a packet which includes a
  * checksum.  A packet consists of
  *
@@ -269,7 +272,8 @@ recursive_trap:
 /* Convert ch from a hex digit to an int */
 
 static int
-hex (unsigned char ch)
+hex(ch)
+     unsigned char ch;
 {
   if (ch >= 'a' && ch <= 'f')
     return ch-'a'+10;
@@ -280,79 +284,79 @@ hex (unsigned char ch)
   return -1;
 }
 
-static char remcomInBuffer[BUFMAX];
-static char remcomOutBuffer[BUFMAX];
-
 /* scan for the sequence $<data>#<checksum>     */
 
-unsigned char *
-getpacket (void)
+static void
+getpacket(buffer)
+     char *buffer;
 {
-  unsigned char *buffer = &remcomInBuffer[0];
   unsigned char checksum;
   unsigned char xmitcsum;
+  int i;
   int count;
-  char ch;
+  unsigned char ch;
 
-  while (1)
+  do
     {
       /* wait around for the start character, ignore all other characters */
-      while ((ch = getDebugChar ()) != '$')
-	;
+      while ((ch = (getDebugChar() & 0x7f)) != '$') ;
 
-retry:
       checksum = 0;
       xmitcsum = -1;
+
       count = 0;
 
       /* now, read until a # or end of buffer is found */
-      while (count < BUFMAX - 1)
+      while (count < BUFMAX)
 	{
-	  ch = getDebugChar ();
-          if (ch == '$')
-            goto retry;
+	  ch = getDebugChar() & 0x7f;
 	  if (ch == '#')
 	    break;
 	  checksum = checksum + ch;
 	  buffer[count] = ch;
 	  count = count + 1;
 	}
+
+      if (count >= BUFMAX)
+	continue;
+
       buffer[count] = 0;
 
       if (ch == '#')
 	{
-	  ch = getDebugChar ();
-	  xmitcsum = hex (ch) << 4;
-	  ch = getDebugChar ();
-	  xmitcsum += hex (ch);
-
+	  xmitcsum = hex(getDebugChar() & 0x7f) << 4;
+	  xmitcsum |= hex(getDebugChar() & 0x7f);
+#if 0
+	  /* Humans shouldn't have to figure out checksums to type to it. */
+	  putDebugChar ('+');
+	  return;
+#endif
 	  if (checksum != xmitcsum)
-	    {
-	      putDebugChar ('-');	/* failed checksum */
-	    }
+	    putDebugChar('-');	/* failed checksum */
 	  else
 	    {
-	      putDebugChar ('+');	/* successful transfer */
-
+	      putDebugChar('+'); /* successful transfer */
 	      /* if a sequence char is present, reply the sequence ID */
 	      if (buffer[2] == ':')
 		{
-		  putDebugChar (buffer[0]);
-		  putDebugChar (buffer[1]);
-
-		  return &buffer[3];
+		  putDebugChar(buffer[0]);
+		  putDebugChar(buffer[1]);
+		  /* remove sequence chars from buffer */
+		  count = strlen(buffer);
+		  for (i=3; i <= count; i++)
+		    buffer[i-3] = buffer[i];
 		}
-
-	      return &buffer[0];
 	    }
 	}
     }
+  while (checksum != xmitcsum);
 }
 
 /* send the packet in buffer.  */
 
 static void
-putpacket (unsigned char *buffer)
+putpacket(buffer)
+     unsigned char *buffer;
 {
   unsigned char checksum;
   int count;
@@ -377,8 +381,11 @@ putpacket (unsigned char *buffer)
       putDebugChar(hexchars[checksum & 0xf]);
 
     }
-  while (getDebugChar() != '+');
+  while ((getDebugChar() & 0x7f) != '+');
 }
+
+static char remcomInBuffer[BUFMAX];
+static char remcomOutBuffer[BUFMAX];
 
 /* Indicate to caller of mem2hex or hex2mem that there has been an
    error.  */
@@ -392,7 +399,11 @@ static volatile int mem_err = 0;
  */
 
 static unsigned char *
-mem2hex (unsigned char *mem, unsigned char *buf, int count, int may_fault)
+mem2hex(mem, buf, count, may_fault)
+     unsigned char *mem;
+     unsigned char *buf;
+     int count;
+     int may_fault;
 {
   unsigned char ch;
 
@@ -418,7 +429,11 @@ mem2hex (unsigned char *mem, unsigned char *buf, int count, int may_fault)
  * return a pointer to the character AFTER the last byte written */
 
 static char *
-hex2mem (unsigned char *buf, unsigned char *mem, int count, int may_fault)
+hex2mem(buf, mem, count, may_fault)
+     unsigned char *buf;
+     unsigned char *mem;
+     int count;
+     int may_fault;
 {
   int i;
   unsigned char ch;
@@ -463,12 +478,17 @@ static struct hard_trap_info
 /* Set up exception handlers for tracing and breakpoints */
 
 void
-set_debug_traps (void)
+set_debug_traps()
 {
   struct hard_trap_info *ht;
 
   for (ht = hard_trap_info; ht->tt && ht->signo; ht++)
     exceptionHandler(ht->tt, trap_low);
+
+  /* In case GDB is started before us, ack any packets (presumably
+     "$?#xx") sitting there.  */
+
+  putDebugChar ('+');
 
   initialized = 1;
 }
@@ -490,7 +510,8 @@ _fltr_set_mem_err:
 ");
 
 static void
-set_mem_fault_trap (int enable)
+set_mem_fault_trap(enable)
+     int enable;
 {
   extern void fltr_set_mem_err();
   mem_err = 0;
@@ -504,7 +525,8 @@ set_mem_fault_trap (int enable)
 /* Convert the SPARC hardware trap type code to a unix signal number. */
 
 static int
-computeSignal (int tt)
+computeSignal(tt)
+     int tt;
 {
   struct hard_trap_info *ht;
 
@@ -552,7 +574,8 @@ hexToInt(char **ptr, int *intValue)
 extern void breakinst();
 
 static void
-handle_exception (unsigned long *registers)
+handle_exception (registers)
+     unsigned long *registers;
 {
   int tt;			/* Trap type */
   int sigval;
@@ -637,8 +660,8 @@ handle_exception (unsigned long *registers)
     {
       remcomOutBuffer[0] = 0;
 
-      ptr = getpacket();
-      switch (*ptr++)
+      getpacket(remcomInBuffer);
+      switch (remcomInBuffer[0])
 	{
 	case '?':
 	  remcomOutBuffer[0] = 'S';
@@ -647,7 +670,8 @@ handle_exception (unsigned long *registers)
 	  remcomOutBuffer[3] = 0;
 	  break;
 
-	case 'd':		/* toggle debug flag */
+	case 'd':
+				/* toggle debug flag */
 	  break;
 
 	case 'g':		/* return the value of the CPU registers */
@@ -669,6 +693,7 @@ handle_exception (unsigned long *registers)
 
 	    psr = registers[PSR];
 
+	    ptr = &remcomInBuffer[1];
 	    hex2mem(ptr, (char *)registers, 16 * 4, 0); /* G & O regs */
 	    hex2mem(ptr + 16 * 4 * 2, sp + 0, 16 * 4, 0); /* L & I regs */
 	    hex2mem(ptr + 64 * 4 * 2, (char *)&registers[Y],
@@ -694,6 +719,8 @@ handle_exception (unsigned long *registers)
 	case 'm':	  /* mAA..AA,LLLL  Read LLLL bytes at address AA..AA */
 	  /* Try to read %x,%x.  */
 
+	  ptr = &remcomInBuffer[1];
+
 	  if (hexToInt(&ptr, &addr)
 	      && *ptr++ == ','
 	      && hexToInt(&ptr, &length))
@@ -709,6 +736,8 @@ handle_exception (unsigned long *registers)
 
 	case 'M': /* MAA..AA,LLLL: Write LLLL bytes at address AA.AA return OK */
 	  /* Try to read '%x,%x:'.  */
+
+	  ptr = &remcomInBuffer[1];
 
 	  if (hexToInt(&ptr, &addr)
 	      && *ptr++ == ','
@@ -727,6 +756,7 @@ handle_exception (unsigned long *registers)
 	case 'c':    /* cAA..AA    Continue at address AA..AA(optional) */
 	  /* try to read optional parameter, pc unchanged if no parm */
 
+	  ptr = &remcomInBuffer[1];
 	  if (hexToInt(&ptr, &addr))
 	    {
 	      registers[PC] = addr;
@@ -753,6 +783,44 @@ handle_exception (unsigned long *registers)
 	  asm ("call 0
 		nop ");
 	  break;
+
+#if 0
+Disabled until we can unscrew this properly
+
+	case 'b':	  /* bBB...  Set baud rate to BB... */
+	  {
+	    int baudrate;
+	    extern void set_timer_3();
+
+	    ptr = &remcomInBuffer[1];
+	    if (!hexToInt(&ptr, &baudrate))
+	      {
+		strcpy(remcomOutBuffer,"B01");
+		break;
+	      }
+
+	    /* Convert baud rate to uart clock divider */
+	    switch (baudrate)
+	      {
+	      case 38400:
+		baudrate = 16;
+		break;
+	      case 19200:
+		baudrate = 33;
+		break;
+	      case 9600:
+		baudrate = 65;
+		break;
+	      default:
+		strcpy(remcomOutBuffer,"B02");
+		goto x1;
+	      }
+
+	    putpacket("OK");	/* Ack before changing speed */
+	    set_timer_3(baudrate); /* Set it */
+	  }
+x1:	  break;
+#endif
 	}			/* switch */
 
       /* reply to the request */
@@ -766,7 +834,7 @@ handle_exception (unsigned long *registers)
    the debugger. */
 
 void
-breakpoint (void)
+breakpoint()
 {
   if (!initialized)
     return;

@@ -1,20 +1,21 @@
 /*  This file is part of the program GDB, the GNU debugger.
     
-    Copyright (C) 1998, 2003, 2007, 2008 Free Software Foundation, Inc.
+    Copyright (C) 1998 Free Software Foundation, Inc.
     Contributed by Cygnus Solutions.
     
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 3 of the License, or
+    the Free Software Foundation; either version 2 of the License, or
     (at your option) any later version.
-
+    
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
+    
     You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
     
     */
 
@@ -494,7 +495,6 @@ read_special_timer6_reg (struct hw *me,
 	break;
       
       default:
-	break;
       }
       break;
     }
@@ -567,7 +567,7 @@ do_counter_event (struct hw *me,
 		  void *data)
 {
   struct mn103tim *timers = hw_data(me);
-  long timer_nr = (long) data;
+  int timer_nr = (int) data;
   int next_timer;
 
   /* Check if counting is still enabled. */
@@ -608,7 +608,7 @@ do_counter6_event (struct hw *me,
 		  void *data)
 {
   struct mn103tim *timers = hw_data(me);
-  long timer_nr = (long) data;
+  int timer_nr = (int) data;
   int next_timer;
 
   /* Check if counting is still enabled. */
@@ -704,7 +704,7 @@ write_base_reg (struct hw *me,
 static void
 write_mode_reg (struct hw *me,
 		struct mn103tim *timers,
-		long timer_nr,
+		int timer_nr,
 		const void *source,
 		unsigned nr_bytes)
      /* for timers 0 to 5 */
@@ -715,8 +715,7 @@ write_mode_reg (struct hw *me,
 
   if ( nr_bytes != 1 )
     {
-      hw_abort (me, "bad write size of %d bytes to TM%ldMD.", nr_bytes,
-		timer_nr);
+      hw_abort (me, "bad write size of %d bytes to TM%dMD.", nr_bytes, timer_nr);
     }
 
   mode_val = *(unsigned8 *)source;
@@ -742,7 +741,7 @@ write_mode_reg (struct hw *me,
 	{
 	  if ( timer_nr == 0 || timer_nr == 4 )
 	    {
-	      hw_abort(me, "Timer %ld cannot be cascaded.", timer_nr);
+	      hw_abort(me, "Timer %d cannot be cascaded.", timer_nr);
 	    }
 	}
       else
@@ -839,11 +838,11 @@ write_tm6md (struct hw *me,
 {
   unsigned8 mode_val0 = 0x00, mode_val1 = 0x00;
   unsigned32 div_ratio;
-  long timer_nr = 6;
+  int timer_nr = 6;
 
   unsigned_word offset = address - timers->block[0].base;
   
-  if ((offset != 0x84 && nr_bytes > 1) || nr_bytes > 2 )
+  if ( offset != 0x84 && nr_bytes > 1 || nr_bytes > 2 )
     {
       hw_abort (me, "Bad write size of %d bytes to TM6MD", nr_bytes);
     }
@@ -951,7 +950,6 @@ write_special_timer6_reg (struct hw *me,
 	break;
       
       default:
-	break;
       }
       break;
     }

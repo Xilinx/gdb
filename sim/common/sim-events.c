@@ -1,23 +1,22 @@
-/* The common simulator framework for GDB, the GNU Debugger.
+/*  This file is part of the program psim.
 
-   Copyright 2002, 2007, 2008 Free Software Foundation, Inc.
+    Copyright (C) 1994-1997, Andrew Cagney <cagney@highland.com.au>
 
-   Contributed by Andrew Cagney and Red Hat.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
 
-   This file is part of GDB.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+ 
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ 
+    */
 
 
 #ifndef _SIM_EVENTS_C_
@@ -38,7 +37,16 @@
 #include <stdlib.h>
 #endif
 
-#include <signal.h> /* For SIGPROCMASK et al. */
+#include <signal.h> /* For SIGPROCMASK et.al. */
+
+#if __CYGWIN32__
+/* The ui_loop_hook is called to keep the GUI alive while the simulator
+   is running.  The counter is to make sure we do not wake it too often.
+*/
+
+extern void (*ui_loop_hook) PARAMS ((int));
+static unsigned int ui_loop_hook_counter = 0;
+#endif
 
 typedef enum {
   watch_invalid,
@@ -113,7 +121,7 @@ struct _sim_event {
    variables.
    
    TIME_OF_EVENT: this holds the time at which the next event is ment
-   to occur.  If no next event it will hold the time of the last
+   to occure.  If no next event it will hold the time of the last
    event.
 
    TIME_FROM_EVENT: The current distance from TIME_OF_EVENT.  A value
@@ -380,19 +388,6 @@ sim_events_elapsed_time (SIM_DESC sd)
 }
 
 
-/* Returns the time that remains before the event is raised. */
-INLINE_SIM_EVENTS\
-(signed64)
-sim_events_remain_time (SIM_DESC sd, sim_event *event)
-{
-  if (event == 0)
-    return 0;
-  
-  return (event->time_of_event - sim_events_time (sd));
-}
-
-
-
 STATIC_INLINE_SIM_EVENTS\
 (void)
 update_time_from_event (SIM_DESC sd)
@@ -408,27 +403,6 @@ update_time_from_event (SIM_DESC sd)
     {
       events->time_of_event = current_time - 1;
       events->time_from_event = -1;
-    }
-  if (ETRACE_P)
-    {
-      sim_event *event;
-      int i;
-      for (event = events->queue, i = 0;
-	   event != NULL;
-	   event = event->next, i++)
-	{
-	  ETRACE ((_ETRACE,
-		   "event time-from-event - time %ld, delta %ld - event %d, tag 0x%lx, time %ld, handler 0x%lx, data 0x%lx%s%s\n",
-		   (long)current_time,
-		   (long)events->time_from_event,
-		   i,
-		   (long)event,
-		   (long)event->time_of_event,
-		   (long)event->handler,
-		   (long)event->data,
-		   (event->trace != NULL) ? ", " : "",
-		   (event->trace != NULL) ? event->trace : ""));
-	}
     }
   SIM_ASSERT (current_time == sim_events_time (sd));
 }
@@ -448,7 +422,7 @@ insert_sim_event (SIM_DESC sd,
   if (delta < 0)
     sim_io_error (sd, "what is past is past!\n");
   
-  /* compute when the event should occur */
+  /* compute when the event should occure */
   time_of_event = sim_events_time (sd) + delta;
   
   /* find the queue insertion point - things are time ordered */
@@ -482,7 +456,6 @@ sim_events_schedule (SIM_DESC sd,
 		     void *data)
 {
   va_list dummy;
-  memset (&dummy, 0, sizeof dummy);
   return sim_events_schedule_vtracef (sd, delta_time, handler, data,
 				      NULL, dummy);
 }
@@ -1198,6 +1171,18 @@ sim_events_process (SIM_DESC sd)
 
   /* this round of processing complete */
   events->nr_ticks_to_process = 0;
+
+#if __CYGWIN32__
+  /* Now call the ui_loop_hook to give the gui a chance to
+     process events. */
+  
+  if (ui_loop_hook != NULL)
+    {
+      /* attempt to limit calls to 1-10 per second */
+      if (! (ui_loop_hook_counter++ & 0xf))
+	(*ui_loop_hook) (-2); /* magic */
+    }
+#endif
 }
 
 #endif

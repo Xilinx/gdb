@@ -1,4 +1,3 @@
-#include <stdio.h>
 int nothing ()
 
 {
@@ -7,7 +6,7 @@ int nothing ()
 }
 
 
-int main ()
+main ()
 
 {
     int y ;
@@ -17,5 +16,4 @@ int main ()
 #endif    
     y = nothing () ;
     printf ("hello\n") ;
-    return 0;
 }

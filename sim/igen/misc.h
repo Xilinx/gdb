@@ -1,24 +1,22 @@
-/* The IGEN simulator generator for GDB, the GNU Debugger.
+/*  This file is part of the program psim.
 
-   Copyright 2002, 2007, 2008 Free Software Foundation, Inc.
+    Copyright (C) 1994-1995, Andrew Cagney <cagney@highland.com.au>
 
-   Contributed by Andrew Cagney.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
 
-   This file is part of GDB.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
-
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+ 
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ 
+    */
 
 
 /* Frustrating header junk */
@@ -26,8 +24,7 @@
 #include "config.h"
 
 
-enum
-{
+enum {
   default_insn_bit_size = 32,
   max_insn_bit_size = 64,
 };
@@ -41,7 +38,7 @@ enum
 typedef long long signed64;
 typedef unsigned long long unsigned64;
 
-#else /* _WIN32 */
+#else	/* _WIN32 */
 
 typedef __int64 signed64;
 typedef unsigned __int64 unsigned64;
@@ -76,14 +73,16 @@ typedef unsigned __int64 unsigned64;
 #include "filter_host.h"
 
 typedef struct _line_ref line_ref;
-struct _line_ref
-{
+struct _line_ref {
   const char *file_name;
   int line_nr;
 };
 
 /* Error appends a new line, warning and notify do not */
-typedef void error_func (const line_ref *line, char *msg, ...);
+typedef void error_func
+(const line_ref *line,
+ char *msg,
+ ...);
 
 extern error_func error;
 extern error_func warning;
@@ -115,13 +114,19 @@ do { \
 #define STRNDUP(STRING,LEN) (strncpy (zalloc ((LEN) + 1), (STRING), (LEN)))
 #endif
 
-extern void *zalloc (long size);
+extern void *zalloc
+(long size);
 
-extern unsigned target_a2i (int ms_bit_nr, const char *a);
+extern unsigned target_a2i
+(int ms_bit_nr,
+ const char *a);
 
-extern unsigned i2target (int ms_bit_nr, unsigned bit);
+extern unsigned i2target
+(int ms_bit_nr,
+ unsigned bit);
 
-extern unsigned long long a2i (const char *a);
+extern unsigned long long a2i
+(const char *a);
 
 
 /* Try looking for name in the map table (returning the corresponding
@@ -130,13 +135,15 @@ extern unsigned long long a2i (const char *a);
    If the the sentinal (NAME == NULL) its value if >= zero is returned
    as the default. */
 
-typedef struct _name_map
-{
+typedef struct _name_map {
   const char *name;
   int i;
-}
-name_map;
+} name_map;
 
-extern int name2i (const char *name, const name_map * map);
+extern int name2i
+(const char *name,
+ const name_map *map);
 
-extern const char *i2name (const int i, const name_map * map);
+extern const char *i2name
+(const int i,
+ const name_map *map);

@@ -1,21 +1,22 @@
 /* Simulator tracing/debugging support.
-   Copyright (C) 1997, 1998, 2001, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 1997, 1998 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
 This file is part of GDB, the GNU debugger.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "sim-main.h"
 #include "sim-io.h"
@@ -75,8 +76,7 @@ enum {
   OPTION_TRACE_RANGE,
   OPTION_TRACE_FUNCTION,
   OPTION_TRACE_DEBUG,
-  OPTION_TRACE_FILE,
-  OPTION_TRACE_VPU
+  OPTION_TRACE_FILE
 };
 
 static const OPTION trace_options[] =
@@ -105,9 +105,6 @@ static const OPTION trace_options[] =
       trace_option_handler },
   { {"trace-fpu", optional_argument, NULL, OPTION_TRACE_FPU},
       '\0', "on|off", "Trace FPU operations",
-      trace_option_handler },
-  { {"trace-vpu", optional_argument, NULL, OPTION_TRACE_VPU},
-      '\0', "on|off", "Trace VPU operations",
       trace_option_handler },
   { {"trace-branch", optional_argument, NULL, OPTION_TRACE_BRANCH},
       '\0', "on|off", "Trace branching",
@@ -325,13 +322,6 @@ trace_option_handler (SIM_DESC sd, sim_cpu *cpu, int opt,
 	sim_io_eprintf (sd, "FPU tracing not compiled in, `--trace-fpu' ignored\n");
       break;
 
-    case OPTION_TRACE_VPU :
-      if (WITH_TRACE_VPU_P)
-	return set_trace_option (sd, "-vpu", TRACE_VPU_IDX, arg);
-      else
-	sim_io_eprintf (sd, "VPU tracing not compiled in, `--trace-vpu' ignored\n");
-      break;
-
     case OPTION_TRACE_BRANCH :
       if (WITH_TRACE_BRANCH_P)
 	return set_trace_option (sd, "-branch", TRACE_BRANCH_IDX, arg);
@@ -347,7 +337,6 @@ trace_option_handler (SIM_DESC sd, sim_cpu *cpu, int opt,
 	{
 	  if (set_trace_option (sd, "-semantics", TRACE_ALU_IDX, arg) != SIM_RC_OK
 	      || set_trace_option (sd, "-semantics", TRACE_FPU_IDX, arg) != SIM_RC_OK
-	      || set_trace_option (sd, "-semantics", TRACE_VPU_IDX, arg) != SIM_RC_OK
 	      || set_trace_option (sd, "-semantics", TRACE_MEMORY_IDX, arg) != SIM_RC_OK
 	      || set_trace_option (sd, "-semantics", TRACE_BRANCH_IDX, arg) != SIM_RC_OK)
 	    return SIM_RC_FAIL;
@@ -628,7 +617,6 @@ trace_idx_to_str (int trace_idx)
     case TRACE_EVENTS_IDX:  return "events:  ";
     case TRACE_FPU_IDX:     return "fpu:     ";
     case TRACE_BRANCH_IDX:  return "branch:  ";
-    case TRACE_VPU_IDX:     return "vpu:     ";
     default:
       sprintf (num, "?%d?", trace_idx);
       return num;
@@ -1262,7 +1250,7 @@ trace_one_insn (SIM_DESC sd, sim_cpu *cpu, address_word pc,
 
 	  if (bfd_find_nearest_line (STATE_PROG_BFD (CPU_STATE (cpu)),
 				     STATE_TEXT_SECTION (CPU_STATE (cpu)),
-				     (struct bfd_symbol **) 0,
+				     (struct symbol_cache_entry **) 0,
 				     pc - STATE_TEXT_START (CPU_STATE (cpu)),
 				     &pc_filename, &pc_function, &pc_linenum))
 	    {

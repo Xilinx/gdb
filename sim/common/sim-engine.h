@@ -1,21 +1,22 @@
 /* Generic simulator halt/resume.
-   Copyright (C) 1997, 1998, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 1997, 1998 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
 This file is part of GDB, the GNU debugger.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef SIM_ENGINE_H
 #define SIM_ENGINE_H
@@ -62,7 +63,7 @@ extern void sim_engine_halt
  sim_cpu *next_cpu, /* NULL -> succ (last_cpu) or event-mgr */
  sim_cia cia,
  enum sim_stop reason,
- int sigrc) __attribute__ ((noreturn));
+ int sigrc);
 
 /* Halt hook - allow target specific operation when halting a
    simulator */
@@ -115,14 +116,14 @@ extern void sim_engine_abort
  sim_cpu *cpu,
  sim_cia cia,
  const char *fmt,
- ...) __attribute__ ((format (printf, 4, 5))) __attribute__ ((noreturn));
+ ...) __attribute__ ((format (printf, 4, 5)));
 
 extern void sim_engine_vabort
 (SIM_DESC sd,
  sim_cpu *cpu,
  sim_cia cia,
  const char *fmt,
- va_list ap) __attribute__ ((noreturn));
+ va_list ap);
 
 /* No abort hook - when possible this function exits using the
    engine_halt function (and SIM_ENGINE_HALT_HOOK). */

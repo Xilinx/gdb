@@ -1,21 +1,22 @@
 /* m32r device support
-   Copyright (C) 1997, 1998, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 1997, 1998 Free Software Foundation, Inc.
    Contributed by Cygnus Solutions.
 
 This file is part of GDB, the GNU debugger.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "sim-main.h"
 
@@ -31,8 +32,10 @@ device m32r_devices;
 int
 device_io_read_buffer (device *me, void *source, int space,
 		       address_word addr, unsigned nr_bytes,
-		       SIM_DESC sd, SIM_CPU *cpu, sim_cia cia)
+		       SIM_CPU *cpu, sim_cia cia)
 {
+  SIM_DESC sd = CPU_STATE (cpu);
+
   if (STATE_ENVIRONMENT (sd) != OPERATING_ENVIRONMENT)
     return nr_bytes;
 
@@ -67,8 +70,10 @@ device_io_read_buffer (device *me, void *source, int space,
 int
 device_io_write_buffer (device *me, const void *source, int space,
 			address_word addr, unsigned nr_bytes,
-			SIM_DESC sd, SIM_CPU *cpu, sim_cia cia)
+			SIM_CPU *cpu, sim_cia cia)
 {
+  SIM_DESC sd = CPU_STATE (cpu);
+
 #if WITH_SCACHE
   /* MSPR support is deprecated but is kept in for upward compatibility
      with existing overlay support.  */
@@ -100,7 +105,4 @@ device_io_write_buffer (device *me, const void *source, int space,
   return nr_bytes;
 }
 
-void
-device_error (device *me, char *message, ...)
-{
-}
+void device_error () {}

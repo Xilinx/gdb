@@ -42,7 +42,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <sys/errno.h>
 #include <sys/param.h>
 #include <sys/time.h>
 
@@ -91,16 +91,7 @@ int getrusage();
 #if WITH_NetBSD_HOST /* here NetBSD as that is what we're emulating */
 #include <sys/syscall.h> /* FIXME - should not be including this one */
 #include <sys/sysctl.h>
-#include <sys/mount.h>
 extern int getdirentries(int fd, char *buf, int nbytes, long *basep);
-
-/* NetBSD post 2.0 has the statfs system call (if COMPAT_20), but does
-   not have struct statfs.  In this case don't implement fstatfs.
-   FIXME: Should implement fstatvfs.  */
-#ifndef HAVE_STRUCT_STATFS
-#undef HAVE_FSTATFS
-#endif
-
 #else
 
 /* If this is not netbsd, don't allow fstatfs or getdirentries at this time */
@@ -223,7 +214,7 @@ write_timeval(unsigned_word addr,
   emul_write_buffer(&t, addr, sizeof(t), processor, cia);
 }
 
-#ifdef HAVE_GETTIMEOFDAY
+
 STATIC_INLINE_EMUL_NETBSD void
 write_timezone(unsigned_word addr,
 	       struct timezone tz,
@@ -234,7 +225,7 @@ write_timezone(unsigned_word addr,
   H2T(tz.tz_dsttime);
   emul_write_buffer(&tz, addr, sizeof(tz), processor, cia);
 }
-#endif
+
 
 #ifdef HAVE_GETDIRENTRIES
 STATIC_INLINE_EMUL_NETBSD void
@@ -395,7 +386,6 @@ do_open(os_emul_data *emul,
   char *path = emul_read_string(path_buf, path_addr, PATH_MAX, processor, cia);
   int flags = (int)cpu_registers(processor)->gpr[arg0+1];
   int mode = (int)cpu_registers(processor)->gpr[arg0+2];
-  int hostflags;
   int status;
 
   if (WITH_TRACE && ppc_trace[trace_os_emul])
@@ -403,25 +393,8 @@ do_open(os_emul_data *emul,
 
   SYS(open);
 
-  /* Do some translation on 'flags' to match it to the host's version.  */
-  /* These flag values were taken from the NetBSD 1.4 header files.  */
-  if ((flags & 3) == 0)
-    hostflags = O_RDONLY;
-  else if ((flags & 3) == 1)
-    hostflags = O_WRONLY;
-  else
-    hostflags = O_RDWR;
-  if (flags & 0x00000008)
-    hostflags |= O_APPEND;
-  if (flags & 0x00000200)
-    hostflags |= O_CREAT;
-  if (flags & 0x00000400)
-    hostflags |= O_TRUNC;
-  if (flags & 0x00000800)
-    hostflags |= O_EXCL;
-
   /* Can't combine these statements, cuz open sets errno. */
-  status = open(path, hostflags, mode);
+  status = open(path, flags, mode);
   emul_write_status(processor, status, errno);
 }
 
@@ -604,9 +577,7 @@ do_sigprocmask(os_emul_data *emul,
   natural_word how = cpu_registers(processor)->gpr[arg0];
   unsigned_word set = cpu_registers(processor)->gpr[arg0+1];
   unsigned_word oset = cpu_registers(processor)->gpr[arg0+2];
-#ifdef SYS_sigprocmask
   SYS(sigprocmask);
-#endif
 
   if (WITH_TRACE && ppc_trace[trace_os_emul])
     printf_filtered ("%ld, 0x%ld, 0x%ld", (long)how, (long)set, (long)oset);
@@ -822,9 +793,7 @@ do_stat(os_emul_data *emul,
   char *path = emul_read_string(path_buf, path_addr, PATH_MAX, processor, cia);
   struct stat buf;
   int status;
-#ifdef SYS_stat
   SYS(stat);
-#endif
   status = stat(path, &buf);
   emul_write_status(processor, status, errno);
   if (status == 0)
@@ -846,9 +815,7 @@ do_fstat(os_emul_data *emul,
   unsigned_word stat_buf_addr = cpu_registers(processor)->gpr[arg0+1];
   struct stat buf;
   int status;
-#ifdef SYS_fstat
   SYS(fstat);
-#endif
   /* Can't combine these statements, cuz fstat sets errno. */
   status = fstat(fd, &buf);
   emul_write_status(processor, status, errno);
@@ -872,9 +839,7 @@ do_lstat(os_emul_data *emul,
   unsigned_word stat_buf_addr = cpu_registers(processor)->gpr[arg0+1];
   struct stat buf;
   int status;
-#ifdef SYS_lstat
   SYS(lstat);
-#endif
   /* Can't combine these statements, cuz lstat sets errno. */
   status = lstat(path, &buf);
   emul_write_status(processor, status, errno);
@@ -899,9 +864,7 @@ do_getdirentries(os_emul_data *emul,
   unsigned_word basep_addr = cpu_registers(processor)->gpr[arg0+3];
   long basep;
   int status;
-#ifdef SYS_getdirentries
   SYS(getdirentries);
-#endif
   if (buf_addr != 0 && nbytes >= 0)
     buf = zalloc(nbytes);
   else
@@ -1383,7 +1346,6 @@ emul_netbsd_create(device *root,
   int elf_binary;
   os_emul_data *bsd_data;
   device *vm;
-  char *filename;
 
   /* check that this emulation is really for us */
   if (name != NULL && strcmp(name, "netbsd") != 0)
@@ -1418,10 +1380,8 @@ emul_netbsd_create(device *root,
 	     (unsigned long)(top_of_stack - stack_size));
   tree_parse(vm, "./nr-bytes 0x%x", stack_size);
 
-  filename = tree_quote_property (bfd_get_filename(image));
   tree_parse(root, "/openprom/vm/map-binary/file-name %s",
-	     filename);
-  free (filename);
+	     bfd_get_filename(image));
 
   /* finish the init */
   tree_parse(root, "/openprom/init/register/pc 0x%lx",
@@ -1476,4 +1436,4 @@ const os_emul emul_netbsd = {
   0 /*data*/
 };
 
-#endif	/* _EMUL_NETBSD_C_ */
+#endif _EMUL_NETBSD_C_

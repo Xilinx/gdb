@@ -1,19 +1,20 @@
 /* Serial port emulation using sockets.
-   Copyright (C) 1998, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 1998 Free Software Foundation, Inc.
    Contributed by Cygnus Solutions.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* FIXME: will obviously need to evolve.
    - connectionless sockets might be more appropriate.  */
@@ -73,6 +74,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #endif /* ! defined (FNBLOCK) */
 #endif /* ! defined (O_NONBLOCK) */
 
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
 
 /* Compromise between eating cpu and properly busy-waiting.
    One could have an option to set this but for now that seems
@@ -146,9 +148,7 @@ dv_sockser_init (SIM_DESC sd)
 		      sockser_addr);
       return SIM_RC_FAIL;
     }
-  tmp = port_str - sockser_addr;
-  if (tmp >= sizeof hostname)
-    tmp = sizeof (hostname) - 1;
+  tmp = MIN (port_str - sockser_addr, (int) sizeof hostname - 1);
   strncpy (hostname, sockser_addr, tmp);
   hostname[tmp] = '\000';
   port = atoi (port_str + 1);
@@ -268,7 +268,6 @@ connected_p (SIM_DESC sd)
   if (numfds <= 0)
     return 0;
 
-  addrlen = sizeof (sockaddr);
   sockser_fd = accept (sockser_listen_fd, &sockaddr, &addrlen);
   if (sockser_fd < 0)
     return 0;

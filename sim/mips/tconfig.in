@@ -6,14 +6,12 @@
 
 /* FIXME: This is unnecessarily necessary: */
 #include "ansidecl.h"
-#include "gdb/callback.h"
-#include "gdb/remote-sim.h"
+#include "callback.h"
+#include "remote-sim.h"
 #include "sim-module.h"
 
 MODULE_INSTALL_FN dv_sockser_install;
 #define MODULE_LIST dv_sockser_install,
-#else
-#define SIM_HANDLES_LMA 0
 #endif
 
 /* Define this if the simulator supports profiling.
@@ -31,6 +29,3 @@ MODULE_INSTALL_FN dv_sockser_install;
 /* Define this if the target cpu is bi-endian
    and the simulator supports it.  */
 #define SIM_HAVE_BIENDIAN
-
-/* MIPS uses an unusual format for floating point quiet NaNs.  */
-#define SIM_QUIET_NAN_NEGATED

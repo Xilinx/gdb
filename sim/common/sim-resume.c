@@ -1,21 +1,22 @@
 /* Generic simulator resume.
-   Copyright (C) 1997, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 1997 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
 This file is part of GDB, the GNU debugger.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "sim-main.h"
 #include "sim-assert.h"
@@ -64,29 +65,19 @@ sim_resume (SIM_DESC sd,
       int last_cpu_nr = sim_engine_last_cpu_nr (sd);
       int next_cpu_nr = sim_engine_next_cpu_nr (sd);
       int nr_cpus = sim_engine_nr_cpus (sd);
-      int sig_to_deliver;
 
       sim_events_preprocess (sd, last_cpu_nr >= nr_cpus, next_cpu_nr >= nr_cpus);
       if (next_cpu_nr >= nr_cpus)
 	next_cpu_nr = 0;
 
-      /* Only deliver the SIGGNAL [sic] the first time through - don't
-         re-deliver any SIGGNAL during a restart.  NOTE: A new local
-         variable is used to avoid problems with the automatic
-         variable ``siggnal'' being trashed by a long jump.  */
-      if (jmpval == sim_engine_start_jmpval)
-	sig_to_deliver = siggnal;
-      else
-	sig_to_deliver = 0;
-
 #ifdef SIM_CPU_EXCEPTION_RESUME
       {
 	sim_cpu* cpu = STATE_CPU (sd, next_cpu_nr);
-	SIM_CPU_EXCEPTION_RESUME(sd, cpu, sig_to_deliver);
+	SIM_CPU_EXCEPTION_RESUME(sd, cpu, siggnal);
       }
 #endif
 
-      sim_engine_run (sd, next_cpu_nr, nr_cpus, sig_to_deliver);
+      sim_engine_run (sd, next_cpu_nr, nr_cpus, siggnal);
     }
   engine->jmpbuf = NULL;
 

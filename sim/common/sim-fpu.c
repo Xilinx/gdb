@@ -2,20 +2,29 @@
    of the floating point routines in libgcc1.c for targets without
    hardware floating point.  */
 
-/* Copyright 1994, 1997, 1998, 2003, 2007, 2008 Free Software Foundation, Inc.
+/* Copyright (C) 1994,1997-1998 Free Software Foundation, Inc.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+This file is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 2, or (at your option) any
+later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+In addition to the permissions in the GNU General Public License, the
+Free Software Foundation gives you unlimited permission to link the
+compiled version of this file with other programs, and to distribute
+those programs without any restriction coming from the use of this
+file.  (The General Public License restrictions do apply in other
+respects; for example, they cover modification of the file, and
+distribution when not linked into another program.)
+
+This file is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+along with this program; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* As a special exception, if you link this library with other files,
    some of which are compiled with GCC, to produce an executable,
@@ -42,30 +51,25 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #include "sim-assert.h"
 
 
-/* Debugging support. 
-   If digits is -1, then print all digits.  */
+/* Debugging support. */
 
 static void
 print_bits (unsigned64 x,
 	    int msbit,
-	    int digits,
 	    sim_fpu_print_func print,
 	    void *arg)
 {
   unsigned64 bit = LSBIT64 (msbit);
   int i = 4;
-  while (bit && digits)
+  while (bit)
     {
       if (i == 0)
 	print (arg, ",");
-
       if ((x & bit))
 	print (arg, "1");
       else
 	print (arg, "0");
       bit >>= 1;
-
-      if (digits > 0) digits--;
       i = (i + 1) % 4;
     }
 }
@@ -192,11 +196,7 @@ pack_fpu (const sim_fpu *src,
       /* force fraction to correct class */
       fraction = src->fraction;
       fraction >>= NR_GUARDS;
-#ifdef SIM_QUIET_NAN_NEGATED
-      fraction |= QUIET_NAN - 1;
-#else
       fraction |= QUIET_NAN;
-#endif
       break;
     case sim_fpu_class_snan:
       sign = src->sign;
@@ -204,11 +204,7 @@ pack_fpu (const sim_fpu *src,
       /* force fraction to correct class */
       fraction = src->fraction;
       fraction >>= NR_GUARDS;
-#ifdef SIM_QUIET_NAN_NEGATED
-      fraction |= QUIET_NAN;
-#else
       fraction &= ~QUIET_NAN;
-#endif
       break;
     case sim_fpu_class_infinity:
       sign = src->sign;
@@ -329,7 +325,6 @@ unpack_fpu (sim_fpu *dst, unsigned64 packed, int is_double)
 	  /* tastes like zero */
 	  dst->class = sim_fpu_class_zero;
 	  dst->sign = sign;
-	  dst->normal_exp = 0;
 	}
       else
 	{
@@ -361,17 +356,10 @@ unpack_fpu (sim_fpu *dst, unsigned64 packed, int is_double)
 	}
       else
 	{
-	  int qnan;
-
 	  /* Non zero fraction, means NaN */
 	  dst->sign = sign;
 	  dst->fraction = (fraction << NR_GUARDS);
-#ifdef SIM_QUIET_NAN_NEGATED
-	  qnan = (fraction & QUIET_NAN) == 0;
-#else
-	  qnan = fraction >= QUIET_NAN;
-#endif
-	  if (qnan)
+	  if (fraction >= QUIET_NAN)
 	    dst->class = sim_fpu_class_qnan;
 	  else
 	    dst->class = sim_fpu_class_snan;
@@ -527,7 +515,6 @@ i2fpu (sim_fpu *f, signed64 i, int is_64bit)
     {
       f->class = sim_fpu_class_zero;
       f->sign = 0;
-      f->normal_exp = 0;
     }
   else
     {
@@ -554,7 +541,7 @@ i2fpu (sim_fpu *f, signed64 i, int is_64bit)
 	{
 	  do 
 	    {
-	      f->fraction = (f->fraction >> 1) | (f->fraction & 1);
+	      f->fraction >>= 1;
 	      f->normal_exp += 1;
 	    }
 	  while (f->fraction >= IMPLICIT_2);
@@ -656,7 +643,6 @@ u2fpu (sim_fpu *f, unsigned64 u, int is_64bit)
     {
       f->class = sim_fpu_class_zero;
       f->sign = 0;
-      f->normal_exp = 0;
     }
   else
     {
@@ -1389,6 +1375,14 @@ sim_fpu_mul (sim_fpu *f,
     ASSERT (high >= LSBIT64 ((NR_FRAC_GUARD * 2) - 64));
     ASSERT (LSBIT64 (((NR_FRAC_GUARD + 1) * 2) - 64) < IMPLICIT_1);
 
+#if 0
+    printf ("\n");
+    print_bits (high, 63, (sim_fpu_print_func*)fprintf, stdout);
+    printf (";");
+    print_bits (low, 63, (sim_fpu_print_func*)fprintf, stdout);
+    printf ("\n");
+#endif
+
     /* normalize */
     do
       {
@@ -1399,6 +1393,13 @@ sim_fpu_mul (sim_fpu *f,
 	low <<= 1;
       }
     while (high < IMPLICIT_1);
+
+#if 0
+    print_bits (high, 63, (sim_fpu_print_func*)fprintf, stdout);
+    printf (";");
+    print_bits (low, 63, (sim_fpu_print_func*)fprintf, stdout);
+    printf ("\n");
+#endif
 
     ASSERT (high >= IMPLICIT_1 && high < IMPLICIT_2);
     if (low != 0)
@@ -1528,6 +1529,16 @@ sim_fpu_div (sim_fpu *f,
 	bit >>= 1;
 	numerator <<= 1;
       }
+
+#if 0
+    printf ("\n");
+    print_bits (quotient, 63, (sim_fpu_print_func*)fprintf, stdout);
+    printf ("\n");
+    print_bits (numerator, 63, (sim_fpu_print_func*)fprintf, stdout);
+    printf ("\n");
+    print_bits (denominator, 63, (sim_fpu_print_func*)fprintf, stdout);
+    printf ("\n");
+#endif
 
     /* discard (but save) the extra bits */
     if ((quotient & LSMASK64 (NR_SPARE -1, 0)))
@@ -1739,13 +1750,19 @@ INLINE_SIM_FPU (int)
 sim_fpu_abs (sim_fpu *f,
 	     const sim_fpu *r)
 {
-  *f = *r;
-  f->sign = 0;
   if (sim_fpu_is_snan (r))
     {
+      *f = *r;
       f->class = sim_fpu_class_qnan;
       return sim_fpu_status_invalid_snan;
     }
+  if (sim_fpu_is_qnan (r))
+    {
+      *f = *r;
+      return 0;
+    }
+  *f = *r;
+  f->sign = 0;
   return 0;
 }
 
@@ -1754,7 +1771,33 @@ INLINE_SIM_FPU (int)
 sim_fpu_inv (sim_fpu *f,
 	     const sim_fpu *r)
 {
-  return sim_fpu_div (f, &sim_fpu_one, r);
+  if (sim_fpu_is_snan (r))
+    {
+      *f = *r;
+      f->class = sim_fpu_class_qnan;
+      return sim_fpu_status_invalid_snan;
+    }
+  if (sim_fpu_is_qnan (r))
+    {
+      *f = *r;
+      f->class = sim_fpu_class_qnan;
+      return 0;
+    }
+  if (sim_fpu_is_infinity (r))
+    {
+      *f = sim_fpu_zero;
+      f->sign = r->sign;
+      return 0;
+    }
+  if (sim_fpu_is_zero (r))
+    {
+      f->class = sim_fpu_class_infinity;
+      f->sign = r->sign;
+      return sim_fpu_status_invalid_div0;
+    }
+  *f = *r;
+  f->normal_exp = - r->normal_exp;
+  return 0;
 }
 
 
@@ -1776,7 +1819,6 @@ sim_fpu_sqrt (sim_fpu *f,
     {
       f->class = sim_fpu_class_zero;
       f->sign = r->sign;
-      f->normal_exp = 0;
       return 0;
     }
   if (sim_fpu_is_infinity (r))
@@ -2188,22 +2230,6 @@ sim_fpu_exp (const sim_fpu *d)
 }
 
 
-INLINE_SIM_FPU (unsigned64)
-sim_fpu_fraction (const sim_fpu *d)
-{
-  return d->fraction;
-}
-
-
-INLINE_SIM_FPU (unsigned64)
-sim_fpu_guard (const sim_fpu *d, int is_double)
-{
-  unsigned64 rv;
-  unsigned64 guardmask = LSMASK64 (NR_GUARDS - 1, 0);
-  rv = (d->fraction & guardmask) >> NR_PAD;
-  return rv;
-}
-
 
 INLINE_SIM_FPU (int)
 sim_fpu_is (const sim_fpu *d)
@@ -2430,10 +2456,10 @@ const sim_fpu sim_fpu_qnan = {
   sim_fpu_class_qnan,
 };
 const sim_fpu sim_fpu_one = {
-  sim_fpu_class_number, 0, IMPLICIT_1, 0
+  sim_fpu_class_number, 0, IMPLICIT_1, 1
 };
 const sim_fpu sim_fpu_two = {
-  sim_fpu_class_number, 0, IMPLICIT_1, 1
+  sim_fpu_class_number, 0, IMPLICIT_1, 2
 };
 const sim_fpu sim_fpu_max32 = {
   sim_fpu_class_number, 0, LSMASK64 (NR_FRAC_GUARD, NR_GUARDS32), NORMAL_EXPMAX32
@@ -2451,26 +2477,17 @@ sim_fpu_print_fpu (const sim_fpu *f,
 		   sim_fpu_print_func *print,
 		   void *arg)
 {
-  sim_fpu_printn_fpu (f, print, -1, arg);
-}
-
-INLINE_SIM_FPU (void)
-sim_fpu_printn_fpu (const sim_fpu *f,
-		   sim_fpu_print_func *print,
-		   int digits,
-		   void *arg)
-{
   print (arg, "%s", f->sign ? "-" : "+");
   switch (f->class)
     {
     case sim_fpu_class_qnan:
       print (arg, "0.");
-      print_bits (f->fraction, NR_FRAC_GUARD - 1, digits, print, arg);
+      print_bits (f->fraction, NR_FRAC_GUARD - 1, print, arg);
       print (arg, "*QuietNaN");
       break;
     case sim_fpu_class_snan:
       print (arg, "0.");
-      print_bits (f->fraction, NR_FRAC_GUARD - 1, digits, print, arg);
+      print_bits (f->fraction, NR_FRAC_GUARD - 1, print, arg);
       print (arg, "*SignalNaN");
       break;
     case sim_fpu_class_zero:
@@ -2482,8 +2499,8 @@ sim_fpu_printn_fpu (const sim_fpu *f,
     case sim_fpu_class_number:
     case sim_fpu_class_denorm:
       print (arg, "1.");
-      print_bits (f->fraction, NR_FRAC_GUARD - 1, digits, print, arg);
-      print (arg, "*2^%+d", f->normal_exp);
+      print_bits (f->fraction, NR_FRAC_GUARD - 1, print, arg);
+      print (arg, "*2^%+-5d", f->normal_exp);
       ASSERT (f->fraction >= IMPLICIT_1);
       ASSERT (f->fraction < IMPLICIT_2);
     }

@@ -1,28 +1,27 @@
 /* Tracing support for CGEN-based simulators.
-   Copyright (C) 1996, 1997, 1998, 1999, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
 This file is part of GDB, the GNU debugger.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <errno.h>
 #include "dis-asm.h"
 #include "bfd.h"
 #include "sim-main.h"
-#include "sim-fpu.h"
 
 #undef min
 #define min(a,b) ((a) < (b) ? (a) : (b))
@@ -52,8 +51,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #endif
 
 #ifndef SIZE_TRACE_BUF
-#define SIZE_TRACE_BUF 1024
+#define SIZE_TRACE_BUF 256
 #endif
+
+static void
+disassemble_insn (SIM_CPU *, const CGEN_INSN *,
+		  const struct argbuf *, IADDR, char *);
 
 /* Text is queued in TRACE_BUF because we want to output the insn's cycle
    count first but that isn't known until after the insn has executed.
@@ -236,19 +239,6 @@ trace_result (SIM_CPU *cpu, char *name, int type, ...)
     default :
       cgen_trace_printf (cpu, "%s <- 0x%x", name, va_arg (args, int));
       break;
-    case 'f':
-      {
-	DI di;
-	sim_fpu f;
-
-	/* this is separated from previous line for sunos cc */
-	di = va_arg (args, DI);
-	sim_fpu_64to (&f, di);
-
-	cgen_trace_printf (cpu, "%s <- ", name);
-	sim_fpu_printn_fpu (&f, (sim_fpu_print_func *) cgen_trace_printf, 4, cpu);
-	break;
-      }
     case 'D' :
       {
 	DI di;
@@ -322,12 +312,12 @@ sim_disasm_sprintf VPARAMS ((SFILE *f, const char *format, ...))
 /* Memory read support for an opcodes disassembler.  */
 
 int
-sim_disasm_read_memory (bfd_vma memaddr, bfd_byte *myaddr, unsigned int length,
+sim_disasm_read_memory (bfd_vma memaddr, bfd_byte *myaddr, int length,
 			struct disassemble_info *info)
 {
   SIM_CPU *cpu = (SIM_CPU *) info->application_data;
   SIM_DESC sd = CPU_STATE (cpu);
-  unsigned length_read;
+  int length_read;
 
   length_read = sim_core_read_buffer (sd, cpu, read_map, myaddr, memaddr,
 				      length);
@@ -364,7 +354,6 @@ sim_cgen_disassemble_insn (SIM_CPU *cpu, const CGEN_INSN *insn,
 			   const ARGBUF *abuf, IADDR pc, char *buf)
 {
   unsigned int length;
-  unsigned int base_length;
   unsigned long insn_value;
   struct disassemble_info disasm_info;
   SFILE sfile;
@@ -391,23 +380,12 @@ sim_cgen_disassemble_insn (SIM_CPU *cpu, const CGEN_INSN *insn,
   length = sim_core_read_buffer (sd, cpu, read_map, &insn_buf, pc,
 				 insn_length);
 
-  if (length != insn_length)
-  {
-    sim_io_error (sd, "unable to read address %x", pc);
-  }
-
-  /* If the entire insn will fit into an integer, then do it. Otherwise, just
-     use the bits of the base_insn.  */
-  if (insn_bit_length <= 32)
-    base_length = insn_bit_length;
-  else
-    base_length = min (cd->base_insn_bitsize, insn_bit_length);
-  switch (base_length)
+  switch (min (CGEN_BASE_INSN_SIZE, insn_length))
     {
     case 0 : return; /* fake insn, typically "compile" (aka "invalid") */
-    case 8 : insn_value = insn_buf.bytes[0]; break;
-    case 16 : insn_value = T2H_2 (insn_buf.shorts[0]); break;
-    case 32 : insn_value = T2H_4 (insn_buf.words[0]); break;
+    case 1 : insn_value = insn_buf.bytes[0]; break;
+    case 2 : insn_value = T2H_2 (insn_buf.shorts[0]); break;
+    case 4 : insn_value = T2H_4 (insn_buf.words[0]); break;
     default: abort ();
     }
 

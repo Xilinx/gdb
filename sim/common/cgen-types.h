@@ -1,22 +1,22 @@
 /* Types for Cpu tools GENerated simulators.
-   Copyright (C) 1996, 1997, 1998, 1999, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
 This file is part of GDB, the GNU debugger.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* This file is not included with cgen-sim.h as it defines types
    needed by sim-base.h.  */
@@ -48,7 +48,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 /* Common mode types.  */
 /* ??? Target specific modes.  */
 typedef enum mode_type {
-  MODE_VOID, MODE_BI,
+  MODE_VM, MODE_BI,
   MODE_QI, MODE_HI, MODE_SI, MODE_DI,
   MODE_UQI, MODE_UHI, MODE_USI, MODE_UDI,
   MODE_SF, MODE_DF, MODE_XF, MODE_TF,
@@ -64,7 +64,6 @@ typedef enum mode_type {
 extern const char *mode_names[];
 #define MODE_NAME(m) (mode_names[m])
 
-typedef void VOID;
 typedef unsigned char BI;
 typedef signed8 QI;
 typedef signed16 HI;
@@ -99,6 +98,13 @@ extern DI make_struct_di (SI, SI);
 #define MAKEDI(hi, lo) (make_struct_di ((hi), (lo)))
 #endif
 
+/* FIXME: Need to provide libraries if these aren't appropriate for target,
+   or user's needs.  */
+typedef float SF;
+typedef double DF;
+typedef double XF; /* FIXME: configure, provide library */
+typedef double TF; /* FIXME: configure, provide library */
+
 /* These are used to record extracted raw data from an instruction, among other
    things.  It must be a host data type, and not a target one.  */
 typedef int INT;
@@ -106,7 +112,5 @@ typedef unsigned int UINT;
 
 typedef unsigned_address ADDR;  /* FIXME: wip*/
 typedef unsigned_address IADDR; /* FIXME: wip*/
-
-/* fp types are in cgen-fpu.h */
 
 #endif /* CGEN_TYPES_H */

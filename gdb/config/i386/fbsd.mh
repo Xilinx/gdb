@@ -1,7 +1,5 @@
-# Host: FreeBSD/i386
-NATDEPFILES= fork-child.o inf-ptrace.o \
-	fbsd-nat.o i386-nat.o i386bsd-nat.o i386fbsd-nat.o \
-	gcore.o bsd-kvm.o
+# Host: Intel 386 running FreeBSD
+XDEPFILES= ser-tcp.o
+NATDEPFILES= fork-child.o infptrace.o inftarg.o corelow.o core-aout.o i386b-nat.o
+XM_FILE= xm-i386bsd.h
 NAT_FILE= nm-fbsd.h
-
-LOADLIBES= -lkvm

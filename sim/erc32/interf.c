@@ -27,17 +27,21 @@
 #include <time.h>
 #include <sys/fcntl.h>
 #include "sis.h"
-#include "libiberty.h"
 #include "bfd.h"
 #include <dis-asm.h>
 #include "sim-config.h"
 
-#include "gdb/remote-sim.h"
-#include "gdb/signals.h"
+#include "remote-sim.h"
+
+#ifndef fprintf
+extern          fprintf();
+#endif
 
 #define PSR_CWP 0x7
 
 #define	VAL(x)	strtol(x,(char **)NULL,0)
+
+extern char   **buildargv(char *input);
 
 extern struct disassemble_info dinfo;
 extern struct pstate sregs;
@@ -180,7 +184,7 @@ SIM_DESC
 sim_open (kind, callback, abfd, argv)
      SIM_OPEN_KIND kind;
      struct host_callback_struct *callback;
-     struct bfd *abfd;
+     struct _bfd *abfd;
      char **argv;
 {
 
@@ -300,7 +304,7 @@ sim_load(sd, prog, abfd, from_tty)
 SIM_RC
 sim_create_inferior(sd, abfd, argv, env)
      SIM_DESC sd;
-     struct bfd *abfd;
+     struct _bfd *abfd;
      char **argv;
      char **env;
 {
@@ -387,13 +391,16 @@ sim_stop_reason(sd, reason, sigrc)
     switch (simstat) {
 	case CTRL_C:
 	*reason = sim_stopped;
-	*sigrc = TARGET_SIGNAL_INT;
+	*sigrc = SIGINT;
 	break;
     case OK:
     case TIME_OUT:
     case BPT_HIT:
 	*reason = sim_stopped;
-	*sigrc = TARGET_SIGNAL_TRAP;
+#ifdef _WIN32
+#define SIGTRAP 5
+#endif
+	*sigrc = SIGTRAP;
 	break;
     case ERROR:
 	*sigrc = 0;

@@ -1,26 +1,25 @@
-/* Pthreads test program.
-   Copyright 1996, 2002, 2003, 2004, 2007, 2008 Free Software Foundation, Inc.
-
-   Written by Fred Fish of Cygnus Support
-   Contributed by Cygnus Support
-
-   This file is part of GDB.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
-
 #include <stdio.h>
-#include <stdlib.h>
+
+#include "config.h"
+
+#ifndef HAVE_PTHREAD_H
+
+/* Don't even try to compile.  In fact, cause a syntax error that we can
+   look for as a compiler error message and know that we have no pthread
+   support.  In that case we can just suppress the test completely. */
+
+#error "no posix threads support"
+
+#else
+
+/* OK.  We have the right header.  If we try to compile this and fail, then
+   there is something wrong and the user should know about it so the testsuite
+   should issue an ERROR result.. */
+
+#ifdef __linux__
+#define  _MIT_POSIX_THREADS 1	/* Linux (or at least RedHat 4.0) needs this */
+#endif
+
 #include <pthread.h>
 
 /* Under OSF 2.0 & 3.0 and HPUX 10, the second arg of pthread_create
@@ -80,7 +79,6 @@ thread1 (void *arg)
       common_routine (1);
       sleep(1);
     }
-  return (void *) 0;
 }
 
 static void *
@@ -98,10 +96,9 @@ thread2 (void * arg)
       sleep(1);
     }
   sleep(100);
-  return (void *) 0;
 }
 
-void
+int
 foo (a, b, c)
      int a, b, c;
 {
@@ -168,3 +165,4 @@ main(argc, argv)
   exit(0);
 }
 
+#endif	/* ifndef HAVE_PTHREAD_H */

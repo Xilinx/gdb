@@ -1,21 +1,3 @@
-/* This testcase is part of GDB, the GNU debugger.
-
-   Copyright 1998, 1999, 2001, 2003, 2004, Free Software Foundation, Inc.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.
-   */
-
 /* Test GDB's ability to restore saved registers from stack frames
    when using the `return' command.
    Jim Blandy <jimb@cygnus.com> --- December 1998 */
@@ -32,12 +14,11 @@
    (defun caller (n) (format "caller%d" n))
    (defun local  (n) (format "l%d"  n))
    (defun local-sum (n)
-     (if (zerop n) (insert "0")
-       (let ((j 1))
-         (while (<= j n)
-           (insert (local j))
-           (if (< j n) (insert "+"))
-           (setq j (1+ j))))))
+     (let ((j 1))
+       (while (<= j n)
+         (insert (local j))
+	 (if (< j n) (insert "+"))
+         (setq j (1+ j)))))
    (defun local-chain (n previous first-end)
      (let ((j 1))
        (while (<= j n)
@@ -45,7 +26,7 @@
                  " = increment (" previous  ");")
 	 (if first-end 
 	   (progn
-             (insert "  /" "* " first-end " prologue *" "/")
+             (insert "  /" "* " first-end " *" "/")
              (setq first-end nil)))
 	 (insert "\n")
 	 (setq previous (local j))
@@ -72,7 +53,8 @@
 	   (insert "{\n")
 	   (local-chain i "n" (callee i))
 	   (insert "  return ")
-	   (local-sum i)
+	   (if (<= i 0) (insert "n")
+	     (local-sum i))
 	   (insert ";\n")
 	   (insert "}\n\n")
 	   (setq i (1+ i))))
@@ -83,7 +65,7 @@
 	   (insert "int\n")
 	   (insert (caller i) " (void)\n")
 	   (insert "{\n")
-	   (let ((last (local-chain i "0x7eeb" (caller i))))
+	   (let ((last (local-chain i "0xfeeb" (caller i))))
 	     (insert "  register int n;\n")
 	     (let ((j 0))
 	       (while (<= j limit)
@@ -121,14 +103,14 @@ increment (int n)
 int
 callee0 (int n)
 {
-  return 0;
+  return n;
 }
 
 /* Returns n * 1 + 1 */
 int
 callee1 (int n)
 {
-  register int l1 = increment (n);  /* callee1 prologue */
+  register int l1 = increment (n);  /* callee1 */
   return l1;
 }
 
@@ -136,7 +118,7 @@ callee1 (int n)
 int
 callee2 (int n)
 {
-  register int l1 = increment (n);  /* callee2 prologue */
+  register int l1 = increment (n);  /* callee2 */
   register int l2 = increment (l1);
   return l1+l2;
 }
@@ -145,7 +127,7 @@ callee2 (int n)
 int
 callee3 (int n)
 {
-  register int l1 = increment (n);  /* callee3 prologue */
+  register int l1 = increment (n);  /* callee3 */
   register int l2 = increment (l1);
   register int l3 = increment (l2);
   return l1+l2+l3;
@@ -155,7 +137,7 @@ callee3 (int n)
 int
 callee4 (int n)
 {
-  register int l1 = increment (n);  /* callee4 prologue */
+  register int l1 = increment (n);  /* callee4 */
   register int l2 = increment (l1);
   register int l3 = increment (l2);
   register int l4 = increment (l3);
@@ -166,7 +148,7 @@ callee4 (int n)
 int
 callee5 (int n)
 {
-  register int l1 = increment (n);  /* callee5 prologue */
+  register int l1 = increment (n);  /* callee5 */
   register int l2 = increment (l1);
   register int l3 = increment (l2);
   register int l4 = increment (l3);
@@ -177,7 +159,7 @@ callee5 (int n)
 int
 caller1 (void)
 {
-  register int l1 = increment (0x7eeb);  /* caller1 prologue */
+  register int l1 = increment (0xfeeb);  /* caller1 */
   register int n;
   n = callee0 (l1);
   n = callee1 (n + l1);
@@ -191,7 +173,7 @@ caller1 (void)
 int
 caller2 (void)
 {
-  register int l1 = increment (0x7eeb);  /* caller2 prologue */
+  register int l1 = increment (0xfeeb);  /* caller2 */
   register int l2 = increment (l1);
   register int n;
   n = callee0 (l2);
@@ -206,7 +188,7 @@ caller2 (void)
 int
 caller3 (void)
 {
-  register int l1 = increment (0x7eeb);  /* caller3 prologue */
+  register int l1 = increment (0xfeeb);  /* caller3 */
   register int l2 = increment (l1);
   register int l3 = increment (l2);
   register int n;
@@ -222,7 +204,7 @@ caller3 (void)
 int
 caller4 (void)
 {
-  register int l1 = increment (0x7eeb);  /* caller4 prologue */
+  register int l1 = increment (0xfeeb);  /* caller4 */
   register int l2 = increment (l1);
   register int l3 = increment (l2);
   register int l4 = increment (l3);
@@ -239,7 +221,7 @@ caller4 (void)
 int
 caller5 (void)
 {
-  register int l1 = increment (0x7eeb);  /* caller5 prologue */
+  register int l1 = increment (0xfeeb);  /* caller5 */
   register int l2 = increment (l1);
   register int l3 = increment (l2);
   register int l4 = increment (l3);
@@ -266,7 +248,7 @@ driver (void)
 
 /* generated code ends here */
 
-int main ()
+main ()
 {
   register int local;
 #ifdef usestubs
@@ -275,5 +257,4 @@ int main ()
 #endif
   driver ();
   printf("exiting\n");
-  return 0;
 }

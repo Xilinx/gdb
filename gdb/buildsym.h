@@ -1,29 +1,24 @@
 /* Build symbol tables in GDB's internal format.
-   Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1995, 1996,
-   1997, 1998, 1999, 2000, 2002, 2003, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright 1986-1993, 1996-1999 Free Software Foundation, Inc.
 
-   This file is part of GDB.
+This file is part of GDB.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #if !defined (BUILDSYM_H)
 #define BUILDSYM_H 1
-
-struct objfile;
-struct symbol;
-struct addrmap;
 
 /* This module provides definitions used for creating and adding to
    the symbol table.  These routines are called from various symbol-
@@ -37,8 +32,6 @@ struct addrmap;
    normally extern, but which get defined in a single module using
    this technique.  */
 
-struct block;
-
 #ifndef EXTERN
 #define	EXTERN extern
 #endif
@@ -47,14 +40,12 @@ struct block;
 				   hashname() */
 
 /* Name of source file whose symbol data we are now processing.  This
-   comes from a symbol of type N_SO for stabs.  For Dwarf it comes from the
-   DW_AT_name attribute of a DW_TAG_compile_unit DIE.  */
+   comes from a symbol of type N_SO. */
 
 EXTERN char *last_source_file;
 
 /* Core address of start of text of current source file.  This too
-   comes from the N_SO symbol.  For Dwarf it typically comes from the
-   DW_AT_low_pc attribute of a DW_TAG_compile_unit DIE.  */
+   comes from the N_SO symbol. */
 
 EXTERN CORE_ADDR last_source_start_addr;
 
@@ -70,10 +61,10 @@ struct subfile
     struct linetable *line_vector;
     int line_vector_length;
     enum language language;
-    char *producer;
     char *debugformat;
-    struct symtab *symtab;
   };
+
+EXTERN struct subfile *subfiles;
 
 EXTERN struct subfile *current_subfile;
 
@@ -89,6 +80,16 @@ EXTERN unsigned char processing_gcc_compilation;
    compatible.  */
 
 EXTERN unsigned char processing_acc_compilation;
+
+/* elz: added this flag to know when a block is compiled with HP
+   compilers (cc, aCC). This is necessary because of the macro
+   COERCE_FLOAT_TO_DOUBLE defined in tm_hppa.h, which causes a
+   coercion of float to double to always occur in parameter passing
+   for a function called by gdb (see the function value_arg_coerce in
+   valops.c). This is necessary only if the target was compiled with
+   gcc, not with HP compilers or with g++ */
+
+EXTERN unsigned char processing_hp_compilation;
 
 /* Count symbols as they are processed, for error messages.  */
 
@@ -170,8 +171,11 @@ EXTERN int context_stack_depth;
 
 EXTERN int context_stack_size;
 
-/* Non-zero if the context stack is empty.  */
-#define outermost_context_p() (context_stack_depth == 0)
+/* Macro "function" for popping contexts from the stack.  Pushing is
+   done by a real function, push_context.  This returns a pointer to a
+   struct context_stack.  */
+
+#define	pop_context() (&context_stack[--context_stack_depth]);
 
 /* Nonzero if within a function (so symbols should be local, if
    nothing says specifically).  */
@@ -226,24 +230,19 @@ EXTERN int type_vector_length;
 
 #define	INITIAL_TYPE_VECTOR_LENGTH	160
 
-extern void add_free_pendings (struct pending *list);
-
 extern void add_symbol_to_list (struct symbol *symbol,
 				struct pending **listhead);
 
 extern struct symbol *find_symbol_in_list (struct pending *list,
 					   char *name, int length);
 
-extern struct block *finish_block (struct symbol *symbol,
-                                   struct pending **listhead,
-                                   struct pending_block *old_blocks,
-                                   CORE_ADDR start, CORE_ADDR end,
-                                   struct objfile *objfile);
+extern void finish_block (struct symbol *symbol,
+			  struct pending **listhead,
+			  struct pending_block *old_blocks,
+			  CORE_ADDR start, CORE_ADDR end,
+			  struct objfile *objfile);
 
-extern void record_block_range (struct block *,
-                                CORE_ADDR start, CORE_ADDR end_inclusive);
-
-extern void really_free_pendings (void *dummy);
+extern void really_free_pendings (int foo);
 
 extern void start_subfile (char *name, char *dirname);
 
@@ -266,8 +265,6 @@ extern void buildsym_init (void);
 
 extern struct context_stack *push_context (int desc, CORE_ADDR valu);
 
-extern struct context_stack *pop_context (void);
-
 extern void record_line (struct subfile *subfile, int line, CORE_ADDR pc);
 
 extern void start_symtab (char *name, char *dirname, CORE_ADDR start_addr);
@@ -275,6 +272,12 @@ extern void start_symtab (char *name, char *dirname, CORE_ADDR start_addr);
 extern int hashname (char *name);
 
 extern void free_pending_blocks (void);
+
+/* FIXME: Note that this is used only in buildsym.c and dstread.c,
+   which should be fixed to not need direct access to
+   make_blockvector. */
+
+extern struct blockvector *make_blockvector (struct objfile *objfile);
 
 /* FIXME: Note that this is used only in buildsym.c and dstread.c,
    which should be fixed to not need direct access to
@@ -286,14 +289,8 @@ extern void record_pending_block (struct objfile *objfile,
 
 extern void record_debugformat (char *format);
 
-extern void record_producer (const char *producer);
-
 extern void merge_symbol_lists (struct pending **srclist,
 				struct pending **targetlist);
-
-/* The macro table for the compilation unit whose symbols we're
-   currently reading.  All the symtabs for this CU will point to this.  */
-EXTERN struct macro_table *pending_macros;
 
 #undef EXTERN
 

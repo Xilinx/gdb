@@ -3,8 +3,6 @@
 :option:::insn-specifying-widths:true
 :option:::hi-bit-nr:7
 :model:::mn10300:mn10300:
-:model:::am33:am33:
-:model:::am33_2:am33_2:
 
 // What do we do with an illegal instruction?
 :internal::::illegal:
@@ -17,8 +15,6 @@
 4.0x8,2.DM1,2.DN0=DM1+8.IMM8:S0i:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /*  OP_8000 (); */
   signed32 immed = EXTEND8 (IMM8);
@@ -30,8 +26,6 @@
 4.0x8,2.DM1,2.DN0!DM1:S0:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   PC = cia;
   /* OP_80 (); */
@@ -43,8 +37,6 @@
 8.0xf1+1110,2.DM1,2.AN0:D0:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_F1E0 (); */
   PC = cia;
@@ -56,8 +48,6 @@
 8.0xf1+1101,2.AM1,2.DN0:D0a:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_F1D0 (); */
   PC = cia;
@@ -69,8 +59,6 @@
 4.0x9,2.AM1,2.AN0=AM1+8.IMM8:S0ai:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
    PC = cia;
    /* OP_9000 (); */
@@ -82,8 +70,6 @@
 4.0x9,2.AM1,2.AN0!AM1:S0a:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
    PC = cia;
    /* OP_90 (); */
@@ -95,8 +81,6 @@
 4.0x3,11,2.AN0:S0b:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_3C (); */
   PC = cia;
@@ -108,8 +92,6 @@
 8.0xf2+4.0xf,2.AM1,00:D0b:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_F2F0 (); */
   PC = cia;
@@ -121,8 +103,6 @@
 8.0xf2+4.0xe,01,2.DN0:D0c:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_F2E4 (); */
   PC = cia;
@@ -134,8 +114,6 @@
 8.0xf2+4.0xf,2.DM1,11:D0d:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_F2F3 (); */
   PC = cia;
@@ -147,8 +125,6 @@
 8.0xf2+4.0xe,00,2.DN0:D0e:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_F2E0 (); */
   PC = cia;
@@ -160,8 +136,6 @@
 8.0xf2+4.0xf,2.DM1,10:D0f:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_F2F2 (); */
   PC = cia;
@@ -173,8 +147,6 @@
 4.0x7,2.DN1,2.AM0:S0c:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_70 (); */
   PC = cia;
@@ -186,8 +158,6 @@
 8.0xf8+4.0x0,2.DN1,2.AM0+8.D8:D1:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_F80000 (); */
   PC = cia;
@@ -200,8 +170,6 @@
 8.0xfa+4.0x0,2.DN1,2.AM0+8.D16A+8.D16B:D2:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FA000000 (); */
   PC = cia;
@@ -214,8 +182,6 @@
 8.0xfc+4.0x0,2.DN1,2.AM0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FC000000 (); */
   PC = cia;
@@ -229,8 +195,6 @@
 4.0x5,10,2.DN0+8.D8:S1:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_5800 (); */
   PC = cia;
@@ -242,8 +206,6 @@
 8.0xfa+4.0xb,01,2.DN0+8.IMM16A+8.IMM16B:D2a:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FAB40000 (); */
   PC = cia;
@@ -256,8 +218,6 @@
 8.0xfc+4.0xb,01,2.DN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4a:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FCB40000 (); */
   PC = cia;
@@ -270,8 +230,6 @@
 8.0xf3+00,2.DN2,2.DI,2.AM0:D0g:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_F300 (); */
   PC = cia;
@@ -284,8 +242,6 @@
 4.0x3,00,2.DN0+8.IMM16A+8.IMM16B:S2:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_300000 (); */
   PC = cia;
@@ -296,8 +252,6 @@
 8.0xfc+4.0xa,01,2.DN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4b:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FCA40000 (); */
   PC = cia;
@@ -309,8 +263,6 @@
 8.0xf0+4.0x0,2.AN1,2.AM0:D0h:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_F000 (); */
   PC = cia;
@@ -322,8 +274,6 @@
 8.0xf8+4.0x2,2.AN1,2.AM0+8.D8:D1a:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_F82000 (); */
   PC = cia;
@@ -336,8 +286,6 @@
 8.0xfa+4.0x2,2.AN1,2.AM0+8.D16A+8.D16B:D2b:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FA200000 (); */
   PC = cia;
@@ -351,8 +299,6 @@
 8.0xfc+4.0x2,2.AN1,2.AM0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4c:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FC200000 (); */
   PC = cia;
@@ -366,8 +312,6 @@
 4.0x5,11,2.AN0+8.D8:S1a:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_5C00 (); */
   PC = cia;
@@ -380,8 +324,6 @@
 8.0xfa+4.0xb,00,2.AN0+8.IMM16A+8.IMM16B:D2c:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FAB00000 (); */
   PC = cia;
@@ -394,8 +336,6 @@
 8.0xfc+4.0xb,00,2.AN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4d:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FCB00000 (); */
   PC = cia;
@@ -409,8 +349,6 @@
 8.0xf3+10,2.AN2,2.DI,2.AM0:D0i:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_F380 (); */
   PC = cia;
@@ -424,8 +362,6 @@
 8.0xfa+4.0xa,00,2.AN0+8.IMM16A+8.IMM16B:D2d:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FAA00000 (); */
   PC = cia;
@@ -437,8 +373,6 @@
 8.0xfc+4.0xa,00,2.AN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4e:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FCA00000 (); */
   PC = cia;
@@ -451,8 +385,6 @@
 8.0xf8+4.0xf,00,2.AM0+8.D8:D1b:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_F8F000 (); */
   PC = cia;
@@ -465,8 +397,6 @@
 4.0x6,2.DM1,2.AN0:S0d:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_60 (); */
   PC = cia;
@@ -478,8 +408,6 @@
 8.0xf8+4.0x1,2.DM1,2.AN0+8.D8:D1c:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_F81000 (); */
   PC = cia;
@@ -492,8 +420,6 @@
 8.0xfa+4.0x1,2.DM1,2.AN0+8.D16A+8.D16B:D2e:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FA100000 (); */
   PC = cia;
@@ -506,8 +432,6 @@
 8.0xfc+4.0x1,2.DM1,2.AN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4f:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FC100000 (); */
   PC = cia;
@@ -521,8 +445,6 @@
 4.0x4,2.DM1,10+8.D8:S1b:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_4200 (); */
   PC = cia;
@@ -534,8 +456,6 @@
 8.0xfa+4.0x9,2.DM1,01+8.IMM16A+8.IMM16B:D2f:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FA910000 (); */
   PC = cia;
@@ -548,8 +468,6 @@
 8.0xfc+4.0x9,2.DM1,01+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4g:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FC910000 (); */
   PC = cia;
@@ -562,8 +480,6 @@
 8.0xf3+01,2.DM2,2.DI,2.AN0:D0j:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_F340 (); */
   PC = cia;
@@ -576,8 +492,6 @@
 4.0x0,2.DM1,01+8.IMM16A+8.IMM16B:S2a:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_10000 (); */
   PC = cia;
@@ -589,8 +503,6 @@
 8.0xfc+4.0x8,2.DM1,01+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4h:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FC810000 (); */
   PC = cia;
@@ -603,8 +515,6 @@
 8.0xf0+4.0x1,2.AM1,2.AN0:D0k:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_F010 (); */
   PC = cia;
@@ -616,8 +526,6 @@
 8.0xf8+4.0x3,2.AM1,2.AN0+8.D8:D1d:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_F83000 (); */
   PC = cia;
@@ -630,8 +538,6 @@
 8.0xfa+4.0x3,2.AM1,2.AN0+8.D16A+8.D16B:D2g:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FA300000 (); */
   PC = cia;
@@ -644,8 +550,6 @@
 8.0xfc+4.0x3,2.AM1,2.AN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4i:::mov
 "mov"
 *mn10300
-*am33
-*am33_2
 {
   /* OP_FC300000 (); */
   PC = cia;
@@ -659,10 +563,6 @@
 4.0x4,2.AM1,11+8.D8:S1c:::mov
 "mov"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_4300 (); */
   PC = cia;
@@ -674,10 +574,6 @@
 8.0xfa+4.0x9,2.AM1,00+8.IMM16A+8.IMM16B:D2h:::mov
 "mov"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FA900000 (); */
   PC = cia;
@@ -690,10 +586,6 @@
 8.0xfc+4.0x9,2.AM1,00+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4j:::mov
 "mov"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FC900000 (); */
   PC = cia;
@@ -706,10 +598,6 @@
 8.0xf3+11,2.AM2,2.DI,2.AN0:D0l:::mov
 "mov"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F3C0 (); */
   PC = cia;
@@ -722,10 +610,6 @@
 8.0xfa+4.0x8,2.AM1,00+8.IMM16A+8.IMM16B:D2i:::mov
 "mov"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FA800000 (); */
   PC = cia;
@@ -738,10 +622,6 @@
 8.0xfc+4.0x8,2.AM1,00+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4k:::mov
 "mov"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FC800000 (); */
   PC = cia;
@@ -754,10 +634,6 @@
 8.0xf8+4.0xf,01,2.AN0+8.D8:D1e:::mov
 "mov"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F8F400 (); */
   PC = cia;
@@ -770,13 +646,9 @@
 4.0x2,11,2.DN0+8.IMM16A+8.IMM16B:S2b:::mov
 "mov"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_2C0000 (); */
-  unsigned32 value;
+  unsigned long value;
 
   PC = cia;
   value = EXTEND16 (FETCH16(IMM16A, IMM16B));
@@ -788,13 +660,9 @@
 8.0xfc+4.0xc,11,2.DN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4l:::mov
 "mov"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FCCC0000 (); */
-  unsigned32 value;
+  unsigned long value;
 
   PC = cia;
   value = FETCH32(IMM32A, IMM32B, IMM32C, IMM32D);
@@ -806,13 +674,9 @@
 4.0x2,01,2.AN0+8.IMM16A+8.IMM16B:S2c:::mov
 "mov"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_240000 (); */
-  unsigned32 value;
+  unsigned long value;
 
   PC = cia;
   value = FETCH16(IMM16A, IMM16B);
@@ -824,10 +688,6 @@
 8.0xfc+4.0xd,11,2.AN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4m:::mov
 "mov"
 *mn10300
-
-*am33
-*am33_2
-
 {
     /* OP_FCDC0000 (); */
     PC = cia;
@@ -839,10 +699,6 @@
 8.0xf0+4.0x4,2.DN1,2.AM0:D0:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F040 (); */
   PC = cia;
@@ -855,10 +711,6 @@
 8.0xf8+4.0x4,2.DN1,2.AM0+8.D8:D1f:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F84000 (); */
   PC = cia;
@@ -871,10 +723,6 @@
 8.0xfa+4.0x4,2.DN1,2.AM0+8.D16A+8.D16B:D2:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FA400000 (); */
   PC = cia;
@@ -888,10 +736,6 @@
 8.0xfc+4.0x4,2.DN1,2.AM0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FC400000 (); */
   PC = cia;
@@ -905,10 +749,6 @@
 8.0xf8+4.0xb,10,2.DN0+8.D8:D1a:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F8B800 (); */
   PC = cia;
@@ -921,10 +761,6 @@
 8.0xfa+4.0xb,10,2.DN0+8.IMM16A+8.IMM16B:D2a:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FAB80000 (); */
   PC = cia;
@@ -938,10 +774,6 @@
 8.0xfc+4.0xb,10,2.DN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4a:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FCB80000 (); */
   PC = cia;
@@ -955,10 +787,6 @@
 8.0xf4+00,2.DN2,2.DI,2.AM0:D0a:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F400 (); */
   PC = cia;
@@ -972,10 +800,6 @@
 4.0x3,01,2.DN0+8.IMM16A+8.IMM16B:S2:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_340000 (); */
   PC = cia;
@@ -987,10 +811,6 @@
 8.0xfc+4.0xa,10,2.DN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4b:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FCA80000 (); */
   PC = cia;
@@ -1003,10 +823,6 @@
 8.0xf0+4.0x5,2.DM1,2.AN0:D0b:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F050 (); */
   PC = cia;
@@ -1018,10 +834,6 @@
 8.0xf8+4.0x5,2.DM1,2.AN0+8.D8:D1b:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F85000 (); */
   PC = cia;
@@ -1034,10 +846,6 @@
 8.0xfa+4.0x5,2.DM1,2.AN0+8.D16A+8.D16B:D2b:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FA500000 (); */
   PC = cia;
@@ -1050,10 +858,6 @@
 8.0xfc+4.0x5,2.DM1,2.AN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4c:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FC500000 (); */
   PC = cia;
@@ -1067,10 +871,6 @@
 8.0xf8+4.0x9,2.DM1,10+8.D8:D1c:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F89200 (); */
   PC = cia;
@@ -1082,10 +882,6 @@
 8.0xfa+4.0x9,2.DM1,10+8.IMM16A+8.IMM16B:D2c:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FA920000 (); */
   PC = cia;
@@ -1098,10 +894,6 @@
 8.0xfc+4.0x9,2.DM1,10+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4d:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FC920000 (); */
   PC = cia;
@@ -1114,10 +906,6 @@
 8.0xf4+01,2.DM2,2.DI,2.AN0:D0c:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F440 (); */
   PC = cia;
@@ -1130,10 +918,6 @@
 4.0x0,2.DM1,10+8.IMM16A+8.IMM16B:S2a:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_20000 (); */
   PC = cia;
@@ -1146,10 +930,6 @@
 8.0xfc+4.0x8,2.DM1,10+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4e:::movbu
 "movbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FC820000 (); */
   PC = cia;
@@ -1162,10 +942,6 @@
 8.0xf0+4.0x6,2.DN1,2.AM0:D0:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F060 (); */
   PC = cia;
@@ -1178,10 +954,6 @@
 8.0xf8+4.0x6,2.DN1,2.AM0+8.D8:D1d:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F86000 (); */
   PC = cia;
@@ -1194,10 +966,6 @@
 8.0xfa+4.0x6,2.DN1,2.AM0+8.D16A+8.D16B:D2:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FA600000 (); */
   PC = cia;
@@ -1211,10 +979,6 @@
 8.0xfc+4.0x6,2.DN1,2.AM0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FC600000 (); */
   PC = cia;
@@ -1228,10 +992,6 @@
 8.0xf8+4.0xb,11,2.DN0+8.D8:D1a:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F8BC00 (); */
   PC = cia;
@@ -1244,10 +1004,6 @@
 8.0xfa+4.0xb,11,2.DN0+8.IMM16A+8.IMM16B:D2a:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FABC0000 (); */
   PC = cia;
@@ -1260,10 +1016,6 @@
 8.0xfc+4.0xb,11,2.DN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4a:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FCBC0000 (); */
   PC = cia;
@@ -1276,10 +1028,6 @@
 8.0xf4+10,2.DN2,2.DI,2.AM0:D0a:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F480 (); */
   PC = cia;
@@ -1292,10 +1040,6 @@
 4.0x3,10,2.DN0+8.IMM16A+8.IMM16B:S2:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_380000 (); */
   PC = cia;
@@ -1307,10 +1051,6 @@
 8.0xfc+4.0xa,11,2.DN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4b:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FCAC0000 (); */
   PC = cia;
@@ -1323,10 +1063,6 @@
 8.0xf0+4.0x7,2.DM1,2.AN0:D0b:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F070 (); */
   PC = cia;
@@ -1339,10 +1075,6 @@
 8.0xf8+4.0x7,2.DM1,2.AN0+8.D8:D1b:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F87000 (); */
   PC = cia;
@@ -1355,10 +1087,6 @@
 8.0xfa+4.0x7,2.DM1,2.AN0+8.D16A+8.D16B:D2b:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FA700000 (); */
   PC = cia;
@@ -1371,10 +1099,6 @@
 8.0xfc+4.0x7,2.DM1,2.AN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4c:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FC700000 (); */
   PC = cia;
@@ -1388,10 +1112,6 @@
 8.0xf8+4.0x9,2.DM1,11+8.D8:D1c:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F89300 (); */
   PC = cia;
@@ -1404,10 +1124,6 @@
 8.0xfa+4.0x9,2.DM1,11+8.IMM16A+8.IMM16B:D2c:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FA930000 (); */
   PC = cia;
@@ -1420,10 +1136,6 @@
 8.0xfc+4.0x9,2.DM1,11+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4d:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FC930000 (); */
   PC = cia;
@@ -1436,10 +1148,6 @@
 8.0xf4+11,2.DM2,2.DI,2.AN0:D0c:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F4C0 (); */
   PC = cia;
@@ -1452,10 +1160,6 @@
 4.0x0,2.DM1,11+8.IMM16A+8.IMM16B:S2a:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_30000 (); */
   PC = cia;
@@ -1467,10 +1171,6 @@
 8.0xfc+4.0x8,2.DM1,11+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4e:::movhu
 "movhu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FC830000 (); */
   PC = cia;
@@ -1483,10 +1183,6 @@
 8.0xf2+4.0xd,00,2.DN0:D0:::ext
 "ext"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F2D0 (); */
   PC = cia;
@@ -1501,10 +1197,6 @@
 4.0x1,00,2.DN0:S0:::extb
 "extb"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_10 (); */
   PC = cia;
@@ -1516,10 +1208,6 @@
 4.0x1,01,2.DN0:S0:::extbu
 "extbu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_14 (); */
   PC = cia;
@@ -1531,10 +1219,6 @@
 4.0x1,10,2.DN0:S0:::exth
 "exth"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_18 (); */
   PC = cia;
@@ -1546,10 +1230,6 @@
 4.0x1,11,2.DN0:S0:::exthu
 "exthu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_1C (); */
   PC = cia;
@@ -1561,10 +1241,6 @@
 4.0x0,2.DN1,00:S0:::clr
 "clr"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_0 (); */
   PC = cia;
@@ -1579,10 +1255,6 @@
 4.0xe,2.DM1,2.DN0:S0:::add
 "add"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_E0 (); */
   PC = cia;
@@ -1593,10 +1265,6 @@
 8.0xf1+4.0x6,2.DM1,2.AN0:D0:::add
 "add"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F160 (); */
   PC = cia;
@@ -1608,10 +1276,6 @@
 8.0xf1+4.0x5,2.AM1,2.DN0:D0a:::add
 "add"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F150 (); */
   PC = cia;
@@ -1623,10 +1287,6 @@
 8.0xf1+4.0x7,2.AM1,2.AN0:D0b:::add
 "add"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F170 (); */
   PC = cia;
@@ -1638,10 +1298,6 @@
 4.0x2,10,2.DN0+8.IMM8:S1:::add
 "add"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_2800 (); */
   PC = cia;
@@ -1653,10 +1309,6 @@
 8.0xfa+4.0xc,00,2.DN0+8.IMM16A+8.IMM16B:D2:::add
 "add"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FAC00000 (); */
   PC = cia;
@@ -1668,10 +1320,6 @@
 8.0xfc+4.0xc,00,2.DN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4:::add
 "add"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FCC00000 (); */
   PC = cia;
@@ -1683,10 +1331,6 @@
 4.0x2,00,2.AN0+8.IMM8:S1a:::add
 "add"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_2000 (); */
   PC = cia;
@@ -1698,10 +1342,6 @@
 8.0xfa+4.0xd,00,2.AN0+8.IMM16A+8.IMM16B:D2a:::add
 "add"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FAD00000 (); */
   PC = cia;
@@ -1713,10 +1353,6 @@
 8.0xfc+4.0xd,00,2.AN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4a:::add
 "add"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FCD00000 (); */
   PC = cia;
@@ -1728,13 +1364,9 @@
 8.0xf8+8.0xfe+8.IMM8:D1:::add
 "add"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F8FE00 (); */
-  unsigned32 imm;
+  unsigned long imm;
 
   /* Note: no PSW changes. */
   PC = cia;
@@ -1747,13 +1379,9 @@
 8.0xfa+8.0xfe+8.IMM16A+8.IMM16B:D2b:::add
 "add"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FAFE0000 (); */
-  unsigned32 imm;
+  unsigned long imm;
 
   /* Note: no PSW changes. */
   PC = cia;
@@ -1766,13 +1394,9 @@
 8.0xfc+8.0xfe+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4b:::add
 "add"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FCFE0000 (); */
-  unsigned32 imm;
+  unsigned long imm;
 
   /* Note: no PSW changes. */
   PC = cia;
@@ -1785,14 +1409,10 @@
 8.0xf1+4.0x4,2.DM1,2.DN0:D0:::addc
 "addc"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F140 (); */
   int z, c, n, v;
-  unsigned32 reg1, reg2, sum;
+  unsigned long reg1, reg2, sum;
 
   PC = cia;
   reg1 = State.regs[REG_D0 + DM1];
@@ -1816,10 +1436,6 @@
 8.0xf1+4.0x0,2.DM1,2.DN0:D0:::sub
 "sub"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F100 (); */
   PC = cia;
@@ -1830,10 +1446,6 @@
 8.0xf1+4.0x2,2.DM1,2.AN0:D0a:::sub
 "sub"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F120 (); */
   PC = cia;
@@ -1845,10 +1457,6 @@
 8.0xf1+4.0x1,2.AM1,2.DN0:D0b:::sub
 "sub"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F110 (); */
   PC = cia;
@@ -1860,10 +1468,6 @@
 8.0xf1+4.0x3,2.AM1,2.AN0:D0c:::sub
 "sub"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F130 (); */
   PC = cia;
@@ -1875,10 +1479,6 @@
 8.0xfc+4.0xc,01,2.DN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4:::sub
 "sub"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FCC40000 (); */
   PC = cia;
@@ -1890,10 +1490,6 @@
 8.0xfc+4.0xd,01,2.AN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4a:::sub
 "sub"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FCD40000 (); */
   PC = cia;
@@ -1905,14 +1501,10 @@
 8.0xf1+4.0x8,2.DM1,2.DN0:D0:::subc
 "subc"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F180 (); */
   int z, c, n, v;
-  unsigned32 reg1, reg2, difference;
+  unsigned long reg1, reg2, difference;
 
   PC = cia;
   reg1 = State.regs[REG_D0 + DM1];
@@ -1936,13 +1528,9 @@
 8.0xf2+4.0x4,2.DM1,2.DN0:D0:::mul
 "mul"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F240 (); */
-  unsigned64 temp;
+  unsigned long long temp;
   int n, z;
 
   PC = cia;
@@ -1961,13 +1549,9 @@
 8.0xf2+4.0x5,2.DM1,2.DN0:D0:::mulu
 "mulu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F250 (); */
-  unsigned64 temp;
+  unsigned long long temp;
   int n, z;
 
   PC = cia;
@@ -1986,10 +1570,6 @@
 8.0xf2+4.0x6,2.DM1,2.DN0:D0:::div
 "div"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F260 (); */
   signed64 temp;
@@ -2024,10 +1604,6 @@
 8.0xf2+4.0x7,2.DM1,2.DN0:D0:::divu
 "divu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F270 (); */
   unsigned64 temp;
@@ -2061,13 +1637,9 @@
 4.0x4,2.DN1,00:S0:::inc
 "inc"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_40 (); */
-  unsigned32 imm;
+  unsigned int imm;
 
   PC = cia;
   imm = 1;
@@ -2079,10 +1651,6 @@
 4.0x4,2.AN1,01:S0a:::inc
 "inc"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_41 (); */
   PC = cia;
@@ -2094,10 +1662,6 @@
 4.0x5,00,2.AN0:S0:::inc4
 "inc4"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_50 (); */
   PC = cia;
@@ -2109,10 +1673,6 @@
 4.0xa,2.DM1,2.DN0=DM1+IMM8:S0i:::cmp
 "cmp"
 *mn10300
-
-*am33
-*am33_2
-
 {
   PC = cia;
   /* OP_A000 (); */
@@ -2124,10 +1684,6 @@
 4.0xa,2.DM1,2.DN0!DM1:S0:::cmp
 "cmp"
 *mn10300
-
-*am33
-*am33_2
-
 {
   PC = cia;
   /* OP_A0 (); */
@@ -2139,10 +1695,6 @@
 8.0xf1+4.0xa,2.DM1,2.AN0:D0:::cmp
 "cmp"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F1A0 (); */
   PC = cia;
@@ -2154,10 +1706,6 @@
 8.0xf1+4.0x9,2.AM1,2.DN0:D0a:::cmp
 "cmp"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F190 (); */
   PC = cia;
@@ -2169,10 +1717,6 @@
 4.0xb,2.AM1,2.AN0=AM1+IMM8:S0ai:::cmp
 "cmp"
 *mn10300
-
-*am33
-*am33_2
-
 {
   PC = cia;
   /* OP_B000 (); */
@@ -2185,10 +1729,6 @@
 4.0xb,2.AM1,2.AN0!AM1:S0a:::cmp
 "cmp"
 *mn10300
-
-*am33
-*am33_2
-
 {
   PC = cia;
   /* OP_B0 (); */
@@ -2200,10 +1740,6 @@
 8.0xfa+4.0xc,10,2.DN0+8.IMM16A+8.IMM16B:D2:::cmp
 "cmp"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FAC80000 (); */
   PC = cia;
@@ -2216,10 +1752,6 @@
 8.0xfc+4.0xc,10,2.DN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4:::cmp
 "cmp"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FCC80000 (); */
   PC = cia;
@@ -2232,10 +1764,6 @@
 8.0xfa+4.0xd,10,2.AN0+8.IMM16A+8.IMM16B:D2a:::cmp
 "cmp"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FAD80000 (); */
   PC = cia;
@@ -2248,10 +1776,6 @@
 8.0xfc+4.0xd,10,2.AN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4a:::cmp
 "cmp"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FCD80000 (); */
   PC = cia;
@@ -2264,10 +1788,6 @@
 8.0xf2+4.0x0,2.DM1,2.DN0:D0:::and
 "and"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F200 (); */
   int n, z;
@@ -2285,10 +1805,6 @@
 8.0xf8+4.0xe,00,2.DN0+8.IMM8:D1:::and
 "and"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F8E000 (); */
   int n, z;
@@ -2306,10 +1822,6 @@
 8.0xfa+4.0xe,00,2.DN0+8.IMM16A+8.IMM16B:D2:::and
 "and"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FAE00000 (); */
   int n, z;
@@ -2327,10 +1839,6 @@
 8.0xfc+4.0xe,00,2.DN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4:::and
 "and"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FCE00000 (); */
   int n, z;
@@ -2349,10 +1857,6 @@
 8.0xfa+8.0xfc+8.IMM16A+8.IMM16B:D2a:::and
 "and"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FAFC0000 (); */
   PC = cia;
@@ -2365,10 +1869,6 @@
 8.0xf2+4.0x1,2.DM1,2.DN0:D0:::or
 "or"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F210 (); */
   PC = cia;
@@ -2380,10 +1880,6 @@
 8.0xf8+4.0xe,01,2.DN0+8.IMM8:D1:::or
 "or"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F8E400 (); */
   PC = cia;
@@ -2395,10 +1891,6 @@
 8.0xfa+4.0xe,01,2.DN0+8.IMM16A+8.IMM16B:D2:::or
 "or"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FAE40000 (); */
   PC = cia;
@@ -2410,10 +1902,6 @@
 8.0xfc+4.0xe,01,2.DN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4:::or
 "or"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FCE40000 (); */
   PC = cia;
@@ -2425,10 +1913,6 @@
 8.0xfa+8.0xfd+8.IMM16A+8.IMM16B:D2a:::or
 "or"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FAFD0000 (); */
   PC = cia;
@@ -2440,10 +1924,6 @@
 8.0xf2+4.0x2,2.DM1,2.DN0:D0:::xor
 "xor"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F220 (); */
   PC = cia;
@@ -2455,10 +1935,6 @@
 8.0xfa+4.0xe,10,2.DN0+8.IMM16A+8.IMM16B:D2:::xor
 "xor"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FAE80000 (); */
   PC = cia;
@@ -2470,10 +1946,6 @@
 8.0xfc+4.0xe,10,2.DN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4:::xor
 "xor"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FCE80000 (); */
   PC = cia;
@@ -2485,10 +1957,6 @@
 8.0xf2+4.0x3,00,2.DN0:D0:::not
 "not"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F230 (); */
   int n, z;
@@ -2506,10 +1974,6 @@
 8.0xf8+4.0xe,11,2.DN0+8.IMM8:D1:::btst
 "btst"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F8EC00 (); */
   PC = cia;
@@ -2521,10 +1985,6 @@
 8.0xfa+4.0xe,11,2.DN0+8.IMM16A+8.IMM16B:D2:::btst
 "btst"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FAEC0000 (); */
   PC = cia;
@@ -2536,10 +1996,6 @@
 8.0xfc+4.0xe,11,2.DN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4:::btst
 "btst"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FCEC0000 (); */
   PC = cia;
@@ -2552,10 +2008,6 @@
 8.0xfe+8.0x02+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D+8.IMM8:D5:::btst
 "btst"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FE020000 (); */
   PC = cia;
@@ -2569,10 +2021,6 @@
 8.0xfa+4.0xf,10,2.AN0+8.D8+8.IMM8:D2a:::btst
 "btst"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FAF80000 (); */
   PC = cia;
@@ -2585,13 +2033,9 @@
 8.0xf0+4.8,2.DM1,2.AN0:D0:::bset
 "bset"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F080 (); */
-  unsigned32 temp;
+  unsigned long temp;
   int z;
 
   PC = cia;
@@ -2609,13 +2053,9 @@
 8.0xfe+8.0x00+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D+8.IMM8:D5:::bset
 "bset"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FE000000 (); */
-  unsigned32 temp;
+  unsigned long temp;
   int z;
 
   PC = cia;
@@ -2633,13 +2073,9 @@
 8.0xfa+4.0xf,00,2.AN0+8.D8+8.IMM8:D2:::bset
 "bset"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FAF00000 (); */
-  unsigned32 temp;
+  unsigned long temp;
   int z;
 
   PC = cia;
@@ -2656,13 +2092,9 @@
 8.0xf0+4.0x9,2.DM1,2.AN0:D0:::bclr
 "bclr"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F090 (); */
-  unsigned32 temp;
+  unsigned long temp;
   int z;
 
   PC = cia;
@@ -2680,13 +2112,9 @@
 8.0xfe+8.0x01+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D+8.IMM8:D5:::bclr
 "bclr"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FE010000 (); */
-  unsigned32 temp;
+  unsigned long temp;
   int z;
 
   PC = cia;
@@ -2704,13 +2132,9 @@
 8.0xfa+4.0xf,01,2.AN0+8.D8+8.IMM8:D2:::bclr
 "bclr"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FAF40000 (); */
-  unsigned32 temp;
+  unsigned long temp;
   int z;
 
   PC = cia;
@@ -2727,13 +2151,9 @@
 8.0xf2+4.0xb,2.DM1,2.DN0:D0:::asr
 "asr"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F2B0 (); */
-  signed32 temp;
+  long temp;
   int z, n, c;
 
   PC = cia;
@@ -2752,13 +2172,9 @@
 8.0xf8+4.0xc,10,2.DN0+8.IMM8:D1:::asr
 "asr"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F8C800 (); */
-  signed32 temp;
+  long temp;
   int z, n, c;
 
   PC = cia;
@@ -2777,10 +2193,6 @@
 8.0xf2+4.0xa,2.DM1,2.DN0:D0:::lsr
 "lsr"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F2A0 (); */
   int z, n, c;
@@ -2800,10 +2212,6 @@
 8.0xf8+4.0xc,01,2.DN0+8.IMM8:D1:::lsr
 "lsr"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F8C400 (); */
   int z, n, c;
@@ -2822,10 +2230,6 @@
 8.0xf2+4.0x9,2.DM1,2.DN0:D0:::asl
 "asl"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F290 (); */
   int n, z;
@@ -2844,10 +2248,6 @@
 8.0xf8+4.0xc,00,2.DN0+8.IMM8:D1:::asl
 "asl"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F8C000 (); */
   int n, z;
@@ -2865,10 +2265,6 @@
 4.0x5,01,2.DN0:S0:::asl2
 "asl2"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_54 (); */
   int n, z;
@@ -2886,13 +2282,9 @@
 8.0xf2+4.0x8,01,2.DN0:D0:::ror
 "ror"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F284 (); */
-  unsigned32 value;
+  unsigned long value;
   int c,n,z;
 
   PC = cia;
@@ -2913,13 +2305,9 @@
 8.0xf2+4.0x8,00,2.DN0:D0:::rol
 "rol"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F280 (); */
-  unsigned32 value;
+  unsigned long value;
   int c,n,z;
 
   PC = cia;
@@ -2940,10 +2328,6 @@
 8.0xc8+8.D8:S1:::beq
 "beq"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_C800 (); */
   PC = cia;
@@ -2959,10 +2343,6 @@
 8.0xc9+8.D8:S1:::bne
 "bne"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_C900 (); */
   PC = cia;
@@ -2978,10 +2358,6 @@
 8.0xc1+8.D8:S1:::bgt
 "bgt"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_C100 (); */
   PC = cia;
@@ -2998,10 +2374,6 @@
 8.0xc2+8.D8:S1:::bge
 "bge"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_C200 (); */
   PC = cia;
@@ -3017,10 +2389,6 @@
 8.0xc3+8.D8:S1:::ble
 "ble"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_C300 (); */
   PC = cia;
@@ -3037,10 +2405,6 @@
 8.0xc0+8.D8:S1:::blt
 "blt"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_C000 (); */
   PC = cia;
@@ -3056,10 +2420,6 @@
 8.0xc5+8.D8:S1:::bhi
 "bhi"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_C500 (); */
   PC = cia;
@@ -3075,10 +2435,6 @@
 8.0xc6+8.D8:S1:::bcc
 "bcc"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_C600 (); */
   PC = cia;
@@ -3094,10 +2450,6 @@
 8.0xc7+8.D8:S1:::bls
 "bls"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_C700 (); */
   PC = cia;
@@ -3113,10 +2465,6 @@
 8.0xc4+8.D8:S1:::bcs
 "bcs"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_C400 (); */
   PC = cia;
@@ -3132,10 +2480,6 @@
 8.0xf8+8.0xe8+8.D8:D1:::bvc
 "bvc"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F8E800 (); */
   PC = cia;
@@ -3151,10 +2495,6 @@
 8.0xf8+8.0xe9+8.D8:D1:::bvs
 "bvs"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F8E900 (); */
   PC = cia;
@@ -3170,10 +2510,6 @@
 8.0xf8+8.0xea+8.D8:D1:::bnc
 "bnc"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F8EA00 (); */
   PC = cia;
@@ -3189,10 +2525,6 @@
 8.0xf8+8.0xeb+8.D8:D1:::bns
 "bns"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F8EB00 (); */
   PC = cia;
@@ -3208,10 +2540,6 @@
 8.0xca+8.D8:S1:::bra
 "bra"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_CA00 (); */
   PC = cia;
@@ -3224,10 +2552,6 @@
 8.0xd8:S0:::leq
 "leq"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_D8 (); */
   PC = cia;
@@ -3243,10 +2567,6 @@
 8.0xd9:S0:::lne
 "lne"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_D9 (); */
   PC = cia;
@@ -3262,10 +2582,6 @@
 8.0xd1:S0:::lgt
 "lgt"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_D1 (); */
   PC = cia;
@@ -3282,10 +2598,6 @@
 8.0xd2:S0:::lge
 "lge"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_D2 (); */
   PC = cia;
@@ -3301,10 +2613,6 @@
 8.0xd3:S0:::lle
 "lle"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_D3 (); */
   PC = cia;
@@ -3321,10 +2629,6 @@
 8.0xd0:S0:::llt
 "llt"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_D0 (); */
   PC = cia;
@@ -3340,10 +2644,6 @@
 8.0xd5:S0:::lhi
 "lhi"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_D5 (); */
   PC = cia;
@@ -3359,10 +2659,6 @@
 8.0xd6:S0:::lcc
 "lcc"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_D6 (); */
   PC = cia;
@@ -3378,10 +2674,6 @@
 8.0xd7:S0:::lls
 "lls"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_D7 (); */
   PC = cia;
@@ -3397,10 +2689,6 @@
 8.0xd4:S0:::lcs
 "lcs"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_D4 (); */
   PC = cia;
@@ -3416,10 +2704,6 @@
 8.0xda:S0:::lra
 "lra"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_DA (); */
   PC = cia;
@@ -3432,10 +2716,6 @@
 8.0xdb:S0:::setlb
 "setlb"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_DB (); */
   PC = cia;
@@ -3448,10 +2728,6 @@
 8.0xf0+4.0xf,01,2.AN0:D0:::jmp
 "jmp"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F0F4 (); */
   PC = State.regs[REG_A0 + AN0];
@@ -3463,10 +2739,6 @@
 8.0xcc+8.D16A+8.D16B:S2:::jmp
 "jmp"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_CC0000 (); */
   PC = cia + EXTEND16(FETCH16(D16A, D16B));
@@ -3478,10 +2750,6 @@
 8.0xdc+8.D32A+8.D32B+8.D32C+8.D32D:S4:::jmp
 "jmp"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_DC000000 (); */
   PC = cia + FETCH32(D32A, D32B, D32C, D32D);
@@ -3493,13 +2761,9 @@
 8.0xf0+4.0xf,00,2.AN0:D0:::calls
 "calls"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F0F0 (); */
-  unsigned32 next_pc, sp;
+  unsigned int next_pc, sp;
 
   PC = cia;
   sp = State.regs[REG_SP];
@@ -3515,13 +2779,9 @@
 8.0xfa+8.0xff+8.D16A+8.D16B:D2:::calls
 "calls"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FAFF0000 (); */
-  unsigned32 next_pc, sp;
+  unsigned int next_pc, sp;
 
   PC = cia;
   sp = State.regs[REG_SP];
@@ -3537,13 +2797,9 @@
 8.0xfc+8.0xff+8.D32A+8.D32B+8.D32C+8.D32D:D4:::calls
 "calls"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FCFF0000 (); */
-  unsigned32 next_pc, sp;
+  unsigned int next_pc, sp;
 
   PC = cia;
   sp = State.regs[REG_SP];
@@ -3559,13 +2815,9 @@
 8.0xf0+8.0xfc:D0:::rets
 "rets"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F0FC (); */
-  unsigned32 sp;
+  unsigned int sp;
 
   sp = State.regs[REG_SP];
   State.regs[REG_PC] = load_word(sp);
@@ -3577,13 +2829,9 @@
 8.0xf0+8.0xfd:D0:::rti
 "rti"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F0FD (); */
-  unsigned32 sp;
+  unsigned int sp;
 
   sp = State.regs[REG_SP];
   PSW = load_half(sp);
@@ -3597,13 +2845,9 @@
 8.0xf0+8.0xfe:D0:::trap
 "trap"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F0FE (); */
-  unsigned32 sp, next_pc;
+  unsigned int sp, next_pc;
 
   PC = cia;
   sp = State.regs[REG_SP];
@@ -3617,10 +2861,6 @@
 8.0xf0+8.0xff:D0:::rtm
 "rtm"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F0FF (); */
   PC = cia;
@@ -3632,10 +2872,6 @@
 8.0xcb:S0:::nop
 "nop"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_CB (); */
   PC = cia;
@@ -3657,10 +2893,6 @@
 8.0xf6+4.0xf,2.DM1,2.DN0:D0:::getx
 "getx"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F6F0 (); */
   int z, n;
@@ -3679,13 +2911,9 @@
 8.0xf6+4.0x0,2.DM1,2.DN0:D0:::mulq
 "mulq"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F600 (); */
-  unsigned64 temp;
+  unsigned long long temp;
   int n, z;
 
   PC = cia;
@@ -3704,13 +2932,9 @@
 8.0xf9+4.0x,00,2.DN0+8.IMM8:D1:::mulq
 "mulq"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F90000 (); */
-  unsigned64 temp;
+  unsigned long long temp;
   int n, z;
 
   PC = cia;
@@ -3729,13 +2953,9 @@
 8.0xfb+4.0x0,00,2.DN0+8.IMM16A+8.IMM16B:D2:::mulq
 "mulq"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FB000000 (); */
-  unsigned64 temp;
+  unsigned long long temp;
   int n, z;
 
   PC = cia;
@@ -3754,13 +2974,9 @@
 8.0xfd+4.0x0,00,2.DN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4:::mulq
 "mulq"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FD000000 (); */
-  unsigned64 temp;
+  unsigned long long temp;
   int n, z;
 
   PC = cia;
@@ -3779,13 +2995,9 @@
 8.0xf6+4.0x1,2.DM1,2.DN0:D0:::mulqu
 "mulqu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F610 (); */
-  unsigned64 temp;
+  unsigned long long temp;
   int n, z;
 
   PC = cia;
@@ -3804,13 +3016,9 @@
 8.0xf9+4.0x1,01,2.DN0+8.IMM8:D1:::mulqu
 "mulqu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F91400 (); */
-  unsigned64 temp;
+  unsigned long long temp;
   int n, z;
 
   PC = cia;
@@ -3829,13 +3037,9 @@
 8.0xfb+4.0x1,01,2.DN0+8.IMM16A+8.IMM16B:D2:::mulqu
 "mulqu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FB140000 (); */
-  unsigned64 temp;
+  unsigned long long temp;
   int n, z;
 
   PC = cia;
@@ -3854,13 +3058,9 @@
 8.0xfd+4.0x1,01,2.DN0+8.IMM32A+8.IMM32B+8.IMM32C+8.IMM32D:D4:::mulqu
 "mulqu"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FD140000 (); */
-  unsigned64 temp;
+  unsigned long long temp;
   int n, z;
 
   PC = cia;
@@ -3879,10 +3079,6 @@
 8.0xf6+4.0x4,2.DM1,2.DN0:D0:::sat16
 "sat16"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F640 (); */
   int temp;
@@ -3899,10 +3095,6 @@
 8.0xf6+4.0x5,2.DM1,2.DN0:D0:::sat24
 "sat24"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F650 (); */
   int temp;
@@ -3919,10 +3111,6 @@
 8.0xf6+4.0x7,2.DM1,2.DN0:D0:::bsch
 "bsch"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F670 (); */
   int temp, c;
@@ -3940,10 +3128,6 @@
 8.0xf0+8.0xc0:D0:::syscall
 "syscall"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_F0C0 (); */
   PC = cia;
@@ -3955,10 +3139,6 @@
 8.0xff:S0:::break
 "break"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_FF (); */
   PC = cia;
@@ -3969,14 +3149,10 @@
 8.0xce+8.REGS:S1:::movm
 "movm"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_CE00 (); */
-  unsigned32 sp = State.regs[REG_SP];
-  unsigned32 mask;
+  unsigned long sp = State.regs[REG_SP];
+  unsigned long mask;
 
   PC = cia;
   mask = REGS;
@@ -4024,40 +3200,6 @@
       sp += 4;
     }
 
-  if (STATE_ARCHITECTURE (sd)->mach == bfd_mach_am33
-      || STATE_ARCHITECTURE (sd)->mach == bfd_mach_am33_2
-      )
-    {
-      if (mask & 0x1)
-	{
-	  /* Need to restore MDRQ, MCRH, MCRL, and MCVF */
-	  sp += 16;
-	  State.regs[REG_E0 + 1] = load_word (sp);
-	  sp += 4;
-	  State.regs[REG_E0 + 0] = load_word (sp);
-	  sp += 4;
-	}
-
-      if (mask & 0x2)
-        {
-	  State.regs[REG_E0 + 7] = load_word (sp);
-	  sp += 4;
-	  State.regs[REG_E0 + 6] = load_word (sp);
-	  sp += 4;
-	  State.regs[REG_E0 + 5] = load_word (sp);
-	  sp += 4;
-	  State.regs[REG_E0 + 4] = load_word (sp);
-	  sp += 4;
-	}
-
-      if (mask & 0x4)
-	{
-	  State.regs[REG_E0 + 3] = load_word (sp);
-	  sp += 4;
-	  State.regs[REG_E0 + 2] = load_word (sp);
-	  sp += 4;
-	}
-    }
 
   /* And make sure to update the stack pointer.  */
   State.regs[REG_SP] = sp;
@@ -4068,52 +3210,14 @@
 8.0xcf+8.REGS:S1a:::movm
 "movm"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_CF00 (); */
-  unsigned32 sp = State.regs[REG_SP];
-  unsigned32 mask;
+  unsigned long sp = State.regs[REG_SP];
+  unsigned long mask;
 
   PC = cia;
   mask = REGS;
 
-  if (STATE_ARCHITECTURE (sd)->mach == bfd_mach_am33
-      || STATE_ARCHITECTURE (sd)->mach == bfd_mach_am33_2
-      )
-    {
-      if (mask & 0x4)
-	{
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 2]);
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 3]);
-	}
-
-      if (mask & 0x2)
-        {
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 4]);
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 5]);
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 6]);
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 7]);
-	}
-
-      if (mask & 0x1)
-	{
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 0]);
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 1]);
-	  sp -= 16;
-	  /* Need to save MDRQ, MCRH, MCRL, and MCVF */
-	}
-    }
 
   if (mask & 0x80)
     {
@@ -4167,14 +3271,10 @@
 8.0xcd+8.D16A+8.D16B+8.REGS+8.IMM8:S4:::call
 "call"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_CD000000 (); */
-  unsigned32 next_pc, sp;
-  unsigned32 mask;
+  unsigned int next_pc, sp;
+  unsigned long mask;
 
   PC = cia;
   sp = State.regs[REG_SP];
@@ -4183,40 +3283,6 @@
 
   mask = REGS;
 
-  if (STATE_ARCHITECTURE (sd)->mach == bfd_mach_am33
-      || STATE_ARCHITECTURE (sd)->mach == bfd_mach_am33_2
-      )
-    {
-      if (mask & 0x4)
-	{
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 2]);
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 3]);
-	}
-
-      if (mask & 0x2)
-        {
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 4]);
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 5]);
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 6]);
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 7]);
-	}
-
-      if (mask & 0x1)
-	{
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 0]);
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 1]);
-	  sp -= 16;
-	  /* Need to save MDRQ, MCRH, MCRL, and MCVF */
-	}
-    }
 
   if (mask & 0x80)
     {
@@ -4276,14 +3342,10 @@
 8.0xdd+8.D32A+8.D32B+8.D32C+8.D32D+8.REGS+8.IMM8:S6:::call
 "call"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_DD000000 (); */
-  unsigned32 next_pc, sp;
-  unsigned32 mask;
+  unsigned int next_pc, sp;
+  unsigned long mask;
 
   PC = cia;
   sp = State.regs[REG_SP];
@@ -4293,40 +3355,6 @@
 
   mask = REGS;
 
-  if (STATE_ARCHITECTURE (sd)->mach == bfd_mach_am33
-      || STATE_ARCHITECTURE (sd)->mach == bfd_mach_am33_2
-      )
-    {
-      if (mask & 0x4)
-	{
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 2]);
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 3]);
-	}
-
-      if (mask & 0x2)
-        {
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 4]);
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 5]);
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 6]);
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 7]);
-	}
-
-      if (mask & 0x1)
-	{
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 0]);
-	  sp -= 4;
-	  store_word (sp, State.regs[REG_E0 + 1]);
-	  sp -= 16;
-	  /* Need to save MDRQ, MCRH, MCRL, and MCVF */
-	}
-    }
 
   if (mask & 0x80)
     {
@@ -4385,14 +3413,10 @@
 8.0xdf+8.REGS+8.IMM8:S2:::ret
 "ret"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_DF0000 (); */
-  unsigned32 sp, offset;
-  unsigned32 mask;
+  unsigned int sp, offset;
+  unsigned long mask;
 
   PC = cia;
   State.regs[REG_SP] += IMM8;
@@ -4401,42 +3425,6 @@
   offset = -4;
   mask = REGS;
 
-  if (STATE_ARCHITECTURE (sd)->mach == bfd_mach_am33
-      || STATE_ARCHITECTURE (sd)->mach == bfd_mach_am33_2
-      )
-    {
-
-      if (mask & 0x4)
-	{
-	  State.regs[REG_E0 + 2] = load_word (sp + offset);
-	  offset -= 4;
-	  State.regs[REG_E0 + 3] = load_word (sp + offset);
-	  offset -= 4;
-	}
-
-      if (mask & 0x2)
-        {
-	  State.regs[REG_E0 + 4] = load_word (sp + offset);
-	  offset -= 4;
-	  State.regs[REG_E0 + 5] = load_word (sp + offset);
-	  offset -= 4;
-	  State.regs[REG_E0 + 6] = load_word (sp + offset);
-	  offset -= 4;
-	  State.regs[REG_E0 + 7] = load_word (sp + offset);
-	  offset -= 4;
-	}
-
-      if (mask & 0x1)
-	{
-	  /* Need to restore MDRQ, MCRH, MCRL, and MCVF */
-	  offset -= 16;
-	  State.regs[REG_E0 + 0] = load_word (sp + offset);
-	  offset -= 4;
-	  State.regs[REG_E0 + 1] = load_word (sp + offset);
-	  offset -= 4;
-	}
-
-    }
 
   if (mask & 0x80)
     {
@@ -4490,59 +3478,19 @@
 8.0xde+8.REGS+8.IMM8:S2:::retf
 "retf"
 *mn10300
-
-*am33
-*am33_2
-
 {
   /* OP_DE0000 (); */
-  unsigned32 sp, offset;
-  unsigned32 mask;
+  unsigned int sp, offset;
+  unsigned long mask;
 
   PC = cia;
   State.regs[REG_SP] += IMM8;
   sp = State.regs[REG_SP];
-  State.regs[REG_PC] = State.regs[REG_MDR];
+  State.regs[REG_PC] = State.regs[REG_MDR] - 3;
 
   offset = -4;
   mask = REGS;
 
-  if (STATE_ARCHITECTURE (sd)->mach == bfd_mach_am33
-      || STATE_ARCHITECTURE (sd)->mach == bfd_mach_am33_2
-      )
-    {
-
-      if (mask & 0x4)
-	{
-	  State.regs[REG_E0 + 2] = load_word (sp + offset);
-	  offset -= 4;
-	  State.regs[REG_E0 + 3] = load_word (sp + offset);
-	  offset -= 4;
-	}
-
-      if (mask & 0x2)
-        {
-	  State.regs[REG_E0 + 4] = load_word (sp + offset);
-	  offset -= 4;
-	  State.regs[REG_E0 + 5] = load_word (sp + offset);
-	  offset -= 4;
-	  State.regs[REG_E0 + 6] = load_word (sp + offset);
-	  offset -= 4;
-	  State.regs[REG_E0 + 7] = load_word (sp + offset);
-	  offset -= 4;
-	}
-
-      if (mask & 0x1)
-	{
-	  /* Need to restore MDRQ, MCRH, MCRL, and MCVF */
-	  offset -= 16;
-	  State.regs[REG_E0 + 0] = load_word (sp + offset);
-	  offset -= 4;
-	  State.regs[REG_E0 + 1] = load_word (sp + offset);
-	  offset -= 4;
-	}
-
-    }
 
   if (mask & 0x80)
     {
@@ -4585,9 +3533,5 @@
       State.regs[REG_LAR] = load_word (sp + offset);
       offset -= 4;
     }
-  nia = PC;
 }
-
-
-:include::am33:am33.igen
 

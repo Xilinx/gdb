@@ -1,18 +1,18 @@
-# Copyright 1998, 1999, 2002, 2003, 2004, 2007, 2008
-# Free Software Foundation, Inc.
+# Copyright (C) 1998 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
+# the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
 
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-gdb@prep.ai.mit.edu
@@ -38,11 +38,9 @@
 #   "info ajksdlfk " no completions
 #   "info" " "
 #   "info " ambiguous (all info commands)
-#   "p \"break1" unambiguous (completes to filename "break1.c")
-#   "p \"break1." unambiguous (should complete to "break1.c" but does not,
-#	due to readline limitations)
-#   "p 'arg" ambiguous (all symbols starting with arg)
-#   "p b-arg" ambiguous (all symbols starting with arg)
+#   "p \"a" no completions (string constant)
+#   "p 'a" ambiguous (all symbols starting with a)
+#   "p b-a" ambiguous (all symbols starting with a)
 #   "p b-" ambiguous (all symbols)
 #   "file Make" "file" (word break hard to screw up here)
 #   "file ../gdb.stabs/we" "ird" (needs to not break word at slash)
@@ -54,6 +52,10 @@ if $tracelevel then {
         }
 
 
+#skip all these tests for now (FIXME)
+
+continue
+
 global usestubs
 
 #
@@ -64,42 +66,12 @@ set bug_id 0
 
 set testfile "break"
 set srcfile ${testfile}.c
-set srcfile1 ${testfile}1.c
 set binfile ${objdir}/${subdir}/${testfile}
-
-if  { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}0.o" object {debug nowarnings}] != "" } {
-     untested completion.exp
-     return -1
-}
-
-if  { [gdb_compile "${srcdir}/${subdir}/${srcfile1}" "${binfile}1.o" object {debug nowarnings}] != "" } {
-     untested completion.exp
-     return -1
-}
-
-if  { [gdb_compile "${binfile}0.o ${binfile}1.o" "${binfile}" executable {debug nowarnings}] != "" } {
-     untested completion.exp
-     return -1
-}
-
-if [get_compiler_info ${binfile}] {
-    return -1;
+if  { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable {debug additional_flags=-w}] != "" } {
+    gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
 }
 
 gdb_exit
-
-# Don't let a .inputrc file or an existing setting of INPUTRC mess up
-# the test results.  Even if /dev/null doesn't exist on the particular
-# platform, the readline library will use the default setting just by
-# failing to open the file.  OTOH, opening /dev/null successfully will
-# also result in the default settings being used since nothing will be
-# read from this file.
-global env
-if [info exists env(INPUTRC)] {
-    set old_inputrc $env(INPUTRC)
-}
-set env(INPUTRC) "/dev/null"
-
 gdb_start
 gdb_reinitialize_dir $srcdir/$subdir
 gdb_load ${binfile}
@@ -109,7 +81,7 @@ if ![runto_main] then {
 }
 
 set oldtimeout1 $timeout
-set timeout 30
+set timeout [expr $timeout + 500]
 
 
 send_gdb "hfgfh\t"
@@ -190,33 +162,31 @@ sleep 1
 gdb_expect  {
         -re "^p\\\x07$"\
             { send_gdb "\n"
-	      sleep 1
               gdb_expect {
                       -re "The history is empty\\..*$gdb_prompt $"\
                                         { pass "complete 'p'"}
                       -re ".*$gdb_prompt $" { fail "complete 'p'"}
-                      timeout           {fail "(timeout) complete 'p' 2"}
+                      timeout           {fail "(timeout) complete 'p'"}
                      }
             }
         -re ".*$gdb_prompt $"       { fail "complete 'p'" }
-        timeout         { fail "(timeout) complete 'p' 1" }
+        timeout         { fail "(timeout) complete 'p'" }
         }
 
 send_gdb "p \t"
-sleep 3
+sleep 1
 gdb_expect  {
         -re "^p \\\x07$"\
             { send_gdb "\n"
-	      sleep 1
               gdb_expect {
                       -re "The history is empty\\..*$gdb_prompt $"\
                                         { pass "complete 'p '"}
                       -re ".*$gdb_prompt $" { fail "complete 'p '"}
-                      timeout           {fail "(timeout) complete 'p ' 1"}
+                      timeout           {fail "(timeout) complete 'p '"}
                      }
             }
         -re ".*$gdb_prompt $"       { fail "complete 'p '" }
-        timeout         { fail "(timeout) complete 'p ' 2" }
+        timeout         { fail "(timeout) complete 'p '" }
         }
 
 
@@ -313,7 +283,7 @@ gdb_expect  {
         -re "^info $"\
             { send_gdb "\n"
               gdb_expect {
-                      -re "\"info\" must be followed by the name of an info command\\.\r\nList of info subcommands.*$gdb_prompt $"\
+                      -re "\"info\" must be followed by the name of an info command\\.\r\nList of info subcommands:\r\n\r\ninfo address.*info watchpoints.*\r\n\r\nType \"help info\" followed by info subcommand name for full documentation.\r\nCommand name abbreviations are allowed if unambiguous\\..*$gdb_prompt $"\
                                         { pass "complete 'info'"}
                       -re ".*$gdb_prompt $" { fail "complete 'info'"}
                       timeout           {fail "(timeout) complete 'info'"}
@@ -329,7 +299,7 @@ gdb_expect  {
         -re "^info \\\x07$"\
             { send_gdb "\n"
               gdb_expect {
-                      -re "\"info\" must be followed by the name of an info command\\.\r\nList of info subcommands:\r\n\r\n.*$gdb_prompt $"\
+                      -re "\"info\" must be followed by the name of an info command\\.\r\nList of info subcommands:\r\n\r\ninfo address.*Type \"help info\" followed by info subcommand name for full documentation.\r\nCommand name abbreviations are allowed if unambiguous\\..*$gdb_prompt $"\
                                         { pass "complete 'info '"}
                       -re ".*$gdb_prompt $" { fail "complete 'info '"}
                       timeout           {fail "(timeout) complete 'info '"}
@@ -343,7 +313,7 @@ gdb_expect  {
 send_gdb "info \t"
 sleep 1
 gdb_expect  {
-        -re "^info \\\x07$"\
+        -re "^info \0x7$"\
             { send_gdb "\t"
               gdb_expect {
                       -re "address.*types.*$gdb_prompt info $"\
@@ -364,440 +334,212 @@ gdb_expect  {
         }
 
 
-send_gdb "help info wat\t"
+send_gdb "p \"a\t"
+sleep 1
 gdb_expect  {
-        -re "^help info watchpoints $"\
+        -re "^p \"a\\\x07$"\
             { send_gdb "\n"
               gdb_expect {
-                      -re "Synonym for .*\r\n.*$gdb_prompt $"\
-                          { pass "complete help info wat" }
-                      -re ".*$gdb_prompt $" { fail "complete help info wat"}
-                      timeout   {fail "(timeout) complete help info wat"}
+                      -re "Unterminated string in expression\\..*$gdb_prompt $"\
+                                        { pass "complete 'p a'"}
+                      -re ".*$gdb_prompt $" { fail "complete 'p a'"}
+                      timeout           {fail "(timeout) complete 'p a'"}
                      }
             }
-	-re "^help info wat\\\x07$" { fail "complete (2) help info wat" }
-        -re ".*$gdb_prompt $" { fail "complete (3) help info wat" }
-        timeout         { fail "(timeout) complete (3) help info wat" }
+        -re ".*$gdb_prompt $"       { fail "complete 'p \"a'" }
+        timeout         { fail "(timeout) complete 'p \"a'" }
         }
 
-
-send_gdb "p \"break1\t"
+send_gdb "p 'a\t"
 sleep 1
 gdb_expect  {
-        -re "^p \"break1\\\x07$"\
+        -re "^p 'a\\\x07$"\
             { send_gdb "\n"
               gdb_expect {
-                      -re ".*$gdb_prompt $" { fail "complete 'p \"break1'"}
-                      timeout           {fail "(timeout) complete 'p \"break1'"}
+                      -re "Invalid character constant\\..*$gdb_prompt $"\
+                                        { pass "complete 'p \'a'"}
+                      -re ".*$gdb_prompt $" { fail "complete 'p \'a'"}
+                      timeout           {fail "(timeout) complete 'p \'a'"}
                      }
             }
-	-re "^p \"break1\\.c\"$"\
-	    {	send_gdb "\n"
-		gdb_expect {
-		    -re ".*$gdb_prompt $" { pass "complete 'p \"break1'"}
-		    timeout           {fail "(timeout) complete 'p \"break1'"}
-		}
-	    }
-	-re "^p \"break1.*$"
-	    {	send_gdb "\n"
-		gdb_expect {
-		    -re ".*$gdb_prompt $" { fail "complete 'p \"break1'"}
-		    timeout           {fail "(timeout) complete 'p \"break1'"}
-		}
-	    }
-        -re ".*$gdb_prompt $"       { fail "complete 'p \"break1'" }
-        timeout         { fail "(timeout) complete 'p \"break1'" }
+        -re ".*$gdb_prompt $"       { fail "complete 'p \'a'" }
+        timeout         { fail "(timeout) complete 'p \'a'" }
         }
 
-setup_xfail "*-*-*"
-send_gdb "p \"break1.\t"
+send_gdb "p 'a\t"
 sleep 1
 gdb_expect  {
-        -re "^p \"break1\\.\\\x07$"\
-            { send_gdb "\n"
+        -re "^p 'a\\\x07$"\
+            { send_gdb "\t"
               gdb_expect {
-                      -re ".*$gdb_prompt $" { fail "complete 'p \"break1.'"}
-                      timeout           {fail "(timeout) complete 'p \"break1.'"}
+                      -re "a64l.*atol.*$gdb_prompt p .a$"\
+                          { send_gdb "\n"
+                            gdb_expect {
+                                     -re "Invalid character constant\\..*$gdb_prompt $"\
+                                                       { pass "complete (2) 'p \'a'"}
+                                     -re ".*$gdb_prompt $" { fail "complete (2) 'p \'a'"}
+                                     timeout           {fail "(timeout) complete (2) 'p \'a'"}
+                                   }
+                          }
+                      -re ".*$gdb_prompt $" { fail "complete (2) 'p \'a'"}
+                      timeout           {fail "(timeout) complete (2) 'p \'a'"}
                      }
             }
-	-re "^p \"break1\\.c\"$"\
-	    {	send_gdb "\n"
-		gdb_expect {
-		    -re ".*$gdb_prompt $" { pass "complete 'p \"break1.'"}
-		    timeout           {fail "(timeout) complete 'p \"break1.'"}
-		}
-	    }
-	-re "^p \"break1\\..*$"
-	    {	send_gdb "\n"
-		gdb_expect {
-		    -re ".*$gdb_prompt $" { fail "complete 'p \"break1.'"}
-		    timeout           {fail "(timeout) complete 'p \"break1.'"}
-		}
-	    }
-        -re ".*$gdb_prompt $"       { fail "complete 'p \"break1.'" }
-        timeout         { fail "(timeout) complete 'p \"break1.'" }
+        -re ".*$gdb_prompt $"       { fail "complete (2) 'p \'a'" }
+        timeout         { fail "(timeout) complete (2) 'p \'a'" }
         }
 
-send_gdb "p 'arg\t"
+
+send_gdb "p b-a\t"
 sleep 1
 gdb_expect  {
-        -re "^p 'arg\\\x07$"\
+        -re "^p b-a\\\x07$"\
             { send_gdb "\n"
               gdb_expect {
-                      -re "(Invalid character constant\\.|Unmatched single quote\\.).*$gdb_prompt $"\
-                                        { pass "complete 'p \'arg'"}
-                      -re ".*$gdb_prompt $" { fail "complete 'p \'arg'"}
-                      timeout           {fail "(timeout) complete 'p \'arg'"}
+                      -re "No symbol \"b\" in current context\\..*$gdb_prompt $"\
+                                        { pass "complete 'p b-a'"}
+                      -re ".*$gdb_prompt $" { fail "complete 'p b-a'"}
+                      timeout           {fail "(timeout) complete 'p b-a'"}
                      }
             }
-        -re ".*$gdb_prompt $"       { fail "complete 'p \'arg'" }
-        timeout         { fail "(timeout) complete 'p \'arg'" }
+        -re ".*$gdb_prompt $"       { fail "complete 'p b-a'" }
+        timeout         { fail "(timeout) complete 'p b-a'" }
         }
 
-send_gdb "p 'arg\t"
-sleep 1
-gdb_expect {
-    -re "^p 'arg\\\x07$" {
-	send_gdb "\t"
-	gdb_expect {
-	    -re ".*argv.*$gdb_prompt p 'arg$" {
-		send_gdb "\n"
-		gdb_expect {
-		    -re "(Invalid character constant\\.|Unmatched single quote\\.).*$gdb_prompt $" {
-			pass "complete (2) 'p \'arg'"
-		    }
-		    -re ".*$gdb_prompt $" { fail "complete (2) 'p \'arg'" }
-		    timeout { fail "(timeout) complete (2) 'p \'arg'" }
-		}
-	    }
-	    -re "(There are $decimal possibilities\\.  Do you really\r\nwish to see them all.|Display all $decimal possibilities.) \\(y or n\\)$" {
-		send_gdb "n"
-		gdb_expect {
-		    -re "\\(gdb\\) p 'arg$" {
-			send_gdb "\n"
-			gdb_expect {
-			    -re "(Invalid character constant\\.|Unmatched single quote\\.).*$gdb_prompt $" {
-				pass "complete (2) 'p \'arg'"
-			    }
-			    -re ".*$gdb_prompt $" { 
-				fail "complete (2) 'p \'arg'"
-			    }
-			    timeout { fail "(timeout) complete (2) 'p \'arg'" }
-			}
-		    }
-		    -re ".*$gdb_prompt $" { fail "complete (2) 'p \'arg'" }
-		    timeout { fail "(timeout) complete (2) 'p \'arg'" }
-		}
-	    }
-	    -re ".*$gdb_prompt $" { fail "complete (2) 'p \'arg'" }
-	    timeout { fail "(timeout) complete (2) 'p \'arg'" }
-	}
-    }
-    -re ".*$gdb_prompt $" { fail "complete (2) 'p \'arg'" }
-    timeout { fail "(timeout) complete (2) 'p \'arg'" }
-}
-
-
-# These tests used to try completing the shorter "p b-a".
-# Unfortunately, on some systems, there are .o files in system
-# libraries which declare static variables named `b'.  Of course,
-# those variables aren't really in scope, as far as the compiler is
-# concerned.  But GDB deliberately tries to be more liberal: if you
-# enter an identifier that doesn't have any binding in scope, GDB will
-# search all the program's compilation units for a static variable of
-# the given name.
-#
-# This behavior can help avoid a lot of pedantry, so it's usually a
-# good thing.  But in this test case, it causes GDB to print the value
-# of some random variable, instead of giving us the "No symbol..."
-# error we were expecting.
-#
-# For example, on S/390 linux, the file s_atan.c in libm.a declares a
-# `b', which is a structure containing an int and a float, so GDB says
-# ``Argument to arithmetic operation not a number or boolean'' instead
-# of ``No symbol ...''.
-#
-# So, I'm hoping that there is no system with a static library variable named
-# `no_var_by_this_name'.
-send_gdb "p no_var_named_this-arg\t"
-sleep 1
-gdb_expect {
-    -re "^p no_var_named_this-arg\\\x07$" {
-        send_gdb "\n"
-        gdb_expect {
-            -re "No symbol \"no_var_named_this\" in current context\\..*$gdb_prompt $" {
-                pass "complete 'p no_var_named_this-arg'"
-            }
-            -re ".*$gdb_prompt $" {
-                fail "complete 'p no_var_named_this-arg'"
-            }
-            timeout {
-                fail "(timeout) complete 'p no_var_named_this-arg'"
-            }
-        }
-    }
-    -re ".*$gdb_prompt $" {
-        fail "complete 'p no_var_named_this-arg'"
-    }
-    timeout {
-        fail "(timeout) complete 'p no_var_named_this-arg'"
-    }
-}
-
-send_gdb "p no_var_named_this-arg\t"
-sleep 1
-gdb_expect {
-    -re "^p no_var_named_this-arg\\\x07$" {
-	send_gdb "\t"
-	gdb_expect {
-	    -re ".*argv.*$gdb_prompt p no_var_named_this-arg$" {
-		send_gdb "\n"
-		gdb_expect {
-		    -re "No symbol \"no_var_named_this\" in current context\\..*$gdb_prompt $" {
-			pass "complete (2) 'p no_var_named_this-arg'"
-		    }
-		    -re ".*$gdb_prompt $" {
-                        fail "complete (2) 'p no_var_named_this-arg'"
-                    }
-		    timeout {
-                        fail "(timeout) complete (2) 'p no_var_named_this-arg'"
-                    }
-		}
-	    }
-	    -re "(There are $decimal possibilities\\.  Do you really\r\nwish to see them all.|Display all $decimal possibilities.) \\(y or n\\)$" {
-		send_gdb "n"
-		gdb_expect {
-		    -re "\\(gdb\\) p no_var_named_this-arg$" {
-			send_gdb "\n"
-			gdb_expect {
-			    -re "No symbol \"no_var_named_this\" in current context\\..*$gdb_prompt $" {
-				pass "complete (2) 'p no_var_named_this-arg'"
-			    }
-			    -re ".*$gdb_prompt $" {
-				fail "complete (2) 'p no_var_named_this-arg'"
-			    }
-			    timeout {
-                                fail "(timeout) complete (2) 'p no_var_named_this-arg'"
-                            }
-			}
-		    }
-		    -re ".*$gdb_prompt $" {
-                        fail "complete (2) 'p no_var_named_this-arg'"
-                    }
-		    timeout {
-                        fail "(timeout) complete (2) 'p no_var_named_this-arg'"
-                    }
-		}
-	    }
-	    -re ".*$gdb_prompt $" {
-                fail "complete (2) 'p no_var_named_this-arg'"
-            }
-	    timeout { fail "(timeout) complete (2) 'p no_var_named_this-arg'" }
-        }
-    }
-    -re ".*$gdb_prompt $" { fail "complete (2) 'p no_var_named_this-arg'" }
-    timeout { fail "(timeout) complete (2) 'p no_var_named_this-arg'" }
-}
-
-send_gdb "p no_var_named_this-\t"
+send_gdb "p b-a\t"
 sleep 1
 gdb_expect  {
-    -re "^p no_var_named_this-\\\x07$" {
-	send_gdb "\t"
-	gdb_expect {
-	    -re "(There are $decimal possibilities\\.  Do you really\r\nwish to see them all.|Display all $decimal possibilities.) \\(y or n\\)$" {
-		send_gdb "n"
-		gdb_expect {
-		    -re "\\(gdb\\) p no_var_named_this-$" {
-			send_gdb "\n"
-			gdb_expect {
-			    -re "No symbol \"no_var_named_this\" in current context\\..*$gdb_prompt $" {
-				pass "complete (2) 'p no_var_named_this-'"
-			    }
-			    -re ".*$gdb_prompt $" {
-				fail "complete (2) 'p no_var_named_this-'"
-			    }
-			    timeout {
-                                fail "(timeout) complete (2) 'p no_var_named_this-'"
-                            }
-			}
-		    }
-		    -re ".*$gdb_prompt $" {
-                        fail "complete (2) 'p no_var_named_this-'"
-                    }
-		    timeout {
-                        fail "(timeout) complete (2) 'p no_var_named_this-'"
-                    }
-		}
-	    }
-	    -re ".*argv.*$gdb_prompt p no_var_named_this-$" {
-		send_gdb "\n"
-		gdb_expect {
-		    -re "No symbol \"no_var_named_this\" in current context\\..*$gdb_prompt $" {
-			pass "complete (2) 'p no_var_named_this-'"
-		    }
-		    -re ".*$gdb_prompt $" {
-			fail "complete (2) 'p no_var_named_this-'"
-		    }
-		    timeout {
-			fail "(timeout) complete (2) 'p no_var_named_this-'"
-		    }
-		}
-	    }
-	    -re ".*$gdb_prompt $" {
-                fail "complete (2) 'p no_var_named_this-'"
-            }
-	    timeout { fail "(timeout) complete (2) 'p no_var_named_this-'" }
-	}
-    }
-    -re ".*$gdb_prompt $" { fail "complete (2) 'p no_var_named_this-'" }
-    timeout { fail "(timeout) complete (2) 'p no_var_named_this-'" }
-}
-
-send_gdb "p values\[0\].a\t"
-sleep 3
-gdb_expect  {
-        -re "^p values.0..a_field $"\
-            { send_gdb "\n"
-	      sleep 1
+        -re "^p b-a\\\x07$"\
+            { send_gdb "\t"
               gdb_expect {
-                      -re "^.* = 0.*$gdb_prompt $"\
-                                        { pass "complete 'p values\[0\].a'"}
-                      -re ".*$gdb_prompt $" { fail "complete 'p values\[0\].a'"}
-                      timeout           {fail "(timeout) complete 'p values\[0\].a'"}
+                      -re "a64l.*atol.*$gdb_prompt p b-a$"\
+                          { send_gdb "\n"
+                            gdb_expect {
+                                     -re "No symbol \"b\" in current context\\..*$gdb_prompt $"\
+                                                       { pass "complete (2) 'p b-a'"}
+                                     -re ".*$gdb_prompt $" { fail "complete (2) 'p b-a'"}
+                                     timeout           {fail "(timeout) complete (2) 'p b-a'"}
+                                   }
+                          }
+                      -re ".*$gdb_prompt $" { fail "complete (2) 'p b-a'"}
+                      timeout           {fail "(timeout) complete (2) 'p b-a'"}
                      }
             }
-        -re ".*$gdb_prompt $"       { fail "complete 'p values\[0\].a'" }
-        timeout         { fail "(timeout) complete 'p values\[0\].a' 2" }
+        -re ".*$gdb_prompt $"       { fail "complete (2) 'p b-a'" }
+        timeout         { fail "(timeout) complete (2) 'p b-a'" }
         }
 
-send_gdb "p values\[0\] . a\t"
+
+send_gdb "p b-\t"
+sleep 1
 gdb_expect  {
-        -re "^p values.0. . a_field $"\
-            { send_gdb "\n"
+        -re "^p b-\\\x07$"\
+            { send_gdb "\t"
               gdb_expect {
-                      -re "^.* = 0.*$gdb_prompt $"\
-                                        { pass "complete 'p values\[0\] . a'"}
-                      -re ".*$gdb_prompt $" { fail "complete 'p values\[0\] . a'"}
-                      timeout           {fail "(timeout) complete 'p values\[0\] . a'"}
+                      -re "There are $decimal possibilities\\.  Do you really\r\nwish to see them all. \\(y or n\\)$"\
+                          { send_gdb "n"
+                            gdb_expect {
+                                     -re "\\(gdb\\) p b-$"\
+                                         { send_gdb "\n"
+                                           gdb_expect {
+                                                   -re "No symbol \"b\" in current context\\..*$gdb_prompt $"\
+                                                       { pass "complete (2) 'p b-'"}
+                                                   -re ".*$gdb_prompt $" { fail "complete (2) 'p b-'"}
+                                                   timeout           {fail "(timeout) complete (2) 'p b-'"}
+                                                  }
+                                          }
+                                     -re ".*$gdb_prompt $" { fail "complete (2) 'p b-'"}
+                                     timeout           {fail "(timeout) complete (2) 'p b-'"}
+                                   }
+                          }
+                      -re ".*$gdb_prompt $" { fail "complete (2) 'p b-'"}
+                      timeout           {fail "(timeout) complete (2) 'p b-'"}
                      }
             }
-        -re ".*$gdb_prompt $"       { fail "complete 'p values\[0\] . a'" }
-        timeout         { fail "(timeout) complete 'p values\[0\] . a' 2" }
+        -re ".*$gdb_prompt $"       { fail "complete (2) 'p b-'" }
+        timeout         { fail "(timeout) complete (2) 'p b-'" }
         }
 
-send_gdb "p &values\[0\] -> a\t"
+send_gdb "file ${objdir}/Make\t"
+sleep 1
 gdb_expect  {
-        -re "^p &values.0. -> a_field $"\
+        -re "file ${objdir}/Makefile.*$"\
             { send_gdb "\n"
               gdb_expect {
-                      -re "^.* = .*0x\[0-9a-fA-F\]*.*$gdb_prompt $"\
-                                        { pass "complete 'p &values\[0\] -> a'"}
-                      -re ".*$gdb_prompt $" { fail "complete 'p &values\[0\] -> a'"}
-                      timeout           {fail "(timeout) complete 'p &values\[0\] -> a'"}
-                     }
-            }
-        -re ".*$gdb_prompt $"       { fail "complete 'p &values\[0\] -> a'" }
-        timeout         { fail "(timeout) complete 'p &values\[0\] -> a' 2" }
-        }
-
-# The following tests used to simply try to complete `${objdir}/file',
-# and so on.  The problem is that ${objdir} can be very long; the
-# completed filename may be more than eighty characters wide.  When
-# this happens, readline tries to manage things, producing output that
-# may make sense on the screen, but is rather hard for our script to
-# recognize.
-#
-# In the case that motivated this change, the (gdb) prompt occupied
-# the leftmost six columns, and `${objdir}/' was seventy-four
-# characters long --- eighty in all.  After printing the slash,
-# readline emitted a space, a carriage return, and then `Makefile'
-# (the tab character being received as input after `Make'.
-#
-# Basically, you have to let readline do whatever it's going to do to
-# make the screen look right.  If it happens to use a different
-# strategy on Tuesdays to get the cursor in the right place, that's
-# not something the testsuite should care about.
-#
-# So, we avoid long lines.  We `cd' to ${objdir} first, and then do
-# the completion relative to the current directory.
-
-# ${srcdir} may be a relative path.  We want to make sure we end up
-# in the right directory - so make sure we know where it is.
-set mydir [pwd]
-cd ${srcdir}
-set fullsrcdir [pwd]
-cd ${mydir}
-
-# If the directory name contains a '+' we must escape it, adding a backslash.
-# If not, the test below will fail because it will interpret the '+' as a 
-# regexp operator. We use string_to_regexp for this purpose.
-
-gdb_test "cd ${fullsrcdir}" \
-         "Working directory [string_to_regexp ${fullsrcdir}].*" \
-         "cd to \${srcdir}"
-
-send_gdb "complete file ./gdb.base/compl\n"
-sleep 1
-gdb_expect  {
-    -re "file ./gdb.base/completion\\.exp.*$gdb_prompt $"
-	{ pass "complete-command 'file ./gdb.base/compl'"}
-    -re ".*$gdb_prompt $"       { fail "complete-command 'file ./gdb.base/compl'" }
-    timeout         { fail "(timeout) complete-command 'file ./gdb.base/compl'" }
-}
-
-send_gdb "file ./gdb.base/complet\t"
-sleep 1
-gdb_expect  {
-        -re "^file ./gdb.base/completion\\.exp $"\
-            { send_gdb "\n"
-	      # Ignore the exact error message.
-	      gdb_test_multiple "" "complete 'file ./gdb.base/complet'" {
-		  -re "\r\nA program is being debugged already\\.\[\r\n\]+Are you sure you want to change the file\\? \\(y or n\\) $" {
-		      send_gdb "n\n"
-		      exp_continue
-		  }
-		  -re ".*$gdb_prompt $" { pass "complete 'file ./gdb.base/complet'" }
-	      }
-            }
-        -re ".*$gdb_prompt $"       { fail "complete 'file ./gdb.base/complet'" }
-        timeout         { fail "(timeout) complete 'file ./gdb.base/complet'" }
-        }
-
-send_gdb "info func marke\t"
-sleep 1
-gdb_expect  {
-        -re "^info func marke.*r$"\
-            {
-	      send_gdb "\t\t"
-              sleep 3
-              gdb_expect {
-                      -re "marker1.*$gdb_prompt info func marker$"\
-                      { send_gdb "\n"
+                      -re "\r\nA program is being debugged already\\.  Kill it\\? \\(y or n\\) $"\
+                      { send_gdb "n\n"
                         gdb_expect {
-                                -re "All functions matching regular expression \"marker\":.*File.*break1.c:\r\nint marker1\\((void|)\\);\r\nint marker2\\(int\\).*marker3\\(char.*char.*\\).*marker4\\(long int\\);.*$gdb_prompt $"\
-                                                  { pass "complete 'info func marke'"}
-                                -re ".*$gdb_prompt $" { fail "complete 'info func marke'"}
-                                timeout           {fail "(timeout) complete 'info func marke'"}
+                                -re "\r\nProgram not killed\\.\r\n$gdb_prompt $"\
+                                        { pass "complete 'file Make'"}
+                                -re ".*$gdb_prompt $" { fail "complete 'file Make'"}
+                                timeout           {fail "(timeout) complete 'file Make'"}
                                }
                       }
-                      -re ".*$gdb_prompt $" { fail "complete 'info func marke'"}
-                      timeout           {fail "(timeout) complete 'info func marke'"}
+                      -re ".*$gdb_prompt $" { fail "complete 'file Make'"}
+                      timeout           {fail "(timeout) complete 'file Make'"}
                      }
             }
-        -re ".*$gdb_prompt $"       { fail "complete 'info func marke'" }
-        timeout         { fail "(timeout) complete 'info func marke'" }
+        -re ".*$gdb_prompt $"       { fail "complete 'file Make'" }
+        timeout         { fail "(timeout) complete 'file Make'" }
+        }
+
+
+send_gdb "file ${srcdir}/gdb.base/a1\t"
+sleep 1
+gdb_expect  {
+        -re "^file ${srcdir}/gdb.base/.*'a1.*-selftest\\.exp' $"\
+            { send_gdb "\n"
+              gdb_expect {
+                      -re "\r\nA program is being debugged already\\.  Kill it\\? \\(y or n\\) $"
+\
+                      { send_gdb "n\n"
+                        gdb_expect {
+                                -re "\r\nProgram not killed\\.\r\n$gdb_prompt $"\
+                                        { pass "complete 'file gdb.base/a1'"}
+                                -re ".*$gdb_prompt $" { fail "complete 'file gdb.base/a1'"}
+                                timeout           {fail "(timeout) complete 'file gdb.base/a1'"}
+                               }
+                      }
+                      -re ".*$gdb_prompt $" { fail "complete 'file gdb.base/a1'"}
+                      timeout           {fail "(timeout) complete 'file gdb.base/a1'"}
+                     }
+            }
+        -re ".*$gdb_prompt $"       { fail "complete 'file gdb.base/a1'" }
+        timeout         { fail "(timeout) complete 'file gdb.base/a1'" }
+        }
+
+
+send_gdb "info func mark\t"
+sleep 1
+gdb_expect  {
+        -re "^info func mark.*er$"\
+            { send_gdb "\t\t"
+              sleep 3
+              gdb_expect {
+                      -re "marker1  marker2  marker3  marker4.*$gdb_prompt info func marker$"\
+                      { send_gdb "\n"
+                        gdb_expect {
+                                -re "All functions matching regular expression \"marker\":\r\n\r\nFile.*break.c:\r\nint marker1\\(\\);\r\nint marker2\\(int\\).*marker3\\(char.*char.*\\);\r\n$gdb_prompt $"\
+                                                  { pass "complete 'info func mar'"}
+                                -re ".*$gdb_prompt $" { fail "complete 'info func mar'"}
+                                timeout           {fail "(timeout) complete 'info func mar'"}
+                               }
+                      }
+                      -re ".*$gdb_prompt $" { fail "complete 'info func mar'"}
+                      timeout           {fail "(timeout) complete 'info func mar'"}
+                     }
+            }
+        -re ".*$gdb_prompt $"       { fail "complete 'info func mar'" }
+        timeout         { fail "(timeout) complete 'info func mar'" }
         }
 
 
 send_gdb "set follow-fork-mode \t\t"
 sleep 1
 gdb_expect  {
-        -re "child.*parent.*$gdb_prompt set follow-fork-mode $"\
+        -re "ask.*child.*parent.*$gdb_prompt set follow-fork-mode $"\
             { send_gdb "\n"
               gdb_expect {
-                      -re "Requires an argument.*child.*parent.*$gdb_prompt $"\
-                                        { pass "complete 'set follow-fork-mode'"}
                       -re "Ambiguous item \"\"\\..*$gdb_prompt $"\
                                         { pass "complete 'set follow-fork-mode'"}
                       -re ".*$gdb_prompt $" { fail "complete 'set follow-fork-mode'"}
@@ -808,12 +550,19 @@ gdb_expect  {
         timeout         { fail "(timeout) complete 'set follow-fork-mode'" }
         }
 
-# Restore globals modified in this test...
-if [info exists old_inputrc] {
-    set env(INPUTRC) $old_inputrc
-} else {
-    unset env(INPUTRC)
-}
 set timeout $oldtimeout1
-
 return 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+

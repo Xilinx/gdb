@@ -1,23 +1,23 @@
-# Copyright (C) 1994, 1997, 2005, 2007, 2008 Free Software Foundation, Inc.
+# Copyright (C) 1994, 1997 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
+# the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
 
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-gdb@prep.ai.mit.edu
 
-# This file was adapted from old Chill tests by Stan Shebs
-# (shebs@cygnus.com).
+# This file was adapted from Chill tests by Stan Shebs (shebs@cygnus.com).
 
 if $tracelevel then {
 	strace $tracelevel
@@ -58,13 +58,6 @@ proc test_character_literals_accepted {} {
     # Test various character values.
 
     gdb_test "p 'a'" " = 'a'"
-
-    # Test various substring expression.
-    gdb_test "p 'abcdefg'(2:4)" " = 'bcd'"
-    gdb_test "p 'abcdefg'(:3)"  " = 'abc'"
-    gdb_test "p 'abcdefg'(5:)"  " = 'efg'"
-    gdb_test "p 'abcdefg'(:)" " = 'abcdefg'"
-
 }
 
 proc test_integer_literals_rejected {} {
@@ -254,13 +247,7 @@ proc test_arithmetic_expressions {} {
     gdb_test "p 6.0 / 3"	" = 2"	"real divided by int"
     gdb_test "p 6.0 / 3.0"	" = 2"	"real divided by real"
 
-    # Test exponentiation with various operands
-    
-    gdb_test "p 2 ** 3" " = 8" "int powered by int"
-    gdb_test "p 2 ** 2 ** 3" " = 256" "combined exponentiation expression"
-    gdb_test "p (2 ** 2) ** 3" " = 64" "combined exponentiation expression in specified order"
-    gdb_test "p 4 ** 0.5" " = 2" "int powered by real"
-    gdb_test "p 4.0 ** 0.5" " = 2" "real powered by real"
+    # Test modulo with various operands
 
 }
 

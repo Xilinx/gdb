@@ -1,20 +1,21 @@
 /*  This file is part of the program GDB, the GNU debugger.
     
-    Copyright (C) 1998, 1999, 2007, 2008 Free Software Foundation, Inc.
+    Copyright (C) 1998 Free Software Foundation, Inc.
     Contributed by Cygnus Solutions.
     
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 3 of the License, or
+    the Free Software Foundation; either version 2 of the License, or
     (at your option) any later version.
-
+    
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
+    
     You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
     
     */
 
@@ -166,7 +167,6 @@ struct tx3904sio
   unsigned_4 sdisr;
 #define SDISR_WR_MASK       0x00070000U
 #define SDISR_SET_BYTE(c,o,b) ((c)->sdisr = SDISR_WR_MASK & (((c)->sdisr & ~LSMASK32((o)*8+7,(o)*8)) | ((b)<< (o)*8)))
-#define SDISR_CLEAR_FLAG_BYTE(c,o,b) ((c)->sdisr = SDISR_WR_MASK & (((c)->sdisr & ~LSMASK32((o)*8+7,(o)*8)) & ((b)<< (o)*8)))
 #define SDISR_GET_TDIS(c)   ((c)->sdisr & 0x00020000)
 #define SDISR_SET_TDIS(c)   ((c)->sdisr |= 0x00020000)
 #define SDISR_GET_RDIS(c)   ((c)->sdisr & 0x00010000)
@@ -419,7 +419,7 @@ tx3904sio_io_write_buffer (struct hw *me,
 	    last_int = controller->sdisr & controller->sdicr;
 	    /* HW_TRACE ((me, "sdisr - sdisr %08x sdicr %08x", 
 	       controller->sdisr, controller->sdicr)); */
-	    SDISR_CLEAR_FLAG_BYTE(controller, reg_offset, write_byte);
+	    SDISR_SET_BYTE(controller, reg_offset, write_byte);
 	    /* HW_TRACE ((me, "sdisr + sdisr %08x sdicr %08x", 
 	       controller->sdisr, controller->sdicr)); */
 	    next_int = controller->sdisr & controller->sdicr;

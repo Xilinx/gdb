@@ -1,21 +1,22 @@
 /* Model support.
-   Copyright (C) 1996, 1997, 1998, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
 This file is part of GDB, the GNU debugger.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "sim-main.h"
 #include "libiberty.h"
@@ -50,7 +51,7 @@ model_option_handler (SIM_DESC sd, sim_cpu *cpu, int opt,
 	const MODEL *model = sim_model_lookup (arg);
 	if (! model)
 	  {
-	    sim_io_eprintf (sd, "unknown model `%s'\n", arg);
+	    sim_io_eprintf (sd, "unknown model `%s'", arg);
 	    return SIM_RC_FAIL;
 	  }
 	sim_model_set (sd, cpu, model);
@@ -196,13 +197,6 @@ sim_model_init (SIM_DESC sd)
       /* Use the default model for the selected machine.
 	 The default model is the first one in the list.  */
       const MACH *mach = sim_mach_lookup_bfd_name (STATE_ARCHITECTURE (sd)->printable_name);
-
-      if (mach == NULL)
-	{
-	  sim_io_eprintf (sd, "unsupported machine `%s'\n",
-			  STATE_ARCHITECTURE (sd)->printable_name);
-	  return SIM_RC_FAIL;
-	}
       sim_model_set (sd, NULL, MACH_MODELS (mach));
     }
   else

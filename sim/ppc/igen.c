@@ -1,6 +1,6 @@
 /*  This file is part of the program psim.
 
-    Copyright 1994, 1995, 1996, 1997, 2003 Andrew Cagney
+    Copyright (C) 1994-1997, Andrew Cagney <cagney@highland.com.au>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,8 +29,8 @@
 
 #include "filter.h"
 
-#include "ld-cache.h"
 #include "ld-decode.h"
+#include "ld-cache.h"
 #include "ld-insn.h"
 
 #include "igen.h"
@@ -107,8 +107,6 @@ print_function_name(lf *file,
       switch (*pos) {
       case '/':
       case '-':
-      case '(':
-      case ')':
 	break;
       case ' ':
 	nr += lf_putchr(file, '_');
@@ -183,12 +181,14 @@ gen_semantics_h(insn_table *table,
 	    SEMANTIC_FUNCTION_FORMAL);
   lf_printf(file, "\n");
   if ((code & generate_calls)) {
+    lf_printf(file, "#ifdef WITH_OPTION_MPC860C0\n");
     lf_printf(file, "extern int option_mpc860c0;\n");
     lf_printf(file, "#define PAGE_SIZE 0x1000\n");
     lf_printf(file, "\n");
-    lf_printf(file, "PSIM_EXTERN_SEMANTICS(void)\n");
+    lf_printf(file, "EXTERN_SEMANTICS(void)\n");
     lf_printf(file, "semantic_init(device* root);\n");
     lf_printf(file, "\n");
+    lf_printf(file, "#endif // WITH_OPTION_MPC860C0\n");
     if (generate_expanded_instructions)
       insn_table_traverse_tree(table,
 			       file, NULL,
@@ -220,23 +220,20 @@ gen_semantics_c(insn_table *table,
     lf_printf(file, "#include \"cpu.h\"\n");
     lf_printf(file, "#include \"idecode.h\"\n");
     lf_printf(file, "#include \"semantics.h\"\n");
-    lf_printf(file, "#ifdef HAVE_COMMON_FPU\n");
-    lf_printf(file, "#include \"sim-inline.h\"\n");
-    lf_printf(file, "#include \"sim-fpu.h\"\n");
-    lf_printf(file, "#endif\n");
     lf_printf(file, "#include \"support.h\"\n");
     lf_printf(file, "\n");
+    lf_printf(file, "#ifdef WITH_OPTION_MPC860C0\n");
     lf_printf(file, "int option_mpc860c0 = 0;\n");
     lf_printf(file, "\n");
-    lf_printf(file, "PSIM_EXTERN_SEMANTICS(void)\n");
+    lf_printf(file, "EXTERN_SEMANTICS(void)\n");
     lf_printf(file, "semantic_init(device* root)\n");
     lf_printf(file, "{\n");
     lf_printf(file, "  option_mpc860c0 = 0;\n");
     lf_printf(file, "  if (tree_find_property(root, \"/options/mpc860c0\"))\n");
     lf_printf(file, "    option_mpc860c0 = tree_find_integer_property(root, \"/options/mpc860c0\");\n");
-    lf_printf(file, "    option_mpc860c0 *= 4;   /* convert word count to byte count */\n");
     lf_printf(file, "}\n");
     lf_printf(file, "\n");
+    lf_printf(file, "#endif // WITH_OPTION_MPC860C0\n");
     if (generate_expanded_instructions)
       insn_table_traverse_tree(table,
 			       file, cache_rules,
@@ -308,10 +305,6 @@ gen_icache_c(insn_table *table,
     lf_printf(file, "#include \"idecode.h\"\n");
     lf_printf(file, "#include \"semantics.h\"\n");
     lf_printf(file, "#include \"icache.h\"\n");
-    lf_printf(file, "#ifdef HAVE_COMMON_FPU\n");
-    lf_printf(file, "#include \"sim-inline.h\"\n");
-    lf_printf(file, "#include \"sim-fpu.h\"\n");
-    lf_printf(file, "#endif\n");
     lf_printf(file, "#include \"support.h\"\n");
     lf_printf(file, "\n");
     insn_table_traverse_function(table,
@@ -351,7 +344,6 @@ main(int argc,
   decode_table *decode_rules = NULL;
   filter *filters = NULL;
   insn_table *instructions = NULL;
-  table_include *includes = NULL;
   char *real_file_name = NULL;
   int is_header = 0;
   int ch;
@@ -410,49 +402,9 @@ main(int argc,
     case 'E':
       generate_expanded_instructions = 1;
       break;
-    case 'G':
-      {
-	int enable_p;
-	char *argp;
-	if (strncmp (optarg, "no-", strlen ("no-")) == 0)
-	  {
-	    argp = optarg + strlen ("no-");
-	    enable_p = 0;
-	  }
-	else if (strncmp (optarg, "!", strlen ("!")) == 0)
-	  {
-	    argp = optarg + strlen ("no-");
-	    enable_p = 0;
-	  }
-	else
-	  {
-	    argp = optarg;
-	    enable_p = 1;
-	  }
-        if (strncmp (argp, "gen-icache", strlen ("gen-icache")) == 0)
-          {
-            switch (argp[strlen ("gen-icache")])
-              {
-              case '=':
-	        icache_size = atoi (argp + strlen ("gen-icache") + 1);
-	        code |= generate_with_icache;
-                break;
-              case '\0':
-	        code |= generate_with_icache;
-                break;
-              default:
-                error (NULL, "Expecting -Ggen-icache or -Ggen-icache=<N>\n");
-              }
-          }
-	}
     case 'I':
-      {
-	table_include **dir = &includes;
-	while ((*dir) != NULL)
-	  dir = &(*dir)->next;
-	(*dir) = ZALLOC (table_include);
-	(*dir)->dir = strdup (optarg);
-      }
+      icache_size = a2i(optarg);
+      code |= generate_with_icache;
       break;
     case 'N':
       generate_smp = a2i(optarg);
@@ -480,12 +432,11 @@ main(int argc,
       force_decode_gen_type(optarg);
       break;
     case 'i':
-      if (decode_rules == NULL) {
-	fprintf(stderr, "Must specify decode tables\n");
+      if (decode_rules == NULL || cache_rules == NULL) {
+	fprintf(stderr, "Must specify decode and cache tables\n");
 	exit (1);
       }
-      instructions = load_insn_table(optarg, decode_rules, filters, includes,
-				     &cache_rules);
+      instructions = load_insn_table(optarg, decode_rules, filters);
       fprintf(stderr, "\texpanding ...\n");
       insn_table_expand_insns(instructions);
       break;

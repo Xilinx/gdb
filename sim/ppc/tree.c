@@ -45,7 +45,6 @@
 
 #include <ctype.h>
 
-#include "libiberty.h"
 
 /* manipulate/lookup device names */
 
@@ -464,7 +463,6 @@ parse_address(device *current,
 	      const char *chp,
 	      device_unit *address)
 {
-  ASSERT(device_nr_address_cells(bus) > 0);
   if (device_decode_unit(bus, chp, address) < 0)
     device_error(current, "invalid unit address in %s", chp);
   return skip_token(chp);
@@ -487,7 +485,6 @@ parse_size(device *current,
   /* parse the numeric list */
   size->nr_cells = device_nr_size_cells(bus);
   nr = 0;
-  ASSERT(size->nr_cells > 0);
   while (1) {
     char *next;
     size->cells[nr] = strtoul(curr, &next, 0);
@@ -524,11 +521,9 @@ parse_reg_property(device *current,
   int reg_nr;
   reg_property_spec *regs;
   const char *chp;
-  device *bus = device_parent(current);
 
   /* determine the number of reg entries by counting tokens */
-  nr_regs = count_entries(current, property_name, property_value,
-			  1 + (device_nr_size_cells(bus) > 0));
+  nr_regs = count_entries(current, property_name, property_value, 2);
 
   /* create working space */
   regs = zalloc(nr_regs * sizeof(*regs));
@@ -536,11 +531,10 @@ parse_reg_property(device *current,
   /* fill it in */
   chp = property_value;
   for (reg_nr = 0; reg_nr < nr_regs; reg_nr++) {
-    chp = parse_address(current, bus, chp, &regs[reg_nr].address);
-    if (device_nr_size_cells(bus) > 0)
-      chp = parse_size(current, bus, chp, &regs[reg_nr].size);
-    else
-      memset(&regs[reg_nr].size, 0, sizeof (&regs[reg_nr].size));
+    chp = parse_address(current, device_parent(current),
+			chp, &regs[reg_nr].address);
+    chp = parse_size(current, device_parent(current),
+		     chp, &regs[reg_nr].size);
   }
 
   /* create it */
@@ -620,56 +614,12 @@ parse_integer_property(device *current,
     for (i = 0; i < nr_entries; i++) {
       H2BE(words[i]);
     }
-    /* perhaps integer array property is better */
+    /* perhaphs integer array property is better */
     device_add_array_property(current, property_name, words,
                               sizeof(words[0]) * nr_entries);
   }
 }
 
-/* PROPERTY_VALUE is a raw property value.  Quote it as required by
-   parse_string_property.  It is the caller's responsibility to free
-   the memory returned.  */
-
-EXTERN_TREE\
-(char *)
-tree_quote_property(const char *property_value)
-{
-  char *p;
-  char *ret;
-  const char *chp;
-  int quotees;
-
-  /* Count characters needing quotes in PROPERTY_VALUE.  */
-  quotees = 0;
-  for (chp = property_value; *chp; ++chp)
-    if (*chp == '\\' || *chp == '"')
-      ++quotees;
-  
-  ret = (char *) xmalloc (strlen (property_value) 
-			  + 2 /* quotes */
-			  + quotees
-			  + 1 /* terminator */);
-
-  p = ret;
-  /* Add the opening quote.  */
-  *p++ = '"';
-  /* Copy the value.  */
-  for (chp = property_value; *chp; ++chp)
-    if (*chp == '\\' || *chp == '"')
-      {
-	/* Quote this character.  */ 
-	*p++ = '\\';
-	*p++ = *chp;
-      }
-    else
-      *p++ = *chp;
-  /* Add the closing quote.  */
-  *p++ = '"';
-  /* Terminate the string.  */
-  *p++ = '\0';
-
-  return ret;
-}
 
 /* <string> ... */
 

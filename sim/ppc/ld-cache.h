@@ -1,6 +1,6 @@
 /*  This file is part of the program psim.
 
-    Copyright 1994, 1995, 1996, 1997, 2003, Andrew Cagney
+    Copyright (C) 1994-1997, Andrew Cagney <cagney@highland.com.au>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -79,13 +79,3 @@ struct _cache_table {
 extern cache_table *load_cache_table
 (char *file_name,
  int hi_bit_nr);
-
-extern void append_cache_rule
-(cache_table **table,
- char *type,
- char *field_name,
- char *derived_name,
- char *type_def,
- char *expression,
- table_entry *file_entry);
-

@@ -42,10 +42,6 @@
    */
 
 EXTERN_TREE\
-(char*) tree_quote_property
-(const char *property_value);
-
-EXTERN_TREE\
 (device *) tree_parse
 (device *root,
  const char *fmt,

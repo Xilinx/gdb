@@ -1,11 +1,10 @@
 /* Utility to load a file into the simulator.
-   Copyright (C) 1997, 1998, 2001, 2002, 2004, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright (C) 1997 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or
-(at your option) any later version.
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,18 +12,21 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+along with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* This is a standalone loader, independent of the sim-basic.h machinery,
    as it is used by simulators that don't use it [though that doesn't mean
    to suggest that they shouldn't :-)].  */
 
-#ifdef HAVE_CONFIG_H
-#include "cconfig.h"
-#endif
+#include "config.h"
 #include "ansidecl.h"
 #include <stdio.h> /* for NULL */
+#ifdef ANSI_PROTOTYPES
 #include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -34,8 +36,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #include "bfd.h"
 #include "sim-utils.h"
 
-#include "gdb/callback.h"
-#include "gdb/remote-sim.h"
+#include "callback.h"
+#include "remote-sim.h"
 
 static void eprintf PARAMS ((host_callback *, const char *, ...));
 static void xprintf PARAMS ((host_callback *, const char *, ...));
@@ -108,7 +110,7 @@ sim_load_file (sd, myname, callback, prog, prog_bfd, verbose_p, lma_p, do_write)
 	{
 	  bfd_size_type size;
 
-	  size = bfd_get_section_size (s);
+	  size = bfd_get_section_size_before_reloc (s);
 	  if (size > 0)
 	    {
 	      char *buffer;
@@ -164,17 +166,23 @@ sim_load_file (sd, myname, callback, prog, prog_bfd, verbose_p, lma_p, do_write)
       report_transfer_performance (callback, data_count, start_time, end_time);
     }
 
-  bfd_cache_close (result_bfd);
-
   return result_bfd;
 }
 
 static void
 xprintf VPARAMS ((host_callback *callback, const char *fmt, ...))
 {
+#ifndef ANSI_PROTOTYPES
+  host_callback *callback;
+  char *fmt;
+#endif
   va_list ap;
 
   VA_START (ap, fmt);
+#ifndef ANSI_PROTOTYPES
+  callback = va_arg (ap, host_callback *);
+  fmt = va_arg (ap, char *);
+#endif
 
   (*callback->vprintf_filtered) (callback, fmt, ap);
 
@@ -184,9 +192,17 @@ xprintf VPARAMS ((host_callback *callback, const char *fmt, ...))
 static void
 eprintf VPARAMS ((host_callback *callback, const char *fmt, ...))
 {
+#ifndef ANSI_PROTOTYPES
+  host_callback *callback;
+  char *fmt;
+#endif
   va_list ap;
 
   VA_START (ap, fmt);
+#ifndef ANSI_PROTOTYPES
+  callback = va_arg (ap, host_callback *);
+  fmt = va_arg (ap, char *);
+#endif
 
   (*callback->evprintf_filtered) (callback, fmt, ap);
 

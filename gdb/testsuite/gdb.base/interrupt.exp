@@ -1,25 +1,27 @@
-# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2007, 2008
-# Free Software Foundation, Inc.
+# Copyright (C) 1994, 1995, 1997, 1998 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
+# the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
 
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-gdb@prep.ai.mit.edu
 
-if [target_info exists gdb,nointerrupts] {
-    verbose "Skipping interrupt.exp because of nointerrupts."
-    continue
+if [host_info exists name] {
+    if [board_info host exists gdb,nointerrupts] {
+	verbose "Skipping interrupt.exp because of nointerrupts."
+	continue
+    }
 }
 
 if [target_info exists gdb,noinferiorio] {
@@ -38,8 +40,7 @@ set testfile interrupt
 set srcfile ${testfile}.c
 set binfile ${objdir}/${subdir}/${testfile}
 if  { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable {debug}] != "" } {
-     untested interrupt.exp
-     return -1
+     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
 }
 
 gdb_start
@@ -99,19 +100,12 @@ if ![file exists $binfile] then {
 	send_gdb "p func1 ()\n"
 	gdb_expect {
 	    -re " = 4.*$gdb_prompt $" { pass "call function when asleep" }
-	    -re ".*Program received signal SIG(SEGV|ILL).*$gdb_prompt $" {
+	    -re ".*Program received signal SIGSEGV.*$gdb_prompt $" {
 		setup_xfail "i*86-pc-linux*-gnu*"
 		fail "child died when we called func1, skipped rest of tests"
 		return
 	    }
-	    -re "$gdb_prompt $" {
-		# On HPUX-11.0 'send "p func1 ()"' above
-		# terminates the program. A defect is pending on this
-		# issue [defect #DTS CHFts24203]. Hence calling setup_xfail
-		# below.
-	        setup_xfail "hppa*-*-*11*" CHFts24203
-		fail "call function when asleep (wrong output)"
-	    }
+	    -re "$gdb_prompt $" { fail "call function when asleep (wrong output)" }
 	    default {
 
 		# This fail probably happens whenever we use /proc (we
@@ -120,11 +114,12 @@ if ![file exists $binfile] then {
 
 		setup_xfail "sparc*-*-solaris2*"
 		setup_xfail "mips-*-ultrix*"
+		setup_xfail "hppa*-*-*"
+		setup_xfail "i386*-*-bsd*"
 		setup_xfail "i*86-*-solaris2*"
 		setup_xfail "*-*-sysv4*"
 		setup_xfail "vax-*-*"
 		setup_xfail "alpha-*-*"
-		setup_xfail "*-*-*bsd*"
 		setup_xfail "*-*-irix*"
 		setup_xfail "*-*-hpux*"
 		setup_xfail "*-*-*lynx*"
@@ -159,9 +154,6 @@ if ![file exists $binfile] then {
 	# The optional leading \r\n is in case we sent a newline above
 	# to wake the program, in which case the program now sends it
 	# back.
-        # FIXME: The pattern below leads to an expected success on HPUX-11.0
-        # but the success is spurious. Need to provide the right reg.expr.
-        # here.
 	gdb_expect {
 	    -re "^(\r\n|)data\r\n(|data\r\n)$" { pass "echo data" }
 	    timeout { fail "echo data (timeout)" }
@@ -172,7 +164,7 @@ if ![file exists $binfile] then {
 	send_gdb "\004"
 	gdb_expect {
 	    -re "end of file.*Program exited normally.*$gdb_prompt $" {
-		pass "send end of file"
+		pass "send_gdb end of file"
 	    }
 	    -re "$gdb_prompt $" { fail "send end of file" }
 	    timeout { fail "send end of file (timeout)" }

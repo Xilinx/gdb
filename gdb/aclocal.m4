@@ -1,892 +1,1307 @@
-# generated automatically by aclocal 1.9.6 -*- Autoconf -*-
+dnl aclocal.m4 generated automatically by aclocal 1.4
 
-# Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-# 2005  Free Software Foundation, Inc.
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
+dnl Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+dnl This file is free software; the Free Software Foundation
+dnl gives unlimited permission to copy and/or distribute it,
+dnl with or without modifications, as long as this notice is preserved.
 
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
-# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-# PARTICULAR PURPOSE.
+dnl This program is distributed in the hope that it will be useful,
+dnl but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+dnl even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+dnl PARTICULAR PURPOSE.
 
-# Copyright (C) 2002, 2003, 2005  Free Software Foundation, Inc.
+dnl written by Rob Savoye <rob@cygnus.com> for Cygnus Support
+dnl major rewriting for Tcl 7.5 by Don Libes <libes@nist.gov>
+
+dnl gdb/configure.in uses BFD_NEED_DECLARATION, so get its definition.
+sinclude(../bfd/acinclude.m4)
+
+dnl This gets the standard macros, like the TCL, TK, etc ones.
+sinclude(../config/acinclude.m4)
+
+dnl CYGNUS LOCAL: This gets the right posix flag for gcc
+AC_DEFUN(CY_AC_TCL_LYNX_POSIX,
+[AC_REQUIRE([AC_PROG_CC])AC_REQUIRE([AC_PROG_CPP])
+AC_MSG_CHECKING([if running LynxOS])
+AC_CACHE_VAL(ac_cv_os_lynx,
+[AC_EGREP_CPP(yes,
+[/*
+ * The old Lynx "cc" only defines "Lynx", but the newer one uses "__Lynx__"
+ */
+#if defined(__Lynx__) || defined(Lynx)
+yes
+#endif
+], ac_cv_os_lynx=yes, ac_cv_os_lynx=no)])
 #
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
-
-# AM_AUTOMAKE_VERSION(VERSION)
-# ----------------------------
-# Automake X.Y traces this macro to ensure aclocal.m4 has been
-# generated from the m4 files accompanying Automake X.Y.
-AC_DEFUN([AM_AUTOMAKE_VERSION], [am__api_version="1.9"])
-
-# AM_SET_CURRENT_AUTOMAKE_VERSION
-# -------------------------------
-# Call AM_AUTOMAKE_VERSION so it can be traced.
-# This function is AC_REQUIREd by AC_INIT_AUTOMAKE.
-AC_DEFUN([AM_SET_CURRENT_AUTOMAKE_VERSION],
-	 [AM_AUTOMAKE_VERSION([1.9.6])])
-
-# AM_AUX_DIR_EXPAND                                         -*- Autoconf -*-
-
-# Copyright (C) 2001, 2003, 2005  Free Software Foundation, Inc.
-#
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
-
-# For projects using AC_CONFIG_AUX_DIR([foo]), Autoconf sets
-# $ac_aux_dir to `$srcdir/foo'.  In other projects, it is set to
-# `$srcdir', `$srcdir/..', or `$srcdir/../..'.
-#
-# Of course, Automake must honor this variable whenever it calls a
-# tool from the auxiliary directory.  The problem is that $srcdir (and
-# therefore $ac_aux_dir as well) can be either absolute or relative,
-# depending on how configure is run.  This is pretty annoying, since
-# it makes $ac_aux_dir quite unusable in subdirectories: in the top
-# source directory, any form will work fine, but in subdirectories a
-# relative path needs to be adjusted first.
-#
-# $ac_aux_dir/missing
-#    fails when called from a subdirectory if $ac_aux_dir is relative
-# $top_srcdir/$ac_aux_dir/missing
-#    fails if $ac_aux_dir is absolute,
-#    fails when called from a subdirectory in a VPATH build with
-#          a relative $ac_aux_dir
-#
-# The reason of the latter failure is that $top_srcdir and $ac_aux_dir
-# are both prefixed by $srcdir.  In an in-source build this is usually
-# harmless because $srcdir is `.', but things will broke when you
-# start a VPATH build or use an absolute $srcdir.
-#
-# So we could use something similar to $top_srcdir/$ac_aux_dir/missing,
-# iff we strip the leading $srcdir from $ac_aux_dir.  That would be:
-#   am_aux_dir='\$(top_srcdir)/'`expr "$ac_aux_dir" : "$srcdir//*\(.*\)"`
-# and then we would define $MISSING as
-#   MISSING="\${SHELL} $am_aux_dir/missing"
-# This will work as long as MISSING is not called from configure, because
-# unfortunately $(top_srcdir) has no meaning in configure.
-# However there are other variables, like CC, which are often used in
-# configure, and could therefore not use this "fixed" $ac_aux_dir.
-#
-# Another solution, used here, is to always expand $ac_aux_dir to an
-# absolute PATH.  The drawback is that using absolute paths prevent a
-# configured tree to be moved without reconfiguration.
-
-AC_DEFUN([AM_AUX_DIR_EXPAND],
-[dnl Rely on autoconf to set up CDPATH properly.
-AC_PREREQ([2.50])dnl
-# expand $ac_aux_dir to an absolute path
-am_aux_dir=`cd $ac_aux_dir && pwd`
+if test "$ac_cv_os_lynx" = "yes" ; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(LYNX)
+  AC_MSG_CHECKING([whether -mposix or -X is available])
+  AC_CACHE_VAL(ac_cv_c_posix_flag,
+  [AC_TRY_COMPILE(,[
+  /*
+   * This flag varies depending on how old the compiler is.
+   * -X is for the old "cc" and "gcc" (based on 1.42).
+   * -mposix is for the new gcc (at least 2.5.8).
+   */
+  #if defined(__GNUC__) && __GNUC__ >= 2
+  choke me
+  #endif
+  ], ac_cv_c_posix_flag=" -mposix", ac_cv_c_posix_flag=" -X")])
+  CC="$CC $ac_cv_c_posix_flag"
+  AC_MSG_RESULT($ac_cv_c_posix_flag)
+  else
+  AC_MSG_RESULT(no)
+fi
 ])
 
-# AM_CONDITIONAL                                            -*- Autoconf -*-
-
-# Copyright (C) 1997, 2000, 2001, 2003, 2004, 2005
-# Free Software Foundation, Inc.
 #
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
+# Sometimes the native compiler is a bogus stub for gcc or /usr/ucb/cc. This
+# makes configure think it's cross compiling. If --target wasn't used, then
+# we can't configure, so something is wrong. We don't use the cache
+# here cause if somebody fixes their compiler install, we want this to work.
+AC_DEFUN(CY_AC_C_WORKS,
+[# If we cannot compile and link a trivial program, we can't expect anything to work
+AC_MSG_CHECKING(whether the compiler ($CC) actually works)
+AC_TRY_COMPILE(, [/* don't need anything here */],
+        c_compiles=yes, c_compiles=no)
 
-# serial 7
+AC_TRY_LINK(, [/* don't need anything here */],
+        c_links=yes, c_links=no)
 
-# AM_CONDITIONAL(NAME, SHELL-CONDITION)
-# -------------------------------------
-# Define a conditional.
-AC_DEFUN([AM_CONDITIONAL],
-[AC_PREREQ(2.52)dnl
- ifelse([$1], [TRUE],  [AC_FATAL([$0: invalid condition: $1])],
-	[$1], [FALSE], [AC_FATAL([$0: invalid condition: $1])])dnl
-AC_SUBST([$1_TRUE])
-AC_SUBST([$1_FALSE])
-if $2; then
-  $1_TRUE=
-  $1_FALSE='#'
-else
-  $1_TRUE='#'
-  $1_FALSE=
+if test x"${c_compiles}" = x"no" ; then
+  AC_MSG_ERROR(the native compiler is broken and won't compile.)
 fi
-AC_CONFIG_COMMANDS_PRE(
-[if test -z "${$1_TRUE}" && test -z "${$1_FALSE}"; then
-  AC_MSG_ERROR([[conditional "$1" was never defined.
-Usually this means the macro was only invoked conditionally.]])
-fi])])
 
+if test x"${c_links}" = x"no" ; then
+  AC_MSG_ERROR(the native compiler is broken and won't link.)
+fi
+AC_MSG_RESULT(yes)
+])
 
-# Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005
-# Free Software Foundation, Inc.
+AC_DEFUN(CY_AC_PATH_TCLH, [
 #
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
-
-# serial 8
-
-# There are a few dirty hacks below to avoid letting `AC_PROG_CC' be
-# written in clear, in which case automake, when reading aclocal.m4,
-# will think it sees a *use*, and therefore will trigger all it's
-# C support machinery.  Also note that it means that autoscan, seeing
-# CC etc. in the Makefile, will ask for an AC_PROG_CC use...
-
-
-# _AM_DEPENDENCIES(NAME)
-# ----------------------
-# See how the compiler implements dependency checking.
-# NAME is "CC", "CXX", "GCJ", or "OBJC".
-# We try a few techniques and use that to set a single cache variable.
+# Ok, lets find the tcl source trees so we can use the headers
+# Warning: transition of version 9 to 10 will break this algorithm
+# because 10 sorts before 9. We also look for just tcl. We have to
+# be careful that we don't match stuff like tclX by accident.
+# the alternative search directory is involked by --with-tclinclude
 #
-# We don't AC_REQUIRE the corresponding AC_PROG_CC since the latter was
-# modified to invoke _AM_DEPENDENCIES(CC); we would have a circular
-# dependency, and given that the user is not expected to run this macro,
-# just rely on AC_PROG_CC.
-AC_DEFUN([_AM_DEPENDENCIES],
-[AC_REQUIRE([AM_SET_DEPDIR])dnl
-AC_REQUIRE([AM_OUTPUT_DEPENDENCY_COMMANDS])dnl
-AC_REQUIRE([AM_MAKE_INCLUDE])dnl
-AC_REQUIRE([AM_DEP_TRACK])dnl
 
-ifelse([$1], CC,   [depcc="$CC"   am_compiler_list=],
-       [$1], CXX,  [depcc="$CXX"  am_compiler_list=],
-       [$1], OBJC, [depcc="$OBJC" am_compiler_list='gcc3 gcc'],
-       [$1], GCJ,  [depcc="$GCJ"  am_compiler_list='gcc3 gcc'],
-                   [depcc="$$1"   am_compiler_list=])
-
-AC_CACHE_CHECK([dependency style of $depcc],
-               [am_cv_$1_dependencies_compiler_type],
-[if test -z "$AMDEP_TRUE" && test -f "$am_depcomp"; then
-  # We make a subdir and do the tests there.  Otherwise we can end up
-  # making bogus files that we don't know about and never remove.  For
-  # instance it was reported that on HP-UX the gcc test will end up
-  # making a dummy file named `D' -- because `-MD' means `put the output
-  # in D'.
-  mkdir conftest.dir
-  # Copy depcomp to subdir because otherwise we won't find it if we're
-  # using a relative directory.
-  cp "$am_depcomp" conftest.dir
-  cd conftest.dir
-  # We will build objects and dependencies in a subdirectory because
-  # it helps to detect inapplicable dependency modes.  For instance
-  # both Tru64's cc and ICC support -MD to output dependencies as a
-  # side effect of compilation, but ICC will put the dependencies in
-  # the current directory while Tru64 will put them in the object
-  # directory.
-  mkdir sub
-
-  am_cv_$1_dependencies_compiler_type=none
-  if test "$am_compiler_list" = ""; then
-     am_compiler_list=`sed -n ['s/^#*\([a-zA-Z0-9]*\))$/\1/p'] < ./depcomp`
+no_tcl=true
+AC_MSG_CHECKING(for Tcl private headers. dir=${configdir})
+AC_ARG_WITH(tclinclude, [  --with-tclinclude=DIR   Directory where tcl private headers are], with_tclinclude=${withval})
+AC_CACHE_VAL(ac_cv_c_tclh,[
+# first check to see if --with-tclinclude was specified
+if test x"${with_tclinclude}" != x ; then
+  if test -f ${with_tclinclude}/tclInt.h ; then
+    ac_cv_c_tclh=`(cd ${with_tclinclude}; pwd)`
+  elif test -f ${with_tclinclude}/generic/tclInt.h ; then
+    ac_cv_c_tclh=`(cd ${with_tclinclude}/generic; pwd)`
+  else
+    AC_MSG_ERROR([${with_tclinclude} directory doesn't contain private headers])
   fi
-  for depmode in $am_compiler_list; do
-    # Setup a source with many dependencies, because some compilers
-    # like to wrap large dependency lists on column 80 (with \), and
-    # we should not choose a depcomp mode which is confused by this.
-    #
-    # We need to recreate these files for each test, as the compiler may
-    # overwrite some of them when testing with obscure command lines.
-    # This happens at least with the AIX C compiler.
-    : > sub/conftest.c
-    for i in 1 2 3 4 5 6; do
-      echo '#include "conftst'$i'.h"' >> sub/conftest.c
-      # Using `: > sub/conftst$i.h' creates only sub/conftst1.h with
-      # Solaris 8's {/usr,}/bin/sh.
-      touch sub/conftst$i.h
-    done
-    echo "${am__include} ${am__quote}sub/conftest.Po${am__quote}" > confmf
+fi
 
-    case $depmode in
-    nosideeffect)
-      # after this tag, mechanisms are not by side-effect, so they'll
-      # only be used when explicitly requested
-      if test "x$enable_dependency_tracking" = xyes; then
-	continue
-      else
+# next check if it came with Tcl configuration file
+if test x"${ac_cv_c_tclconfig}" = x ; then
+  if test -f $ac_cv_c_tclconfig/../generic/tclInt.h ; then
+    ac_cv_c_tclh=`(cd $ac_cv_c_tclconfig/..; pwd)`
+  fi
+fi
+
+# next check in private source directory
+#
+# since ls returns lowest version numbers first, reverse its output
+if test x"${ac_cv_c_tclh}" = x ; then
+  for i in \
+		${srcdir}/../tcl \
+		`ls -dr ${srcdir}/../tcl[[7-9]]* 2>/dev/null` \
+		${srcdir}/../../tcl \
+		`ls -dr ${srcdir}/../../tcl[[7-9]]* 2>/dev/null` \
+		${srcdir}/../../../tcl \
+		`ls -dr ${srcdir}/../../../tcl[[7-9]]* 2>/dev/null ` ; do
+    if test -f $i/generic/tclInt.h ; then
+      ac_cv_c_tclh=`(cd $i/generic; pwd)`
+      break
+    fi
+  done
+fi
+# finally check in a few common install locations
+#
+# since ls returns lowest version numbers first, reverse its output
+if test x"${ac_cv_c_tclh}" = x ; then
+  for i in \
+		`ls -dr /usr/local/src/tcl[[7-9]]* 2>/dev/null` \
+		`ls -dr /usr/local/lib/tcl[[7-9]]* 2>/dev/null` \
+		/usr/local/src/tcl \
+		/usr/local/lib/tcl \
+		${prefix}/include ; do
+    if test -f $i/generic/tclInt.h ; then
+      ac_cv_c_tclh=`(cd $i/generic; pwd)`
+      break
+    fi
+  done
+fi
+# see if one is installed
+if test x"${ac_cv_c_tclh}" = x ; then
+   AC_HEADER_CHECK(tclInt.h, ac_cv_c_tclh=installed, ac_cv_c_tclh="")
+fi
+])
+if test x"${ac_cv_c_tclh}" = x ; then
+  TCLHDIR="# no Tcl private headers found"
+  AC_MSG_ERROR([Can't find Tcl private headers])
+fi
+if test x"${ac_cv_c_tclh}" != x ; then
+  no_tcl=""
+  if test x"${ac_cv_c_tclh}" = x"installed" ; then
+    AC_MSG_RESULT([is installed])
+    TCLHDIR=""
+  else
+    AC_MSG_RESULT([found in ${ac_cv_c_tclh}])
+    # this hack is cause the TCLHDIR won't print if there is a "-I" in it.
+    TCLHDIR="-I${ac_cv_c_tclh}"
+  fi
+fi
+
+AC_SUBST(TCLHDIR)
+])
+
+
+AC_DEFUN(CY_AC_PATH_TCLCONFIG, [
+#
+# Ok, lets find the tcl configuration
+# First, look for one uninstalled.  
+# the alternative search directory is invoked by --with-tclconfig
+#
+
+if test x"${no_tcl}" = x ; then
+  # we reset no_tcl in case something fails here
+  no_tcl=true
+  AC_ARG_WITH(tclconfig, [  --with-tclconfig=DIR    Directory containing tcl configuration (tclConfig.sh)],
+         with_tclconfig=${withval})
+  AC_MSG_CHECKING([for Tcl configuration])
+  AC_CACHE_VAL(ac_cv_c_tclconfig,[
+
+  # First check to see if --with-tclconfig was specified.
+  if test x"${with_tclconfig}" != x ; then
+    if test -f "${with_tclconfig}/tclConfig.sh" ; then
+      ac_cv_c_tclconfig=`(cd ${with_tclconfig}; pwd)`
+    else
+      AC_MSG_ERROR([${with_tclconfig} directory doesn't contain tclConfig.sh])
+    fi
+  fi
+
+  # then check for a private Tcl installation
+  if test x"${ac_cv_c_tclconfig}" = x ; then
+    for i in \
+		../tcl \
+		`ls -dr ../tcl[[7-9]]* 2>/dev/null` \
+		../../tcl \
+		`ls -dr ../../tcl[[7-9]]* 2>/dev/null` \
+		../../../tcl \
+		`ls -dr ../../../tcl[[7-9]]* 2>/dev/null` ; do
+      if test -f "$i/${configdir}/tclConfig.sh" ; then
+        ac_cv_c_tclconfig=`(cd $i/${configdir}; pwd)`
 	break
       fi
-      ;;
-    none) break ;;
-    esac
-    # We check with `-c' and `-o' for the sake of the "dashmstdout"
-    # mode.  It turns out that the SunPro C++ compiler does not properly
-    # handle `-M -o', and we need to detect this.
-    if depmode=$depmode \
-       source=sub/conftest.c object=sub/conftest.${OBJEXT-o} \
-       depfile=sub/conftest.Po tmpdepfile=sub/conftest.TPo \
-       $SHELL ./depcomp $depcc -c -o sub/conftest.${OBJEXT-o} sub/conftest.c \
-         >/dev/null 2>conftest.err &&
-       grep sub/conftst6.h sub/conftest.Po > /dev/null 2>&1 &&
-       grep sub/conftest.${OBJEXT-o} sub/conftest.Po > /dev/null 2>&1 &&
-       ${MAKE-make} -s -f confmf > /dev/null 2>&1; then
-      # icc doesn't choke on unknown options, it will just issue warnings
-      # or remarks (even with -Werror).  So we grep stderr for any message
-      # that says an option was ignored or not supported.
-      # When given -MP, icc 7.0 and 7.1 complain thusly:
-      #   icc: Command line warning: ignoring option '-M'; no argument required
-      # The diagnosis changed in icc 8.0:
-      #   icc: Command line remark: option '-MP' not supported
-      if (grep 'ignoring option' conftest.err ||
-          grep 'not supported' conftest.err) >/dev/null 2>&1; then :; else
-        am_cv_$1_dependencies_compiler_type=$depmode
-        break
+    done
+  fi
+  # check in a few common install locations
+  if test x"${ac_cv_c_tclconfig}" = x ; then
+    for i in `ls -d ${prefix}/lib /usr/local/lib 2>/dev/null` ; do
+      if test -f "$i/tclConfig.sh" ; then
+        ac_cv_c_tclconfig=`(cd $i; pwd)`
+	break
+      fi
+    done
+  fi
+  # check in a few other private locations
+  if test x"${ac_cv_c_tclconfig}" = x ; then
+    for i in \
+		${srcdir}/../tcl \
+		`ls -dr ${srcdir}/../tcl[[7-9]]* 2>/dev/null` ; do
+      if test -f "$i/${configdir}/tclConfig.sh" ; then
+        ac_cv_c_tclconfig=`(cd $i/${configdir}; pwd)`
+	break
+      fi
+    done
+  fi
+  ])
+  if test x"${ac_cv_c_tclconfig}" = x ; then
+    TCLCONFIG="# no Tcl configs found"
+    AC_MSG_WARN(Can't find Tcl configuration definitions)
+  else
+    no_tcl=
+    TCLCONFIG=${ac_cv_c_tclconfig}/tclConfig.sh
+    AC_MSG_RESULT(found $TCLCONFIG)
+  fi
+fi
+])
+
+# Defined as a separate macro so we don't have to cache the values
+# from PATH_TCLCONFIG (because this can also be cached).
+AC_DEFUN(CY_AC_LOAD_TCLCONFIG, [
+    . $TCLCONFIG
+
+    AC_SUBST(TCL_VERSION)
+    AC_SUBST(TCL_MAJOR_VERSION)
+    AC_SUBST(TCL_MINOR_VERSION)
+    AC_SUBST(TCL_CC)
+    AC_SUBST(TCL_DEFS)
+
+dnl not used, don't export to save symbols
+dnl    AC_SUBST(TCL_LIB_FILE)
+
+dnl don't export, not used outside of configure
+dnl     AC_SUBST(TCL_LIBS)
+dnl not used, don't export to save symbols
+dnl    AC_SUBST(TCL_PREFIX)
+
+dnl not used, don't export to save symbols
+dnl    AC_SUBST(TCL_EXEC_PREFIX)
+
+    AC_SUBST(TCL_SHLIB_CFLAGS)
+    AC_SUBST(TCL_SHLIB_LD)
+dnl don't export, not used outside of configure
+    AC_SUBST(TCL_SHLIB_LD_LIBS)
+    AC_SUBST(TCL_SHLIB_SUFFIX)
+dnl not used, don't export to save symbols
+    AC_SUBST(TCL_DL_LIBS)
+    AC_SUBST(TCL_LD_FLAGS)
+dnl don't export, not used outside of configure
+    AC_SUBST(TCL_LD_SEARCH_FLAGS)
+    AC_SUBST(TCL_COMPAT_OBJS)
+    AC_SUBST(TCL_RANLIB)
+    AC_SUBST(TCL_BUILD_LIB_SPEC)
+    AC_SUBST(TCL_LIB_SPEC)
+    AC_SUBST(TCL_LIB_VERSIONS_OK)
+
+dnl not used, don't export to save symbols
+dnl    AC_SUBST(TCL_SHARED_LIB_SUFFIX)
+
+dnl not used, don't export to save symbols
+dnl    AC_SUBST(TCL_UNSHARED_LIB_SUFFIX)
+])
+
+# Warning: Tk definitions are very similar to Tcl definitions but
+# are not precisely the same.  There are a couple of differences,
+# so don't do changes to Tcl thinking you can cut and paste it do 
+# the Tk differences and later simply substitute "Tk" for "Tcl".
+# Known differences:
+#  - Acceptable Tcl major version #s is 7-9 while Tk is 4-9
+#  - Searching for Tcl includes looking for tclInt.h, Tk looks for tk.h
+#  - Computing major/minor versions is different because Tk depends on
+#    headers to Tcl, Tk, and X.
+#  - Symbols in tkConfig.sh are different than tclConfig.sh
+#  - Acceptable for Tk to be missing but not Tcl.
+
+AC_DEFUN(CY_AC_PATH_TKH, [
+#
+# Ok, lets find the tk source trees so we can use the headers
+# If the directory (presumably symlink) named "tk" exists, use that one
+# in preference to any others.  Same logic is used when choosing library
+# and again with Tcl. The search order is the best place to look first, then in
+# decreasing significance. The loop breaks if the trigger file is found.
+# Note the gross little conversion here of srcdir by cd'ing to the found
+# directory. This converts the path from a relative to an absolute, so
+# recursive cache variables for the path will work right. We check all
+# the possible paths in one loop rather than many seperate loops to speed
+# things up.
+# the alternative search directory is involked by --with-tkinclude
+#
+no_tk=true
+AC_MSG_CHECKING(for Tk private headers)
+AC_ARG_WITH(tkinclude, [  --with-tkinclude=DIR    Directory where tk private headers are], with_tkinclude=${withval})
+AC_CACHE_VAL(ac_cv_c_tkh,[
+# first check to see if --with-tkinclude was specified
+if test x"${with_tkinclude}" != x ; then
+  if test -f ${with_tkinclude}/tk.h ; then
+    ac_cv_c_tkh=`(cd ${with_tkinclude}; pwd)`
+  elif test -f ${with_tkinclude}/generic/tk.h ; then
+    ac_cv_c_tkh=`(cd ${with_tkinclude}/generic; pwd)`
+  else
+    AC_MSG_ERROR([${with_tkinclude} directory doesn't contain private headers])
+  fi
+fi
+
+# next check if it came with Tk configuration file
+if test x"${ac_cv_c_tkconfig}" = x ; then
+  if test -f $ac_cv_c_tkconfig/../generic/tk.h ; then
+    ac_cv_c_tkh=`(cd $ac_cv_c_tkconfig/..; pwd)`
+  fi
+fi
+
+# next check in private source directory
+#
+# since ls returns lowest version numbers first, reverse its output
+if test x"${ac_cv_c_tkh}" = x ; then
+  for i in \
+		${srcdir}/../tk \
+		`ls -dr ${srcdir}/../tk[[4-9]]* 2>/dev/null` \
+		${srcdir}/../../tk \
+		`ls -dr ${srcdir}/../../tk[[4-9]]* 2>/dev/null` \
+		${srcdir}/../../../tk \
+		`ls -dr ${srcdir}/../../../tk[[4-9]]* 2>/dev/null ` ; do
+    if test -f $i/generic/tk.h ; then
+      ac_cv_c_tkh=`(cd $i/generic; pwd)`
+      break
+    fi
+  done
+fi
+# finally check in a few common install locations
+#
+# since ls returns lowest version numbers first, reverse its output
+if test x"${ac_cv_c_tkh}" = x ; then
+  for i in \
+		`ls -dr /usr/local/src/tk[[4-9]]* 2>/dev/null` \
+		`ls -dr /usr/local/lib/tk[[4-9]]* 2>/dev/null` \
+		/usr/local/src/tk \
+		/usr/local/lib/tk \
+		${prefix}/include ; do
+    if test -f $i/generic/tk.h ; then
+      ac_cv_c_tkh=`(cd $i/generic; pwd)`
+      break
+    fi
+  done
+fi
+# see if one is installed
+if test x"${ac_cv_c_tkh}" = x ; then
+   AC_HEADER_CHECK(tk.h, ac_cv_c_tkh=installed, ac_cv_c_tkh="")
+fi
+])
+if test x"${ac_cv_c_tkh}" != x ; then
+  no_tk=""
+  if test x"${ac_cv_c_tkh}" = x"installed" ; then
+    AC_MSG_RESULT([is installed])
+    TKHDIR=""
+  else
+    AC_MSG_RESULT([found in ${ac_cv_c_tkh}])
+    # this hack is cause the TKHDIR won't print if there is a "-I" in it.
+    TKHDIR="-I${ac_cv_c_tkh}"
+  fi
+else
+  TKHDIR="# no Tk directory found"
+  AC_MSG_WARN([Can't find Tk private headers])
+  no_tk=true
+fi
+
+AC_SUBST(TKHDIR)
+])
+
+
+AC_DEFUN(CY_AC_PATH_TKCONFIG, [
+#
+# Ok, lets find the tk configuration
+# First, look for one uninstalled.  
+# the alternative search directory is invoked by --with-tkconfig
+#
+
+if test x"${no_tk}" = x ; then
+  # we reset no_tk in case something fails here
+  no_tk=true
+  AC_ARG_WITH(tkconfig, [  --with-tkconfig=DIR     Directory containing tk configuration (tkConfig.sh)],
+         with_tkconfig=${withval})
+  AC_MSG_CHECKING([for Tk configuration])
+  AC_CACHE_VAL(ac_cv_c_tkconfig,[
+
+  # First check to see if --with-tkconfig was specified.
+  if test x"${with_tkconfig}" != x ; then
+    if test -f "${with_tkconfig}/tkConfig.sh" ; then
+      ac_cv_c_tkconfig=`(cd ${with_tkconfig}; pwd)`
+    else
+      AC_MSG_ERROR([${with_tkconfig} directory doesn't contain tkConfig.sh])
+    fi
+  fi
+
+  # then check for a private Tk library
+  if test x"${ac_cv_c_tkconfig}" = x ; then
+    for i in \
+		../tk \
+		`ls -dr ../tk[[4-9]]* 2>/dev/null` \
+		../../tk \
+		`ls -dr ../../tk[[4-9]]* 2>/dev/null` \
+		../../../tk \
+		`ls -dr ../../../tk[[4-9]]* 2>/dev/null` ; do
+      if test -f "$i/${configdir}/tkConfig.sh" ; then
+        ac_cv_c_tkconfig=`(cd $i/${configdir}; pwd)`
+	break
+      fi
+    done
+  fi
+  # check in a few common install locations
+  if test x"${ac_cv_c_tkconfig}" = x ; then
+    for i in `ls -d ${prefix}/lib /usr/local/lib 2>/dev/null` ; do
+      if test -f "$i/tkConfig.sh" ; then
+        ac_cv_c_tkconfig=`(cd $i; pwd)`
+	break
+      fi
+    done
+  fi
+  # check in a few other private locations
+  if test x"${ac_cv_c_tkconfig}" = x ; then
+    for i in \
+		${srcdir}/../tk \
+		`ls -dr ${srcdir}/../tk[[4-9]]* 2>/dev/null` ; do
+      if test -f "$i/${configdir}/tkConfig.sh" ; then
+        ac_cv_c_tkconfig=`(cd $i/${configdir}; pwd)`
+	break
+      fi
+    done
+  fi
+  ])
+  if test x"${ac_cv_c_tkconfig}" = x ; then
+    TKCONFIG="# no Tk configs found"
+    AC_MSG_WARN(Can't find Tk configuration definitions)
+  else
+    no_tk=
+    TKCONFIG=${ac_cv_c_tkconfig}/tkConfig.sh
+    AC_MSG_RESULT(found $TKCONFIG)
+  fi
+fi
+
+])
+
+# Defined as a separate macro so we don't have to cache the values
+# from PATH_TKCONFIG (because this can also be cached).
+AC_DEFUN(CY_AC_LOAD_TKCONFIG, [
+    if test -f "$TKCONFIG" ; then
+      . $TKCONFIG
+    fi
+
+    AC_SUBST(TK_VERSION)
+dnl not actually used, don't export to save symbols
+dnl    AC_SUBST(TK_MAJOR_VERSION)
+dnl    AC_SUBST(TK_MINOR_VERSION)
+    AC_SUBST(TK_DEFS)
+
+dnl not used, don't export to save symbols
+    dnl AC_SUBST(TK_LIB_FILE)
+
+dnl not used outside of configure
+dnl    AC_SUBST(TK_LIBS)
+dnl not used, don't export to save symbols
+dnl    AC_SUBST(TK_PREFIX)
+
+dnl not used, don't export to save symbols
+dnl    AC_SUBST(TK_EXEC_PREFIX)
+
+    AC_SUBST(TK_BUILD_INCLUDES)
+    AC_SUBST(TK_XINCLUDES)
+    AC_SUBST(TK_XLIBSW)
+    AC_SUBST(TK_BUILD_LIB_SPEC)
+    AC_SUBST(TK_LIB_SPEC)
+])
+
+# check for Itcl headers. 
+
+AC_DEFUN(CY_AC_PATH_ITCLCONFIG, [
+#
+# Ok, lets find the itcl configuration
+# First, look for one uninstalled.  
+# the alternative search directory is invoked by --with-itclconfig
+#
+
+if test x"${no_itcl}" = x ; then
+  # we reset no_itcl in case something fails here
+  no_itcl=true
+  AC_ARG_WITH(itclconfig, [  --with-itclconfig           directory containing itcl configuration (itclConfig.sh)],
+         with_itclconfig=${withval})
+  AC_MSG_CHECKING([for Itcl configuration])
+  AC_CACHE_VAL(ac_cv_c_itclconfig,[
+
+  # First check to see if --with-itclconfig was specified.
+  if test x"${with_itclconfig}" != x ; then
+    if test -f "${with_itclconfig}/itclConfig.sh" ; then
+      ac_cv_c_itclconfig=`(cd ${with_itclconfig}; pwd)`
+    else
+      AC_MSG_ERROR([${with_itclconfig} directory doesn't contain itclConfig.sh])
+    fi
+  fi
+
+  # then check for a private Itcl library
+  if test x"${ac_cv_c_itclconfig}" = x ; then
+    for i in \
+		../itcl/itcl \
+		`ls -dr ../itcl[[4-9]]*/itcl 2>/dev/null` \
+		../../itcl \
+		`ls -dr ../../itcl[[4-9]]*/itcl 2>/dev/null` \
+		../../../itcl \
+		`ls -dr ../../../itcl[[4-9]]*/itcl 2>/dev/null` ; do
+      if test -f "$i/itclConfig.sh" ; then
+        ac_cv_c_itclconfig=`(cd $i; pwd)`
+	break
+      fi
+    done
+  fi
+  # check in a few common install locations
+  if test x"${ac_cv_c_itclconfig}" = x ; then
+    for i in `ls -d ${prefix}/lib /usr/local/lib 2>/dev/null` ; do
+      if test -f "$i/itclConfig.sh" ; then
+        ac_cv_c_itclconfig=`(cd $i; pwd)`
+	break
+      fi
+    done
+  fi
+  # check in a few other private locations
+  if test x"${ac_cv_c_itclconfig}" = x ; then
+    for i in \
+		${srcdir}/../itcl/itcl \
+		`ls -dr ${srcdir}/../itcl[[4-9]]*/itcl 2>/dev/null` ; do
+      if test -f "$i/itclConfig.sh" ; then
+        ac_cv_c_itclconfig=`(cd $i; pwd)`
+	break
+      fi
+    done
+  fi
+  ])
+  if test x"${ac_cv_c_itclconfig}" = x ; then
+    ITCLCONFIG="# no Itcl configs found"
+    AC_MSG_WARN(Can't find Itcl configuration definitions)
+  else
+    no_itcl=
+    ITCLCONFIG=${ac_cv_c_itclconfig}/itclConfig.sh
+    AC_MSG_RESULT(found $ITCLCONFIG)
+  fi
+fi
+])
+
+# Defined as a separate macro so we don't have to cache the values
+# from PATH_ITCLCONFIG (because this can also be cached).
+AC_DEFUN(CY_AC_LOAD_ITCLCONFIG, [
+    if test -f "$ITCLCONFIG" ; then
+      . $ITCLCONFIG
+    fi
+
+    AC_SUBST(ITCL_VERSION)
+dnl not actually used, don't export to save symbols
+dnl    AC_SUBST(ITCL_MAJOR_VERSION)
+dnl    AC_SUBST(ITCL_MINOR_VERSION)
+    AC_SUBST(ITCL_DEFS)
+
+dnl not used, don't export to save symbols
+    dnl AC_SUBST(ITCL_LIB_FILE)
+
+dnl not used outside of configure
+dnl    AC_SUBST(ITCL_LIBS)
+dnl not used, don't export to save symbols
+dnl    AC_SUBST(ITCL_PREFIX)
+
+dnl not used, don't export to save symbols
+dnl    AC_SUBST(ITCL_EXEC_PREFIX)
+
+    AC_SUBST(ITCL_BUILD_INCLUDES)
+    AC_SUBST(ITCL_BUILD_LIB_SPEC)
+    AC_SUBST(ITCL_LIB_SPEC)
+])
+
+# check for Itcl headers. 
+
+AC_DEFUN(CY_AC_PATH_ITCLH, [
+AC_MSG_CHECKING(for Itcl private headers. srcdir=${srcdir})
+if test x"${ac_cv_c_itclh}" = x ; then
+  for i in ${srcdir}/../itcl ${srcdir}/../../itcl ${srcdir}/../../../itcl ${srcdir}/../itcl/itcl; do
+    if test -f $i/generic/itcl.h ; then
+      ac_cv_c_itclh=`(cd $i/generic; pwd)`
+      break
+    fi
+  done
+fi
+if test x"${ac_cv_c_itclh}" = x ; then
+  ITCLHDIR="# no Itcl private headers found"
+  AC_MSG_ERROR([Can't find Itcl private headers])
+fi
+if test x"${ac_cv_c_itclh}" != x ; then
+     ITCLHDIR="-I${ac_cv_c_itclh}"
+fi
+# should always be here
+#     ITCLLIB="../itcl/itcl/unix/libitcl.a"
+AC_SUBST(ITCLHDIR)
+#AC_SUBST(ITCLLIB)
+])
+
+
+AC_DEFUN(CY_AC_PATH_ITKCONFIG, [
+#
+# Ok, lets find the itk configuration
+# First, look for one uninstalled.  
+# the alternative search directory is invoked by --with-itkconfig
+#
+
+if test x"${no_itk}" = x ; then
+  # we reset no_itk in case something fails here
+  no_itk=true
+  AC_ARG_WITH(itkconfig, [  --with-itkconfig           directory containing itk configuration (itkConfig.sh)],
+         with_itkconfig=${withval})
+  AC_MSG_CHECKING([for Itk configuration])
+  AC_CACHE_VAL(ac_cv_c_itkconfig,[
+
+  # First check to see if --with-itkconfig was specified.
+  if test x"${with_itkconfig}" != x ; then
+    if test -f "${with_itkconfig}/itkConfig.sh" ; then
+      ac_cv_c_itkconfig=`(cd ${with_itkconfig}; pwd)`
+    else
+      AC_MSG_ERROR([${with_itkconfig} directory doesn't contain itkConfig.sh])
+    fi
+  fi
+
+  # then check for a private Itk library
+  if test x"${ac_cv_c_itkconfig}" = x ; then
+    for i in \
+		../itcl/itk \
+		`ls -dr ../itcl[[4-9]]*/itk 2>/dev/null` \
+		../../itk \
+		`ls -dr ../../itcl[[4-9]]*/itk 2>/dev/null` \
+		../../../itk \
+		`ls -dr ../../../itcl[[4-9]]*/itk 2>/dev/null` ; do
+      if test -f "$i/itkConfig.sh" ; then
+        ac_cv_c_itkconfig=`(cd $i; pwd)`
+	break
+      fi
+    done
+  fi
+  # check in a few common install locations
+  if test x"${ac_cv_c_itkconfig}" = x ; then
+    for i in `ls -d ${prefix}/lib /usr/local/lib 2>/dev/null` ; do
+      if test -f "$i/itkConfig.sh" ; then
+        ac_cv_c_itkconfig=`(cd $i; pwd)`
+	break
+      fi
+    done
+  fi
+  # check in a few other private locations
+  if test x"${ac_cv_c_itkconfig}" = x ; then
+    for i in \
+		${srcdir}/../itcl/itk \
+		`ls -dr ${srcdir}/../itcl[[4-9]]*/itk 2>/dev/null` ; do
+      if test -f "$i/itkConfig.sh" ; then
+        ac_cv_c_itkconfig=`(cd $i; pwd)`
+	break
+      fi
+    done
+  fi
+  ])
+  if test x"${ac_cv_c_itkconfig}" = x ; then
+    ITKCONFIG="# no Itk configs found"
+    AC_MSG_WARN(Can't find Itk configuration definitions)
+  else
+    no_itk=
+    ITKCONFIG=${ac_cv_c_itkconfig}/itkConfig.sh
+    AC_MSG_RESULT(found $ITKCONFIG)
+  fi
+fi
+
+])
+
+# Defined as a separate macro so we don't have to cache the values
+# from PATH_ITKCONFIG (because this can also be cached).
+AC_DEFUN(CY_AC_LOAD_ITKCONFIG, [
+    if test -f "$ITKCONFIG" ; then
+      . $ITKCONFIG
+    fi
+
+    AC_SUBST(ITK_VERSION)
+dnl not actually used, don't export to save symbols
+dnl    AC_SUBST(ITK_MAJOR_VERSION)
+dnl    AC_SUBST(ITK_MINOR_VERSION)
+    AC_SUBST(ITK_DEFS)
+
+dnl not used, don't export to save symbols
+    dnl AC_SUBST(ITK_LIB_FILE)
+
+dnl not used outside of configure
+dnl    AC_SUBST(ITK_LIBS)
+dnl not used, don't export to save symbols
+dnl    AC_SUBST(ITK_PREFIX)
+
+dnl not used, don't export to save symbols
+dnl    AC_SUBST(ITK_EXEC_PREFIX)
+
+    AC_SUBST(ITK_BUILD_INCLUDES)
+    AC_SUBST(ITK_BUILD_LIB_SPEC)
+    AC_SUBST(ITK_LIB_SPEC)
+])
+
+AC_DEFUN(CY_AC_PATH_ITKH, [
+AC_MSG_CHECKING(for Itk private headers. srcdir=${srcdir})
+if test x"${ac_cv_c_itkh}" = x ; then
+  for i in ${srcdir}/../itcl ${srcdir}/../../itcl ${srcdir}/../../../itcl ${srcdir}/../itcl/itk; do
+    if test -f $i/generic/itk.h ; then
+      ac_cv_c_itkh=`(cd $i/generic; pwd)`
+      break
+    fi
+  done
+fi
+if test x"${ac_cv_c_itkh}" = x ; then
+  ITKHDIR="# no Itk private headers found"
+  AC_MSG_ERROR([Can't find Itk private headers])
+fi
+if test x"${ac_cv_c_itkh}" != x ; then
+     ITKHDIR="-I${ac_cv_c_itkh}"
+fi
+# should always be here
+#     ITKLIB="../itcl/itk/unix/libitk.a"
+AC_SUBST(ITKHDIR)
+#AC_SUBST(ITKLIB)
+])
+
+# check for Tix headers. 
+
+AC_DEFUN(CY_AC_PATH_TIXH, [
+AC_MSG_CHECKING(for Tix private headers. srcdir=${srcdir})
+if test x"${ac_cv_c_tixh}" = x ; then
+  for i in ${srcdir}/../tix ${srcdir}/../../tix ${srcdir}/../../../tix ; do
+    if test -f $i/generic/tix.h ; then
+      ac_cv_c_tixh=`(cd $i/generic; pwd)`
+      break
+    fi
+  done
+fi
+if test x"${ac_cv_c_tixh}" = x ; then
+  TIXHDIR="# no Tix private headers found"
+  AC_MSG_ERROR([Can't find Tix private headers])
+fi
+if test x"${ac_cv_c_tixh}" != x ; then
+     TIXHDIR="-I${ac_cv_c_tixh}"
+fi
+AC_SUBST(TIXHDIR)
+])
+
+AC_DEFUN(CY_AC_PATH_TIXCONFIG, [
+#
+# Ok, lets find the tix configuration
+# First, look for one uninstalled.  
+# the alternative search directory is invoked by --with-itkconfig
+#
+
+if test x"${no_tix}" = x ; then
+  # we reset no_tix in case something fails here
+  no_tix=true
+  AC_ARG_WITH(tixconfig, [  --with-tixconfig           directory containing tix configuration (tixConfig.sh)],
+         with_tixconfig=${withval})
+  AC_MSG_CHECKING([for Tix configuration])
+  AC_CACHE_VAL(ac_cv_c_tixconfig,[
+
+  # First check to see if --with-tixconfig was specified.
+  if test x"${with_tixconfig}" != x ; then
+    if test -f "${with_tixconfig}/tixConfig.sh" ; then
+      ac_cv_c_tixconfig=`(cd ${with_tixconfig}; pwd)`
+    else
+      AC_MSG_ERROR([${with_tixconfig} directory doesn't contain tixConfig.sh])
+    fi
+  fi
+
+  # then check for a private Tix library
+  if test x"${ac_cv_c_tixconfig}" = x ; then
+    for i in \
+		../tix \
+		`ls -dr ../tix 2>/dev/null` \
+		../../tix \
+		`ls -dr ../../tix 2>/dev/null` \
+		../../../tix \
+		`ls -dr ../../../tix 2>/dev/null` ; do
+      echo "**** Looking at $i - with ${configdir}"
+      if test -f "$i/tixConfig.sh" ; then
+        ac_cv_c_tixconfig=`(cd $i; pwd)`
+	break
+      fi
+    done
+  fi
+  # check in a few common install locations
+  if test x"${ac_cv_c_tixconfig}" = x ; then
+    for i in `ls -d ${prefix}/lib /usr/local/lib 2>/dev/null` ; do
+      echo "**** Looking at $i"
+      if test -f "$i/tixConfig.sh" ; then
+        ac_cv_c_tixconfig=`(cd $i; pwd)`
+	break
+      fi
+    done
+  fi
+  # check in a few other private locations
+  echo "**** Other private locations"
+  if test x"${ac_cv_c_tixconfig}" = x ; then
+    for i in \
+		${srcdir}/../tix \
+		`ls -dr ${srcdir}/../tix 2>/dev/null` ; do
+      echo "**** Looking at $i - with ${configdir}"
+      if test -f "$i/${configdir}/tixConfig.sh" ; then
+        ac_cv_c_tixconfig=`(cd $i/${configdir}; pwd)`
+	break
+      fi
+    done
+  fi
+  ])
+  if test x"${ac_cv_c_tixconfig}" = x ; then
+    TIXCONFIG="# no Tix configs found"
+    AC_MSG_WARN(Can't find Tix configuration definitions)
+  else
+    no_tix=
+    TIXCONFIG=${ac_cv_c_tixconfig}/tixConfig.sh
+    AC_MSG_RESULT(found $TIXCONFIG)
+  fi
+fi
+
+])
+
+# Defined as a separate macro so we don't have to cache the values
+# from PATH_TIXCONFIG (because this can also be cached).
+AC_DEFUN(CY_AC_LOAD_TIXCONFIG, [
+    if test -f "$TIXCONFIG" ; then
+      . $TIXCONFIG
+    fi
+
+    AC_SUBST(TIX_VERSION)
+dnl not actually used, don't export to save symbols
+dnl    AC_SUBST(TIX_MAJOR_VERSION)
+dnl    AC_SUBST(TIX_MINOR_VERSION)
+dnl    AC_SUBST(TIX_DEFS)
+
+dnl not used, don't export to save symbols
+dnl    dnl AC_SUBST(TIX_LIB_FILE)
+
+dnl not used outside of configure
+dnl    AC_SUBST(TIX_LIBS)
+dnl not used, don't export to save symbols
+dnl    AC_SUBST(TIX_PREFIX)
+
+dnl not used, don't export to save symbols
+dnl    AC_SUBST(TIX_EXEC_PREFIX)
+
+dnl    AC_SUBST(TIX_BUILD_INCLUDES)
+    AC_SUBST(TIX_BUILD_LIB_SPEC)
+dnl    AC_SUBST(TIX_LIB_SPEC)
+])
+
+
+# serial 1
+
+# @defmac AC_PROG_CC_STDC
+# @maindex PROG_CC_STDC
+# @ovindex CC
+# If the C compiler in not in ANSI C mode by default, try to add an option
+# to output variable @code{CC} to make it so.  This macro tries various
+# options that select ANSI C on some system or another.  It considers the
+# compiler to be in ANSI C mode if it handles function prototypes correctly.
+#
+# If you use this macro, you should check after calling it whether the C
+# compiler has been set to accept ANSI C; if not, the shell variable
+# @code{am_cv_prog_cc_stdc} is set to @samp{no}.  If you wrote your source
+# code in ANSI C, you can make an un-ANSIfied copy of it by using the
+# program @code{ansi2knr}, which comes with Ghostscript.
+# @end defmac
+
+AC_DEFUN(AM_PROG_CC_STDC,
+[AC_REQUIRE([AC_PROG_CC])
+AC_BEFORE([$0], [AC_C_INLINE])
+AC_BEFORE([$0], [AC_C_CONST])
+dnl Force this before AC_PROG_CPP.  Some cpp's, eg on HPUX, require
+dnl a magic option to avoid problems with ANSI preprocessor commands
+dnl like #elif.
+dnl FIXME: can't do this because then AC_AIX won't work due to a
+dnl circular dependency.
+dnl AC_BEFORE([$0], [AC_PROG_CPP])
+AC_MSG_CHECKING(for ${CC-cc} option to accept ANSI C)
+AC_CACHE_VAL(am_cv_prog_cc_stdc,
+[am_cv_prog_cc_stdc=no
+ac_save_CC="$CC"
+# Don't try gcc -ansi; that turns off useful extensions and
+# breaks some systems' header files.
+# AIX			-qlanglvl=ansi
+# Ultrix and OSF/1	-std1
+# HP-UX			-Aa -D_HPUX_SOURCE
+# SVR4			-Xc -D__EXTENSIONS__
+for ac_arg in "" -qlanglvl=ansi -std1 "-Aa -D_HPUX_SOURCE" "-Xc -D__EXTENSIONS__"
+do
+  CC="$ac_save_CC $ac_arg"
+  AC_TRY_COMPILE(
+[#include <stdarg.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+/* Most of the following tests are stolen from RCS 5.7's src/conf.sh.  */
+struct buf { int x; };
+FILE * (*rcsopen) (struct buf *, struct stat *, int);
+static char *e (p, i)
+     char **p;
+     int i;
+{
+  return p[i];
+}
+static char *f (char * (*g) (char **, int), char **p, ...)
+{
+  char *s;
+  va_list v;
+  va_start (v,p);
+  s = g (p, va_arg (v,int));
+  va_end (v);
+  return s;
+}
+int test (int i, double x);
+struct s1 {int (*f) (int a);};
+struct s2 {int (*f) (double a);};
+int pairnames (int, char **, FILE *(*)(struct buf *, struct stat *, int), int, int);
+int argc;
+char **argv;
+], [
+return f (e, argv, 0) != argv[0]  ||  f (e, argv, 1) != argv[1];
+],
+[am_cv_prog_cc_stdc="$ac_arg"; break])
+done
+CC="$ac_save_CC"
+])
+if test -z "$am_cv_prog_cc_stdc"; then
+  AC_MSG_RESULT([none needed])
+else
+  AC_MSG_RESULT($am_cv_prog_cc_stdc)
+fi
+case "x$am_cv_prog_cc_stdc" in
+  x|xno) ;;
+  *) CC="$CC $am_cv_prog_cc_stdc" ;;
+esac
+])
+
+# This file is derived from `gettext.m4'.  The difference is that the
+# included macros assume Cygnus-style source and build trees.
+
+# Macro to add for using GNU gettext.
+# Ulrich Drepper <drepper@cygnus.com>, 1995.
+#
+# This file file be copied and used freely without restrictions.  It can
+# be used in projects which are not available under the GNU Public License
+# but which still want to provide support for the GNU gettext functionality.
+# Please note that the actual code is *not* freely available.
+
+# serial 3
+
+AC_DEFUN(CY_WITH_NLS,
+  [AC_MSG_CHECKING([whether NLS is requested])
+    dnl Default is enabled NLS
+    AC_ARG_ENABLE(nls,
+      [  --disable-nls           do not use Native Language Support],
+      USE_NLS=$enableval, USE_NLS=yes)
+    AC_MSG_RESULT($USE_NLS)
+    AC_SUBST(USE_NLS)
+
+    USE_INCLUDED_LIBINTL=no
+
+    dnl If we use NLS figure out what method
+    if test "$USE_NLS" = "yes"; then
+      AC_DEFINE(ENABLE_NLS, 1, [Define to 1 if NLS is requested])
+      AC_MSG_CHECKING([whether included gettext is requested])
+      AC_ARG_WITH(included-gettext,
+        [  --with-included-gettext use the GNU gettext library included here],
+        nls_cv_force_use_gnu_gettext=$withval,
+        nls_cv_force_use_gnu_gettext=no)
+      AC_MSG_RESULT($nls_cv_force_use_gnu_gettext)
+
+      nls_cv_use_gnu_gettext="$nls_cv_force_use_gnu_gettext"
+      if test "$nls_cv_force_use_gnu_gettext" != "yes"; then
+        dnl User does not insist on using GNU NLS library.  Figure out what
+        dnl to use.  If gettext or catgets are available (in this order) we
+        dnl use this.  Else we have to fall back to GNU NLS library.
+	dnl catgets is only used if permitted by option --with-catgets.
+	nls_cv_header_intl=
+	nls_cv_header_libgt=
+	CATOBJEXT=NONE
+
+	AC_CHECK_HEADER(libintl.h,
+	  [AC_CACHE_CHECK([for gettext in libc], gt_cv_func_gettext_libc,
+	    [AC_TRY_LINK([#include <libintl.h>], [return (int) gettext ("")],
+	       gt_cv_func_gettext_libc=yes, gt_cv_func_gettext_libc=no)])
+
+	   if test "$gt_cv_func_gettext_libc" != "yes"; then
+	     AC_CHECK_LIB(intl, bindtextdomain,
+	       [AC_CACHE_CHECK([for gettext in libintl],
+		 gt_cv_func_gettext_libintl,
+		 [AC_TRY_LINK([], [return (int) gettext ("")],
+		 gt_cv_func_gettext_libintl=yes,
+		 gt_cv_func_gettext_libintl=no)])])
+	   fi
+
+	   if test "$gt_cv_func_gettext_libc" = "yes" \
+	      || test "$gt_cv_func_gettext_libintl" = "yes"; then
+	      AC_DEFINE(HAVE_GETTEXT, 1,
+			[Define as 1 if you have gettext and don't want to use GNU gettext.])
+	      AM_PATH_PROG_WITH_TEST(MSGFMT, msgfmt,
+		[test -z "`$ac_dir/$ac_word -h 2>&1 | grep 'dv '`"], no)dnl
+	      if test "$MSGFMT" != "no"; then
+		AC_CHECK_FUNCS(dcgettext)
+		AC_PATH_PROG(GMSGFMT, gmsgfmt, $MSGFMT)
+		AM_PATH_PROG_WITH_TEST(XGETTEXT, xgettext,
+		  [test -z "`$ac_dir/$ac_word -h 2>&1 | grep '(HELP)'`"], :)
+		AC_TRY_LINK(, [extern int _nl_msg_cat_cntr;
+			       return _nl_msg_cat_cntr],
+		  [CATOBJEXT=.gmo
+		   DATADIRNAME=share],
+		  [CATOBJEXT=.mo
+		   DATADIRNAME=lib])
+		INSTOBJEXT=.mo
+	      fi
+	    fi
+	])
+
+	dnl In the standard gettext, we would now check for catgets.
+        dnl However, we never want to use catgets for our releases.
+
+        if test "$CATOBJEXT" = "NONE"; then
+	  dnl Neither gettext nor catgets in included in the C library.
+	  dnl Fall back on GNU gettext library.
+	  nls_cv_use_gnu_gettext=yes
+        fi
+      fi
+
+      if test "$nls_cv_use_gnu_gettext" = "yes"; then
+        dnl Mark actions used to generate GNU NLS library.
+        INTLOBJS="\$(GETTOBJS)"
+        AM_PATH_PROG_WITH_TEST(MSGFMT, msgfmt,
+	  [test -z "`$ac_dir/$ac_word -h 2>&1 | grep 'dv '`"], msgfmt)
+        AC_PATH_PROG(GMSGFMT, gmsgfmt, $MSGFMT)
+        AM_PATH_PROG_WITH_TEST(XGETTEXT, xgettext,
+	  [test -z "`$ac_dir/$ac_word -h 2>&1 | grep '(HELP)'`"], :)
+        AC_SUBST(MSGFMT)
+	USE_INCLUDED_LIBINTL=yes
+        CATOBJEXT=.gmo
+        INSTOBJEXT=.mo
+        DATADIRNAME=share
+	INTLDEPS='$(top_builddir)/../intl/libintl.a'
+	INTLLIBS=$INTLDEPS
+	LIBS=`echo $LIBS | sed -e 's/-lintl//'`
+        nls_cv_header_intl=libintl.h
+        nls_cv_header_libgt=libgettext.h
+      fi
+
+      dnl Test whether we really found GNU xgettext.
+      if test "$XGETTEXT" != ":"; then
+	dnl If it is no GNU xgettext we define it as : so that the
+	dnl Makefiles still can work.
+	if $XGETTEXT --omit-header /dev/null 2> /dev/null; then
+	  : ;
+	else
+	  AC_MSG_RESULT(
+	    [found xgettext programs is not GNU xgettext; ignore it])
+	  XGETTEXT=":"
+	fi
+      fi
+
+      # We need to process the po/ directory.
+      POSUB=po
+    else
+      DATADIRNAME=share
+      nls_cv_header_intl=libintl.h
+      nls_cv_header_libgt=libgettext.h
+    fi
+
+    # If this is used in GNU gettext we have to set USE_NLS to `yes'
+    # because some of the sources are only built for this goal.
+    if test "$PACKAGE" = gettext; then
+      USE_NLS=yes
+      USE_INCLUDED_LIBINTL=yes
+    fi
+
+    dnl These rules are solely for the distribution goal.  While doing this
+    dnl we only have to keep exactly one list of the available catalogs
+    dnl in configure.in.
+    for lang in $ALL_LINGUAS; do
+      GMOFILES="$GMOFILES $lang.gmo"
+      POFILES="$POFILES $lang.po"
+    done
+
+    dnl Make all variables we use known to autoconf.
+    AC_SUBST(USE_INCLUDED_LIBINTL)
+    AC_SUBST(CATALOGS)
+    AC_SUBST(CATOBJEXT)
+    AC_SUBST(DATADIRNAME)
+    AC_SUBST(GMOFILES)
+    AC_SUBST(INSTOBJEXT)
+    AC_SUBST(INTLDEPS)
+    AC_SUBST(INTLLIBS)
+    AC_SUBST(INTLOBJS)
+    AC_SUBST(POFILES)
+    AC_SUBST(POSUB)
+  ])
+
+AC_DEFUN(CY_GNU_GETTEXT,
+  [AC_REQUIRE([AC_PROG_MAKE_SET])dnl
+   AC_REQUIRE([AC_PROG_CC])dnl
+   AC_REQUIRE([AC_PROG_RANLIB])dnl
+   AC_REQUIRE([AC_ISC_POSIX])dnl
+   AC_REQUIRE([AC_HEADER_STDC])dnl
+   AC_REQUIRE([AC_C_CONST])dnl
+   AC_REQUIRE([AC_C_INLINE])dnl
+   AC_REQUIRE([AC_TYPE_OFF_T])dnl
+   AC_REQUIRE([AC_TYPE_SIZE_T])dnl
+   AC_REQUIRE([AC_FUNC_ALLOCA])dnl
+   AC_REQUIRE([AC_FUNC_MMAP])dnl
+
+   AC_CHECK_HEADERS([argz.h limits.h locale.h nl_types.h malloc.h string.h \
+unistd.h values.h sys/param.h])
+   AC_CHECK_FUNCS([getcwd munmap putenv setenv setlocale strchr strcasecmp \
+__argz_count __argz_stringify __argz_next])
+
+   if test "${ac_cv_func_stpcpy+set}" != "set"; then
+     AC_CHECK_FUNCS(stpcpy)
+   fi
+   if test "${ac_cv_func_stpcpy}" = "yes"; then
+     AC_DEFINE(HAVE_STPCPY, 1, [Define if you have the stpcpy function])
+   fi
+
+   AM_LC_MESSAGES
+   CY_WITH_NLS
+
+   if test "x$CATOBJEXT" != "x"; then
+     if test "x$ALL_LINGUAS" = "x"; then
+       LINGUAS=
+     else
+       AC_MSG_CHECKING(for catalogs to be installed)
+       NEW_LINGUAS=
+       for lang in ${LINGUAS=$ALL_LINGUAS}; do
+         case "$ALL_LINGUAS" in
+          *$lang*) NEW_LINGUAS="$NEW_LINGUAS $lang" ;;
+         esac
+       done
+       LINGUAS=$NEW_LINGUAS
+       AC_MSG_RESULT($LINGUAS)
+     fi
+
+     dnl Construct list of names of catalog files to be constructed.
+     if test -n "$LINGUAS"; then
+       for lang in $LINGUAS; do CATALOGS="$CATALOGS $lang$CATOBJEXT"; done
+     fi
+   fi
+
+   dnl The reference to <locale.h> in the installed <libintl.h> file
+   dnl must be resolved because we cannot expect the users of this
+   dnl to define HAVE_LOCALE_H.
+   if test $ac_cv_header_locale_h = yes; then
+     INCLUDE_LOCALE_H="#include <locale.h>"
+   else
+     INCLUDE_LOCALE_H="\
+/* The system does not provide the header <locale.h>.  Take care yourself.  */"
+   fi
+   AC_SUBST(INCLUDE_LOCALE_H)
+
+   dnl Determine which catalog format we have (if any is needed)
+   dnl For now we know about two different formats:
+   dnl   Linux libc-5 and the normal X/Open format
+   if test -f $srcdir/po2tbl.sed.in; then
+      if test "$CATOBJEXT" = ".cat"; then
+	 AC_CHECK_HEADER(linux/version.h, msgformat=linux, msgformat=xopen)
+
+	 dnl Transform the SED scripts while copying because some dumb SEDs
+         dnl cannot handle comments.
+	 sed -e '/^#/d' $srcdir/$msgformat-msg.sed > po2msg.sed
+      fi
+      dnl po2tbl.sed is always needed.
+      sed -e '/^#.*[^\\]$/d' -e '/^#$/d' \
+	 $srcdir/po2tbl.sed.in > po2tbl.sed
+   fi
+
+   dnl In the intl/Makefile.in we have a special dependency which makes
+   dnl only sense for gettext.  We comment this out for non-gettext
+   dnl packages.
+   if test "$PACKAGE" = "gettext"; then
+     GT_NO="#NO#"
+     GT_YES=
+   else
+     GT_NO=
+     GT_YES="#YES#"
+   fi
+   AC_SUBST(GT_NO)
+   AC_SUBST(GT_YES)
+
+   MKINSTALLDIRS="\$(srcdir)/../../mkinstalldirs"
+   AC_SUBST(MKINSTALLDIRS)
+
+   dnl *** For now the libtool support in intl/Makefile is not for real.
+   l=
+   AC_SUBST(l)
+
+   dnl Generate list of files to be processed by xgettext which will
+   dnl be included in po/Makefile.  But only do this if the po directory
+   dnl exists in srcdir.
+   if test -d $srcdir/po; then
+      test -d po || mkdir po
+      if test "x$srcdir" != "x."; then
+	 if test "x`echo $srcdir | sed 's@/.*@@'`" = "x"; then
+	    posrcprefix="$srcdir/"
+	 else
+	    posrcprefix="../$srcdir/"
+	 fi
+      else
+	 posrcprefix="../"
+      fi
+      rm -f po/POTFILES
+      sed -e "/^#/d" -e "/^\$/d" -e "s,.*,	$posrcprefix& \\\\," -e "\$s/\(.*\) \\\\/\1/" \
+	 < $srcdir/po/POTFILES.in > po/POTFILES
+   fi
+  ])
+
+# Search path for a program which passes the given test.
+# Ulrich Drepper <drepper@cygnus.com>, 1996.
+#
+# This file file be copied and used freely without restrictions.  It can
+# be used in projects which are not available under the GNU Public License
+# but which still want to provide support for the GNU gettext functionality.
+# Please note that the actual code is *not* freely available.
+
+# serial 1
+
+dnl AM_PATH_PROG_WITH_TEST(VARIABLE, PROG-TO-CHECK-FOR,
+dnl   TEST-PERFORMED-ON-FOUND_PROGRAM [, VALUE-IF-NOT-FOUND [, PATH]])
+AC_DEFUN(AM_PATH_PROG_WITH_TEST,
+[# Extract the first word of "$2", so it can be a program name with args.
+set dummy $2; ac_word=[$]2
+AC_MSG_CHECKING([for $ac_word])
+AC_CACHE_VAL(ac_cv_path_$1,
+[case "[$]$1" in
+  /*)
+  ac_cv_path_$1="[$]$1" # Let the user override the test with a path.
+  ;;
+  *)
+  IFS="${IFS= 	}"; ac_save_ifs="$IFS"; IFS="${IFS}:"
+  for ac_dir in ifelse([$5], , $PATH, [$5]); do
+    test -z "$ac_dir" && ac_dir=.
+    if test -f $ac_dir/$ac_word; then
+      if [$3]; then
+	ac_cv_path_$1="$ac_dir/$ac_word"
+	break
       fi
     fi
   done
-
-  cd ..
-  rm -rf conftest.dir
+  IFS="$ac_save_ifs"
+dnl If no 4th arg is given, leave the cache variable unset,
+dnl so AC_PATH_PROGS will keep looking.
+ifelse([$4], , , [  test -z "[$]ac_cv_path_$1" && ac_cv_path_$1="$4"
+])dnl
+  ;;
+esac])dnl
+$1="$ac_cv_path_$1"
+if test -n "[$]$1"; then
+  AC_MSG_RESULT([$]$1)
 else
-  am_cv_$1_dependencies_compiler_type=none
+  AC_MSG_RESULT(no)
 fi
-])
-AC_SUBST([$1DEPMODE], [depmode=$am_cv_$1_dependencies_compiler_type])
-AM_CONDITIONAL([am__fastdep$1], [
-  test "x$enable_dependency_tracking" != xno \
-  && test "$am_cv_$1_dependencies_compiler_type" = gcc3])
+AC_SUBST($1)dnl
 ])
 
-
-# AM_SET_DEPDIR
-# -------------
-# Choose a directory name for dependency files.
-# This macro is AC_REQUIREd in _AM_DEPENDENCIES
-AC_DEFUN([AM_SET_DEPDIR],
-[AC_REQUIRE([AM_SET_LEADING_DOT])dnl
-AC_SUBST([DEPDIR], ["${am__leading_dot}deps"])dnl
-])
-
-
-# AM_DEP_TRACK
-# ------------
-AC_DEFUN([AM_DEP_TRACK],
-[AC_ARG_ENABLE(dependency-tracking,
-[  --disable-dependency-tracking  speeds up one-time build
-  --enable-dependency-tracking   do not reject slow dependency extractors])
-if test "x$enable_dependency_tracking" != xno; then
-  am_depcomp="$ac_aux_dir/depcomp"
-  AMDEPBACKSLASH='\'
-fi
-AM_CONDITIONAL([AMDEP], [test "x$enable_dependency_tracking" != xno])
-AC_SUBST([AMDEPBACKSLASH])
-])
-
-# Generate code to set up dependency tracking.              -*- Autoconf -*-
-
-# Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005
-# Free Software Foundation, Inc.
+# Check whether LC_MESSAGES is available in <locale.h>.
+# Ulrich Drepper <drepper@cygnus.com>, 1995.
 #
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
+# This file file be copied and used freely without restrictions.  It can
+# be used in projects which are not available under the GNU Public License
+# but which still want to provide support for the GNU gettext functionality.
+# Please note that the actual code is *not* freely available.
 
-#serial 3
+# serial 1
 
-# _AM_OUTPUT_DEPENDENCY_COMMANDS
-# ------------------------------
-AC_DEFUN([_AM_OUTPUT_DEPENDENCY_COMMANDS],
-[for mf in $CONFIG_FILES; do
-  # Strip MF so we end up with the name of the file.
-  mf=`echo "$mf" | sed -e 's/:.*$//'`
-  # Check whether this is an Automake generated Makefile or not.
-  # We used to match only the files named `Makefile.in', but
-  # some people rename them; so instead we look at the file content.
-  # Grep'ing the first line is not enough: some people post-process
-  # each Makefile.in and add a new line on top of each file to say so.
-  # So let's grep whole file.
-  if grep '^#.*generated by automake' $mf > /dev/null 2>&1; then
-    dirpart=`AS_DIRNAME("$mf")`
-  else
-    continue
-  fi
-  # Extract the definition of DEPDIR, am__include, and am__quote
-  # from the Makefile without running `make'.
-  DEPDIR=`sed -n 's/^DEPDIR = //p' < "$mf"`
-  test -z "$DEPDIR" && continue
-  am__include=`sed -n 's/^am__include = //p' < "$mf"`
-  test -z "am__include" && continue
-  am__quote=`sed -n 's/^am__quote = //p' < "$mf"`
-  # When using ansi2knr, U may be empty or an underscore; expand it
-  U=`sed -n 's/^U = //p' < "$mf"`
-  # Find all dependency output files, they are included files with
-  # $(DEPDIR) in their names.  We invoke sed twice because it is the
-  # simplest approach to changing $(DEPDIR) to its actual value in the
-  # expansion.
-  for file in `sed -n "
-    s/^$am__include $am__quote\(.*(DEPDIR).*\)$am__quote"'$/\1/p' <"$mf" | \
-       sed -e 's/\$(DEPDIR)/'"$DEPDIR"'/g' -e 's/\$U/'"$U"'/g'`; do
-    # Make sure the directory exists.
-    test -f "$dirpart/$file" && continue
-    fdir=`AS_DIRNAME(["$file"])`
-    AS_MKDIR_P([$dirpart/$fdir])
-    # echo "creating $dirpart/$file"
-    echo '# dummy' > "$dirpart/$file"
-  done
-done
-])# _AM_OUTPUT_DEPENDENCY_COMMANDS
+AC_DEFUN(AM_LC_MESSAGES,
+  [if test $ac_cv_header_locale_h = yes; then
+    AC_CACHE_CHECK([for LC_MESSAGES], am_cv_val_LC_MESSAGES,
+      [AC_TRY_LINK([#include <locale.h>], [return LC_MESSAGES],
+       am_cv_val_LC_MESSAGES=yes, am_cv_val_LC_MESSAGES=no)])
+    if test $am_cv_val_LC_MESSAGES = yes; then
+      AC_DEFINE(HAVE_LC_MESSAGES, 1,
+		[Define if your locale.h file contains LC_MESSAGES.])
+    fi
+  fi])
 
-
-# AM_OUTPUT_DEPENDENCY_COMMANDS
-# -----------------------------
-# This macro should only be invoked once -- use via AC_REQUIRE.
-#
-# This code is only required when automatic dependency tracking
-# is enabled.  FIXME.  This creates each `.P' file that we will
-# need in order to bootstrap the dependency handling code.
-AC_DEFUN([AM_OUTPUT_DEPENDENCY_COMMANDS],
-[AC_CONFIG_COMMANDS([depfiles],
-     [test x"$AMDEP_TRUE" != x"" || _AM_OUTPUT_DEPENDENCY_COMMANDS],
-     [AMDEP_TRUE="$AMDEP_TRUE" ac_aux_dir="$ac_aux_dir"])
-])
-
-# Do all the work for Automake.                             -*- Autoconf -*-
-
-# Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
-# Free Software Foundation, Inc.
-#
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
-
-# serial 12
-
-# This macro actually does too much.  Some checks are only needed if
-# your package does certain things.  But this isn't really a big deal.
-
-# AM_INIT_AUTOMAKE(PACKAGE, VERSION, [NO-DEFINE])
-# AM_INIT_AUTOMAKE([OPTIONS])
-# -----------------------------------------------
-# The call with PACKAGE and VERSION arguments is the old style
-# call (pre autoconf-2.50), which is being phased out.  PACKAGE
-# and VERSION should now be passed to AC_INIT and removed from
-# the call to AM_INIT_AUTOMAKE.
-# We support both call styles for the transition.  After
-# the next Automake release, Autoconf can make the AC_INIT
-# arguments mandatory, and then we can depend on a new Autoconf
-# release and drop the old call support.
-AC_DEFUN([AM_INIT_AUTOMAKE],
-[AC_PREREQ([2.58])dnl
-dnl Autoconf wants to disallow AM_ names.  We explicitly allow
-dnl the ones we care about.
-m4_pattern_allow([^AM_[A-Z]+FLAGS$])dnl
-AC_REQUIRE([AM_SET_CURRENT_AUTOMAKE_VERSION])dnl
-AC_REQUIRE([AC_PROG_INSTALL])dnl
-# test to see if srcdir already configured
-if test "`cd $srcdir && pwd`" != "`pwd`" &&
-   test -f $srcdir/config.status; then
-  AC_MSG_ERROR([source directory already configured; run "make distclean" there first])
-fi
-
-# test whether we have cygpath
-if test -z "$CYGPATH_W"; then
-  if (cygpath --version) >/dev/null 2>/dev/null; then
-    CYGPATH_W='cygpath -w'
-  else
-    CYGPATH_W=echo
-  fi
-fi
-AC_SUBST([CYGPATH_W])
-
-# Define the identity of the package.
-dnl Distinguish between old-style and new-style calls.
-m4_ifval([$2],
-[m4_ifval([$3], [_AM_SET_OPTION([no-define])])dnl
- AC_SUBST([PACKAGE], [$1])dnl
- AC_SUBST([VERSION], [$2])],
-[_AM_SET_OPTIONS([$1])dnl
- AC_SUBST([PACKAGE], ['AC_PACKAGE_TARNAME'])dnl
- AC_SUBST([VERSION], ['AC_PACKAGE_VERSION'])])dnl
-
-_AM_IF_OPTION([no-define],,
-[AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE", [Name of package])
- AC_DEFINE_UNQUOTED(VERSION, "$VERSION", [Version number of package])])dnl
-
-# Some tools Automake needs.
-AC_REQUIRE([AM_SANITY_CHECK])dnl
-AC_REQUIRE([AC_ARG_PROGRAM])dnl
-AM_MISSING_PROG(ACLOCAL, aclocal-${am__api_version})
-AM_MISSING_PROG(AUTOCONF, autoconf)
-AM_MISSING_PROG(AUTOMAKE, automake-${am__api_version})
-AM_MISSING_PROG(AUTOHEADER, autoheader)
-AM_MISSING_PROG(MAKEINFO, makeinfo)
-AM_PROG_INSTALL_SH
-AM_PROG_INSTALL_STRIP
-AC_REQUIRE([AM_PROG_MKDIR_P])dnl
-# We need awk for the "check" target.  The system "awk" is bad on
-# some platforms.
-AC_REQUIRE([AC_PROG_AWK])dnl
-AC_REQUIRE([AC_PROG_MAKE_SET])dnl
-AC_REQUIRE([AM_SET_LEADING_DOT])dnl
-_AM_IF_OPTION([tar-ustar], [_AM_PROG_TAR([ustar])],
-              [_AM_IF_OPTION([tar-pax], [_AM_PROG_TAR([pax])],
-	      		     [_AM_PROG_TAR([v7])])])
-_AM_IF_OPTION([no-dependencies],,
-[AC_PROVIDE_IFELSE([AC_PROG_CC],
-                  [_AM_DEPENDENCIES(CC)],
-                  [define([AC_PROG_CC],
-                          defn([AC_PROG_CC])[_AM_DEPENDENCIES(CC)])])dnl
-AC_PROVIDE_IFELSE([AC_PROG_CXX],
-                  [_AM_DEPENDENCIES(CXX)],
-                  [define([AC_PROG_CXX],
-                          defn([AC_PROG_CXX])[_AM_DEPENDENCIES(CXX)])])dnl
-])
-])
-
-
-# When config.status generates a header, we must update the stamp-h file.
-# This file resides in the same directory as the config header
-# that is generated.  The stamp files are numbered to have different names.
-
-# Autoconf calls _AC_AM_CONFIG_HEADER_HOOK (when defined) in the
-# loop where config.status creates the headers, so we can generate
-# our stamp files there.
-AC_DEFUN([_AC_AM_CONFIG_HEADER_HOOK],
-[# Compute $1's index in $config_headers.
-_am_stamp_count=1
-for _am_header in $config_headers :; do
-  case $_am_header in
-    $1 | $1:* )
-      break ;;
-    * )
-      _am_stamp_count=`expr $_am_stamp_count + 1` ;;
-  esac
-done
-echo "timestamp for $1" >`AS_DIRNAME([$1])`/stamp-h[]$_am_stamp_count])
-
-# Copyright (C) 2001, 2003, 2005  Free Software Foundation, Inc.
-#
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
-
-# AM_PROG_INSTALL_SH
-# ------------------
-# Define $install_sh.
-AC_DEFUN([AM_PROG_INSTALL_SH],
-[AC_REQUIRE([AM_AUX_DIR_EXPAND])dnl
-install_sh=${install_sh-"$am_aux_dir/install-sh"}
-AC_SUBST(install_sh)])
-
-# Copyright (C) 2003, 2005  Free Software Foundation, Inc.
-#
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
-
-# serial 2
-
-# Check whether the underlying file-system supports filenames
-# with a leading dot.  For instance MS-DOS doesn't.
-AC_DEFUN([AM_SET_LEADING_DOT],
-[rm -rf .tst 2>/dev/null
-mkdir .tst 2>/dev/null
-if test -d .tst; then
-  am__leading_dot=.
-else
-  am__leading_dot=_
-fi
-rmdir .tst 2>/dev/null
-AC_SUBST([am__leading_dot])])
-
-# Add --enable-maintainer-mode option to configure.         -*- Autoconf -*-
-# From Jim Meyering
-
-# Copyright (C) 1996, 1998, 2000, 2001, 2002, 2003, 2004, 2005
-# Free Software Foundation, Inc.
-#
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
-
-# serial 4
-
-AC_DEFUN([AM_MAINTAINER_MODE],
-[AC_MSG_CHECKING([whether to enable maintainer-specific portions of Makefiles])
-  dnl maintainer-mode is disabled by default
-  AC_ARG_ENABLE(maintainer-mode,
-[  --enable-maintainer-mode  enable make rules and dependencies not useful
-			  (and sometimes confusing) to the casual installer],
-      USE_MAINTAINER_MODE=$enableval,
-      USE_MAINTAINER_MODE=no)
-  AC_MSG_RESULT([$USE_MAINTAINER_MODE])
-  AM_CONDITIONAL(MAINTAINER_MODE, [test $USE_MAINTAINER_MODE = yes])
-  MAINT=$MAINTAINER_MODE_TRUE
-  AC_SUBST(MAINT)dnl
-]
-)
-
-AU_DEFUN([jm_MAINTAINER_MODE], [AM_MAINTAINER_MODE])
-
-# Check to see how 'make' treats includes.	            -*- Autoconf -*-
-
-# Copyright (C) 2001, 2002, 2003, 2005  Free Software Foundation, Inc.
-#
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
-
-# serial 3
-
-# AM_MAKE_INCLUDE()
-# -----------------
-# Check to see how make treats includes.
-AC_DEFUN([AM_MAKE_INCLUDE],
-[am_make=${MAKE-make}
-cat > confinc << 'END'
-am__doit:
-	@echo done
-.PHONY: am__doit
-END
-# If we don't find an include directive, just comment out the code.
-AC_MSG_CHECKING([for style of include used by $am_make])
-am__include="#"
-am__quote=
-_am_result=none
-# First try GNU make style include.
-echo "include confinc" > confmf
-# We grep out `Entering directory' and `Leaving directory'
-# messages which can occur if `w' ends up in MAKEFLAGS.
-# In particular we don't look at `^make:' because GNU make might
-# be invoked under some other name (usually "gmake"), in which
-# case it prints its new name instead of `make'.
-if test "`$am_make -s -f confmf 2> /dev/null | grep -v 'ing directory'`" = "done"; then
-   am__include=include
-   am__quote=
-   _am_result=GNU
-fi
-# Now try BSD make style include.
-if test "$am__include" = "#"; then
-   echo '.include "confinc"' > confmf
-   if test "`$am_make -s -f confmf 2> /dev/null`" = "done"; then
-      am__include=.include
-      am__quote="\""
-      _am_result=BSD
-   fi
-fi
-AC_SUBST([am__include])
-AC_SUBST([am__quote])
-AC_MSG_RESULT([$_am_result])
-rm -f confinc confmf
-])
-
-# Fake the existence of programs that GNU maintainers use.  -*- Autoconf -*-
-
-# Copyright (C) 1997, 1999, 2000, 2001, 2003, 2005
-# Free Software Foundation, Inc.
-#
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
-
-# serial 4
-
-# AM_MISSING_PROG(NAME, PROGRAM)
-# ------------------------------
-AC_DEFUN([AM_MISSING_PROG],
-[AC_REQUIRE([AM_MISSING_HAS_RUN])
-$1=${$1-"${am_missing_run}$2"}
-AC_SUBST($1)])
-
-
-# AM_MISSING_HAS_RUN
-# ------------------
-# Define MISSING if not defined so far and test if it supports --run.
-# If it does, set am_missing_run to use it, otherwise, to nothing.
-AC_DEFUN([AM_MISSING_HAS_RUN],
-[AC_REQUIRE([AM_AUX_DIR_EXPAND])dnl
-test x"${MISSING+set}" = xset || MISSING="\${SHELL} $am_aux_dir/missing"
-# Use eval to expand $SHELL
-if eval "$MISSING --run true"; then
-  am_missing_run="$MISSING --run "
-else
-  am_missing_run=
-  AC_MSG_WARN([`missing' script is too old or missing])
-fi
-])
-
-# Copyright (C) 2003, 2004, 2005  Free Software Foundation, Inc.
-#
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
-
-# AM_PROG_MKDIR_P
-# ---------------
-# Check whether `mkdir -p' is supported, fallback to mkinstalldirs otherwise.
-#
-# Automake 1.8 used `mkdir -m 0755 -p --' to ensure that directories
-# created by `make install' are always world readable, even if the
-# installer happens to have an overly restrictive umask (e.g. 077).
-# This was a mistake.  There are at least two reasons why we must not
-# use `-m 0755':
-#   - it causes special bits like SGID to be ignored,
-#   - it may be too restrictive (some setups expect 775 directories).
-#
-# Do not use -m 0755 and let people choose whatever they expect by
-# setting umask.
-#
-# We cannot accept any implementation of `mkdir' that recognizes `-p'.
-# Some implementations (such as Solaris 8's) are not thread-safe: if a
-# parallel make tries to run `mkdir -p a/b' and `mkdir -p a/c'
-# concurrently, both version can detect that a/ is missing, but only
-# one can create it and the other will error out.  Consequently we
-# restrict ourselves to GNU make (using the --version option ensures
-# this.)
-AC_DEFUN([AM_PROG_MKDIR_P],
-[if mkdir -p --version . >/dev/null 2>&1 && test ! -d ./--version; then
-  # We used to keeping the `.' as first argument, in order to
-  # allow $(mkdir_p) to be used without argument.  As in
-  #   $(mkdir_p) $(somedir)
-  # where $(somedir) is conditionally defined.  However this is wrong
-  # for two reasons:
-  #  1. if the package is installed by a user who cannot write `.'
-  #     make install will fail,
-  #  2. the above comment should most certainly read
-  #     $(mkdir_p) $(DESTDIR)$(somedir)
-  #     so it does not work when $(somedir) is undefined and
-  #     $(DESTDIR) is not.
-  #  To support the latter case, we have to write
-  #     test -z "$(somedir)" || $(mkdir_p) $(DESTDIR)$(somedir),
-  #  so the `.' trick is pointless.
-  mkdir_p='mkdir -p --'
-else
-  # On NextStep and OpenStep, the `mkdir' command does not
-  # recognize any option.  It will interpret all options as
-  # directories to create, and then abort because `.' already
-  # exists.
-  for d in ./-p ./--version;
-  do
-    test -d $d && rmdir $d
-  done
-  # $(mkinstalldirs) is defined by Automake if mkinstalldirs exists.
-  if test -f "$ac_aux_dir/mkinstalldirs"; then
-    mkdir_p='$(mkinstalldirs)'
-  else
-    mkdir_p='$(install_sh) -d'
-  fi
-fi
-AC_SUBST([mkdir_p])])
-
-# Helper functions for option handling.                     -*- Autoconf -*-
-
-# Copyright (C) 2001, 2002, 2003, 2005  Free Software Foundation, Inc.
-#
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
-
-# serial 3
-
-# _AM_MANGLE_OPTION(NAME)
-# -----------------------
-AC_DEFUN([_AM_MANGLE_OPTION],
-[[_AM_OPTION_]m4_bpatsubst($1, [[^a-zA-Z0-9_]], [_])])
-
-# _AM_SET_OPTION(NAME)
-# ------------------------------
-# Set option NAME.  Presently that only means defining a flag for this option.
-AC_DEFUN([_AM_SET_OPTION],
-[m4_define(_AM_MANGLE_OPTION([$1]), 1)])
-
-# _AM_SET_OPTIONS(OPTIONS)
-# ----------------------------------
-# OPTIONS is a space-separated list of Automake options.
-AC_DEFUN([_AM_SET_OPTIONS],
-[AC_FOREACH([_AM_Option], [$1], [_AM_SET_OPTION(_AM_Option)])])
-
-# _AM_IF_OPTION(OPTION, IF-SET, [IF-NOT-SET])
-# -------------------------------------------
-# Execute IF-SET if OPTION is set, IF-NOT-SET otherwise.
-AC_DEFUN([_AM_IF_OPTION],
-[m4_ifset(_AM_MANGLE_OPTION([$1]), [$2], [$3])])
-
-# Check to make sure that the build environment is sane.    -*- Autoconf -*-
-
-# Copyright (C) 1996, 1997, 2000, 2001, 2003, 2005
-# Free Software Foundation, Inc.
-#
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
-
-# serial 4
-
-# AM_SANITY_CHECK
-# ---------------
-AC_DEFUN([AM_SANITY_CHECK],
-[AC_MSG_CHECKING([whether build environment is sane])
-# Just in case
-sleep 1
-echo timestamp > conftest.file
-# Do `set' in a subshell so we don't clobber the current shell's
-# arguments.  Must try -L first in case configure is actually a
-# symlink; some systems play weird games with the mod time of symlinks
-# (eg FreeBSD returns the mod time of the symlink's containing
-# directory).
-if (
-   set X `ls -Lt $srcdir/configure conftest.file 2> /dev/null`
-   if test "$[*]" = "X"; then
-      # -L didn't work.
-      set X `ls -t $srcdir/configure conftest.file`
-   fi
-   rm -f conftest.file
-   if test "$[*]" != "X $srcdir/configure conftest.file" \
-      && test "$[*]" != "X conftest.file $srcdir/configure"; then
-
-      # If neither matched, then we have a broken ls.  This can happen
-      # if, for instance, CONFIG_SHELL is bash and it inherits a
-      # broken ls alias from the environment.  This has actually
-      # happened.  Such a system could not be considered "sane".
-      AC_MSG_ERROR([ls -t appears to fail.  Make sure there is not a broken
-alias in your environment])
-   fi
-
-   test "$[2]" = conftest.file
-   )
-then
-   # Ok.
-   :
-else
-   AC_MSG_ERROR([newly created file is older than distributed files!
-Check your system clock])
-fi
-AC_MSG_RESULT(yes)])
-
-# Copyright (C) 2001, 2003, 2005  Free Software Foundation, Inc.
-#
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
-
-# AM_PROG_INSTALL_STRIP
-# ---------------------
-# One issue with vendor `install' (even GNU) is that you can't
-# specify the program used to strip binaries.  This is especially
-# annoying in cross-compiling environments, where the build's strip
-# is unlikely to handle the host's binaries.
-# Fortunately install-sh will honor a STRIPPROG variable, so we
-# always use install-sh in `make install-strip', and initialize
-# STRIPPROG with the value of the STRIP variable (set by the user).
-AC_DEFUN([AM_PROG_INSTALL_STRIP],
-[AC_REQUIRE([AM_PROG_INSTALL_SH])dnl
-# Installed binaries are usually stripped using `strip' when the user
-# run `make install-strip'.  However `strip' might not be the right
-# tool to use in cross-compilation environments, therefore Automake
-# will honor the `STRIP' environment variable to overrule this program.
-dnl Don't test for $cross_compiling = yes, because it might be `maybe'.
-if test "$cross_compiling" != no; then
-  AC_CHECK_TOOL([STRIP], [strip], :)
-fi
-INSTALL_STRIP_PROGRAM="\${SHELL} \$(install_sh) -c -s"
-AC_SUBST([INSTALL_STRIP_PROGRAM])])
-
-# Check how to create a tarball.                            -*- Autoconf -*-
-
-# Copyright (C) 2004, 2005  Free Software Foundation, Inc.
-#
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
-
-# serial 2
-
-# _AM_PROG_TAR(FORMAT)
-# --------------------
-# Check how to create a tarball in format FORMAT.
-# FORMAT should be one of `v7', `ustar', or `pax'.
-#
-# Substitute a variable $(am__tar) that is a command
-# writing to stdout a FORMAT-tarball containing the directory
-# $tardir.
-#     tardir=directory && $(am__tar) > result.tar
-#
-# Substitute a variable $(am__untar) that extract such
-# a tarball read from stdin.
-#     $(am__untar) < result.tar
-AC_DEFUN([_AM_PROG_TAR],
-[# Always define AMTAR for backward compatibility.
-AM_MISSING_PROG([AMTAR], [tar])
-m4_if([$1], [v7],
-     [am__tar='${AMTAR} chof - "$$tardir"'; am__untar='${AMTAR} xf -'],
-     [m4_case([$1], [ustar],, [pax],,
-              [m4_fatal([Unknown tar format])])
-AC_MSG_CHECKING([how to create a $1 tar archive])
-# Loop over all known methods to create a tar archive until one works.
-_am_tools='gnutar m4_if([$1], [ustar], [plaintar]) pax cpio none'
-_am_tools=${am_cv_prog_tar_$1-$_am_tools}
-# Do not fold the above two line into one, because Tru64 sh and
-# Solaris sh will not grok spaces in the rhs of `-'.
-for _am_tool in $_am_tools
-do
-  case $_am_tool in
-  gnutar)
-    for _am_tar in tar gnutar gtar;
-    do
-      AM_RUN_LOG([$_am_tar --version]) && break
-    done
-    am__tar="$_am_tar --format=m4_if([$1], [pax], [posix], [$1]) -chf - "'"$$tardir"'
-    am__tar_="$_am_tar --format=m4_if([$1], [pax], [posix], [$1]) -chf - "'"$tardir"'
-    am__untar="$_am_tar -xf -"
-    ;;
-  plaintar)
-    # Must skip GNU tar: if it does not support --format= it doesn't create
-    # ustar tarball either.
-    (tar --version) >/dev/null 2>&1 && continue
-    am__tar='tar chf - "$$tardir"'
-    am__tar_='tar chf - "$tardir"'
-    am__untar='tar xf -'
-    ;;
-  pax)
-    am__tar='pax -L -x $1 -w "$$tardir"'
-    am__tar_='pax -L -x $1 -w "$tardir"'
-    am__untar='pax -r'
-    ;;
-  cpio)
-    am__tar='find "$$tardir" -print | cpio -o -H $1 -L'
-    am__tar_='find "$tardir" -print | cpio -o -H $1 -L'
-    am__untar='cpio -i -H $1 -d'
-    ;;
-  none)
-    am__tar=false
-    am__tar_=false
-    am__untar=false
-    ;;
-  esac
-
-  # If the value was cached, stop now.  We just wanted to have am__tar
-  # and am__untar set.
-  test -n "${am_cv_prog_tar_$1}" && break
-
-  # tar/untar a dummy directory, and stop if the command works
-  rm -rf conftest.dir
-  mkdir conftest.dir
-  echo GrepMe > conftest.dir/file
-  AM_RUN_LOG([tardir=conftest.dir && eval $am__tar_ >conftest.tar])
-  rm -rf conftest.dir
-  if test -s conftest.tar; then
-    AM_RUN_LOG([$am__untar <conftest.tar])
-    grep GrepMe conftest.dir/file >/dev/null 2>&1 && break
-  fi
-done
-rm -rf conftest.dir
-
-AC_CACHE_VAL([am_cv_prog_tar_$1], [am_cv_prog_tar_$1=$_am_tool])
-AC_MSG_RESULT([$am_cv_prog_tar_$1])])
-AC_SUBST([am__tar])
-AC_SUBST([am__untar])
-]) # _AM_PROG_TAR
-
-m4_include([gnulib/m4/extensions.m4])
-m4_include([gnulib/m4/gnulib-common.m4])
-m4_include([gnulib/m4/gnulib-comp.m4])
-m4_include([gnulib/m4/include_next.m4])
-m4_include([gnulib/m4/longlong.m4])
-m4_include([gnulib/m4/memchr.m4])
-m4_include([gnulib/m4/memcmp.m4])
-m4_include([gnulib/m4/memmem.m4])
-m4_include([gnulib/m4/onceonly_2_57.m4])
-m4_include([gnulib/m4/stdint.m4])
-m4_include([gnulib/m4/string_h.m4])
-m4_include([gnulib/m4/wchar.m4])
-m4_include([acinclude.m4])

@@ -1,23 +1,23 @@
-/* The common simulator framework for GDB, the GNU Debugger.
+/*  This file is part of the program psim.
 
-   Copyright 2002, 2007, 2008 Free Software Foundation, Inc.
+    Copyright (C) 1994-1996, Andrew Cagney <cagney@highland.com.au>
+    Copyright (C) 1997, Free Software Foundation, Inc.
 
-   Contributed by Andrew Cagney and Red Hat.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
 
-   This file is part of GDB.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+ 
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ 
+    */
 
 
 #ifndef _SIM_BITS_H_
@@ -166,32 +166,20 @@
 #define _MSB_32(START, STOP) (START <= STOP \
 			      ? (START < 32 ? 0 : START - 32) \
 			      : (STOP < 32 ? 0 : STOP - 32))
-#define _MSB_16(START, STOP) (START <= STOP \
-			      ? (START < 48 ? 0 : START - 48) \
-			      : (STOP < 48 ? 0 : STOP - 48))
 #else
 #define _MSB_32(START, STOP) (START >= STOP \
 			      ? (START >= 32 ? 31 : START) \
 			      : (STOP >= 32 ? 31 : STOP))
-#define _MSB_16(START, STOP) (START >= STOP \
-			      ? (START >= 16 ? 15 : START) \
-			      : (STOP >= 16 ? 15 : STOP))
 #endif
 
 #if (WITH_TARGET_WORD_MSB == 0)
 #define _LSB_32(START, STOP) (START <= STOP \
 			      ? (STOP < 32 ? 0 : STOP - 32) \
 			      : (START < 32 ? 0 : START - 32))
-#define _LSB_16(START, STOP) (START <= STOP \
-			      ? (STOP < 48 ? 0 : STOP - 48) \
-			      : (START < 48 ? 0 : START - 48))
 #else
 #define _LSB_32(START, STOP) (START >= STOP \
 			      ? (STOP >= 32 ? 31 : STOP) \
 			      : (START >= 32 ? 31 : START))
-#define _LSB_16(START, STOP) (START >= STOP \
-			      ? (STOP >= 16 ? 15 : STOP) \
-			      : (START >= 16 ? 15 : START))
 #endif
 
 #if (WITH_TARGET_WORD_MSB == 0)
@@ -216,16 +204,10 @@
 
 #if (WITH_TARGET_WORD_BITSIZE == 64)
 #define LSBIT(POS) LSBIT64 (POS)
-#endif
-#if (WITH_TARGET_WORD_BITSIZE == 32)
+#else
 #define LSBIT(POS) ((unsigned32)((POS) >= 32 \
 		                 ? 0 \
 			         : (1 << ((POS) >= 32 ? 0 : (POS)))))
-#endif
-#if (WITH_TARGET_WORD_BITSIZE == 16)
-#define LSBIT(POS) ((unsigned16)((POS) >= 16 \
-		                 ? 0 \
-			         : (1 << ((POS) >= 16 ? 0 : (POS)))))
 #endif
 
 
@@ -236,16 +218,10 @@
 
 #if (WITH_TARGET_WORD_BITSIZE == 64)
 #define MSBIT(POS) MSBIT64 (POS)
-#endif
-#if (WITH_TARGET_WORD_BITSIZE == 32)
+#else
 #define MSBIT(POS) ((unsigned32)((POS) < 32 \
 		                 ? 0 \
 		                 : (1 << ((POS) < 32 ? 0 : (64 - 1) - (POS)))))
-#endif
-#if (WITH_TARGET_WORD_BITSIZE == 16)
-#define MSBIT(POS) ((unsigned16)((POS) < 48 \
-		                 ? 0 \
-		                 : (1 << ((POS) < 48 ? 0 : (64 - 1) - (POS)))))
 #endif
 
 
@@ -310,23 +286,6 @@
 	    : _MASKn (32, \
 		      _MSB_POS (32, 0), \
 		      _MSB_32 ((START), (STOP))))))
-#endif
-#if (WITH_TARGET_WORD_BITSIZE == 16)
-#define MASK(START, STOP) \
-     (_POS_LE ((START), (STOP)) \
-      ? (_POS_LE ((STOP), _MSB_POS (64, 15)) \
-	 ? 0 \
-	 : _MASKn (16, \
-		   _MSB_16 ((START), (STOP)), \
-		   _LSB_16 ((START), (STOP)))) \
-      : (_MASKn (16, \
-		 _LSB_16 ((START), (STOP)), \
-		 _LSB_POS (16, 0)) \
-	 | (_POS_LE ((STOP), _MSB_POS (64, 15)) \
-	    ? 0 \
-	    : _MASKn (16, \
-		      _MSB_POS (16, 0), \
-		      _MSB_16 ((START), (STOP))))))
 #endif
 #if !defined (MASK)
 #error "MASK never undefined"
@@ -514,9 +473,6 @@ INLINE_SIM_BITS(unsigned_word) MSINSERTED (unsigned_word val, int start, int sto
 #define EXTENDED(X)     ((signed64)(signed32)(X))
 #endif
 #if (WITH_TARGET_WORD_BITSIZE == 32)
-#define EXTENDED(X)     (X)
-#endif
-#if (WITH_TARGET_WORD_BITSIZE == 16)
 #define EXTENDED(X)     (X)
 #endif
 

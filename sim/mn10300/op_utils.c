@@ -36,10 +36,10 @@
 
 
 INLINE_SIM_MAIN (void)
-genericAdd(unsigned32 source, unsigned32 destReg)
+genericAdd(unsigned long source, unsigned long destReg)
 {
   int z, c, n, v;
-  unsigned32 dest, sum;
+  unsigned long dest, sum;
 
   dest = State.regs[destReg];
   sum = source + dest;
@@ -60,10 +60,10 @@ genericAdd(unsigned32 source, unsigned32 destReg)
 
 
 INLINE_SIM_MAIN (void)
-genericSub(unsigned32 source, unsigned32 destReg)
+genericSub(unsigned long source, unsigned long destReg)
 {
   int z, c, n, v;
-  unsigned32 dest, difference;
+  unsigned long dest, difference;
 
   dest = State.regs[destReg];
   difference = dest - source;
@@ -81,10 +81,10 @@ genericSub(unsigned32 source, unsigned32 destReg)
 }
 
 INLINE_SIM_MAIN (void)
-genericCmp(unsigned32 leftOpnd, unsigned32 rightOpnd)
+genericCmp(unsigned long leftOpnd, unsigned long rightOpnd)
 {
   int z, c, n, v;
-  unsigned32 value;
+  unsigned long value;
 
   value = rightOpnd - leftOpnd;
 
@@ -101,7 +101,7 @@ genericCmp(unsigned32 leftOpnd, unsigned32 rightOpnd)
 
 
 INLINE_SIM_MAIN (void)
-genericOr(unsigned32 source, unsigned32 destReg)
+genericOr(unsigned long source, unsigned long destReg)
 {
   int n, z;
 
@@ -114,7 +114,7 @@ genericOr(unsigned32 source, unsigned32 destReg)
 
 
 INLINE_SIM_MAIN (void)
-genericXor(unsigned32 source, unsigned32 destReg)
+genericXor(unsigned long source, unsigned long destReg)
 {
   int n, z;
 
@@ -127,9 +127,9 @@ genericXor(unsigned32 source, unsigned32 destReg)
 
 
 INLINE_SIM_MAIN (void)
-genericBtst(unsigned32 leftOpnd, unsigned32 rightOpnd)
+genericBtst(unsigned long leftOpnd, unsigned long rightOpnd)
 {
-  unsigned32 temp;
+  unsigned long temp;
   int z, n;
 
   temp = rightOpnd;
@@ -164,7 +164,7 @@ syscall_write_mem (host_callback *cb, struct cb_syscall *sc,
 
 /* syscall */
 INLINE_SIM_MAIN (void)
-do_syscall (void)
+do_syscall ()
 {
 
   /* We use this for simulated system calls; we may need to change

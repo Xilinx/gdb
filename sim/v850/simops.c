@@ -2,8 +2,6 @@
 #include "v850_sim.h"
 #include "simops.h"
 
-#include <sys/types.h>
-
 #ifdef HAVE_UTIME_H
 #include <utime.h>
 #endif
@@ -213,8 +211,7 @@ trace_result (int has_result, unsigned32 result)
     int i;
     for (i = 0; i < trace_num_values; i++)
       {
-	sprintf (chp, "%*s0x%.8lx", SIZE_VALUES - 10, "",
-		 (long) trace_values[i]);
+	sprintf (chp, "%*s0x%.8lx", SIZE_VALUES - 10, "", trace_values[i]);
 	chp = strchr (chp, '\0');
       }
     while (i++ < 3)
@@ -331,7 +328,7 @@ Add32 (unsigned long a1, unsigned long a2, int * carry)
 }
 
 static void
-Multiply64 (int sign, unsigned long op0)
+Multiply64 (boolean sign, unsigned long op0)
 {
   unsigned long op1;
   unsigned long lo;
@@ -773,6 +770,50 @@ OP_6E0 ()
   return 4;
 }
 
+/* divh reg1, reg2 */
+int
+OP_40 ()
+{
+  unsigned int op0, op1, result, ov, s, z;
+  int temp;
+
+  trace_input ("divh", OP_REG_REG, 0);
+
+  /* Compute the result.  */
+  temp = EXTEND16 (State.regs[ OP[0] ]);
+  op0 = temp;
+  op1 = State.regs[OP[1]];
+  
+  if (op0 == 0xffffffff && op1 == 0x80000000)
+    {
+      result = 0x80000000;
+      ov = 1;
+    }
+  else if (op0 != 0)
+    {
+      result = op1 / op0;
+      ov = 0;
+    }
+  else
+    {
+      result = 0x0;
+      ov = 1;
+    }
+  
+  /* Compute the condition codes.  */
+  z = (result == 0);
+  s = (result & 0x80000000);
+  
+  /* Store the result and condition codes.  */
+  State.regs[OP[1]] = result;
+  PSW &= ~(PSW_Z | PSW_S | PSW_OV);
+  PSW |= ((z ? PSW_Z : 0) | (s ? PSW_S : 0)
+	  | (ov ? PSW_OV : 0));
+  trace_output (OP_REG_REG);
+
+  return 2;
+}
+
 /* cmp reg, reg */
 int
 OP_1E0 ()
@@ -864,29 +905,18 @@ OP_C0 ()
 	&& (op0 & 0x80000000) != (result & 0x80000000));
   sat = ov;
   
-  /* Handle saturated results.  */
-  if (sat && s)
-    {
-      /* An overflow that results in a negative result implies that we
-	 became too positive.  */
-      result = 0x7fffffff;
-      s = 0;
-    }
-  else if (sat)
-    {
-      /* Any other overflow must have thus been too negative.  */
-      result = 0x80000000;
-      s = 1;
-      z = 0;
-    }
-
   /* Store the result and condition codes.  */
   State.regs[OP[1]] = result;
   PSW &= ~(PSW_Z | PSW_S | PSW_CY | PSW_OV);
   PSW |= ((z ? PSW_Z : 0) | (s ? PSW_S : 0)
 	  | (cy ? PSW_CY : 0) | (ov ? PSW_OV : 0)
 	  | (sat ? PSW_SAT : 0));
-
+  
+  /* Handle saturated results.  */
+  if (sat && s)
+    State.regs[OP[1]] = 0x80000000;
+  else if (sat)
+    State.regs[OP[1]] = 0x7fffffff;
   trace_output (OP_REG_REG);
 
   return 2;
@@ -916,28 +946,18 @@ OP_220 ()
 	&& (op0 & 0x80000000) != (result & 0x80000000));
   sat = ov;
 
-  /* Handle saturated results.  */
-  if (sat && s)
-    {
-      /* An overflow that results in a negative result implies that we
-	 became too positive.  */
-      result = 0x7fffffff;
-      s = 0;
-    }
-  else if (sat)
-    {
-      /* Any other overflow must have thus been too negative.  */
-      result = 0x80000000;
-      s = 1;
-      z = 0;
-    }
-
   /* Store the result and condition codes.  */
   State.regs[OP[1]] = result;
   PSW &= ~(PSW_Z | PSW_S | PSW_CY | PSW_OV);
   PSW |= ((z ? PSW_Z : 0) | (s ? PSW_S : 0)
 		| (cy ? PSW_CY : 0) | (ov ? PSW_OV : 0)
 		| (sat ? PSW_SAT : 0));
+
+  /* Handle saturated results.  */
+  if (sat && s)
+    State.regs[OP[1]] = 0x80000000;
+  else if (sat)
+    State.regs[OP[1]] = 0x7fffffff;
   trace_output (OP_IMM_REG);
 
   return 2;
@@ -963,23 +983,7 @@ OP_A0 ()
   ov = ((op1 & 0x80000000) != (op0 & 0x80000000)
 	&& (op1 & 0x80000000) != (result & 0x80000000));
   sat = ov;
-
-  /* Handle saturated results.  */
-  if (sat && s)
-    {
-      /* An overflow that results in a negative result implies that we
-	 became too positive.  */
-      result = 0x7fffffff;
-      s = 0;
-    }
-  else if (sat)
-    {
-      /* Any other overflow must have thus been too negative.  */
-      result = 0x80000000;
-      s = 1;
-      z = 0;
-    }
-
+  
   /* Store the result and condition codes.  */
   State.regs[OP[1]] = result;
   PSW &= ~(PSW_Z | PSW_S | PSW_CY | PSW_OV);
@@ -987,6 +991,11 @@ OP_A0 ()
 	  | (cy ? PSW_CY : 0) | (ov ? PSW_OV : 0)
 	  | (sat ? PSW_SAT : 0));
   
+  /* Handle saturated results.  */
+  if (sat && s)
+    State.regs[OP[1]] = 0x80000000;
+  else if (sat)
+    State.regs[OP[1]] = 0x7fffffff;
   trace_output (OP_REG_REG);
   return 2;
 }
@@ -1014,22 +1023,6 @@ OP_660 ()
 	&& (op1 & 0x80000000) != (result & 0x80000000));
   sat = ov;
 
-  /* Handle saturated results.  */
-  if (sat && s)
-    {
-      /* An overflow that results in a negative result implies that we
-	 became too positive.  */
-      result = 0x7fffffff;
-      s = 0;
-    }
-  else if (sat)
-    {
-      /* Any other overflow must have thus been too negative.  */
-      result = 0x80000000;
-      s = 1;
-      z = 0;
-    }
-
   /* Store the result and condition codes.  */
   State.regs[OP[1]] = result;
   PSW &= ~(PSW_Z | PSW_S | PSW_CY | PSW_OV);
@@ -1037,6 +1030,11 @@ OP_660 ()
 		| (cy ? PSW_CY : 0) | (ov ? PSW_OV : 0)
 		| (sat ? PSW_SAT : 0));
 
+  /* Handle saturated results.  */
+  if (sat && s)
+    State.regs[OP[1]] = 0x80000000;
+  else if (sat)
+    State.regs[OP[1]] = 0x7fffffff;
   trace_output (OP_IMM_REG);
 
   return 4;
@@ -1058,26 +1056,10 @@ OP_80 ()
   /* Compute the condition codes.  */
   z = (result == 0);
   s = (result & 0x80000000);
-  cy = (op0 < op1);
-  ov = ((op0 & 0x80000000) != (op1 & 0x80000000)
-	&& (op0 & 0x80000000) != (result & 0x80000000));
+  cy = (result < op0);
+  ov = ((op1 & 0x80000000) != (op0 & 0x80000000)
+	&& (op1 & 0x80000000) != (result & 0x80000000));
   sat = ov;
-
-  /* Handle saturated results.  */
-  if (sat && s)
-    {
-      /* An overflow that results in a negative result implies that we
-	 became too positive.  */
-      result = 0x7fffffff;
-      s = 0;
-    }
-  else if (sat)
-    {
-      /* Any other overflow must have thus been too negative.  */
-      result = 0x80000000;
-      s = 1;
-      z = 0;
-    }
   
   /* Store the result and condition codes.  */
   State.regs[OP[1]] = result;
@@ -1086,6 +1068,11 @@ OP_80 ()
 	  | (cy ? PSW_CY : 0) | (ov ? PSW_OV : 0)
 	  | (sat ? PSW_SAT : 0));
   
+  /* Handle saturated results.  */
+  if (sat && s)
+    State.regs[OP[1]] = 0x80000000;
+  else if (sat)
+    State.regs[OP[1]] = 0x7fffffff;
   trace_output (OP_REG_REG);
 
   return 2;
@@ -1158,7 +1145,7 @@ OP_2A0 ()
   /* Compute the condition codes.  */
   z = (result == 0);
   s = (result & 0x80000000);
-  cy = op0 ? (op1 & (1 << (op0 - 1))) : 0;
+  cy = (op1 & (1 << (op0 - 1)));
 
   /* Store the result and condition codes.  */
   State.regs[ OP[1] ] = result;
@@ -1185,7 +1172,7 @@ OP_A007E0 ()
   /* Compute the condition codes.  */
   z = (result == 0);
   s = (result & 0x80000000);
-  cy = op0 ? (op1 & (1 << (op0 - 1))) : 0;
+  cy = (op1 & (1 << (op0 - 1)));
 
   /* Store the result and condition codes.  */
   State.regs[OP[1]] = result;
@@ -1211,7 +1198,7 @@ OP_2C0 ()
   /* Compute the condition codes.  */
   z = (result == 0);
   s = (result & 0x80000000);
-  cy = op0 ? (op1 & (1 << (32 - op0))) : 0;
+  cy = (op1 & (1 << (32 - op0)));
 
   /* Store the result and condition codes.  */
   State.regs[OP[1]] = result;
@@ -1237,7 +1224,7 @@ OP_C007E0 ()
   /* Compute the condition codes.  */
   z = (result == 0);
   s = (result & 0x80000000);
-  cy = op0 ? (op1 & (1 << (32 - op0))) : 0;
+  cy = (op1 & (1 << (32 - op0)));
 
   /* Store the result and condition codes.  */
   State.regs[OP[1]] = result;
@@ -1263,7 +1250,7 @@ OP_280 ()
   /* Compute the condition codes.  */
   z = (result == 0);
   s = (result & 0x80000000);
-  cy = op0 ? (op1 & (1 << (op0 - 1))) : 0;
+  cy = (op1 & (1 << (op0 - 1)));
 
   /* Store the result and condition codes.  */
   State.regs[OP[1]] = result;
@@ -1289,7 +1276,7 @@ OP_8007E0 ()
   /* Compute the condition codes.  */
   z = (result == 0);
   s = (result & 0x80000000);
-  cy = op0 ? (op1 & (1 << (op0 - 1))) : 0;
+  cy = (op1 & (1 << (op0 - 1)));
 
   /* Store the result and condition codes.  */
   State.regs[OP[1]] = result;
@@ -1892,7 +1879,7 @@ OP_10007E0 ()
       ECR |= 0x40 + OP[0];
       /* Flag that we are now doing exception processing.  */
       PSW |= PSW_EP | PSW_ID;
-      PC = (OP[0] < 0x10) ? 0x40 : 0x50;
+      PC = ((OP[0] < 0x10) ? 0x40 : 0x50) - 4;
 
       return 0;
     }
@@ -1909,7 +1896,7 @@ OP_E607E0 (void)
   temp = load_mem (State.regs[ OP[0] ], 1);
   
   PSW &= ~PSW_Z;
-  if ((temp & (1 << (State.regs[ OP[1] ] & 0x7))) == 0)
+  if ((temp & (1 << State.regs[ OP[1] & 0x7 ])) == 0)
     PSW |= PSW_Z;
   
   trace_output (OP_BIT);
@@ -1923,7 +1910,7 @@ OP_22207E0 (void)
 {
   trace_input ("mulu", OP_REG_REG_REG, 0);
 
-  Multiply64 (0, State.regs[ OP[0] ]);
+  Multiply64 (false, State.regs[ OP[0] ]);
 
   trace_output (OP_REG_REG_REG);
 
@@ -1936,7 +1923,7 @@ OP_22207E0 (void)
   						\
   trace_input (name, OP_BIT_CHANGE, 0);		\
   						\
-  bit  = 1 << (State.regs[ OP[1] ] & 0x7);	\
+  bit  = 1 << State.regs[ OP[1] & 0x7 ];	\
   temp = load_mem (State.regs[ OP[0] ], 1);	\
 						\
   PSW &= ~PSW_Z;				\
@@ -1994,7 +1981,7 @@ divun
   unsigned long int  sfi,
   unsigned32 /*unsigned long int*/ *  quotient_ptr,
   unsigned32 /*unsigned long int*/ *  remainder_ptr,
-  int *          overflow_ptr
+  boolean *          overflow_ptr
 )
 {
   unsigned long   ald = sfi >> (N - 1);
@@ -2068,7 +2055,7 @@ divn
   unsigned long int  sfi,
   signed32 /*signed long int*/ *  quotient_ptr,
   signed32 /*signed long int*/ *  remainder_ptr,
-  int *          overflow_ptr
+  boolean *          overflow_ptr
 )
 {
   unsigned long	  ald = (signed long) sfi >> (N - 1);
@@ -2167,7 +2154,7 @@ OP_1C207E0 (void)
   unsigned32 /*unsigned long int*/  remainder;
   unsigned long int  divide_by;
   unsigned long int  divide_this;
-  int            overflow = 0;
+  boolean            overflow = false;
   unsigned int       imm5;
       
   trace_input ("sdivun", OP_IMM_REG_REG_REG, 0);
@@ -2202,15 +2189,15 @@ OP_1C007E0 (void)
   signed32 /*signed long int*/  remainder;
   signed long int  divide_by;
   signed long int  divide_this;
-  int          overflow = 0;
+  boolean          overflow = false;
   unsigned int     imm5;
       
   trace_input ("sdivn", OP_IMM_REG_REG_REG, 0);
 
   imm5 = 32 - ((OP[3] & 0x3c0000) >> 17);
 
-  divide_by   = (signed32) State.regs[ OP[0] ];
-  divide_this = (signed32) (State.regs[ OP[1] ] << imm5);
+  divide_by   = State.regs[ OP[0] ];
+  divide_this = State.regs[ OP[1] ] << imm5;
 
   divn (imm5, divide_by, divide_this, & quotient, & remainder, & overflow);
   
@@ -2237,7 +2224,7 @@ OP_18207E0 (void)
   unsigned32 /*unsigned long int*/  remainder;
   unsigned long int  divide_by;
   unsigned long int  divide_this;
-  int            overflow = 0;
+  boolean            overflow = false;
   unsigned int       imm5;
       
   trace_input ("sdivhun", OP_IMM_REG_REG_REG, 0);
@@ -2272,7 +2259,7 @@ OP_18007E0 (void)
   signed32 /*signed long int*/  remainder;
   signed long int  divide_by;
   signed long int  divide_this;
-  int          overflow = 0;
+  boolean          overflow = false;
   unsigned int     imm5;
       
   trace_input ("sdivhn", OP_IMM_REG_REG_REG, 0);
@@ -2280,7 +2267,7 @@ OP_18007E0 (void)
   imm5 = 32 - ((OP[3] & 0x3c0000) >> 17);
 
   divide_by   = EXTEND16 (State.regs[ OP[0] ]);
-  divide_this = (signed32) (State.regs[ OP[1] ] << imm5);
+  divide_this = State.regs[ OP[1] ] << imm5;
 
   divn (imm5, divide_by, divide_this, & quotient, & remainder, & overflow);
   
@@ -2307,7 +2294,7 @@ OP_2C207E0 (void)
   unsigned long int remainder;
   unsigned long int divide_by;
   unsigned long int divide_this;
-  int           overflow = 0;
+  boolean           overflow = false;
   
   trace_input ("divu", OP_REG_REG_REG, 0);
   
@@ -2318,20 +2305,19 @@ OP_2C207E0 (void)
   
   if (divide_by == 0)
     {
-      PSW |= PSW_OV;
+      overflow = true;
+      divide_by  = 1;
     }
-  else
-    {
-      State.regs[ OP[1]       ] = quotient  = divide_this / divide_by;
-      State.regs[ OP[2] >> 11 ] = remainder = divide_this % divide_by;
   
-      /* Set condition codes.  */
-      PSW &= ~(PSW_Z | PSW_S | PSW_OV);
+  State.regs[ OP[1]       ] = quotient  = divide_this / divide_by;
+  State.regs[ OP[2] >> 11 ] = remainder = divide_this % divide_by;
   
-      if (overflow)      PSW |= PSW_OV;
-      if (quotient == 0) PSW |= PSW_Z;
-      if (quotient & 0x80000000) PSW |= PSW_S;
-    }
+  /* Set condition codes.  */
+  PSW &= ~(PSW_Z | PSW_S | PSW_OV);
+  
+  if (overflow)      PSW |= PSW_OV;
+  if (quotient == 0) PSW |= PSW_Z;
+  if (quotient & 0x80000000) PSW |= PSW_S;
   
   trace_output (OP_REG_REG_REG);
 
@@ -2346,37 +2332,30 @@ OP_2C007E0 (void)
   signed long int remainder;
   signed long int divide_by;
   signed long int divide_this;
+  boolean         overflow = false;
   
   trace_input ("div", OP_REG_REG_REG, 0);
   
   /* Compute the result.  */
   
-  divide_by   = (signed32) State.regs[ OP[0] ];
+  divide_by   = State.regs[ OP[0] ];
   divide_this = State.regs[ OP[1] ];
   
-  if (divide_by == 0)
+  if (divide_by == 0 || (divide_by == -1 && divide_this == (1 << 31)))
     {
-      PSW |= PSW_OV;
+      overflow  = true;
+      divide_by = 1;
     }
-  else if (divide_by == -1 && divide_this == (1L << 31))
-    {
-      PSW &= ~PSW_Z;
-      PSW |= PSW_OV | PSW_S;
-      State.regs[ OP[1] ] = (1 << 31);
-      State.regs[ OP[2] >> 11 ] = 0;
-    }
-  else
-    {
-      divide_this = (signed32) divide_this;
-      State.regs[ OP[1]       ] = quotient  = divide_this / divide_by;
-      State.regs[ OP[2] >> 11 ] = remainder = divide_this % divide_by;
- 
-      /* Set condition codes.  */
-      PSW &= ~(PSW_Z | PSW_S | PSW_OV);
   
-      if (quotient == 0) PSW |= PSW_Z;
-      if (quotient <  0) PSW |= PSW_S;
-    }
+  State.regs[ OP[1]       ] = quotient  = divide_this / divide_by;
+  State.regs[ OP[2] >> 11 ] = remainder = divide_this % divide_by;
+  
+  /* Set condition codes.  */
+  PSW &= ~(PSW_Z | PSW_S | PSW_OV);
+  
+  if (overflow)      PSW |= PSW_OV;
+  if (quotient == 0) PSW |= PSW_Z;
+  if (quotient <  0) PSW |= PSW_S;
   
   trace_output (OP_REG_REG_REG);
 
@@ -2391,7 +2370,7 @@ OP_28207E0 (void)
   unsigned long int remainder;
   unsigned long int divide_by;
   unsigned long int divide_this;
-  int           overflow = 0;
+  boolean           overflow = false;
   
   trace_input ("divhu", OP_REG_REG_REG, 0);
   
@@ -2402,20 +2381,19 @@ OP_28207E0 (void)
   
   if (divide_by == 0)
     {
-      PSW |= PSW_OV;
+      overflow = true;
+      divide_by  = 1;
     }
-  else
-    {
-      State.regs[ OP[1]       ] = quotient  = divide_this / divide_by;
-      State.regs[ OP[2] >> 11 ] = remainder = divide_this % divide_by;
   
-      /* Set condition codes.  */
-      PSW &= ~(PSW_Z | PSW_S | PSW_OV);
+  State.regs[ OP[1]       ] = quotient  = divide_this / divide_by;
+  State.regs[ OP[2] >> 11 ] = remainder = divide_this % divide_by;
   
-      if (overflow)      PSW |= PSW_OV;
-      if (quotient == 0) PSW |= PSW_Z;
-      if (quotient & 0x80000000) PSW |= PSW_S;
-    }
+  /* Set condition codes.  */
+  PSW &= ~(PSW_Z | PSW_S | PSW_OV);
+  
+  if (overflow)      PSW |= PSW_OV;
+  if (quotient == 0) PSW |= PSW_Z;
+  if (quotient & 0x80000000) PSW |= PSW_S;
   
   trace_output (OP_REG_REG_REG);
 
@@ -2430,38 +2408,30 @@ OP_28007E0 (void)
   signed long int remainder;
   signed long int divide_by;
   signed long int divide_this;
-  int         overflow = 0;
+  boolean         overflow = false;
   
   trace_input ("divh", OP_REG_REG_REG, 0);
   
   /* Compute the result.  */
   
-  divide_by  = EXTEND16 (State.regs[ OP[0] ]);
-  divide_this = State.regs[ OP[1] ];
+  divide_by  = State.regs[ OP[0] ];
+  divide_this = EXTEND16 (State.regs[ OP[1] ]);
   
-  if (divide_by == 0)
+  if (divide_by == 0 || (divide_by == -1 && divide_this == (1 << 31)))
     {
-      PSW |= PSW_OV;
+      overflow = true;
+      divide_by  = 1;
     }
-  else if (divide_by == -1 && divide_this == (1L << 31))
-    {
-      PSW &= ~PSW_Z;
-      PSW |= PSW_OV | PSW_S;
-      State.regs[ OP[1] ] = (1 << 31);
-      State.regs[ OP[2] >> 11 ] = 0;
-    }
-  else
-    {
-      divide_this = (signed32) divide_this;
-      State.regs[ OP[1]       ] = quotient  = divide_this / divide_by;
-      State.regs[ OP[2] >> 11 ] = remainder = divide_this % divide_by;
   
-      /* Set condition codes.  */
-      PSW &= ~(PSW_Z | PSW_S | PSW_OV);
+  State.regs[ OP[1]       ] = quotient  = divide_this / divide_by;
+  State.regs[ OP[2] >> 11 ] = remainder = divide_this % divide_by;
   
-      if (quotient == 0) PSW |= PSW_Z;
-      if (quotient <  0) PSW |= PSW_S;
-    }
+  /* Set condition codes.  */
+  PSW &= ~(PSW_Z | PSW_S | PSW_OV);
+  
+  if (overflow)      PSW |= PSW_OV;
+  if (quotient == 0) PSW |= PSW_Z;
+  if (quotient <  0) PSW |= PSW_S;
   
   trace_output (OP_REG_REG_REG);
 
@@ -2474,7 +2444,7 @@ OP_24207E0 (void)
 {
   trace_input ("mulu", OP_IMM_REG_REG, 0);
 
-  Multiply64 (0, (OP[3] & 0x1f) | ((OP[3] >> 13) & 0x1e0));
+  Multiply64 (false, (OP[3] & 0x1f) | ((OP[3] >> 13) & 0x1e0));
 
   trace_output (OP_IMM_REG_REG);
 
@@ -2487,7 +2457,7 @@ OP_24007E0 (void)
 {
   trace_input ("mul", OP_IMM_REG_REG, 0);
 
-  Multiply64 (1, SEXT9 ((OP[3] & 0x1f) | ((OP[3] >> 13) & 0x1e0)));
+  Multiply64 (true, (OP[3] & 0x1f) | ((OP[3] >> 13) & 0x1e0));
 
   trace_output (OP_IMM_REG_REG);
 
@@ -2637,7 +2607,7 @@ OP_22007E0 (void)
 {
   trace_input ("mul", OP_REG_REG_REG, 0);
 
-  Multiply64 (1, State.regs[ OP[0] ]);
+  Multiply64 (true, State.regs[ OP[0] ]);
 
   trace_output (OP_REG_REG_REG);
 

@@ -1,7 +1,6 @@
 /* Test GDB dealing with stuff like stepping into sigtramp.  */
 
 #include <signal.h>
-#include <unistd.h>
 
 #ifdef __sh__
 #define signal(a,b)	/* Signals not supported on this target - make them go away */
@@ -10,14 +9,9 @@
 
 static int count = 0;
 
-#ifdef PROTOTYPES
-static void
-handler (int sig)
-#else
 static void
 handler (sig)
      int sig;
-#endif
 {
   signal (sig, handler);
   ++count;
