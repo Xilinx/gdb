@@ -1,21 +1,25 @@
-#   Copyright 1997, 1999, 2007, 2008 Free Software Foundation, Inc.
+#   Copyright (C) 1997 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
+# the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-if { [is_remote target] || ![isnative] } then {
-    continue
-}
+# Please email any bugs, comments, and/or additions to this file to:
+# bug-gdb@prep.ai.mit.edu
+
+if $tracelevel then {
+	strace $tracelevel
+	}
 
 set prms_id 0
 set bug_id 0
@@ -29,19 +33,17 @@ set binfile2 ${objdir}/${subdir}/${testfile2}
 
 # build the first test case
 if  { [gdb_compile "${srcdir}/${subdir}/${srcfile2}" "${binfile2}" executable {debug}] != "" } {
-     untested foll-exec.exp
-     return -1
+     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
 }
 
 if  { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable {debug}] != "" } {
-     untested foll-exec.exp
-     return -1
+     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
 }
 
 
 # Until "catch exec" is implemented on other targets...
 #
-if {![istarget "hppa*-hp-hpux*"] && ![istarget "*-linux*"]} then {
+if ![istarget "hppa*-hp-hpux*"] then {
     continue
 }
 
@@ -78,33 +80,6 @@ proc do_exec_tests {} {
    global srcfile2
    global testfile
    global testfile2
-
-   # Start the program running, and stop at main.
-   #
-   if ![runto_main] then {
-     perror "Couldn't run ${testfile}"
-     return
-   }
-
-   # Verify that the system supports "catch exec".
-   gdb_test "catch exec" "Catchpoint \[0-9\]* \\(exec\\)" "insert first exec catchpoint"
-   set has_exec_catchpoints 0
-   gdb_test_multiple "continue" "continue to first exec catchpoint" {
-     -re ".*Your system does not support exec catchpoints.*$gdb_prompt $" {
-       unsupported "continue to first exec catchpoint"
-     }
-     -re ".*Catchpoint.*$gdb_prompt $" {
-       set has_exec_catchpoints 1
-       pass "continue to first exec catchpoint"
-     }
-   }
-
-   if {$has_exec_catchpoints == 0} {
-     unsupported "exec catchpoints"
-     return
-   }
-
-   zap_session
 
    # Start the program running, and stop at main.
    #
@@ -230,10 +205,10 @@ proc do_exec_tests {} {
    # DTS CLLbs16760
    # PA64 doesn't know about $START$ in dld.sl at this point.  It should.
    # - Michael Coulter
-   setup_xfail hppa2.0w-hp-hpux* CLLbs16760
+   setup_xfail hppa2.0w-hp-hpux*
    send_gdb "continue\n"
    gdb_expect {
-     -re ".*Executing new program:.*${testfile2}.*Catchpoint .*(exec\'d .*${testfile2}).*in .*$gdb_prompt $"\
+     -re ".*Executing new program:.*${testfile2}.*Catchpoint .*(exec\'d .*${testfile2}).*in .START..*$gdb_prompt $"\
                      {pass "hit catch exec"}
      -re "$gdb_prompt $" {fail "hit catch exec"}
      timeout         {fail "(timeout) hit catch exec"}
@@ -283,7 +258,7 @@ proc do_exec_tests {} {
    #
    send_gdb "tbreak 27\n"
    gdb_expect {
-     -re "Temporary breakpoint .*file .*${srcfile}, line 27.*$gdb_prompt $"\
+     -re "Breakpoint .*file .*${srcfile}, line 27.*$gdb_prompt $"\
                      {pass "prepare to jump to execl call"}
      -re "$gdb_prompt $" {fail "prepare to jump to execl call"}
      timeout         {fail "(timeout) prepare to jump to execl call"}
@@ -343,7 +318,7 @@ proc do_exec_tests {} {
    #
    send_gdb "tbreak 41\n"
    gdb_expect {
-     -re "Temporary breakpoint .*file .*${srcfile}, line 41.*$gdb_prompt $"\
+     -re "Breakpoint .*file .*${srcfile}, line 41.*$gdb_prompt $"\
                      {pass "prepare to jump to execv call"}
      -re "$gdb_prompt $" {fail "prepare to jump to execv call"}
      timeout         {fail "(timeout) prepare to jump to execv call"}

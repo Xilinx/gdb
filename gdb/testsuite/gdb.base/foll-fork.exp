@@ -1,33 +1,35 @@
-#   Copyright 1997, 1999, 2007, 2008 Free Software Foundation, Inc.
+#   Copyright (C) 1997 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
+# the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-if { [is_remote target] || ![isnative] } then {
-    continue
-}
+# Please email any bugs, comments, and/or additions to this file to:
+# bug-gdb@prep.ai.mit.edu
+
+if $tracelevel then {
+	strace $tracelevel
+	}
 
 set prms_id 0
 set bug_id 0
 
-global srcfile
 set testfile "foll-fork"
 set srcfile ${testfile}.c
 set binfile ${objdir}/${subdir}/${testfile}
 
 if  { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable {debug}] != "" } {
-     untested foll-fork.exp
-     return -1
+     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
 }
 
 
@@ -35,30 +37,8 @@ if  { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable {deb
 # Until "set follow-fork-mode" and "catch fork" are implemented on
 # other targets...
 #
-if {![istarget "hppa*-hp-hpux*"] && ![istarget "*-linux*"]} then {
+if ![istarget "hppa*-hp-hpux*"] then {
     continue
-}
-
-proc check_fork_catchpoints {} {
-  global gdb_prompt
-
-  # Verify that the system supports "catch fork".
-  gdb_test "catch fork" "Catchpoint \[0-9\]* \\(fork\\)" "insert first fork catchpoint"
-  set has_fork_catchpoints 0
-  gdb_test_multiple "continue" "continue to first fork catchpoint" {
-    -re ".*Your system does not support fork catchpoints.*$gdb_prompt $" {
-      unsupported "continue to first fork catchpoint"
-    }
-    -re ".*Catchpoint.*$gdb_prompt $" {
-      set has_fork_catchpoints 1
-      pass "continue to first fork catchpoint"
-    }
-  }
-
-  if {$has_fork_catchpoints == 0} {
-    unsupported "fork catchpoints"
-    return -code return
-  }
 }
 
 proc default_fork_parent_follow {} {
@@ -131,7 +111,7 @@ proc explicit_fork_child_follow {} {
    }
    send_gdb "next 2\n"
    gdb_expect {
-      -re "Attaching after fork to.*$gdb_prompt $"\
+      -re "Detaching from program:.*Attaching after fork to.*$gdb_prompt $"\
                       {pass "explicit child follow, no catchpoints"}
       -re "$gdb_prompt $" {fail "explicit child follow, no catchpoints"}
       timeout         {fail "(timeout) explicit child follow, no catchpoints"}
@@ -145,7 +125,6 @@ proc explicit_fork_child_follow {} {
 
 proc catch_fork_child_follow {} {
    global gdb_prompt
-   global srcfile
 
    send_gdb "catch fork\n"
    gdb_expect {
@@ -170,7 +149,7 @@ proc catch_fork_child_follow {} {
 
    send_gdb "continue\n"
    gdb_expect {
-      -re "Catchpoint.*(forked process.*),.*in .*(fork|__kernel_vsyscall).*$gdb_prompt $"\
+      -re "Catchpoint.*(forked process.*),.*in _fork_sys.*$gdb_prompt $"\
                       {pass "explicit child follow, catch fork"}
       -re "$gdb_prompt $" {fail "explicit child follow, catch fork"}
       timeout         {fail "(timeout) explicit child follow, catch fork"}
@@ -192,16 +171,16 @@ proc catch_fork_child_follow {} {
       -re "$gdb_prompt $" {pass "set follow child"}
       timeout         {fail "(timeout) set follow child"}
    }
-   send_gdb "tbreak ${srcfile}:24\n"
+   send_gdb "tbreak 24\n"
    gdb_expect {
-      -re "Temporary breakpoint.*, line 24.*$gdb_prompt $"\
+      -re "Breakpoint.*, line 24.*$gdb_prompt $"\
                       {pass "set follow child, tbreak"}
       -re "$gdb_prompt $" {fail "set follow child, tbreak"}
       timeout         {fail "(timeout) set follow child, tbreak"}
    }
    send_gdb "continue\n"
    gdb_expect {
-      -re "Attaching after fork to.* at .*24.*$gdb_prompt $"\
+      -re ".*Detaching from program:.*Attaching after fork to.* at .*24.*$gdb_prompt $"\
                       {pass "set follow child, hit tbreak"}
       -re "$gdb_prompt $" {fail "set follow child, hit tbreak"}
       timeout         {fail "(timeout) set follow child, hit tbreak"}
@@ -228,7 +207,6 @@ proc catch_fork_child_follow {} {
 
 proc tcatch_fork_parent_follow {} {
    global gdb_prompt
-   global srcfile
 
    send_gdb "catch fork\n"
    gdb_expect {
@@ -243,7 +221,7 @@ proc tcatch_fork_parent_follow {} {
 
    send_gdb "continue\n"
    gdb_expect {
-      -re ".*in .*(fork|__kernel_vsyscall).*$gdb_prompt $"\
+      -re ".*in _fork_sys.*$gdb_prompt $"\
                       {pass "explicit parent follow, tcatch fork"}
       -re "$gdb_prompt $" {fail "explicit parent follow, tcatch fork"}
       timeout         {fail "(timeout) explicit parent follow, tcatch fork"}
@@ -253,9 +231,9 @@ proc tcatch_fork_parent_follow {} {
       -re "$gdb_prompt $" {pass "set follow parent"}
       timeout         {fail "(timeout) set follow parent"}
    }
-   send_gdb "tbreak ${srcfile}:24\n"
+   send_gdb "tbreak 24\n"
    gdb_expect {
-      -re "Temporary breakpoint.*, line 24.*$gdb_prompt $"\
+      -re "Breakpoint.*, line 24.*$gdb_prompt $"\
                       {pass "set follow parent, tbreak"}
       -re "$gdb_prompt $" {fail "set follow parent, tbreak"}
       timeout         {fail "(timeout) set follow child, tbreak"}
@@ -298,7 +276,8 @@ proc do_fork_tests {} {
 A fork or vfork creates a new process.  follow-fork-mode can be:.*
 .*parent  - the original process is debugged after a fork.*
 .*child   - the new process is debugged after a fork.*
-The unfollowed process will continue to run..*
+.*ask     - the debugger will ask for one of the above choices.*
+For \"parent\" or \"child\", the unfollowed process will run free..*
 By default, the debugger will follow the parent process..*$gdb_prompt $"\
                       { pass "help set follow" }
       -re "$gdb_prompt $" { fail "help set follow" }
@@ -330,10 +309,6 @@ By default, the debugger will follow the parent process..*$gdb_prompt $"\
      -re "$gdb_prompt $" {pass "set follow to nonsense is prohibited (reset parent)"}
      timeout         {fail "set follow to nonsense is prohibited (reset parent)"}
    }
-
-   # Check that fork catchpoints are supported, as an indicator for whether
-   # fork-following is supported.
-   if [runto_main] then { check_fork_catchpoints }
 
    # Test the default behaviour, which is to follow the parent of a
    # fork, and detach from the child.  Do this without catchpoints.
@@ -379,9 +354,6 @@ gdb_start
 gdb_reinitialize_dir $srcdir/$subdir
 gdb_load ${binfile}
 
-# The "Detaching..." and "Attaching..." messages may be hidden by
-# default.
-gdb_test "set verbose" ""
 
 # This is a test of gdb's ability to follow the parent, child or both
 # parent and child of a Unix fork() system call.
