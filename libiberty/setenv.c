@@ -1,4 +1,4 @@
-/* Copyright (C) 1992, 1995, 1996, 1997, 2002 Free Software Foundation, Inc.
+/* Copyright (C) 1992, 1995, 1996, 1997 Free Software Foundation, Inc.
    This file based on setenv.c in the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -13,31 +13,12 @@
 
    You should have received a copy of the GNU Library General Public
    License along with the GNU C Library; see the file COPYING.LIB.  If not,
-   write to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
-   Boston, MA 02110-1301, USA.  */
-
-
-/*
-
-@deftypefn Supplemental int setenv (const char *@var{name}, const char *@var{value}, int @var{overwrite})
-@deftypefnx Supplemental void unsetenv (const char *@var{name})
-
-@code{setenv} adds @var{name} to the environment with value
-@var{value}.  If the name was already present in the environment,
-the new value will be stored only if @var{overwrite} is nonzero.
-The companion @code{unsetenv} function removes @var{name} from the
-environment.  This implementation is not safe for multithreaded code.
-
-@end deftypefn
-
-*/
+   write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #if HAVE_CONFIG_H
 # include <config.h>
 #endif
-
-#define setenv libiberty_setenv
-#define unsetenv libiberty_unsetenv
 
 #include "ansidecl.h"
 #include <sys/types.h> /* For `size_t' */
@@ -64,9 +45,6 @@ extern int errno;
 extern char **environ;
 #endif
 
-#undef setenv
-#undef unsetenv
-
 /* LOCK and UNLOCK are defined as no-ops.  This makes the libiberty
  * implementation MT-Unsafe. */
 #define LOCK
@@ -80,9 +58,12 @@ static char **last_environ;
 
 
 int
-setenv (const char *name, const char *value, int replace)
+setenv (name, value, replace)
+     const char *name;
+     const char *value;
+     int replace;
 {
-  register char **ep = 0;
+  register char **ep;
   register size_t size;
   const size_t namelen = strlen (name);
   const size_t vallen = strlen (value) + 1;
@@ -91,13 +72,11 @@ setenv (const char *name, const char *value, int replace)
 
   size = 0;
   if (__environ != NULL)
-    {
-      for (ep = __environ; *ep != NULL; ++ep)
-	if (!strncmp (*ep, name, namelen) && (*ep)[namelen] == '=')
-	  break;
-	else
-	  ++size;
-    }
+    for (ep = __environ; *ep != NULL; ++ep)
+      if (!strncmp (*ep, name, namelen) && (*ep)[namelen] == '=')
+	break;
+      else
+	++size;
 
   if (__environ == NULL || *ep == NULL)
     {
@@ -115,7 +94,7 @@ setenv (const char *name, const char *value, int replace)
 	  return -1;
 	}
 
-      new_environ[size] = (char *) malloc (namelen + 1 + vallen);
+      new_environ[size] = malloc (namelen + 1 + vallen);
       if (new_environ[size] == NULL)
 	{
 	  free ((char *) new_environ);
@@ -142,13 +121,13 @@ setenv (const char *name, const char *value, int replace)
       if (len + 1 < namelen + 1 + vallen)
 	{
 	  /* The existing string is too short; malloc a new one.  */
-	  char *new_string = (char *) malloc (namelen + 1 + vallen);
-	  if (new_string == NULL)
+	  char *new = malloc (namelen + 1 + vallen);
+	  if (new == NULL)
 	    {
 	      UNLOCK;
 	      return -1;
 	    }
-	  *ep = new_string;
+	  *ep = new;
 	}
       memcpy (*ep, name, namelen);
       (*ep)[namelen] = '=';
@@ -161,7 +140,8 @@ setenv (const char *name, const char *value, int replace)
 }
 
 void
-unsetenv (const char *name)
+unsetenv (name)
+     const char *name;
 {
   const size_t len = strlen (name);
   char **ep;
