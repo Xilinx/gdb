@@ -576,7 +576,7 @@ coff_sym_h =	$(INCLUDE_DIR)/coff/sym.h
 coff_symconst_h =	$(INCLUDE_DIR)/coff/symconst.h
 coff_ecoff_h =	$(INCLUDE_DIR)/coff/ecoff.h
 coff_internal_h =	$(INCLUDE_DIR)/coff/internal.h
-dis_asm_h =	$(INCLUDE_DIR)/dis-asm.h $(bfd_h)
+dis_asm_h =	$(INCLUDE_DIR)/dis-asm.h 
 elf_reloc_macros_h =	$(INCLUDE_DIR)/elf/reloc-macros.h
 elf_sh_h =	$(INCLUDE_DIR)/elf/sh.h
 elf_arm_h =	$(INCLUDE_DIR)/elf/arm.h $(elf_reloc_macros_h)
@@ -2286,7 +2286,8 @@ solib-sunos.o: solib-sunos.c $(defs_h) $(gdb_string_h) $(symtab_h) $(bfd_h) \
 	$(bcache_h) $(regcache_h)
 solib-svr4.o: solib-svr4.c $(defs_h) $(elf_external_h) $(elf_common_h) \
 	$(elf_mips_h) $(symtab_h) $(bfd_h) $(symfile_h) $(objfiles_h) \
-	$(gdbcore_h) $(target_h) $(inferior_h) $(solist_h) $(solib_svr4_h)
+	$(gdbcore_h) $(target_h) $(inferior_h) $(solist_h) $(solib_svr4_h) \
+	$(gdbcmd_h)
 sol-thread.o: sol-thread.c $(defs_h) $(gdbthread_h) $(target_h) \
 	$(inferior_h) $(gdb_stat_h) $(gdbcmd_h) $(gdbcore_h) $(regcache_h) \
 	$(symfile_h) $(gregset_h)
