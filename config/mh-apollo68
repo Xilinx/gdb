@@ -1,1 +1,2 @@
+HDEFINES = -DUSG
 RANLIB=true

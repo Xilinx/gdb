@@ -1,27 +1,3 @@
-2002-05-15  Nick Clifton  <nickc@cambridge.redhat.com>
-
-	* fr30-asm.c: Regenerate.
-	* fr30-desc.c: Regenerate.
-	* fr30-dis.c: Regenerate.
-	* m32r-asm.c: Regenerate.
-	* m32r-desc.c: Regenerate.
-	* m32r-dis.c: Regenerate.
-	* openrisc-asm.c: Regenerate.
-	* openrisc-desc.c: Regenerate.
-	* openrisc-dis.c: Regenerate.
-	* xstormy16-asm.c: Regenerate.
-	* xstormy16-desc.c: Regenerate.
-	* xstormy16-dis.c: Regenerate.
-
-2002-05-15  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
-
-	* mips-dis.c (is_newabi): EABI is not a NewABI.
-
-2002-05-13  Jason Thorpe  <thorpej@wasabisystems.com>
-
-	* configure.in (shle-*-*elf*): Include sh64 support.
-	* configure: Regenerate.
-
 2002-04-28  Jason Thorpe  <thorpej@wasabisystems.com>
 
 	* vax-dis.c (print_insn_arg): Pass the insn info to print_insn_mode.

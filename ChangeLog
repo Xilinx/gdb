@@ -1,15 +1,3 @@
-2002-05-13  Nathanael Nerode  <neroden@twcny.rr.com>
-
-	* configure.in: Simplify makefile fragment collection.
-
-	* configure.in: Remove code to build emacs.
-
-	* configure.in : Remove --srcdir argument from targargs and buildargs
-	(it's always overridden in the Makefile anyway).  Rearrange a bit.
-
-	* configure: Move some logic to configure.in.
-	* configure.in: Move some logic from configure.
-
 2002-05-07  Jeff Johnston  <jjohnstn@redhat.com>
 
 	* COPYING.LIBGLOSS: New file.
