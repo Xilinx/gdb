@@ -1,5 +1,5 @@
 # Modal dialog class for GDBtk.
-# Copyright (C) 1998, 1999 Cygnus Solutions
+# Copyright 1998, 1999 Cygnus Solutions
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License (GPL) as published by
@@ -23,7 +23,7 @@
 #
 # ----------------------------------------------------------------------
 
-itcl::class ModalDialog {
+class ModalDialog {
   # This is the variable we vwait on when the dialog is posted.  
   # It is set to 1 in the unpost method, and to -1 in the destructor.
   
@@ -56,7 +56,7 @@ itcl::class ModalDialog {
   # ------------------------------------------------------------------
   #  METHOD:  post - posts the dialog box...
   # ------------------------------------------------------------------
-  public method post {{on_top 0} {expire 0}} {
+  public method post {{on_top 0}} {
 
     debug "POST $this"
     set top [winfo toplevel [namespace tail $this]]

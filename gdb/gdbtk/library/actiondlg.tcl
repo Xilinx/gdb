@@ -1,5 +1,5 @@
-# Tracepoint actions dialog for Insight.
-# Copyright (C) 1997, 1998, 1999, 2001 Red Hat, Inc.
+# Tracepoint actions dialog for GDBtk.
+# Copyright 1997, 1998, 1999 Cygnus Solutions
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License (GPL) as published by
@@ -12,18 +12,25 @@
 # GNU General Public License for more details.
 
 
-itcl::class ActionDlg {
-  inherit ManagedWin
-
+itcl_class ActionDlg {
   # ------------------------------------------------------------------
   # CONSTRUCTOR
   # ------------------------------------------------------------------
-  constructor {args} {
+  constructor {config} {
     global _TStepCount _TOtherVariable
 
-    eval itk_initialize $args
+    set class [$this info class]
+    set hull [namespace tail $this]
+    set old_name $this
+    ::rename $this $this-tmp-
+    ::frame $hull -class $class
+    ::rename $hull $old_name-win-
+    ::rename $this $old_name
+    
+    set top [winfo toplevel [namespace tail $this]]
+    wm withdraw $top
 
-    set Registers [gdb_reginfo name]
+    set Registers [gdb_regnames]
     if {$Line != ""} {
       set Locals  [gdb_get_locals "$File:$Line"]
       set Args    [gdb_get_args "$File:$Line"]
@@ -45,7 +52,7 @@ itcl::class ActionDlg {
     lappend Variables "All Registers"
     lappend Variables "Collect Stack"
 
-    build_win
+    build_win $this    
 
     # Set a default return status, in case we are destroyed
     set _TOtherVariable {}
@@ -54,6 +61,9 @@ itcl::class ActionDlg {
     if {"$Data" != {}} {
       change 1 $Data
     }
+
+    after idle [list wm deiconify $top]
+    # after idle grab $this
   }
 
   # ------------------------------------------------------------------
@@ -67,15 +77,17 @@ itcl::class ActionDlg {
     # Note that this is okay: the callback (TraceDlg::done, usually) will
     # ignore stray "cancel" callbacks
     eval $Callback cancel
+
+    set top [winfo toplevel [namespace tail $this]]
+    destroy $this
+    destroy $top
   }
 
   # ------------------------------------------------------------------
   # METHOD: build_win - build the Trace dialog box (cache this?)
   # ------------------------------------------------------------------
-  method build_win {} {
+  method build_win {f} {
     global _TStepCount _TOtherVariable
-
-    set f $itk_interior
 
     # The two frames of this dialog
     set bbox [frame $f.bbox];            # for holding OK,CANCEL buttons
@@ -109,24 +121,20 @@ itcl::class ActionDlg {
 
     # The Collect listbox
     label $cFrame.lbl -text {Collect:}
-    set CollectLB [iwidgets::scrolledlistbox $cFrame.lb -hscrollmode dynamic \
-		     -vscrollmode dynamic                                    \
-		     -selectioncommand [code $this toggle_button_state 0]    \
-		     -dblclickcommand [code $this change 0]                  \
-		     -selectmode extended                                    \
-		     -exportselection false]
-    [$CollectLB component listbox] configure -background gray92
+    tixScrolledListBox $cFrame.lb -scrollbar auto \
+      -browsecmd "$this toggle_button_state 0"    \
+      -command "$this change 0"
+    set CollectLB [$cFrame.lb subwidget listbox]
+    $CollectLB configure -selectmode extended
     pack $cFrame.lbl $cFrame.lb -side top -expand yes -pady 2
 
     # The Variables listbox
     label $vFrame.lbl -text {Variables:}
-    set VariablesLB [iwidgets::scrolledlistbox $vFrame.lb -hscrollmode dynamic \
-		       -vscrollmode dynamic                                    \
-		       -selectioncommand [code $this toggle_button_state 1]    \
-		       -dblclickcommand [code $this change 1]                  \
-		       -selectmode extended                                    \
-		       -exportselection false]
-    [$VariablesLB component listbox] configure -background gray92
+    tixScrolledListBox $vFrame.lb -scrollbar auto \
+      -browsecmd "$this toggle_button_state 1"    \
+      -command "$this change 1"
+    set VariablesLB [$vFrame.lb subwidget listbox]
+    $VariablesLB configure -selectmode extended
     pack $vFrame.lbl $vFrame.lb -side top -expand yes -pady 2
 
     # The button frame
@@ -167,16 +175,16 @@ itcl::class ActionDlg {
 
   method toggle_button_state {add} {
 
-    # This is invoked whenever a <1> event is generated in
+    # BUG in Tix.. This is invoked whenever a <1> event is generated in
     # the listbox...
     if {$add} {
-      set a [$VariablesLB getcurselection]
+      set a [$VariablesLB curselection]
       if {"$a" != ""} {
 	$AddButton configure -state normal
 	$RemoveButton configure -state disabled
       }
     } else {
-      set a [$CollectLB getcurselection]
+      set a [$CollectLB curselection]
       if {"$a" != ""} {
 	$AddButton configure -state disabled
 	$RemoveButton configure -state normal
@@ -666,7 +674,7 @@ itcl::class ActionDlg {
   # METHOD: cancel - cancel the dialog and do not set the trace
   # ------------------------------------------------------------------
   method cancel {} {
-    ::delete object $this
+    delete
   }
 
   method remove_special {list items} {
@@ -771,7 +779,7 @@ itcl::class ActionDlg {
 
     debug "DATA = $data"
     eval $Callback $command $steps [list $data]
-    ::delete object $this
+    delete
   }
 
 
@@ -784,27 +792,27 @@ itcl::class ActionDlg {
   }
 
   # PUBLIC DATA
-  public variable File
-  public variable Line {}
-  public variable WhileStepping 0
-  public variable Number
-  public variable Callback
-  public variable Data {}
-  public variable Steps {}
-  public variable Address {}
+  public File
+  public Line {}
+  public WhileStepping 0
+  public Number
+  public Callback
+  public Data {}
+  public Steps {}
+  public Address {}
 
   # PROTECTED DATA
-  protected variable WhileSteppingEntry
-  protected variable CollectLB
-  protected variable VariablesLB
-  protected variable Variables {}
-  protected variable Collect {}
-  protected variable Locals
-  protected variable Args
-  protected variable Registers
-  protected variable Others {}
-  protected variable AddButton
-  protected variable RemoveButton
-  protected variable OtherEntry
-  protected variable StackCollect {*(char*)$sp@64}
+  protected WhileSteppingEntry
+  protected CollectLB
+  protected VariablesLB
+  protected Variables {}
+  protected Collect {}
+  protected Locals
+  protected Args
+  protected Registers
+  protected Others {}
+  protected AddButton
+  protected RemoveButton
+  protected OtherEntry
+  protected StackCollect {*(char*)$sp@64}
 }

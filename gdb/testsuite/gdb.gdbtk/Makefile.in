@@ -1,10 +1,7 @@
 VPATH = @srcdir@
 srcdir = @srcdir@
 
-EXEEXT = @EXEEXT@
-
-EXECUTABLES = simple$(EXEEXT) stack$(EXEEXT) c_variable$(EXEEXT) \
-		cpp_variable$(EXEEXT)
+EXECUTABLES = simple stack c_variable cpp_variable
 
 # uuencoded format to avoid SCCS/RCS problems with binary files.
 CROSS_EXECUTABLES =
@@ -32,5 +29,5 @@ distclean maintainer-clean realclean: clean
 	-rm -f *-init.exp
 	-rm -fr *.log summary detail *.plog *.sum *.psum site.*
 
-Makefile : $(srcdir)/Makefile.in $(srcdir)/configure.ac
+Makefile : $(srcdir)/Makefile.in $(srcdir)/configure.in
 	$(SHELL) ./config.status --recheck

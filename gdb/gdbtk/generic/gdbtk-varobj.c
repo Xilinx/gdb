@@ -1,5 +1,5 @@
 /* Variable user interface layer for GDB, the GNU debugger.
-   Copyright (C) 1999, 2000, 2001, 2002, 2008 Free Software Foundation, Inc.
+   Copyright 1999 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -15,24 +15,22 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02110-1301, USA.  */
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include "value.h"
-#include "gdb_string.h"
+
 #include "varobj.h"
 
 #include <tcl.h>
 #include "gdbtk.h"
-#include "gdbtk-cmds.h"
-#include "gdbtk-wrapper.h"
+
 
 /*
  * Public functions defined in this file
  */
 
-int gdb_variable_init (Tcl_Interp *);
+int gdb_variable_init PARAMS ((Tcl_Interp *));
 
 /*
  * Private functions defined in this file
@@ -40,54 +38,59 @@ int gdb_variable_init (Tcl_Interp *);
 
 /* Entries into this file */
 
-static int gdb_variable_command (ClientData, Tcl_Interp *, int,
-				 Tcl_Obj * CONST[]);
+static int gdb_variable_command PARAMS ((ClientData, Tcl_Interp *, int,
+					 Tcl_Obj * CONST[]));
 
-static int variable_obj_command (ClientData, Tcl_Interp *, int,
-				 Tcl_Obj * CONST[]);
+static int variable_obj_command PARAMS ((ClientData, Tcl_Interp *, int,
+					 Tcl_Obj * CONST[]));
 
 /* Variable object subcommands */
 
-static int variable_create (Tcl_Interp *, int, Tcl_Obj * CONST[]);
+static int variable_create PARAMS ((Tcl_Interp *, int, Tcl_Obj * CONST[]));
 
-static void variable_delete (Tcl_Interp *, struct varobj *, int);
+static void variable_delete PARAMS ((Tcl_Interp *, struct varobj *, int));
 
-static Tcl_Obj *variable_children (Tcl_Interp *, struct varobj *);
+static Tcl_Obj *variable_children PARAMS ((Tcl_Interp *, struct varobj *));
 
-static int variable_format (Tcl_Interp *, int, Tcl_Obj * CONST[],
-			    struct varobj *);
+static int variable_format PARAMS ((Tcl_Interp *, int, Tcl_Obj * CONST[],
+				    struct varobj *));
 
-static int variable_type (Tcl_Interp *, int, Tcl_Obj * CONST[],
-			  struct varobj *);
+static int variable_type PARAMS ((Tcl_Interp *, int, Tcl_Obj * CONST[],
+				  struct varobj *));
 
-static int variable_value (Tcl_Interp *, int, Tcl_Obj * CONST[],
-			   struct varobj *);
+static int variable_value PARAMS ((Tcl_Interp *, int, Tcl_Obj * CONST[],
+				   struct varobj *));
 
-static Tcl_Obj *variable_update (Tcl_Interp * interp, struct varobj **var);
+static Tcl_Obj *variable_update PARAMS ((Tcl_Interp * interp, struct varobj * var));
 
 /* Helper functions for the above subcommands. */
 
-static void install_variable (Tcl_Interp *, char *);
+static void install_variable PARAMS ((Tcl_Interp *, char *, struct varobj *));
 
-static void uninstall_variable (Tcl_Interp *, char *);
+static void uninstall_variable PARAMS ((Tcl_Interp *, char *));
 
 /* String representations of gdb's format codes */
-static char *format_string[] =
-  {"natural", "binary", "decimal", "hexadecimal", "octal"};
+char *format_string[] =
+{"natural", "binary", "decimal", "hexadecimal", "octal"};
 
+#if defined(FREEIF)
+#undef FREEIF
+#endif
+#define FREEIF(x) if (x != NULL) free((char *) (x))
 
 /* Initialize the variable code. This function should be called once
    to install and initialize the variable code into the interpreter. */
 int
-gdb_variable_init (Tcl_Interp *interp)
+gdb_variable_init (interp)
+     Tcl_Interp *interp;
 {
   Tcl_Command result;
   static int initialized = 0;
 
   if (!initialized)
     {
-      result = Tcl_CreateObjCommand (interp, "gdb_variable", gdbtk_call_wrapper,
-				     (ClientData) gdb_variable_command, NULL);
+      result = Tcl_CreateObjCommand (interp, "gdb_variable", call_wrapper,
+				   (ClientData) gdb_variable_command, NULL);
       if (result == NULL)
 	return TCL_ERROR;
 
@@ -111,13 +114,16 @@ gdb_variable_init (Tcl_Interp *interp)
    EXPR  = the gdb expression for which to create a variable. This will
    be the most common usage.
    FRAME = the frame defining the scope of the variable.
-*/
+ */
 static int
-gdb_variable_command (ClientData clientData, Tcl_Interp *interp,
-		      int objc, Tcl_Obj *CONST objv[])
+gdb_variable_command (clientData, interp, objc, objv)
+     ClientData clientData;
+     Tcl_Interp *interp;
+     int objc;
+     Tcl_Obj *CONST objv[];
 {
-  static const char *commands[] =
-    {"create", "list", NULL};
+  static char *commands[] =
+  {"create", "list", NULL};
   enum commands_enum
     {
       VARIABLE_CREATE, VARIABLE_LIST
@@ -162,10 +168,13 @@ gdb_variable_command (ClientData clientData, Tcl_Interp *interp,
    - type          get the type of this variable
    - value         get/set the value of this variable
    - editable      is this variable editable?
-*/
+ */
 static int
-variable_obj_command (ClientData clientData, Tcl_Interp *interp,
-		      int objc, Tcl_Obj *CONST objv[])
+variable_obj_command (clientData, interp, objc, objv)
+     ClientData clientData;
+     Tcl_Interp *interp;
+     int objc;
+     Tcl_Obj *CONST objv[];
 {
   enum commands_enum
     {
@@ -179,29 +188,21 @@ variable_obj_command (ClientData clientData, Tcl_Interp *interp,
       VARIABLE_EDITABLE,
       VARIABLE_UPDATE
     };
-  static const char *commands[] =
-    {
-      "delete",
-      "numChildren",
-      "children",
-      "format",
-      "type",
-      "value",
-      "name",
-      "editable",
-      "update",
-      NULL
-    };
-  struct varobj *var;
-  char *varobj_name;
+  static char *commands[] =
+  {
+    "delete",
+    "numChildren",
+    "children",
+    "format",
+    "type",
+    "value",
+    "name",
+    "editable",
+    "update",
+    NULL
+  };
+  struct varobj *var = (struct varobj *) clientData;
   int index, result;
-  
-  /* Get the current handle for this variable token (name). */
-  varobj_name = Tcl_GetStringFromObj (objv[0], NULL);
-  if (varobj_name == NULL)
-    return TCL_ERROR;
-  var = varobj_get_handle (varobj_name);
-  
 
   if (objc < 2)
     {
@@ -257,19 +258,19 @@ variable_obj_command (ClientData clientData, Tcl_Interp *interp,
       {
 	char *name = varobj_get_expression (var);
 	Tcl_SetObjResult (interp, Tcl_NewStringObj (name, -1));
-	xfree (name);
+	FREEIF (name);
       }
       break;
 
     case VARIABLE_EDITABLE:
-      Tcl_SetObjResult (interp, 
-			Tcl_NewIntObj (varobj_get_attributes (var) & 0x00000001 /* Editable? */ ));
+      Tcl_SetObjResult (interp, Tcl_NewIntObj (
+		varobj_get_attributes (var) & 0x00000001 /* Editable? */ ));
       break;
 
     case VARIABLE_UPDATE:
       /* Only root variables can be updated */
       {
-	Tcl_Obj *obj = variable_update (interp, &var);
+	Tcl_Obj *obj = variable_update (interp, var);
 	Tcl_SetObjResult (interp, obj);
       }
       break;
@@ -288,20 +289,22 @@ variable_obj_command (ClientData clientData, Tcl_Interp *interp,
 /* This function is responsible for processing the user's specifications
    and constructing a variable object. */
 static int
-variable_create (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+variable_create (interp, objc, objv)
+     Tcl_Interp *interp;
+     int objc;
+     Tcl_Obj *CONST objv[];
 {
   enum create_opts
     {
       CREATE_EXPR, CREATE_FRAME
     };
-  static const char *create_options[] =
-    {"-expr", "-frame", NULL};
+  static char *create_options[] =
+  {"-expr", "-frame", NULL};
   struct varobj *var;
   char *name;
   char *obj_name;
   int index;
   CORE_ADDR frame = (CORE_ADDR) -1;
-  int how_specified = USE_SELECTED_FRAME;
 
   /* REMINDER: This command may be invoked in the following ways:
      gdb_variable create [NAME] [-expr EXPR] [-frame FRAME]
@@ -311,7 +314,7 @@ variable_create (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
      EXPR  = the gdb expression for which to create a variable. This will
      be the most common usage.
      FRAME = the address of the frame defining the variable's scope
-  */
+   */
   name = NULL;
   if (objc)
     name = Tcl_GetStringFromObj (objv[0], NULL);
@@ -335,7 +338,7 @@ variable_create (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
       if (Tcl_GetIndexFromObj (interp, objv[0], create_options, "options",
 			       0, &index) != TCL_OK)
 	{
-	  xfree (obj_name);
+	  free (obj_name);
 	  result_ptr->flags |= GDBTK_IN_TCL_RESULT;
 	  return TCL_ERROR;
 	}
@@ -352,8 +355,7 @@ variable_create (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 	  {
 	    char *str;
 	    str = Tcl_GetStringFromObj (objv[1], NULL);
-	    frame = string_to_core_addr (str);
-	    how_specified = USE_SPECIFIED_FRAME;
+	    frame = parse_and_eval_address (str);
 	    objc--;
 	    objv++;
 	  }
@@ -368,29 +370,31 @@ variable_create (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     }
 
   /* Create the variable */
-  var = varobj_create (obj_name, name, frame, how_specified);
+  var = varobj_create (obj_name, name, frame);
 
   if (var != NULL)
     {
       /* Install a command into the interpreter that represents this
          object */
-      install_variable (interp, obj_name);
+      install_variable (interp, obj_name, var);
       Tcl_SetObjResult (interp, Tcl_NewStringObj (obj_name, -1));
       result_ptr->flags |= GDBTK_IN_TCL_RESULT;
 
-      xfree (obj_name);
+      free (obj_name);
       return TCL_OK;
     }
 
-  xfree (obj_name);
+  free (obj_name);
   return TCL_ERROR;
 }
 
 /* Delete the variable object VAR and its children */
 /* If only_children_p, Delete only the children associated with the object. */
 static void
-variable_delete (Tcl_Interp *interp, struct varobj *var,
-		 int only_children_p)
+variable_delete (interp, var, only_children_p)
+     Tcl_Interp *interp;
+     struct varobj *var;
+     int only_children_p;
 {
   char **dellist;
   char **vc;
@@ -401,36 +405,40 @@ variable_delete (Tcl_Interp *interp, struct varobj *var,
   while (*vc != NULL)
     {
       uninstall_variable (interp, *vc);
-      xfree (*vc);
+      free (*vc);
       vc++;
     }
 
-  xfree (dellist);
+  FREEIF (dellist);
 }
 
 /* Return a list of all the children of VAR, creating them if necessary. */
 static Tcl_Obj *
-variable_children (Tcl_Interp *interp, struct varobj *var)
+variable_children (interp, var)
+     Tcl_Interp *interp;
+     struct varobj *var;
 {
   Tcl_Obj *list;
-  VEC(varobj_p) *children;
-  struct varobj *child;
+  struct varobj **childlist;
+  struct varobj **vc;
   char *childname;
-  int ix;
 
   list = Tcl_NewListObj (0, NULL);
 
-  children = varobj_list_children (var);
+  varobj_list_children (var, &childlist);
 
-  for (ix = 0; VEC_iterate (varobj_p, children, ix, child); ++ix)
+  vc = childlist;
+  while (*vc != NULL)
     {
-      childname = varobj_get_objname (child);
+      childname = varobj_get_objname (*vc);
       /* Add child to result list and install the Tcl command for it. */
       Tcl_ListObjAppendElement (NULL, list,
 				Tcl_NewStringObj (childname, -1));
-      install_variable (interp, childname);
+      install_variable (interp, childname, *vc);
+      vc++;
     }
 
+  FREEIF (childlist);
   return list;
 }
 
@@ -438,65 +446,65 @@ variable_children (Tcl_Interp *interp, struct varobj *var)
 /* NOTE:   Only root variables can be updated... */
 
 static Tcl_Obj *
-variable_update (Tcl_Interp *interp, struct varobj **var)
+variable_update (interp, var)
+     Tcl_Interp *interp;
+     struct varobj *var;
 {
-  int i;
   Tcl_Obj *changed;
-  VEC (varobj_update_result) *changes;
-  varobj_update_result *r;
-
-  if (GDB_varobj_update (var, 1, &changes) != GDB_OK)
-    return Tcl_NewStringObj ("-1", -1);
+  struct varobj **changelist;
+  struct varobj **vc;
 
   changed = Tcl_NewListObj (0, NULL);
-  for (i = 0; VEC_iterate (varobj_update_result, changes, i, r); ++i)
-    {
-      switch (r->status)
-	{
-	case VAROBJ_IN_SCOPE:
-	  {
-	    Tcl_Obj *var
-	      =  Tcl_NewStringObj (varobj_get_objname (r->varobj), -1);
-	    Tcl_ListObjAppendElement (NULL, changed, var);
-	  }
-	  break;
 
-	case VAROBJ_NOT_IN_SCOPE:
-	case VAROBJ_INVALID:
-	  /* These need to be (re-)implemented in the UI */
-	  break;
-	}
+  /* varobj_update() can return -1 if the variable is no longer around,
+     i.e. we stepped out of the frame in which a local existed. */
+  if (varobj_update (var, &changelist) == -1)
+    return changed;
+
+  vc = changelist;
+  while (*vc != NULL)
+    {
+      /* Add changed variable object to result list */
+      Tcl_ListObjAppendElement (NULL, changed,
+			   Tcl_NewStringObj (varobj_get_objname (*vc), -1));
+      vc++;
     }
 
+  FREEIF (changelist);
   return changed;
 }
 
 /* This implements the format object command allowing
    the querying or setting of the object's display format. */
 static int
-variable_format (Tcl_Interp *interp, int objc, 
-		 Tcl_Obj *CONST objv[], struct varobj *var)
+variable_format (interp, objc, objv, var)
+     Tcl_Interp *interp;
+     int objc;
+     Tcl_Obj *CONST objv[];
+     struct varobj *var;
 {
   if (objc > 2)
     {
       /* Set the format of VAR to given format */
       int len;
       char *fmt = Tcl_GetStringFromObj (objv[2], &len);
-      if (strncmp (fmt, "natural", len) == 0)
+      if (STREQN (fmt, "natural", len))
 	varobj_set_display_format (var, FORMAT_NATURAL);
-      else if (strncmp (fmt, "binary", len) == 0)
+      else if (STREQN (fmt, "binary", len))
 	varobj_set_display_format (var, FORMAT_BINARY);
-      else if (strncmp (fmt, "decimal", len) == 0)
+      else if (STREQN (fmt, "decimal", len))
 	varobj_set_display_format (var, FORMAT_DECIMAL);
-      else if (strncmp (fmt, "hexadecimal", len) == 0)
+      else if (STREQN (fmt, "hexadecimal", len))
 	varobj_set_display_format (var, FORMAT_HEXADECIMAL);
-      else if (strncmp (fmt, "octal", len) == 0)
+      else if (STREQN (fmt, "octal", len))
 	varobj_set_display_format (var, FORMAT_OCTAL);
       else
 	{
-	  gdbtk_set_result (interp, "unknown display format \"",
-			    fmt, "\": must be: \"natural\", \"binary\""
-			    ", \"decimal\", \"hexadecimal\", or \"octal\"");
+	  Tcl_Obj *obj = Tcl_NewStringObj (NULL, 0);
+	  Tcl_AppendStringsToObj (obj, "unknown display format \"",
+				  fmt, "\": must be: \"natural\", \"binary\""
+		      ", \"decimal\", \"hexadecimal\", or \"octal\"", NULL);
+	  Tcl_SetObjResult (interp, obj);
 	  return TCL_ERROR;
 	}
     }
@@ -507,7 +515,7 @@ variable_format (Tcl_Interp *interp, int objc,
 
       /* FIXME: Use varobj_format_string[] instead */
       fmt = Tcl_NewStringObj (
-			      format_string[(int) varobj_get_display_format (var)], -1);
+		  format_string[(int) varobj_get_display_format (var)], -1);
       Tcl_SetObjResult (interp, fmt);
     }
 
@@ -517,12 +525,13 @@ variable_format (Tcl_Interp *interp, int objc,
 /* This function implements the type object command, which returns the type of a
    variable in the interpreter (or an error). */
 static int
-variable_type (Tcl_Interp *interp, int objc,
-	       Tcl_Obj *CONST objv[], struct varobj *var)
+variable_type (interp, objc, objv, var)
+     Tcl_Interp *interp;
+     int objc;
+     Tcl_Obj *CONST objv[];
+     struct varobj *var;
 {
-  const char *first;
-  const char *last;
-  char *string;
+  char *first, *last, *string;
   Tcl_RegExp regexp;
 
   /* For the "fake" variables, do not return a type.
@@ -546,19 +555,22 @@ variable_type (Tcl_Interp *interp, int objc,
       Tcl_RegExpRange (regexp, 0, &first, &last);
       if (*(first - 1) == ' ')
 	first--;
-      string[first - string] = '\0';
+      *first = '\0';
     }
 
   Tcl_SetObjResult (interp, Tcl_NewStringObj (string, -1));
-  xfree (string);
+  FREEIF (string);
   return TCL_OK;
 }
 
 /* This function implements the value object command, which allows an object's
    value to be queried or set. */
 static int
-variable_value (Tcl_Interp *interp, int objc,
-		Tcl_Obj *CONST objv[], struct varobj *var)
+variable_value (interp, objc, objv, var)
+     Tcl_Interp *interp;
+     int objc;
+     Tcl_Obj *CONST objv[];
+     struct varobj *var;
 {
   char *r;
 
@@ -574,10 +586,7 @@ variable_value (Tcl_Interp *interp, int objc,
 
 	  s = Tcl_GetStringFromObj (objv[2], NULL);
 	  if (!varobj_set_value (var, s))
-            {
-	      gdbtk_set_result (interp, "Could not assign expression to variable object");
-	      return TCL_ERROR;
-            }
+	    return TCL_ERROR;
 	}
 
       Tcl_ResetResult (interp);
@@ -587,14 +596,11 @@ variable_value (Tcl_Interp *interp, int objc,
   r = varobj_get_value (var);
 
   if (r == NULL)
-    {
-      gdbtk_set_result (interp, "Could not read variable object value after assignment");
-      return TCL_ERROR;
-    }
+    return TCL_ERROR;
   else
     {
       Tcl_SetObjResult (interp, Tcl_NewStringObj (r, -1));
-      xfree (r);
+      FREEIF (r);
       return TCL_OK;
     }
 }
@@ -604,16 +610,24 @@ variable_value (Tcl_Interp *interp, int objc,
 /* Install the given variable VAR into the tcl interpreter with
    the object name NAME. */
 static void
-install_variable (Tcl_Interp *interp, char *name)
+install_variable (interp, name, var)
+     Tcl_Interp *interp;
+     char *name;
+     struct varobj *var;
 {
   Tcl_CreateObjCommand (interp, name, variable_obj_command,
-			NULL, NULL);
+			(ClientData) var, NULL);
 }
 
 /* Unistall the object VAR in the tcl interpreter. */
 static void
-uninstall_variable (Tcl_Interp *interp, char *varname)
+uninstall_variable (interp, varname)
+     Tcl_Interp *interp;
+     char *varname;
 {
   Tcl_DeleteCommand (interp, varname);
 }
-
+
+/* Local variables: */
+/* change-log-default-name: "ChangeLog-gdbtk" */
+/* End: */

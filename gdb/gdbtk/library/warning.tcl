@@ -1,5 +1,5 @@
 # Warning dialog for GDBtk.
-# Copyright (C) 1998, 1999 Cygnus Solutions
+# Copyright 1998, 1999 Cygnus Solutions
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License (GPL) as published by
@@ -31,7 +31,7 @@
 # -----------------------------------------------------------------------------
 #
 
-itcl::class WarningDlg {
+class WarningDlg {
   inherit ManagedWin ModalDialog
 
   public {
@@ -50,7 +50,7 @@ itcl::class WarningDlg {
 # DESC: 
 #       Creates the warning dialog.
 # -----------------------------------------------------------------------------
-itcl::body WarningDlg::constructor {args} {
+body WarningDlg::constructor {args} {
   debug $args
   window_name "Warning"
   eval itk_initialize $args

@@ -1,5 +1,5 @@
-# SrcTextWin class definition, for Insight
-# Copyright (C) 1997, 1998, 1999, 2001 Red Hat, Inc.
+# SrcTextWin class definition, for GDBtk.
+# Copyright 1997, 1998, 1999 Cygnus Solutions
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License (GPL) as published by
@@ -12,8 +12,8 @@
 # GNU General Public License for more details.
 
 
-itcl::class SrcTextWin {
-  inherit itk::Widget GDBWin
+class SrcTextWin {
+  inherit itk::Widget
 
   public {
     variable Tracing	;# 1 if we are running in trace mode
@@ -36,9 +36,9 @@ itcl::class SrcTextWin {
     method build_win {}
     method SetRunningState {state}
     method enable {on}
-    method setTabs {win {asm S}}
+    method setTabs {win {asm ""}}
     method enable_disable_src_tags {win how}
-    method config_win {win {asm S}}
+    method config_win {win {asm ""}}
     method addPopup {menu label command {abg {}} {browse 1} {run 1}}
     method updateBalloon {}
     method ClearTags {}
@@ -58,10 +58,8 @@ itcl::class SrcTextWin {
     method report_source_location {}
     method lookup_line {win y}
     method continue_to_here {{win {}} {y -1} {threads -1}}
-    method jump_to_here {{win {}} {y -1} {threads -1}}
     method set_bp_at_line {{type N} {win {}} {y -1} {threads "-1"}}
     method remove_bp_at_line {{win {}} {y -1}}
-    method enable_disable_at_line {action}
     method set_tp_at_line {{win {}} {y -1}}
     method next_hit_at_line {{win {}} {y -1}}
     method remove_tp_at_line {{win {}} {y -1}}
@@ -87,15 +85,11 @@ itcl::class SrcTextWin {
     method do_thread_bp {listbox}
     method test_get {var}
     method clear_file {}
-    method get_file {}
-    method set_tag_to_stack {}
-
-    # GDB Events
-    method breakpoint {event}
-    method tracepoint {event}
-    method set_variable {event}
   }
 
+  protected {
+    method handle_set_hook {var val}
+  }
   private {
     variable top	;# toplevel window
     variable twin	;# top text window of pane
@@ -133,7 +127,6 @@ itcl::class SrcTextWin {
     method _mtime_changed {filename}
     method _initialize_srctextwin {}
     method _clear_cache {}
-    method _highlightAsmLine {win addr pc_addr tagname filename funcname} {}
 
     proc makeBreakDot {size colorList {image {}}}
   }

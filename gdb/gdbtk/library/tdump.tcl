@@ -1,5 +1,5 @@
-# Trace dump window for Insight
-# Copyright (C) 1998, 1999, 2001, 2002, 2004, 2008 Red Hat, Inc.
+# Trace dump window for GDBtk.
+# Copyright 1998, 1999 Cygnus Solutions
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License (GPL) as published by
@@ -28,16 +28,29 @@
 #
 # ----------------------------------------------------------------------
 
-itcl::class TdumpWin {
-  inherit ManagedWin GDBWin
-
+itcl_class TdumpWin {
   # ------------------------------------------------------------------
   #  CONSTRUCTOR - create new tdump window
   # ------------------------------------------------------------------
-  constructor {args} {
-    window_name "Trace Dump"
+  constructor {config} {
+    #
+    #  Create a window with the same name as this object
+    #
+    set class [$this info class]
+    set hull [namespace tail $this]
+    set old_name $this
+    ::rename $this $this-tmp-
+    ::frame $hull -class $class 
+    ::rename $hull $old_name-win-
+    ::rename $this $old_name
+
+    set top [winfo toplevel [namespace tail $this]]
+    wm withdraw $top
+
     build_win
-    eval itk_initialize $args
+    add_hook gdb_update_hook "$this update"
+    after idle [list wm deiconify $top]
+
   }
 
 
@@ -45,29 +58,29 @@ itcl::class TdumpWin {
   #  METHOD:  build_win - build the main tdump window
   # ------------------------------------------------------------------
   method build_win {} {
-    itk_component add stext {
-      iwidgets::scrolledtext $itk_interior.stext -hscrollmode dynamic \
-	-vscrollmode dynamic -textfont global/fixed \
-	-background $::Colors(bg)
-    } {}
-    [$itk_component(stext) component text] configure \
-      -background $::Colors(bg)
-    pack $itk_component(stext) -side left -expand yes -fill both
-    update dummy
+
+     tixScrolledText [namespace tail $this].stext -scrollbar y -height 200 -width 500
+     set twin [[namespace tail $this].stext subwidget text]
+    
+    # make window non editable
+    $twin configure -insertwidth 0 
+
+    pack append  [namespace tail $this] [namespace tail $this].stext {left expand fill}
+    update
   }
 
 
   # ------------------------------------------------------------------
   #  METHOD:  update - update widget when PC changes
   # ------------------------------------------------------------------
-  method update {event} {
+  method update {} {
     #debug "tdump: update"
     gdbtk_busy
     set tframe_num [gdb_get_trace_frame_num]
 
     if { $tframe_num!=-1 } {
       debug "doing tdump"
-      $itk_component(stext) delete 1.0 end
+      $twin delete 1.0 end
 
       if {[catch {gdb_cmd "tdump $tframe_num" 0} tdump_output]} {
 	tk_messageBox -title "Error" -message $tdump_output -icon error \
@@ -75,19 +88,38 @@ itcl::class TdumpWin {
       } else {
 	#debug "tdum output is $tdump_output"
 	
-	$itk_component(stext) insert end $tdump_output
-	$itk_component(stext) see insert
+	$twin insert end $tdump_output
+	$twin see insert
       }
     }
     gdbtk_idle
   }
 
   # ------------------------------------------------------------------
+  #  DESTRUCTOR - destroy window containing widget
+  # ------------------------------------------------------------------
+  destructor {
+    remove_hook gdb_update_hook "$this update"
+    set top [winfo toplevel [namespace tail $this]]
+    destroy $this
+    destroy $top
+  }
+
+  # ------------------------------------------------------------------
+  #  METHOD:  config - used to change public attributes
+  # ------------------------------------------------------------------
+  method config {config} {}
+    
+  # ------------------------------------------------------------------
   #  METHOD:  reconfig - used when preferences change
   # ------------------------------------------------------------------
   method reconfig {} {
-    if {[winfo exists $itk_interior.stext]} { destroy $itk_interior.stext }
-    build_win
   }
+  
+  #
+  #  PROTECTED DATA
+  #
+  protected maxwidth 0
+  protected twin
 }
 

@@ -1,5 +1,5 @@
 # Block and frame class implementations for GDBtk.
-# Copyright (C) 1997, 1998, 1999 Cygnus Solutions
+# Copyright 1997, 1998, 1999 Cygnus Solutions
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License (GPL) as published by
@@ -14,7 +14,7 @@
 # ------------------------------------------------------------------
 #                            Block
 # ------------------------------------------------------------------
-itcl::body Block::constructor {start end args} {
+body Block::constructor {start end args} {
 
   # Record runtime info about this block
   set _start $start
@@ -24,7 +24,7 @@ itcl::body Block::constructor {start end args} {
 }
 
 # Destroy ourself. 
-itcl::body Block::destructor {} {
+body Block::destructor {} {
 
   # Each block is responsible for destroying its
   # variables and removing them from the list of
@@ -36,12 +36,12 @@ itcl::body Block::destructor {} {
 
 # Return a list of variables defined in this block
 # This list is determined when we are created.
-itcl::body Block::variables {} {
+body Block::variables {} {
   return $_variables
 }
 
 # Find the new variables for this block.
-itcl::body Block::_findVariables {} {
+body Block::_findVariables {} {
 
   # Find the new variables for this block.
   set variables [gdb_block_variables $_start $_end]
@@ -59,7 +59,7 @@ itcl::body Block::_findVariables {} {
   return $vars
 }
 
-itcl::body Block::update {} {
+body Block::update {} {
 
   set changed {}
   foreach var $_variables {
@@ -69,7 +69,7 @@ itcl::body Block::update {} {
   return $changed
 }
 
-itcl::body Block::info {} {
+body Block::info {} {
 
   return [list $_start $_end]
 }
@@ -77,7 +77,7 @@ itcl::body Block::info {} {
 # ------------------------------------------------------------------
 #                             Frame
 # ------------------------------------------------------------------
-itcl::body Frame::constructor {addr} {
+body Frame::constructor {addr} {
 
   set _addr $addr
 
@@ -87,14 +87,14 @@ itcl::body Frame::constructor {addr} {
 
 }
 
-itcl::body Frame::destructor {} {
+body Frame::destructor {} {
   # destroy our own blocks
   foreach block $_blocks {
     _removeBlock $block
   }
 }
 
-itcl::body Frame::_removeBlock {blockObj} {
+body Frame::_removeBlock {blockObj} {
 
   set i [lsearch $_blocks $blockObj]
   if {$i != -1} {
@@ -103,7 +103,7 @@ itcl::body Frame::_removeBlock {blockObj} {
   }
 }
 
-itcl::body Frame::_addBlock {block} {
+body Frame::_addBlock {block} {
 
   set start [lindex $block 0]
   set end [lindex $block 1]
@@ -113,14 +113,14 @@ itcl::body Frame::_addBlock {block} {
   return $b
 }
 
-itcl::body Frame::_createBlocks {blocks} {
+body Frame::_createBlocks {blocks} {
 
   foreach block $blocks {
     set b [_addBlock $block]
   }
 }
 
-itcl::body Frame::update {} {
+body Frame::update {} {
 
   set vars {}
   foreach block $_blocks {
@@ -130,7 +130,7 @@ itcl::body Frame::update {} {
   return $vars
 }
 
-itcl::body Frame::variables {} {
+body Frame::variables {} {
 
   set vars {}
   foreach block $_blocks {
@@ -140,7 +140,7 @@ itcl::body Frame::variables {} {
   return $vars
 }
 
-itcl::body Frame::new {} {
+body Frame::new {} {
   # find any new variables. So get a list of all blocks,
   # eliminate duplicates, and get those variables.
 
@@ -159,14 +159,14 @@ itcl::body Frame::new {} {
   return $new
 }
 
-itcl::body Frame::deleteOld {} {
+body Frame::deleteOld {} {
 
   foreach block [_oldBlocks] {
     _removeBlock $block
   }
 }
 
-itcl::body Frame::_oldBlocks {} {
+body Frame::_oldBlocks {} {
 
   set blocks [gdb_get_blocks]
   set oldObjs $_blocks
@@ -183,7 +183,7 @@ itcl::body Frame::_oldBlocks {} {
   return $oldObjs
 }
   
-itcl::body Frame::old {} {
+body Frame::old {} {
 
   # All the variables in the blocks in old are now gone...
   # We don't remove blocks here, since the frontend viewer
@@ -198,7 +198,7 @@ itcl::body Frame::old {} {
   return $vars
 }
 
-itcl::body Frame::_findBlock {block} {
+body Frame::_findBlock {block} {
 
   foreach b $_blocks {
     set info [$b info]
@@ -210,7 +210,7 @@ itcl::body Frame::_findBlock {block} {
   return ""
 }
 
-itcl::body Frame::_findBlockIndex {block} {
+body Frame::_findBlockIndex {block} {
 
   set i 0
   foreach b $_blocks {

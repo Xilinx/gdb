@@ -1,5 +1,5 @@
 # GDBtk (Insight) entry point
-# Copyright (C) 1997, 1998, 1999, 2002, 2003, 2004, 2008 Red Hat, Inc.
+# Copyright 1997, 1998, 1999 Cygnus Solutions
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License (GPL) as published by
@@ -28,66 +28,35 @@
 #set tcl_traceCompile 1
 
 # Add gdb's Tcl library directory to the end of the auto-load search path, if 
-# it isn't already on the path.
-# Also, add the plugins directory if it exists.
+# it isn't already on the path:
 # Note: GDBTK_LIBRARY will be set in tcl_findLibrary before main.tcl is called.
 
-set gdb_plugins ""
 if {[info exists auto_path]} {
   if {[lsearch -exact $auto_path $GDBTK_LIBRARY] < 0} {
     lappend auto_path $GDBTK_LIBRARY
   }
-
-  # Add default plugins directory, which will be [name of exe]/../../lib/insight1.0
-  set exename [info nameofexecutable]
-  set dir [file join [file dirname [file dirname $exename]] lib insight1.0]
-  if {[file exists $dir]} {
-    lappend gdb_plugins $dir
-    lappend auto_path $dir
-  }
-  # Add any user-specified plugins directories
-  if {[info exists env(INSIGHT_PLUGINS)]} {
-    set dirs [split $env(INSIGHT_PLUGINS) :]
-    lappend gdb_plugins $dirs
-    lappend auto_path $dirs
-  }
 }
-
 
 # Require the packages we need.  Most are loaded already, but this will catch 
 # any odd errors... :
-
-foreach p {{Tcl 8.0} {Tk 8.0} {Itcl 3.0} {Itk 3.0} {Gdbtk 1.0} {combobox 2.2} {debug 1.0}} {
-  if {[catch {package require [lindex $p 0] [lindex $p 1]} msg]} {
-    if {![info exists ::env(GDBTK_TEST_RUNNING)] || $::env(GDBTK_TEST_RUNNING) == 0} {
-      if {$::tcl_platform(platform) != "windows"} {
-	puts stderr "Error: $msg"
-      }
-      catch {tk_messageBox -title Error -message $msg -icon error -type ok}
-    }
-    exit -1
-  } else {
-    #puts "Loaded [lindex $p 0] $msg"
-  }
-}
+package require Tcl 8.0
+package require Tk 8.0
+package require Itcl 3.0
+package require Itk 3.0
+package require Gdbtk 1.0
+package require combobox 1.0
 
 namespace import itcl::*
+
 namespace import debug::*
 
-# Finally, load Iwidgets
-if {[info exists IWIDGETS_LIBRARY]} {
-  lappend auto_path $IWIDGETS_LIBRARY
+if {![find_iwidgets_library]} {
+  tk_messageBox -title Error -message "Could not find the Iwidgets libraries.
+Got nameofexec: [info nameofexecutable]
+Error(s) were: \n$errMsg" \
+      -icon error -type ok
+  exit
 }
-if {[catch {package require Iwidgets} msg]} {
-  if {![info exists ::env(GDBTK_TEST_RUNNING)] || $::env(GDBTK_TEST_RUNNING) == 0} {
-    if {$::tcl_platform(platform) != "windows"} {
-      puts stderr "Error: $msg"
-    }
-    catch {tk_messageBox -title Error -message $msg -icon error -type ok}
-  }
-  exit -1
-}
-
 
 # Environment variables controlling debugging:
 # GDBTK_TRACE
@@ -116,36 +85,18 @@ if {[info exists env(GDBTK_TRACE)] && $env(GDBTK_TRACE) != 0} {
   }
 }
 
-if {[info exists env(GDBTK_DEBUG)] && $env(GDBTK_DEBUG) != 0} {
-  if {[info exists env(GDBTK_DEBUGFILE)]} {
-    ::debug::logfile $env(GDBTK_DEBUGFILE)
-  } else {
-    ::debug::logfile "insight.log"
-  }
+if {[info exists env(GDBTK_DEBUGFILE)]} {
+  ::debug::logfile $env(GDBTK_DEBUGFILE)
 }
 
-# For testing
-set _test(interactive) 0
-
-# Set up platform globals. We replace Tcl's tcl_platform with
-# our own version which knows the difference between cygwin and
-# mingw.
-global gdbtk_platform
-set gdbtk_platform(platform) $tcl_platform(platform)
-switch $tcl_platform(platform) {
-  windows {
-    if {[llength [info commands ide_cygwin_path]] == 0} {
-      set gdbtk_platform(os) "mingw"
-    } else {
-      set gdbtk_platform(os) "cygwin"
-    }
-  }
-
-  default {
-    set gdbtk_platform(os) $tcl_platform(os)
-  }
+if {$tcl_platform(platform) == "unix"} {
+#  tix resetoptions TK TK
+#  tk_setPalette tan
+  tix resetoptions TixGray [tix cget -fontset]
 }
-set gdbtk_platform(osVersion) $tcl_platform(osVersion)
+
+# initialize state variables
+initialize_gdbtk
 
 # set traces on state variables
 trace variable gdb_running w do_state_hook
@@ -167,18 +118,19 @@ pref_read
 
 init_disassembly_flavor
 
-# initialize state variables
-initialize_gdbtk
-
-# Arrange for session code to notice when file changes.
-add_hook file_changed_hook Session::notice_file_change
-
 ManagedWin::init
 
 # This stuff will help us play nice with WindowMaker's AppIcons.
 # Can't do the first bit yet, since we don't get this from gdb...
 # wm command . [concat $argv0 $argv] 
 wm group . . 
+
+# Open debug window if testsuite is not running and GDBTK_DEBUG is set
+if {![info exists env(GDBTK_TEST_RUNNING)] || !$env(GDBTK_TEST_RUNNING)} {
+  if {[info exists env(GDBTK_DEBUG)] && $env(GDBTK_DEBUG) > 1} {
+    ManagedWin::open DebugWin
+  }
+}
 
 # some initial commands to get gdb in the right mode
 gdb_cmd {set height 0}
@@ -199,13 +151,6 @@ update
 
 # Uncomment the next line if you want a splash screen at startup...
 # ManagedWin::open About -transient -expire 5000
-
-# initialize IPC to enable multiple Insight's to communicate
-# with each other.
-set iipc 0
-if {[pref get gdb/ipc/enabled]} {
-  set ::insight_ipc [Iipc \#auto]
-}
 
 gdbtk_idle
 

@@ -1,5 +1,5 @@
 # Source preferences dialog class definition for GDBtk.
-# Copyright (C) 1998, 1999 Cygnus Solutions
+# Copyright 1998, 1999 Cygnus Solutions
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License (GPL) as published by
@@ -12,23 +12,19 @@
 # GNU General Public License for more details.
 
 
-itcl::class SrcPref {
+class SrcPref {
   inherit ManagedWin ModalDialog
 
   private {
-    variable _saved	;# These are the saved values...
-    variable _new	;# These are the changed values
-    variable _saved_disassembly_flavor
-    variable _new_disassembly_flavor ""
+    variable _saved  ;# These are the saved values...
+    variable current_disassembly_flavor ""
 
+    method build_win {}
     method _apply {}
-    method _build_win {}
     method _cancel {}
-    method _init_var {}
-    method _pick {color win tag}
     method _save {}
-    method _set_flavor {w new_mode}
-    method cancel {}
+    method set_flavor {w new_mode}
+    method _pick {color win tag}
   }
 
   public {

@@ -1,6 +1,5 @@
 /* Tcl/Tk interface routines header file.
-   Copyright (C) 1994, 1995, 1996, 1997, 1998, 2000, 2001, 2003, 2008
-   Free Software Foundation, Inc.
+   Copyright 1994-1998, 2000 Free Software Foundation, Inc.
 
    Written by Stu Grossman <grossman@cygnus.com> of Cygnus Support.
 
@@ -19,11 +18,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02110-1301, USA.  */
-
-#ifndef _GDBTK_H
-#define _GDBTK_H
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #ifdef _WIN32
 #define GDBTK_PATH_SEP ";"
@@ -83,8 +79,14 @@ extern int load_in_progress;
 
 extern Tcl_Interp *gdbtk_interp;
 
+/* These two are lookup tables for elements of the breakpoint structure that
+   gdbtk knows by string name.  They are defined in gdbtk-cmds.c */
+
+extern char *bptypes[];
+extern char *bpdisp[];
+
 /*
- * This structure controls how the gdb output is fed into gdbtk_call_wrapper invoked
+ * This structure controls how the gdb output is fed into call_wrapper invoked
  * commands.  See the explanation of gdbtk_fputs in gdbtk_hooks.c for more details.
  */
 
@@ -98,7 +100,6 @@ typedef struct gdbtk_result
 gdbtk_result;
 
 struct target_ops;
-struct ptid_t;
 
 /* These defines give the allowed values for the gdbtk_result.flags field. */
 
@@ -115,7 +116,7 @@ struct ptid_t;
 				   output of a call wrapped command directly in 
 				   the Tcl result if you want, but beware, it will
 				   not then be preserved across recursive
-				   gdbtk_call_wrapper invocations. */
+				   call_wrapper invocations. */
 #define GDBTK_ERROR_STARTED 8	/* This one is just used in gdbtk_fputs.  If we 
 				   see some output on stderr, we need to clear
 				   the result we have been accumulating, or the 
@@ -128,21 +129,15 @@ struct ptid_t;
 /* This is a pointer to the gdbtk_result struct that
    we are currently filling.  We use the C stack to make a stack of these
    structures for nested calls to gdbtk commands that are invoked through
-   the gdbtk_call_wrapper mechanism.  See that function for more details. */
+   the call_wrapper mechanism.  See that function for more details. */
 
 extern gdbtk_result *result_ptr;
-
-/* If you want to restore an old value of result_ptr whenever cleanups
-   are run, pass this function to make_cleanup, along with the value
-   of result_ptr you'd like to reinstate.  */
-extern void gdbtk_restore_result_ptr (void *);
 
 /* GDB context identifier */
 extern int gdb_context;
 
-/* Internal flag used to tell callers of deprecated_ui_loop_hook
-   whether they should detach from the target. See explanations before
-   x_event and gdb_stop. */
+/* Internal flag used to tell callers of ui_loop_hook whether they should
+   detach from the target. See explanations before x_event and gdb_stop. */
 extern int gdbtk_force_detach;
 
 /*
@@ -151,18 +146,15 @@ extern int gdbtk_force_detach;
  */
 
 extern int Gdbtk_Init (Tcl_Interp * interp);
-extern void gdbtk_stop_timer (void);
-extern void gdbtk_start_timer (void);
-extern void gdbtk_ignorable_warning (const char *, const char *);
-extern void gdbtk_interactive (void);
-extern int x_event (int);
-extern int gdbtk_two_elem_cmd (char *, char *);
-extern int target_is_native (struct target_ops *t);
+extern void gdbtk_stop_timer PARAMS ((void));
+extern void gdbtk_start_timer PARAMS ((void));
+extern void gdbtk_ignorable_warning PARAMS ((const char *, const char *));
+extern void gdbtk_interactive PARAMS ((void));
+extern int x_event PARAMS ((int));
+extern int gdbtk_two_elem_cmd PARAMS ((char *, char *));
+extern int call_wrapper PARAMS ((ClientData, Tcl_Interp *, int, Tcl_Obj * CONST[]));
+extern int target_is_native PARAMS ((struct target_ops *t));
 extern void gdbtk_fputs (const char *, struct ui_file *);
-extern struct ui_file *gdbtk_fileopen (void);
-extern struct ui_file *gdbtk_fileopenin (void);
-extern int gdbtk_disable_fputs;
-extern ptid_t gdbtk_get_ptid (void);
 
 #ifdef _WIN32
 extern void close_bfds ();
@@ -176,17 +168,14 @@ extern void
 #define GDBTK_SYMBOL_SOURCE_NAME(symbol) \
       (SYMBOL_DEMANGLED_NAME (symbol) != NULL \
        ? SYMBOL_DEMANGLED_NAME (symbol)       \
-       : DEPRECATED_SYMBOL_NAME (symbol))
+       : SYMBOL_NAME (symbol))
 
 
 /* gdbtk_add_hooks - add all the hooks to gdb.  This will get called
    by the startup code to fill in the hooks needed by core gdb. */
 extern void gdbtk_add_hooks (void);
 
-/* Initialize Insight */
-extern void gdbtk_init (void);
-
-/* Start Insight. Insight must have already been initialized with a call
-   to gdbtk_init. */
-extern void gdbtk_source_start_file (void);
-#endif /* !_GDBTK_H */
+
+/* Local variables: */
+/* change-log-default-name: "ChangeLog-gdbtk" */
+/* End: */

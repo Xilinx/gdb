@@ -1,5 +1,5 @@
 # Debug window class definition for GDBtk.
-# Copyright (C) 1998, 1999 Cygnus Solutions
+# Copyright 1998, 1999 Cygnus Solutions
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License (GPL) as published by
@@ -25,7 +25,7 @@
 #	This window is for developers.
 #
 # -----------------------------------------------------------------------------
-itcl::class DebugWin {
+class DebugWin {
   inherit ManagedWin
 
   private {
@@ -42,11 +42,6 @@ itcl::class DebugWin {
     method _clear {}
     method _mark_old {}
     method _save_contents {}
-    method reconfig {}
-  }
-
-  protected {
-    method _ignore_on_save {} { return 1 }
   }
 
   public {
@@ -72,7 +67,7 @@ itcl::class DebugWin {
 #	This window is for developers.
 #
 # -----------------------------------------------------------------------------
-itcl::class DebugWinDOpts {
+class DebugWinDOpts {
   inherit ManagedWin
 
   public {
@@ -80,14 +75,11 @@ itcl::class DebugWinDOpts {
     method destructor {}
   }
 
-  protected {
-    method _ignore_on_save { return 1 }
-  }
-
   private {
     variable _classes
     method build_win {}
     method _all {}
-    method _apply {done}
+    method _apply {}
   }
+
 }

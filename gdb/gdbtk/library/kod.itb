@@ -1,5 +1,5 @@
-# Kernel Object Display Window for Insight.
-# Copyright (C) 1998, 1999, 2001 Red Hat, Inc.
+# Kernel Object Display Window for GDBtk.
+# Copyright (C) 1998, 1999 Cygnus Solutions
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License (GPL) as published by
@@ -18,7 +18,7 @@
 # ------------------------------------------------------------------
 #  CONSTRUCTOR - create new process window
 # ------------------------------------------------------------------
-itcl::body KodWin::constructor {args} {
+body KodWin::constructor {args} {
   #
   #  Create a window with the same name as this object
   #
@@ -31,12 +31,18 @@ itcl::body KodWin::constructor {args} {
   gdbtk_busy
   build_win
   gdbtk_idle
+
+  # Add hooks for this object
+  add_hook gdb_update_hook [code $this update]
+  add_hook gdb_busy_hook [code $this busy]
+  add_hook gdb_idle_hook [code $this idle]
+  add_hook gdb_set_hook [code $this set_os]
 }
 
 # ------------------------------------------------------------------
 #  METHOD:  build_win - build the main KOD window
 # ------------------------------------------------------------------
-itcl::body KodWin::build_win {} {
+body KodWin::build_win {} {
   # FIXME: rename this variable.
   global kodActivePane
 
@@ -133,7 +139,7 @@ itcl::body KodWin::build_win {} {
   pack $tp.tf -side top -expand yes -fill both -padx 5 -pady 5
   pack $tp.bf -side top -expand no -fill x -padx 5 -pady 5
   pack $itk_interior.pw -side bottom -expand yes -fill both
-  wm minsize $_top 450 500
+  wm minsize $Top 450 500
 
   # Initialize button state variables for idle (called before update)
   set BState(BDisplay) disabled
@@ -143,13 +149,13 @@ itcl::body KodWin::build_win {} {
 
   #    window_name "Kernel Objects"
 
-  update dummy
+  update
 }
 
 # ------------------------------------------------------------------
 #  METHOD:  update - update widget when something changes
 # ------------------------------------------------------------------
-itcl::body KodWin::update {event} {
+body KodWin::update {} {
 
   debug "updating kod window"
 
@@ -168,7 +174,7 @@ itcl::body KodWin::update {event} {
 #           We get here from a press on the Display button or
 #           from a <Double-1> on a line of the list of objects
 # ------------------------------------------------------------------
-itcl::body KodWin::display {} {
+body KodWin::display {} {
   upvar \#0 $this table_vals
   if {!$Running && [$lf.s cget -rows] > 1} {
     gdbtk_busy
@@ -179,7 +185,7 @@ itcl::body KodWin::display {} {
     set LevelCmd($level) $LevelCmd([expr $level-1])
     append LevelCmd($level) $object
     debug "kod command for level $level is now: $LevelCmd($level)"
-    update dummy
+    update
     # Run idle hooks and cause all other widgets to update
     gdbtk_idle
   }
@@ -188,7 +194,7 @@ itcl::body KodWin::display {} {
 # ------------------------------------------------------------------
 #  METHOD:  display_list - display list of objects
 # ------------------------------------------------------------------
-itcl::body KodWin::display_list {} {
+body KodWin::display_list {} {
   upvar \#0 $this table_vals
 
   debug "displaying list of objects"
@@ -276,7 +282,7 @@ itcl::body KodWin::display_list {} {
 #           When called from update we have to reissue the gdb
 #           command to get fresh data
 # ------------------------------------------------------------------
-itcl::body KodWin::display_object {{cmd ""} {obj ""}} {
+body KodWin::display_object {{cmd ""} {obj ""}} {
   debug  "Displaying object details..."
   upvar $obj objects
   global kodActivePane
@@ -343,7 +349,7 @@ itcl::body KodWin::display_object {{cmd ""} {obj ""}} {
 # ------------------------------------------------------------------
 #  METHOD:  clear - clear detail panes and reset pane selection
 # ------------------------------------------------------------------
-itcl::body KodWin::clear {} {
+body KodWin::clear {} {
   debug "going to clear detail panes and pane selection"
   $t1 configure -state normal
   $t2 configure -state normal
@@ -361,30 +367,30 @@ itcl::body KodWin::clear {} {
 # ------------------------------------------------------------------
 #  METHOD:  top - go to the list of types of objects (top level)
 # ------------------------------------------------------------------
-itcl::body KodWin::top {} {
+body KodWin::top {} {
   debug "going to top from level $level"
   if {$level > 0} {
     set level 0
-    update dummy
+    update
   }
 }
 
 # ------------------------------------------------------------------
 #  METHOD:  up - go to the list of objects which led to the current one
 # ------------------------------------------------------------------
-itcl::body KodWin::up {} {
+body KodWin::up {} {
   debug "going up from level $level..."
   if {$level > 0} {
     incr level -1
     debug "...to level $level"
-    update dummy
+    update
   }
 }
 
 # ------------------------------------------------------------------
 #  DESTRUCTOR - destroy window containing widget
 # ------------------------------------------------------------------
-itcl::body KodWin::destructor {} {
+body KodWin::destructor {} {
   upvar \#0 $this table_vals $this-pane1 pane1_vals $this-pane2 pane2_vals
   global kodActivePane
 
@@ -392,49 +398,50 @@ itcl::body KodWin::destructor {} {
   catch {unset pane1_vals}
   catch {unset pane2_vals}
   catch {unset kodActivePane}
+
+  remove_hook gdb_update_hook [code $this update]
+  remove_hook gdb_idle_hook [code $this idle]
+  remove_hook gdb_busy_hook [code $this busy]
+  remove_hook gdb_set_hook [code $this set_os]
 }
 
 # ------------------------------------------------------------------
-#  PUBLIC METHOD:  set_variable - called when user runs `set os'
-#                   command
+#  METHOD:  set - called when user runs `set os' command
 # ------------------------------------------------------------------
-itcl::body KodWin::set_variable {event} {
-
-  set value [$event get value]
-  if {[$event get variable] == "os" && $value != ""} {
+body KodWin::set_os {var value} {
+  if {$var == "os" && $value != ""} {
     set LevelCmd(0) "info $value "
     set level 0
-    update dummy
+    update
   }
 }
 
 # ------------------------------------------------------------------
 #  METHOD:  reconfig - used when preferences change
 # ------------------------------------------------------------------
-itcl::body KodWin::reconfig {} {
+body KodWin::reconfig {} {
   destroy $itk_interior.bf
   destroy $titl
   build_win
 }
 
 # ------------------------------------------------------------------
-#  METHOD:  busy - BusyEvent handler
+#  METHOD:  busy - gdb_busy_hook
 #
 #        This method should accomplish blocking
 #        - clicks in the window
 #        - change mouse pointer
 # ------------------------------------------------------------------
-itcl::body KodWin::busy {event} {
+body KodWin::busy {} {
   set Running 1
   _disable_buttons
   cursor watch
 }
 
 # ------------------------------------------------------------------
-#  METHOD:  idle - idle event handler.  Run when the target is not
-#           running
+#  METHOD:  idle - idle hook.  Run when the target is not running
 # ------------------------------------------------------------------
-itcl::body KodWin::idle {event} {
+body KodWin::idle {} {
   set Running 0
   _restore_buttons
   cursor {}
@@ -445,15 +452,15 @@ itcl::body KodWin::idle {event} {
 #        This is a convenience method which simply sets the mouse
 #        pointer to the given glyph.
 # ------------------------------------------------------------------
-itcl::body KodWin::cursor {glyph} {
-  $_top configure -cursor $glyph
+body KodWin::cursor {glyph} {
+  $Top configure -cursor $glyph
 }
 
 # ------------------------------------------------------------------
 #  PRIVATE METHOD:  _disable_buttons - disable all buttons
 #       Used when we are busy and can't take another event
 # ------------------------------------------------------------------
-itcl::body KodWin::_disable_buttons {} {
+body KodWin::_disable_buttons {} {
   $BTop configure -state disabled
   $BUp configure -state disabled
   $BDisplay configure -state disabled
@@ -465,7 +472,7 @@ itcl::body KodWin::_disable_buttons {} {
 #       previous states.
 #       Used when we are busy and can't take another event
 # ------------------------------------------------------------------
-itcl::body KodWin::_restore_buttons {} {
+body KodWin::_restore_buttons {} {
   $BTop configure -state $BState(BTop)
   $BUp configure -state $BState(BUp)
   $BDisplay configure -state $BState(BDisplay)

@@ -1,5 +1,5 @@
-# Console window for Insight
-# Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003 Red Hat, Inc.
+# Console window for GDBtk
+# Copyright 1998, 1999 Cygnus Solutions
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License (GPL) as published by
@@ -12,57 +12,50 @@
 # GNU General Public License for more details.
 
 
-itcl::body Console::constructor {args} {
+body Console::constructor {args} {
   global gdbtk_state
   window_name "Console Window"
 
   debug "$args"
   _build_win
   eval itk_initialize $args
-  add_hook gdb_no_inferior_hook [list $this idle dummy]
-  
-  # There are a bunch of console prefs that have no UI
-  # for the user to modify them.  In the event that the user
-  # really wants to change them, they will have to be modified
-  # in prefs.tcl or by editing .gdbtkinit.  When these prefs
-  # gain a prefs UI, the user may change them dynamically
-  # and the console window will need notification that they
-  # have changed.  Add them to the following list and
-  # Console::_update_option.
-  foreach option {gdb/console/wrap} {
-    pref add_hook $option [code $this _update_option]
-  }
-
+  add_hook gdb_busy_hook [list $this busy]
+  add_hook gdb_idle_hook [list $this idle]
+  add_hook gdb_no_inferior_hook [list $this idle]
   set gdbtk_state(console) $this
 }
 
-itcl::body Console::destructor {} {
+body Console::destructor {} {
   global gdbtk_state
   set gdbtk_state(console) ""
-  remove_hook gdb_no_inferior_hook [list $this idle dummy]
+  remove_hook gdb_busy_hook [list $this busy]
+  remove_hook gdb_idle_hook [list $this idle]
+  remove_hook gdb_no_inferior_hook [list $this idle]
 }
-
-itcl::body Console::_build_win {} {
-  iwidgets::scrolledtext $itk_interior.stext \
+  
+body Console::_build_win {} {
+  iwidgets::scrolledtext $itk_interior.stext -hscrollmode dynamic \
     -vscrollmode dynamic -textbackground white
 
   set _twin [$itk_interior.stext component text]
 
-  _set_wrap [pref get gdb/console/wrap]
+  if {[pref get gdb/console/wrap]} {
+    $_twin configure -wrap word
+  } else {
+    $_twin configure -wrap none
+  }
 
   $_twin tag configure prompt_tag -foreground [pref get gdb/console/prompt_fg]
   $_twin tag configure err_tag -foreground [pref get gdb/console/error_fg]
-  $_twin tag configure log_tag -foreground [pref get gdb/console/log_fg]
-  $_twin tag configure target_tag -foreground [pref get gdb/console/target_fg]
-  $_twin configure -font [pref get gdb/console/font] \
-    -bg $::Colors(textbg) -fg $::Colors(textfg)
-  
+  $_twin configure -font [pref get gdb/console/font]
+
   #
   # bind editing keys for console window
   #
   bind $_twin <Return> "$this invoke; break"
-  bind_plain_key $_twin Control-m "$this invoke; break"
-  bind_plain_key $_twin Control-j "$this invoke; break"
+
+  # disable this
+  bind_plain_key $_twin Control-o "break"
 
   # History control.
   bind_plain_key $_twin Control-p "[code $this _previous]; break"
@@ -73,8 +66,7 @@ itcl::body Console::_build_win {} {
   bind $_twin <Home> "[code $this _first]; break"
   bind $_twin <Meta-greater> "[code $this _last]; break"
   bind $_twin <End> "[code $this _last]; break"
-  bind_plain_key $_twin Control-o "[code $this _operate_and_get_next]; break"
-
+  
   # Tab completion
   bind_plain_key $_twin KeyPress-Tab "[code $this _complete]; break"
   
@@ -96,21 +88,18 @@ itcl::body Console::_build_win {} {
   # Control-a moves to start of line.
   bind_plain_key $_twin Control-a {
     %W mark set insert {cmdmark + 1 char}
-    %W see {insert linestart}
     break
   }
 
   # Control-u deletes to start of line.
   bind_plain_key $_twin Control-u {
     %W delete {cmdmark + 1 char} insert
-    %W see {insert linestart}
   }
-
+  
   # Control-w deletes previous word.
   bind_plain_key $_twin Control-w {
     if {[%W compare {insert -1c wordstart} > cmdmark]} {
       %W delete {insert -1c wordstart} insert
-      %W see insert
     }
   }
 
@@ -124,19 +113,13 @@ itcl::body Console::_build_win {} {
   # movement.  We only need to do this after events we do not
   # explicitly override.  Note that since the edit line is always the
   # last line, we can't possibly go past it, so we don't bother
-  # checking that.  Note also that we check for a binding which is
-  # simply `;'; this lets us handle keys already bound via
-  # bind_plain_key.
+  # checking that.
   foreach event [bind Text] {
-    if {[string match *Key* $event]
-	&& ([bind $_twin $event] == ""
-	    || [bind $_twin $event] == ";")} {
-      bind $_twin $event [bind Text $event]
-      bind $_twin $event {+
+    if {[string match *Key* $event] && [bind $_twin $event] == ""} {
+      bind $_twin $event {
 	if {[%W compare insert <= {cmdmark + 1 char}]} {
 	  %W mark set insert {cmdmark + 1 char}
 	}
-	break
       }
     }
   }
@@ -147,7 +130,7 @@ itcl::body Console::_build_win {} {
   # the saved insertion point.
   set pretag pre-$_twin
   bind $_twin <1> [format {
-    if {[%%W compare [tk::TextClosestGap %%W %%x %%y] <= cmdmark]} {
+    if {[%%W compare [tkTextClosestGap %%W %%x %%y] <= cmdmark]} {
       %s _insertion [%%W index insert]
     } else {
       %s _insertion {}
@@ -160,7 +143,7 @@ itcl::body Console::_build_win {} {
   } $this $this $this]
   # FIXME: has inside information.
   bind $_twin <ButtonRelease-1> [format {
-    tk::CancelRepeat
+    tkCancelRepeat
     if {[%s _insertion] != ""} {
       %%W mark set insert [%s _insertion]
     }
@@ -174,27 +157,25 @@ itcl::body Console::_build_win {} {
   # drags a little "fuzzy".
   bind $_twin <B2-Motion> {
     if {!$tk_strictMotif} {
-      if {($tk::Priv(x) - 2 < %x < $tk::Priv(x) + 2) \
-	    || ($tk::Priv(y) - 2 < %y < $tk::Priv(y) + 2)} {
-	set tk::Priv(mouseMoved) 1
+      if {($tkPriv(x) - 2 < %x < $tkPriv(x) + 2) \
+	    || ($tkPriv(y) - 2 < %y < $tkPriv(y) + 2)} {
+	set tkPriv(mouseMoved) 1
       }
-      if {$tk::Priv(mouseMoved)} {
+      if {$tkPriv(mouseMoved)} {
 	%W scan dragto %x %y
       }
     }
     break
   }
   bind $_twin <ButtonRelease-2> [format {
-    if {!$tk::Priv(mouseMoved) || $tk_strictMotif} {
+    if {!$tkPriv(mouseMoved) || $tk_strictMotif} {
       %s
       break
     }
   } [code $this _paste 1]]
   bind $_twin <<Paste>> "[code $this _paste 0]; break"
   bind $_twin <<PasteSelection>> "[code $this _paste 0]; break"
-  bind_plain_key $_twin Control-c "event generate $_twin <<Copy>>"
-  bind_plain_key $_twin Control-v "[code $this _paste 1]; break"
-
+  
   _setprompt
   pack $itk_interior.stext -expand yes -fill both
     
@@ -202,29 +183,24 @@ itcl::body Console::_build_win {} {
 
 }
 
-itcl::body Console::idle {event} {
+body Console::idle {} {
   set _running 0
-  $_top configure -cursor {}
 }
 
-# ------------------------------------------------------------------
-#  METHOD: busy - busy event handler
-# ------------------------------------------------------------------
-itcl::body Console::busy {event} {
+body Console::busy {} {
   set _running 1
-  $_top configure -cursor watch
 }
 
 # ------------------------------------------------------------------
 #  METHOD:  insert - insert new text in the text widget
 # ------------------------------------------------------------------
-itcl::body Console::insert {line {tag ""}} {
+body Console::insert {line} {
   if {$_needNL} {
     $_twin insert {insert linestart} "\n"
   }
   # Remove all \r characters from line.
   set line [join [split $line \r] {}]
-  $_twin insert {insert -1 line lineend} $line $tag
+  $_twin insert {insert -1 line lineend} $line
 
   set nlines [lindex [split [$_twin index end] .] 0]
   if {$nlines > $throttle} {
@@ -237,29 +213,23 @@ itcl::body Console::insert {line {tag ""}} {
   ::update idletasks
 }
 
+#-------------------------------------------------------------------
+#  METHOD:  einsert - insert error text in the text widget
 # ------------------------------------------------------------------
-#  NAME:         ConsoleWin::_operate_and_get_next
-#  DESCRIPTION:  Invokes the current command and, if this
-#                command came from the history, arrange for
-#                the next history command to be inserted once this
-#                command is finished.
-#
-#  ARGUMENTS:    None
-#  RETURNS:      Nothing
-# ------------------------------------------------------------------
-itcl::body Console::_operate_and_get_next {} {
-  if {$_histElement >= 0} {
-    # _pendingHistElement will be used after the new history element
-    # is pushed.  So we must increment it.
-    set _pendingHistElement [expr {$_histElement + 1}]
+body Console::einsert {line} {
+  debug $line
+  if {$_needNL} {
+    $_twin insert end "\n"
   }
-  invoke
+  $_twin insert end $line err_tag
+  $_twin see insert
+  set _needNL 0
 }
 
 #-------------------------------------------------------------------
 #  METHOD:  _previous - recall the previous command
 # ------------------------------------------------------------------
-itcl::body Console::_previous {} {
+body Console::_previous {} {
   if {$_histElement == -1} {
     # Save partial command.
     set _partialCommand [$_twin get {cmdmark + 1 char} {cmdmark lineend}]
@@ -279,7 +249,7 @@ itcl::body Console::_previous {} {
 #-------------------------------------------------------------------
 #  METHOD:  _search_history - search history for match
 # ------------------------------------------------------------------
-itcl::body Console::_search_history {} {
+body Console::_search_history {} {
   set str [$_twin get {cmdmark + 1 char} {cmdmark lineend}]
 
   if {$_histElement == -1} {
@@ -304,7 +274,7 @@ itcl::body Console::_search_history {} {
 #-------------------------------------------------------------------
 #  METHOD:  _rsearch_history - search history in reverse for match
 # ------------------------------------------------------------------
-itcl::body Console::_rsearch_history {} {
+body Console::_rsearch_history {} {
   if {$_histElement != -1} {
     set str $_partialCommand
     set num [expr $_histElement - 1]
@@ -332,7 +302,7 @@ itcl::body Console::_rsearch_history {} {
 #-------------------------------------------------------------------
 #  METHOD:  _next - recall the next command (scroll forward)
 # ------------------------------------------------------------------
-itcl::body Console::_next {} {
+body Console::_next {} {
   if {$_histElement == -1} {
     # FIXME flash window.
     return
@@ -350,7 +320,7 @@ itcl::body Console::_next {} {
 #-------------------------------------------------------------------
 #  METHOD:  _last - get the last history element
 # ------------------------------------------------------------------
-itcl::body Console::_last {} {
+body Console::_last {} {
   set _histElement 0
   _next
 }
@@ -358,7 +328,7 @@ itcl::body Console::_last {} {
 #-------------------------------------------------------------------
 #  METHOD:  _first - get the first (earliest) history element
 # ------------------------------------------------------------------
-itcl::body Console::_first {} {
+body Console::_first {} {
   set _histElement [expr {[llength $_history] - 1}]
   _previous
 }
@@ -368,68 +338,25 @@ itcl::body Console::_first {} {
 #-------------------------------------------------------------------
 #  METHOD:  _setprompt - put a prompt at the beginning of a line
 # ------------------------------------------------------------------
-itcl::body Console::_setprompt {{prompt {}}} {
-  if {$prompt == ""} {
+body Console::_setprompt {{prompt {}}} {
+  if {$_invoking} {
+    set prompt ""
+  } elseif {"$prompt" != ""} {
+    # nothing
+  } else {
     #set prompt [pref get gdb/console/prompt]
     set prompt [gdb_prompt]
-  } elseif {$prompt == "none"} {
-    set prompt ""
   }
-  
-  $_twin delete {insert linestart} {insert lineend}
+
   $_twin insert {insert linestart} $prompt prompt_tag
   $_twin mark set cmdmark "insert -1 char"
   $_twin see insert
-
-  if {$_pendingHistElement >= 0} {
-    set _histElement $_pendingHistElement
-    set _pendingHistElement -1
-    _next
-  }
-}
-
-#-------------------------------------------------------------------
-#  METHOD:  gets - get a line of input from the console
-# ------------------------------------------------------------------
-itcl::body Console::gets {} {
-  set _input_mode 1
-#  _setprompt "(input) "
-  _setprompt none
-  $_twin delete insert end
-  $_twin mark set cmdmark {insert -1 char}
-
-  bind_plain_key $_twin Control-d "$this invoke 1; break"
-  bind_plain_key $_twin Control-c "[code $this _cancel]; break"
-
-  vwait [scope _input_result]
-  set _input_mode 0
-  bind_plain_key $_twin Control-c "event generate $_twin <<Copy>>"
-  activate
-  if {$_input_error} {
-    set _input_error 0
-    return -code error ""
-  }
-  return $_input_result
-}
-
-#-------------------------------------------------------------------
-#  METHOD:  cancel - cancel input when ^C is hit
-# ------------------------------------------------------------------
-itcl::body Console::_cancel {} {
-  if {$_input_mode} {
-    set _needNL 1
-    $_twin mark set insert {insert lineend}
-    $_twin insert {insert lineend} "^C\n"
-    incr _invoking
-    set _input_error 1
-    set _input_result ""
-  }
 }
 
 #-------------------------------------------------------------------
 #  METHOD:  activate - run this after a command is run
 # ------------------------------------------------------------------
-itcl::body Console::activate {{prompt {}}} {
+body Console::activate {{prompt {}}} {
   if {$_invoking > 0} {
     incr _invoking -1
     _setprompt $prompt
@@ -439,22 +366,11 @@ itcl::body Console::activate {{prompt {}}} {
 #-------------------------------------------------------------------
 #  METHOD:  invoke - invoke a command
 # ------------------------------------------------------------------
-itcl::body Console::invoke {{controld 0}} {
+body Console::invoke {} {
   global gdbtk_state
 
-  set text [$_twin get {cmdmark + 1 char} end ]
-
-  if { "[string range $text 0 1]" == "tk" } {
-    if {! [info complete $text] } {
-      $_twin insert {insert lineend} " \\\n"
-      $_twin see insert
-      return
-    }
-  }
-
   incr _invoking
-
-  set text [string trimright $text \n]
+  set text [$_twin get {cmdmark + 1 char} {cmdmark lineend}]
   if {$text == ""} {
     set text [lindex $_history 0]
     $_twin insert {insert lineend} $text
@@ -470,13 +386,6 @@ itcl::body Console::invoke {{controld 0}} {
     }
   }
 
-  if {$_input_mode} {
-    if {!$controld} {append text \n}
-    set _input_result $text
-    set _needNL 1
-    return
-  }
-  
   # Only push new nonempty history items.
   if {$text != "" && [lindex $_history 0] != $text} {
     lvarpush _history $text
@@ -526,7 +435,7 @@ itcl::body Console::invoke {{controld 0}} {
 #-------------------------------------------------------------------
 #  PRIVATE METHOD:  _delete - Handle a Delete of some sort.
 # ------------------------------------------------------------------
-itcl::body Console::_delete {{right 0}} {
+body Console::_delete {{right 0}} {
 
   # If we are deleting to the right, and we have this turned off,
   # delete to the right.
@@ -564,7 +473,7 @@ itcl::body Console::_delete {{right 0}} {
 #-------------------------------------------------------------------
 #  PRIVATE METHOD:  _insertion - Set or get saved insertion point
 # ------------------------------------------------------------------
-itcl::body Console::_insertion {args} {
+body Console::_insertion {args} {
   if {! [llength $args]} {
     return $_saved_insertion
   } else {
@@ -575,7 +484,7 @@ itcl::body Console::_insertion {args} {
 # ------------------------------------------------------------------
 #  METHOD:  _paste - paste the selection into the console window
 # ------------------------------------------------------------------
-itcl::body Console::_paste {{check_primary 1}} {
+body Console::_paste {{check_primary 1}} {
   set sel {}
 
   if {!$check_primary || [catch {selection get} sel] || $sel == ""} {
@@ -595,11 +504,16 @@ itcl::body Console::_paste {{check_primary 1}} {
   }
 }
 
+# public method for testing only
+body Console::get_text {} {
+  return $_twin
+}
+
 # ------------------------------------------------------------------
 #  METHOD:  _find_lcp - Return the longest common prefix in SLIST.
 #              Can be empty string.
 # ------------------------------------------------------------------
-itcl::body Console::_find_lcp {slist} {
+body Console::_find_lcp {slist} {
   # Handle trivial cases where list is empty or length 1
   if {[llength $slist] <= 1} {return [lindex $slist 0]}
 
@@ -622,7 +536,7 @@ itcl::body Console::_find_lcp {slist} {
 #  METHOD:  _find_completion - Look through COMPLETIONS to generate
 #             the suffix needed to do command
 # ------------------------------------------------------------------
-itcl::body Console::_find_completion {cmd completions} {
+body Console::_find_completion {cmd completions} {
   # Get longest common prefix
   set lcp [_find_lcp $completions]
   set cmd_len [string length $cmd]
@@ -633,7 +547,7 @@ itcl::body Console::_find_completion {cmd completions} {
 # ------------------------------------------------------------------
 #  METHOD: _complete - Command line completion
 # ------------------------------------------------------------------
-itcl::body Console::_complete {} {
+body Console::_complete {} {
 
   set command_line [$_twin get {cmdmark + 1 char} {cmdmark lineend}]
   set choices [gdb_cmd "complete $command_line" 1]
@@ -649,10 +563,10 @@ itcl::body Console::_complete {} {
     # is one match, complete the command and print a space.
     # If two or more matches, complete the command and beep.
     # If no match, just beep.
-    switch [llength $choices] {
+    switch {[llength $choices]} {
       0 {}
       1 {
-	$_twin insert end "$completion "
+	_twin insert end "$completion "
 	set _saw_tab 0
 	return
       }
@@ -686,62 +600,7 @@ itcl::body Console::_complete {} {
 #  METHOD:  _reset_tab - Helper method for tab completion. Used
 #             to reset the tab when a key is pressed.
 # ------------------------------------------------------------------
-itcl::body Console::_reset_tab {} {
+body Console::_reset_tab {} {
   bind $_twin <KeyPress> {}
   set _saw_tab 0
 }
-
-
-# ------------------------------------------------------------------
-#  METHOD:  _set_wrap - Set wrap mode
-# ------------------------------------------------------------------
-itcl::body Console::_set_wrap {wrap} {
-  if { $wrap } {
-    set hsm none
-    set wv char
-  } else {
-    set hsm dynamic
-    set wv none
-  }
-
-  $itk_interior.stext configure -hscrollmode $hsm
-  $_twin configure -wrap $wv
-}
-
-# ------------------------------------------------------------------
-#  METHOD:  _update_option - Update in response to preference change
-# ------------------------------------------------------------------
-itcl::body Console::_update_option {name value} {
-  switch -- $name {
-    gdb/console/wrap {
-      _set_wrap $value
-    }
-
-    gdb/console/prompt_fg {
-      $_twin tag configure prompt_tag -foreground $value
-    }
-
-    gdb/console/error_fg {
-      $_twin tag configure err_tag -foreground $value
-    }
-  }
-}
-
-# ------------------------------------------------------------------
-#  NAME:         public method Console::test
-#  DESCRIPTION:  Executes the given command
-#
-#  ARGUMENTS:    Command to run
-#  RETURNS:      Return value of command
-#
-#  NOTES:        This will only run if env(GDBTK_TEST_RUNNING)==1.
-#                FOR TESTING ONLY
-# ------------------------------------------------------------------
-itcl::body Console::test {args} {
-  global env
-
-  if {[info exists env(GDBTK_TEST_RUNNING)] && $env(GDBTK_TEST_RUNNING) == 1} {
-    return [eval $args]
-  }
-}
-

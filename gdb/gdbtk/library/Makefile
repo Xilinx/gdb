@@ -1,10 +1,10 @@
 
-TCL := $(wildcard *.tcl *.itcl *.ith *.itb)
+TCL := $(wildcard *.tcl *.ith *.itb)
 
-TCLSH = tclsh
+ITCL_SH = itclsh3.0
 
 tclIndex: $(TCL) Makefile
-	echo "package require Itcl; auto_mkindex `pwd` $(TCL)" | $(TCLSH)
+	echo "auto_mkindex `pwd` $(TCL)" | $(ITCL_SH)
 
 tags: TAGS
 TAGS: $(TCL)

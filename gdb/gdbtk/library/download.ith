@@ -1,5 +1,5 @@
-# Download class definition for Insight
-# Copyright (C) 1999, 2001 Red Hat, Inc.
+# Download class definition for GDBtk.
+# Copyright 1999 Cygnus Solutions
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License (GPL) as published by
@@ -12,7 +12,7 @@
 # GNU General Public License for more details.
 
 
-itcl::class Download {
+class Download {
   inherit ManagedWin
   
   protected {
@@ -20,12 +20,6 @@ itcl::class Download {
     common section
     common bytes
     common num_sections
-    common num_steps 100
-
-    # completed steps in feedback meter (iwidget::feedback is lame)
-    common completed_steps
-
-    method _ignore_on_save {} { return 1 }
     proc dont_remember_size {} { return 1}
   }
   public {

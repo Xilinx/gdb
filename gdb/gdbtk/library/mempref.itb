@@ -1,5 +1,5 @@
-# Memory display preferences window for Insight.
-# Copyright (C) 1998, 1999, 2002, 2003, 2006 Red Hat
+# Memory display preferences window for GDBtk.
+# Copyright 1998, 1999 Cygnus Solutions
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License (GPL) as published by
@@ -15,7 +15,7 @@
 # ------------------------------------------------------------------
 #  METHOD:  constructor - build the dialog
 # ------------------------------------------------------------------
-itcl::body MemPref::constructor {args} {
+body MemPref::constructor {args} {
 
   window_name "Memory Preferences"
 
@@ -41,7 +41,6 @@ itcl::body MemPref::constructor {args} {
   
   set gnumbytes $numbytes
   set gbpr $bpr
-  set gbprlist [list 4 8 16 32 64 128]
   set gascii $ascii
   set gascii_char $ascii_char
   
@@ -58,14 +57,14 @@ itcl::body MemPref::constructor {args} {
 # ------------------------------------------------------------------
 #  METHOD:  destructor - destroy the dialog
 # ------------------------------------------------------------------
-itcl::body MemPref::destructor {} {
+body MemPref::destructor {} {
   trace vdelete [scope gnumbytes] w [code $this check_numbytes]
 }
 
 # ------------------------------------------------------------------
 #  METHOD:  build_win - build the dialog
 # ------------------------------------------------------------------
-itcl::body MemPref::build_win {} {
+body MemPref::build_win {} {
 
   frame $itk_interior.f
   set f [frame $itk_interior.f.a]
@@ -154,12 +153,14 @@ itcl::body MemPref::build_win {} {
   label $fr.2.l -text "Bytes Per Row "
   set Widgets(b-bytes_per_row) [::combobox::combobox $fr.2.c \
 				  -command [code $this set_bytes_per_row]  \
-				  -width 4 -editable 1 -font global/fixed \
-				  -bg $::Colors(textbg)]
-  foreach item $gbprlist {
-    $fr.2.c list insert end $item
-  }
-  $fr.2.c configure -value $gbpr
+				  -width 4 -editable 0 -font src-font]
+  $fr.2.c list insert end 4
+  $fr.2.c list insert end 8
+  $fr.2.c list insert end 16
+  $fr.2.c list insert end 32
+  $fr.2.c list insert end 64
+  $fr.2.c list insert end 128
+  $fr.2.c configure -value 16
 
   pack $fr.2.l -side left -anchor e
   pack $fr.2.c -side right
@@ -204,7 +205,7 @@ itcl::body MemPref::build_win {} {
 # ------------------------------------------------------------------
 #  METHOD:  busy - make the widget unusable
 # ------------------------------------------------------------------
-itcl::body MemPref::busy {} {
+body MemPref::busy {} {
   set top [winfo toplevel $itk_interior]
   $top configure -cursor watch
   
@@ -220,7 +221,7 @@ itcl::body MemPref::busy {} {
 # ------------------------------------------------------------------
 #  METHOD:  idle - make the widget useable
 # ------------------------------------------------------------------
-itcl::body MemPref::idle {} {
+body MemPref::idle {} {
   set top [winfo toplevel $itk_interior]
   $top configure -cursor {}
 
@@ -232,7 +233,7 @@ itcl::body MemPref::idle {} {
 # ------------------------------------------------------------------
 #  METHOD:  ok - apply and quit
 # ------------------------------------------------------------------
-itcl::body MemPref::ok {} {
+body MemPref::ok {} {
   apply
   unpost
 }
@@ -240,14 +241,14 @@ itcl::body MemPref::ok {} {
 # ------------------------------------------------------------------
 #  METHOD:  cancel - just close the dialog w/o saving changes
 # ------------------------------------------------------------------
-itcl::body MemPref::cancel {} {
+body MemPref::cancel {} {
   unpost
 }
 
 # ------------------------------------------------------------------
 #  METHOD:  check_numbytes - a trace to make sure gnumbytes is an int > 0
 # ------------------------------------------------------------------
-itcl::body MemPref::check_numbytes {var index mode} {
+body MemPref::check_numbytes {var index mode} {
   upvar \#0 $var true
   if {($true != "") && ([catch {expr {(int($true) != double($true)) || $true <= 0}} val] 
 			|| $val)} {
@@ -261,44 +262,15 @@ itcl::body MemPref::check_numbytes {var index mode} {
 # ------------------------------------------------------------------
 #  METHOD:  set_bytes_per_row - combobox callback to set the bytes per row
 # ------------------------------------------------------------------
-itcl::body MemPref::set_bytes_per_row {w value} {
-  if {[string is integer -strict $value] && [expr {$value != 0}]} {
-    # The input is a value number.
-    set gbpr $value
-    set gbpr [string trim $gbpr]
-
-    # Too high a number will cause a Segmentation fault.
-    if {[expr {$gbpr > 150}]} {set gbpr 150}
-
-    # Insert the value into the combo box list, if it isn't there already.
-    set found [lsearch $gbprlist $gbpr]
-
-    if {$found == -1} {
-      lappend gbprlist $gbpr
-      $Widgets(b-bytes_per_row) list insert end $gbpr
-    }
-
-    set s $gsize
-    if {$s == 3} {set s 4}
-    if {$s == 5} {set s 8}
-    set rem [expr {$gbpr % $s}]
-    if {$rem != 0} {
-      # The bytes-per-row is not a multiple of the size.
-      set gbpr [expr {$gbpr + ($s - $rem)}]
-    }
-  }
-
-  # Set the display to the new value. This may be different if the input
-  # was zero or not a number, or if the user entered any whitespace.
-  $Widgets(b-bytes_per_row) delete 0 end
-  $Widgets(b-bytes_per_row) insert end $gbpr
+body MemPref::set_bytes_per_row {w value} {
+  set gbpr $value
 }
 
 # ------------------------------------------------------------------
 #  METHOD:  toggle_size_control - toggle the state of the entry box as the
 #           control method changes
 # ------------------------------------------------------------------
-itcl::body MemPref::toggle_size_control {} {
+body MemPref::toggle_size_control {} {
 
   if {$gvar} {
     $Widgets(e-numbytes) configure -state normal \
@@ -314,7 +286,7 @@ itcl::body MemPref::toggle_size_control {} {
 # ------------------------------------------------------------------
 #  METHOD:  apply - apply changes to the parent window
 # ------------------------------------------------------------------
-itcl::body MemPref::apply {} {
+body MemPref::apply {} {
 
   busy
   gdbtk_busy
@@ -345,9 +317,6 @@ itcl::body MemPref::apply {} {
     }
   }
 
-  # Ensure the value has been read from the text field.
-  set_bytes_per_row "" [$Widgets(b-bytes_per_row) get]
-
   # pass all the changed values back to parent
   debug "$win configChange -size $size -numbytes $numbytes \
 	     -format $format -ascii $gascii \
@@ -367,11 +336,7 @@ itcl::body MemPref::apply {} {
 # ------------------------------------------------------------------
 #  METHOD:  enable_format - turn on the format radio buttons 
 # ------------------------------------------------------------------
-itcl::body MemPref::enable_format {} {
-  # First ensure bytes per row is a multiple of the size.
-  # Use the value of the widget, not $gbpr to ensure the typed value is kept.
-  set_bytes_per_row "" [$Widgets(b-bytes_per_row) get]
-
+body MemPref::enable_format {} {
   if {!$format_disabled} {
     return
   }
@@ -386,11 +351,7 @@ itcl::body MemPref::enable_format {} {
 # ------------------------------------------------------------------
 #  METHOD:  disable_format - turn off the format radio buttons 
 # ------------------------------------------------------------------
-itcl::body MemPref::disable_format {} {
-  # First ensure bytes per row is a multiple of the size.
-  # Use the value of the widget, not $gbpr to ensure the typed value is kept.
-  set_bytes_per_row "" [$Widgets(b-bytes_per_row) get]
-
+body MemPref::disable_format {} {
   if {$format_disabled} {
     return
   }
@@ -404,7 +365,7 @@ itcl::body MemPref::disable_format {} {
 # ------------------------------------------------------------------
 #  METHOD:  pick - pick colors
 # ------------------------------------------------------------------
-itcl::body MemPref::pick {lab} {
+body MemPref::pick {lab} {
   set new_color [tk_chooseColor -initialcolor $color -title "Choose color"]
   if {$new_color != $color && $new_color != ""} {
     set color $new_color
@@ -416,7 +377,7 @@ itcl::body MemPref::pick {lab} {
 # ------------------------------------------------------------------
 #  METHOD:  reconfig - used when preferences change
 # ------------------------------------------------------------------
-itcl::body MemPref::reconfig {} {
+body MemPref::reconfig {} {
   # for now, just delete and recreate
   destroy $itk_interior.f 
   build_win
