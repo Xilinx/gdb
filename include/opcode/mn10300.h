@@ -1,5 +1,5 @@
 /* mn10300.h -- Header file for Matsushita 10300 opcode table
-   Copyright 1996, 1997, 1998, 1999, 2003 Free Software Foundation, Inc.
+   Copyright 1996, 1997 Free Software Foundation, Inc.
    Written by Jeff Law, Cygnus Support
 
 This file is part of GDB, GAS, and the GNU binutils.
@@ -16,7 +16,7 @@ the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this file; see the file COPYING.  If not, write to the Free
-Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef MN10300_H
 #define MN10300_H
@@ -117,29 +117,6 @@ extern const struct mn10300_operand mn10300_operands[];
 
 #define MN10300_OPERAND_RELAX 0x4000
 
-#define MN10300_OPERAND_USP 0x8000
-
-#define MN10300_OPERAND_SSP 0x10000
-
-#define MN10300_OPERAND_MSP 0x20000
-
-#define MN10300_OPERAND_PC 0x40000
-
-#define MN10300_OPERAND_EPSW 0x80000
-
-#define MN10300_OPERAND_RREG 0x100000
-
-#define MN10300_OPERAND_XRREG 0x200000
-
-#define MN10300_OPERAND_PLUS 0x400000
-
-#define MN10300_OPERAND_24BIT 0x800000
-
-#define MN10300_OPERAND_FSREG 0x1000000
-
-#define MN10300_OPERAND_FDREG 0x2000000
-
-#define MN10300_OPERAND_FPCR 0x4000000
 
 /* Opcode Formats.  */
 #define FMT_S0 1
@@ -152,18 +129,10 @@ extern const struct mn10300_operand mn10300_operands[];
 #define FMT_D2 8
 #define FMT_D4 9
 #define FMT_D5 10
-#define FMT_D6 11
-#define FMT_D7 12
-#define FMT_D8 13
-#define FMT_D9 14
-#define FMT_D10 15
-#define FMT_D3 16
 
 /* Variants of the mn10300 which have additional opcodes.  */
 #define MN103 300
 #define AM30  300
 
-#define AM33 330
-#define AM33_2 332
 
 #endif /* MN10300_H */

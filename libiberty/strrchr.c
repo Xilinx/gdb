@@ -2,21 +2,27 @@
    This function is in the public domain. */
 
 /*
+NAME
+	strrchr -- return pointer to last occurance of a character
 
-@deftypefn Supplemental char* strrchr (const char *@var{s}, int @var{c})
+SYNOPSIS
+	char *strrchr (const char *s, int c)
 
-Returns a pointer to the last occurrence of the character @var{c} in
-the string @var{s}, or @code{NULL} if not found.  If @var{c} is itself the
-null character, the results are undefined.
-
-@end deftypefn
-
+DESCRIPTION
+	Returns a pointer to the last occurance of character C in
+	string S, or a NULL pointer if no occurance is found.
+	
+BUGS
+	Behavior when character is the null character is implementation
+	dependent.
 */
 
 #include <ansidecl.h>
 
 char *
-strrchr (register const char *s, int c)
+strrchr (s, c)
+  register const char *s;
+  int c;
 {
   char *rtnval = 0;
 

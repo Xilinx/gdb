@@ -1,27 +1,25 @@
 /* d10v-opc.c -- D10V opcode list
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2007
-   Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998 Free Software Foundation, Inc.
    Written by Martin Hunt, Cygnus Support
 
-   This file is part of the GNU opcodes library.
+This file is part of GDB, GAS, and the GNU binutils.
 
-   This library is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3, or (at your option)
-   any later version.
+GDB, GAS, and the GNU binutils are free software; you can redistribute
+them and/or modify them under the terms of the GNU General Public
+License as published by the Free Software Foundation; either version
+2, or (at your option) any later version.
 
-   It is distributed in the hope that it will be useful, but WITHOUT
-   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
-   License for more details.
+GDB, GAS, and the GNU binutils are distributed in the hope that they
+will be useful, but WITHOUT ANY WARRANTY; without even the implied
+warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
+the GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this file; see the file COPYING.  If not, write to the Free
-   Software Foundation, 51 Franklin Street - Fifth Floor, Boston,
-   MA 02110-1301, USA.  */
+You should have received a copy of the GNU General Public License
+along with this file; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
-#include "sysdep.h"
+#include "ansidecl.h"
 #include "opcode/d10v.h"
 
 
@@ -71,7 +69,7 @@ const struct pd_reg d10v_predefined_registers[] =
   { "r13", NULL, OPERAND_GPR+13 },
   { "r14", NULL, OPERAND_GPR+14 },
   { "r14-r15", NULL, OPERAND_GPR+14 },
-  { "r15", "sp", OPERAND_SP|(OPERAND_GPR+15) },
+  { "r15", "sp", OPERAND_GPR+15 },
   { "r2", NULL, OPERAND_GPR+2 },
   { "r2-r3", NULL, OPERAND_GPR+2 },
   { "r3", NULL, OPERAND_GPR+3 },
@@ -87,7 +85,7 @@ const struct pd_reg d10v_predefined_registers[] =
   { "rpt_c", NULL, OPERAND_CONTROL+7 },
   { "rpt_e", NULL, OPERAND_CONTROL+9 },
   { "rpt_s", NULL, OPERAND_CONTROL+8 },
-  { "sp", NULL, OPERAND_SP|(OPERAND_GPR+15) },
+  { "sp", NULL, OPERAND_GPR+15 },
 };
 
 int 
@@ -102,11 +100,7 @@ const struct d10v_operand d10v_operands[] =
   { 0, 0, 0 },
 #define RSRC	(UNUSED + 1)
   { 4, 1, OPERAND_GPR|OPERAND_REG },
-#define RSRC_SP (RSRC + 1)
-  { 4, 1, OPERAND_SP|OPERAND_GPR|OPERAND_REG },
-#define RSRC_NOSP (RSRC_SP + 1)
-  { 4, 1, OPERAND_NOSP|OPERAND_GPR|OPERAND_REG },
-#define RDST	(RSRC_NOSP + 1)
+#define RDST	(RSRC + 1)
   { 4, 5, OPERAND_DEST|OPERAND_GPR|OPERAND_REG },
 #define ASRC	(RDST + 1)
   { 1, 4, OPERAND_ACC0|OPERAND_ACC1|OPERAND_REG },
@@ -121,7 +115,7 @@ const struct d10v_operand d10v_operands[] =
 #define NUM16	(RDSTE + 1)
   { 16, 0, OPERAND_NUM|OPERAND_SIGNED },
 #define NUM3	(NUM16 + 1)			/* rac, rachi */
-  { 3, 1, OPERAND_NUM|OPERAND_SIGNED|RESTRICTED_NUM3 },
+  { 3, 1, OPERAND_NUM|OPERAND_SIGNED },
 #define NUM4	(NUM3 + 1)
   { 4, 1, OPERAND_NUM|OPERAND_SIGNED },
 #define UNUM4	(NUM4 + 1)
@@ -185,11 +179,11 @@ const struct d10v_opcode d10v_opcodes[] = {
   { "and3", LONG_L, 1, MU, SEQ, 0x6000000, 0x3f000000, { RDST, RSRC, NUM16 } },
   { "bclri", SHORT_2, 1, IU, PAR, 0xc01, 0x7e01, { RDST, UNUM4 } },
   { "bl", OPCODE_FAKE, 0, 0, 0, 0, 0, { 0, 8, 16, 0 } },
-  { "bl.s", SHORT_B, 3, MU, ALONE|BRANCH_LINK|PAR, 0x4900, 0x7f00, { ANUM8 } },
+  { "bl.s", SHORT_B, 3, MU, BRANCH_LINK|PAR, 0x4900, 0x7f00, { ANUM8 } },
   { "bl.l", LONG_B, 3, MU, BRANCH_LINK|SEQ, 0x24800000, 0x3fff0000, { ANUM16 } },
   { "bnoti", SHORT_2, 1, IU, PAR, 0xa01, 0x7e01, { RDST, UNUM4 } },
   { "bra", OPCODE_FAKE, 0, 0, 0, 0, 0, { 0, 8, 16, 0 } },
-  { "bra.s", SHORT_B, 3, MU, ALONE|BRANCH|PAR, 0x4800, 0x7f00, { ANUM8 } },
+  { "bra.s", SHORT_B, 3, MU, BRANCH|PAR, 0x4800, 0x7f00, { ANUM8 } },
   { "bra.l", LONG_B, 3, MU, BRANCH|SEQ, 0x24000000, 0x3fff0000, { ANUM16 } },
   { "brf0f", OPCODE_FAKE, 0, 0, 0, 0, 0, { 0, 8, 16, 0 } },
   { "brf0f.s", SHORT_B, 3, MU, BRANCH|PAR|RF0, 0x4a00, 0x7f00, { ANUM8 } },
@@ -198,7 +192,7 @@ const struct d10v_opcode d10v_opcodes[] = {
   { "brf0t.s", SHORT_B, 3, MU, BRANCH|PAR|RF0, 0x4b00, 0x7f00, { ANUM8 } },
   { "brf0t.l", LONG_B, 3, MU, SEQ, 0x25800000, 0x3fff0000, { ANUM16 } },
   { "bseti", SHORT_2, 1, IU, PAR, 0x801, 0x7e01, { RDST, UNUM4 } },
-  { "btsti", SHORT_2, 1, IU, PAR|WF0, 0xe01, 0x7e01, { RSRC2, UNUM4 } },
+  { "btsti", SHORT_2, 1, IU, PAR|WF0, 0xe01, 0x7e01, { RDST, UNUM4 } },
   { "clrac", SHORT_2, 1, IU, PAR, 0x5601, 0x7eff, { ADST } },
   { "cmp", SHORT_2, 1, EITHER, PAR|WF0, 0x600, 0x7e01, { RSRC2, RSRC } },
   { "cmp", SHORT_2, 1, IU, PAR|WF0, 0x1603, 0x7eef, { ASRC2, ASRC } },
@@ -212,9 +206,9 @@ const struct d10v_opcode d10v_opcodes[] = {
   { "cmpi.l", LONG_L, 1, MU, SEQ, 0x3000000, 0x3f0f0000, { RSRC2, NUM16 } },
   { "cmpu", SHORT_2, 1, EITHER, PAR|WF0, 0x4600, 0x7e01, { RSRC2, RSRC } },
   { "cmpui", LONG_L, 1, MU, SEQ, 0x23000000, 0x3f0f0000, { RSRC2, UNUM16 } },
-  { "cpfg", SHORT_2, 1, MU, PAR, 0x4e0f, 0x7fdf, { FDST, CFSRC } },
   { "cpfg", SHORT_2, 1, MU, PAR, 0x4e09, 0x7fd9, { FDST, FFSRC } },
-  { "dbt", SHORT_2, 5, MU, ALONE|PAR, 0x5f20, 0x7fff, { 0 } },
+  { "cpfg", SHORT_2, 1, MU, PAR, 0x4e09, 0x7fd9, { FDST, CFSRC } },
+  { "dbt", SHORT_2, 5, MU, PAR, 0x5f20, 0x7fff, { 0 } },
   { "divs", LONG_L, 1, BOTH, SEQ, 0x14002800, 0x3f10fe21, { RDSTE, RSRC } },
   { "exef0f", SHORT_2, 1, EITHER, PARONLY, 0x4e04, 0x7fff, { 0 } },
   { "exef0t", SHORT_2, 1, EITHER, PARONLY, 0x4e24, 0x7fff, { 0 } },
@@ -226,18 +220,16 @@ const struct d10v_opcode d10v_opcodes[] = {
   { "exetat", SHORT_2, 1, EITHER, PARONLY, 0x4e22, 0x7fff, { 0 } },
   { "exp", LONG_R, 1, IU, SEQ, 0x15002a00, 0x3ffffe03, { RDST, RSRCE } },
   { "exp", LONG_R, 1, IU, SEQ, 0x15002a02, 0x3ffffe0f, { RDST, ASRC } },
-  { "jl", SHORT_2, 3, MU, ALONE|BRANCH_LINK|PAR, 0x4d00, 0x7fe1, { RSRC } },
-  { "jmp", SHORT_2, 3, MU, ALONE|BRANCH|PAR, 0x4c00, 0x7fe1, { RSRC } },
+  { "jl", SHORT_2, 3, MU, BRANCH_LINK|PAR, 0x4d00, 0x7fe1, { RSRC } },
+  { "jmp", SHORT_2, 3, MU, BRANCH|PAR, 0x4c00, 0x7fe1, { RSRC } },
   { "ld", LONG_L, 1, MU, SEQ, 0x30000000, 0x3f000000, { RDST, ATPAR, NUM16, RSRC } },
   { "ld", SHORT_2, 1, MU, PAR|RMEM, 0x6401, 0x7e01, { RDST, ATSIGN, RSRC, MINUS } },
   { "ld", SHORT_2, 1, MU, PAR|RMEM, 0x6001, 0x7e01, { RDST, ATSIGN, RSRC, PLUS } },
   { "ld", SHORT_2, 1, MU, PAR|RMEM, 0x6000, 0x7e01, { RDST, ATSIGN, RSRC } },
-  { "ld", LONG_L, 1, MU, SEQ, 0x32010000, 0x3f0f0000, { RDST, ATSIGN, NUM16 } },
   { "ld2w", LONG_L, 1, MU, SEQ, 0x31000000, 0x3f100000, { RDSTE, ATPAR, NUM16, RSRC } },
   { "ld2w", SHORT_2, 1, MU, PAR|RMEM, 0x6601, 0x7e21, { RDSTE, ATSIGN, RSRC, MINUS } },
   { "ld2w", SHORT_2, 1, MU, PAR|RMEM, 0x6201, 0x7e21, { RDSTE, ATSIGN, RSRC, PLUS } },
   { "ld2w", SHORT_2, 1, MU, PAR|RMEM, 0x6200, 0x7e21, { RDSTE, ATSIGN, RSRC } },
-  { "ld2w", LONG_L, 1, MU, SEQ, 0x33010000, 0x3f1f0000, { RDSTE, ATSIGN, NUM16 } },
   { "ldb", LONG_L, 1, MU, SEQ, 0x38000000, 0x3f000000, { RDST, ATPAR, NUM16, RSRC } },
   { "ldb", SHORT_2, 1, MU, PAR|RMEM, 0x7000, 0x7e01, { RDST, ATSIGN, RSRC } },
   { "ldi", OPCODE_FAKE, 0, 0, 0, 0, 0, { 1, 4, 16, 0 } },
@@ -284,23 +276,16 @@ const struct d10v_opcode d10v_opcodes[] = {
   { "not", SHORT_2, 1, EITHER, PAR, 0x4603, 0x7e1f, { RDST } },
   { "or", SHORT_2, 1, EITHER, PAR, 0x800, 0x7e01, { RDST, RSRC } },
   { "or3", LONG_L, 1, MU, SEQ, 0x4000000, 0x3f000000, { RDST, RSRC, NUM16 } },
-  /* Special case. sac&sachi must occur before rac&rachi because they have
-     intersecting masks! The masks for rac&rachi will match sac&sachi but
-     not the other way around.
-   */
-  { "sac", SHORT_2, 1, IU, PAR|RF0|WF0, 0x5209, 0x7e2f, { RDSTE, ASRC } },
-  { "sachi", SHORT_2, 1, IU, PAR|RF0|WF0, 0x4209, 0x7e0f, { RDST, ASRC } },
   { "rac", SHORT_2, 1, IU, PAR|WF0, 0x5201, 0x7e21, { RDSTE, ASRC0ONLY, NUM3 } },
   { "rachi", SHORT_2, 1, IU, PAR|WF0, 0x4201, 0x7e01, { RDST, ASRC, NUM3 } },
   { "rep", LONG_L, 2, MU, SEQ, 0x27000000, 0x3ff00000, { RSRC, ANUM16 } },
   { "repi", LONG_L, 2, MU, SEQ, 0x2f000000, 0x3f000000, { UNUM8, ANUM16 } },
-  { "rtd", SHORT_2, 3, MU, ALONE|PAR, 0x5f60, 0x7fff, { 0 } },
-  { "rte", SHORT_2, 3, MU, ALONE|PAR, 0x5f40, 0x7fff, { 0 } },
+  { "rtd", SHORT_2, 3, MU, PAR, 0x5f60, 0x7fff, { 0 } },
+  { "rte", SHORT_2, 3, MU, PAR, 0x5f40, 0x7fff, { 0 } },
   { "sadd", SHORT_2, 1, IU, PAR, 0x1223, 0x7eef, { ADST, ASRC } },
   { "setf0f", SHORT_2, 1, MU, PAR|RF0, 0x4611, 0x7e1f, { RDST } },
   { "setf0t", SHORT_2, 1, MU, PAR|RF0, 0x4613, 0x7e1f, { RDST } },
-  { "slae", SHORT_2, 1, IU, PAR, 0x3220, 0x7ee1, { ADST, RSRC } },
-  { "sleep", SHORT_2, 1, MU, ALONE|PAR, 0x5fc0, 0x7fff, { 0 } },
+  { "sleep", SHORT_2, 1, MU, PAR, 0x5fc0, 0x7fff, { 0 } },
   { "sll", SHORT_2, 1, IU, PAR, 0x2200, 0x7e01, { RDST, RSRC } },
   { "sll", SHORT_2, 1, IU, PAR, 0x3200, 0x7ee1, { ADST, RSRC } },
   { "slli", SHORT_2, 1, IU, PAR, 0x2201, 0x7e01, { RDST, UNUM4 } },
@@ -317,19 +302,17 @@ const struct d10v_opcode d10v_opcodes[] = {
   { "srx", SHORT_2, 1, IU, PAR|RF0, 0x4609, 0x7e1f, { RDST } },
   { "st", LONG_L, 1, MU, SEQ, 0x34000000, 0x3f000000, { RSRC2, ATPAR, NUM16, RSRC } },
   { "st", SHORT_2, 1, MU, PAR|WMEM, 0x6800, 0x7e01, { RSRC2, ATSIGN, RSRC } },
-  { "st", SHORT_2, 1, MU, PAR|WMEM, 0x6c1f, 0x7e1f, { RSRC2, ATMINUS, RSRC_SP } },
+  { "st", SHORT_2, 1, MU, PAR|WMEM, 0x6c1f, 0x7e1f, { RSRC2, ATMINUS, RSRC } },
   { "st", SHORT_2, 1, MU, PAR|WMEM, 0x6801, 0x7e01, { RSRC2, ATSIGN, RSRC, PLUS } },
-  { "st", SHORT_2, 1, MU, PAR|WMEM, 0x6c01, 0x7e01, { RSRC2, ATSIGN, RSRC_NOSP, MINUS } },
-  { "st", LONG_L, 1, MU, SEQ, 0x36010000, 0x3f0f0000, { RSRC2, ATSIGN, NUM16 } },
+  { "st", SHORT_2, 1, MU, PAR|WMEM, 0x6c01, 0x7e01, { RSRC2, ATSIGN, RSRC, MINUS } },
   { "st2w", LONG_L, 1, MU, SEQ, 0x35000000, 0x3f100000, { RSRC2E, ATPAR, NUM16, RSRC } },
   { "st2w", SHORT_2, 1, MU, PAR|WMEM, 0x6a00, 0x7e21, { RSRC2E, ATSIGN, RSRC } },
-  { "st2w", SHORT_2, 1, MU, PAR|WMEM, 0x6e1f, 0x7e3f, { RSRC2E, ATMINUS, RSRC_SP } },
+  { "st2w", SHORT_2, 1, MU, PAR|WMEM, 0x6e1f, 0x7e3f, { RSRC2E, ATMINUS, RSRC } },
   { "st2w", SHORT_2, 1, MU, PAR|WMEM, 0x6a01, 0x7e21, { RSRC2E, ATSIGN, RSRC, PLUS } },
-  { "st2w", SHORT_2, 1, MU, PAR|WMEM, 0x6e01, 0x7e21, { RSRC2E, ATSIGN, RSRC_NOSP, MINUS } },
-  { "st2w", LONG_L, 1, MU, SEQ, 0x37010000, 0x3f1f0000, { RSRC2E, ATSIGN, NUM16 } },
+  { "st2w", SHORT_2, 1, MU, PAR|WMEM, 0x6e01, 0x7e21, { RSRC2E, ATSIGN, RSRC, MINUS } },
   { "stb", LONG_L, 1, MU, SEQ, 0x3c000000, 0x3f000000, { RSRC2, ATPAR, NUM16, RSRC } },
   { "stb", SHORT_2, 1, MU, PAR|WMEM, 0x7800, 0x7e01, { RSRC2, ATSIGN, RSRC } },
-  { "stop", SHORT_2, 1, MU, ALONE|PAR, 0x5fe0, 0x7fff, { 0 } },
+  { "stop", SHORT_2, 1, MU, PAR, 0x5fe0, 0x7fff, { 0 } },
   { "sub", SHORT_2, 1, EITHER, PAR|WCAR, 0x0, 0x7e01, { RDST, RSRC } },
   { "sub", SHORT_2, 1, IU, PAR, 0x1001, 0x7ee3, { ADST, RSRC } },
   { "sub", SHORT_2, 1, IU, PAR, 0x1003, 0x7eef, { ADST, ASRC } },
@@ -339,10 +322,10 @@ const struct d10v_opcode d10v_opcodes[] = {
   { "subac3s", LONG_R, 1, IU, SEQ, 0x17001000, 0x3ffffe22, { RDSTE, RSRCE, ASRC0 } },
   { "subac3s", LONG_R, 1, IU, SEQ, 0x17001002, 0x3ffffe2e, { RDSTE, ASRC, ASRC0 } },
   { "subi", SHORT_2, 1, EITHER, PAR, 0x1, 0x7e01, { RDST, UNUM4S } },
-  { "trap", SHORT_2, 5, MU, ALONE|BRANCH_LINK|PAR, 0x5f00, 0x7fe1, { UNUM4 } },
+  { "trap", SHORT_2, 5, MU, BRANCH_LINK|PAR, 0x5f00, 0x7fe1, { UNUM4 } },
   { "tst0i", LONG_L, 1, MU, SEQ, 0x7000000, 0x3f0f0000, { RSRC2, NUM16 } },
   { "tst1i", LONG_L, 1, MU, SEQ, 0xf000000, 0x3f0f0000, { RSRC2, NUM16 } },
-  { "wait", SHORT_2, 1, MU, ALONE|PAR, 0x5f80, 0x7fff, { 0 } },
+  { "wait", SHORT_2, 1, MU, PAR, 0x5f80, 0x7fff, { 0 } },
   { "xor", SHORT_2, 1, EITHER, PAR, 0xa00, 0x7e01, { RDST, RSRC } },
   { "xor3", LONG_L, 1, MU, SEQ, 0x5000000, 0x3f000000, { RDST, RSRC, NUM16 } },
   { 0, 0, 0, 0, 0, 0, 0, { 0 } },

@@ -1,5 +1,5 @@
 /* objalloc.h -- routines to allocate memory for objects
-   Copyright 1997, 2001 Free Software Foundation, Inc.
+   Copyright 1997 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Solutions.
 
 This program is free software; you can redistribute it and/or modify it
@@ -14,8 +14,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, 51 Franklin Street - Fifth Floor,
-Boston, MA 02110-1301, USA.  */
+Foundation, 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 #ifndef OBJALLOC_H
 #define OBJALLOC_H
@@ -45,7 +45,7 @@ struct objalloc
 {
   char *current_ptr;
   unsigned int current_space;
-  void *chunks;
+  PTR chunks;
 };
 
 /* Work out the required alignment.  */
@@ -56,20 +56,21 @@ struct objalloc_align { char x; double d; };
 #ifndef offsetof
 #include <stddef.h>
 #endif
+#define OBJALLOC_ALIGN \
+  ((ptrdiff_t) ((char *) &((struct objalloc_align *) 0)->d - (char *) 0))
+#else
+#define OBJALLOC_ALIGN \
+  ((long) ((char *) &((struct objalloc_align *) 0)->d - (char *) 0))
 #endif
-#ifndef offsetof
-#define offsetof(TYPE, MEMBER) ((unsigned long) &((TYPE *)0)->MEMBER)
-#endif
-#define OBJALLOC_ALIGN offsetof (struct objalloc_align, d)
 
 /* Create an objalloc structure.  Returns NULL if malloc fails.  */
 
-extern struct objalloc *objalloc_create (void);
+extern struct objalloc *objalloc_create PARAMS ((void));
 
 /* Allocate space from an objalloc structure.  Returns NULL if malloc
    fails.  */
 
-extern void *_objalloc_alloc (struct objalloc *, unsigned long);
+extern PTR _objalloc_alloc PARAMS ((struct objalloc *, unsigned long));
 
 /* The macro version of objalloc_alloc.  We only define this if using
    gcc, because otherwise we would have to evaluate the arguments
@@ -94,7 +95,7 @@ extern void *_objalloc_alloc (struct objalloc *, unsigned long);
      (__len <= __o->current_space					\
       ? (__o->current_ptr += __len,					\
 	 __o->current_space -= __len,					\
-	 (void *) (__o->current_ptr - __len))				\
+	 (PTR) (__o->current_ptr - __len))				\
       : _objalloc_alloc (__o, __len)); })
 
 #else /* ! __GNUC__ */
@@ -105,11 +106,11 @@ extern void *_objalloc_alloc (struct objalloc *, unsigned long);
 
 /* Free an entire objalloc structure.  */
 
-extern void objalloc_free (struct objalloc *);
+extern void objalloc_free PARAMS ((struct objalloc *));
 
 /* Free a block allocated by objalloc_alloc.  This also frees all more
    recently allocated blocks.  */
 
-extern void objalloc_free_block (struct objalloc *, void *);
+extern void objalloc_free_block PARAMS ((struct objalloc *, PTR));
 
 #endif /* OBJALLOC_H */

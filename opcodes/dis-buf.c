@@ -1,23 +1,19 @@
 /* Disassemble from a buffer, for GNU.
-   Copyright 1993, 1994, 1996, 1997, 1998, 1999, 2000, 2001, 2003, 2005,
-   2007  Free Software Foundation, Inc.
+   Copyright (C) 1993, 1994, 1998 Free Software Foundation, Inc.
 
-   This file is part of the GNU opcodes library.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
 
-   This library is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3, or (at your option)
-   any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-   It is distributed in the hope that it will be useful, but WITHOUT
-   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
-   License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
-   MA 02110-1301, USA.  */
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "sysdep.h"
 #include "dis-asm.h"
@@ -27,46 +23,36 @@
 /* Get LENGTH bytes from info's buffer, at target address memaddr.
    Transfer them to myaddr.  */
 int
-buffer_read_memory (bfd_vma memaddr,
-		    bfd_byte *myaddr,
-		    unsigned int length,
-		    struct disassemble_info *info)
+buffer_read_memory (memaddr, myaddr, length, info)
+     bfd_vma memaddr;
+     bfd_byte *myaddr;
+     int length;
+     struct disassemble_info *info;
 {
-  unsigned int opb = info->octets_per_byte;
-  unsigned int end_addr_offset = length / opb;
-  unsigned int max_addr_offset = info->buffer_length / opb; 
-  unsigned int octets = (memaddr - info->buffer_vma) * opb;
-
   if (memaddr < info->buffer_vma
-      || memaddr - info->buffer_vma + end_addr_offset > max_addr_offset)
+      || memaddr + length > info->buffer_vma + info->buffer_length)
     /* Out of bounds.  Use EIO because GDB uses it.  */
     return EIO;
-  memcpy (myaddr, info->buffer + octets, length);
-
+  memcpy (myaddr, info->buffer + (memaddr - info->buffer_vma), length);
   return 0;
 }
 
 /* Print an error message.  We can assume that this is in response to
    an error return from buffer_read_memory.  */
-
 void
-perror_memory (int status,
-	       bfd_vma memaddr,
-	       struct disassemble_info *info)
+perror_memory (status, memaddr, info)
+     int status;
+     bfd_vma memaddr;
+     struct disassemble_info *info;
 {
   if (status != EIO)
     /* Can't happen.  */
     info->fprintf_func (info->stream, _("Unknown error %d\n"), status);
   else
-    {
-      char buf[30];
-
-      /* Actually, address between memaddr and memaddr + len was
-	 out of bounds.  */
-      sprintf_vma (buf, memaddr);
-      info->fprintf_func (info->stream,
-			  _("Address 0x%s is out of bounds.\n"), buf);
-    }
+    /* Actually, address between memaddr and memaddr + len was
+       out of bounds.  */
+    info->fprintf_func (info->stream,
+			_("Address 0x%x is out of bounds.\n"), memaddr);
 }
 
 /* This could be in a separate file, to save miniscule amounts of space
@@ -77,28 +63,42 @@ perror_memory (int status,
    addresses).  */
 
 void
-generic_print_address (bfd_vma addr, struct disassemble_info *info)
+generic_print_address (addr, info)
+     bfd_vma addr;
+     struct disassemble_info *info;
 {
-  char buf[30];
-
-  sprintf_vma (buf, addr);
-  (*info->fprintf_func) (info->stream, "0x%s", buf);
+  (*info->fprintf_func) (info->stream, "0x%x", addr);
 }
 
-/* Just return true.  */
+/* Just concatenate the address as hex.  This is included for
+   completeness even though both GDB and objdump provide their own (to
+   print symbolic addresses).  */
+
+void
+generic_strcat_address (addr, buf, len)
+     bfd_vma addr;
+     char *buf;
+     int len;
+{
+  if (buf != (char *)NULL && len > 0)
+    {
+      char tmpBuf[30];
+
+      sprintf_vma (tmpBuf, addr);
+      if ((strlen (buf) + strlen (tmpBuf)) <= len)
+	strcat (buf, tmpBuf);
+      else
+	strncat (buf, tmpBuf, (len - strlen(buf)));
+    }
+  return;
+}
+
+/* Just return the given address.  */
 
 int
-generic_symbol_at_address (bfd_vma addr ATTRIBUTE_UNUSED,
-			   struct disassemble_info *info ATTRIBUTE_UNUSED)
+generic_symbol_at_address (addr, info)
+     bfd_vma addr;
+     struct disassemble_info * info;
 {
   return 1;
-}
-
-/* Just return TRUE.  */
-
-bfd_boolean
-generic_symbol_is_valid (asymbol * sym ATTRIBUTE_UNUSED,
-			 struct disassemble_info *info ATTRIBUTE_UNUSED)
-{
-  return TRUE;
 }

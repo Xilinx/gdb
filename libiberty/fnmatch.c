@@ -1,7 +1,7 @@
 /* Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
 
-NOTE: This source is derived from an old version taken from the GNU C
-Library (glibc).
+NOTE: The canonical source of this file is maintained with the GNU C Library.
+Bugs can be reported to bug-glibc@prep.ai.mit.edu.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -15,8 +15,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, 51 Franklin Street - Fifth Floor,
-Boston, MA 02110-1301, USA.  */
+Foundation, 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 #ifdef HAVE_CONFIG_H
 #if defined (CONFIG_BROKETS)
@@ -45,7 +45,8 @@ Boston, MA 02110-1301, USA.  */
 
 #include <errno.h>
 #include <fnmatch.h>
-#include <safe-ctype.h>
+#include <ctype.h>
+
 
 /* Comment out all this code if we are using the GNU C Library, and are not
    actually compiling the library itself.  This code is part of the GNU C
@@ -65,12 +66,16 @@ extern int errno;
 /* Match STRING against the filename pattern PATTERN, returning zero if
    it matches, nonzero if not.  */
 int
-fnmatch (const char *pattern, const char *string, int flags)
+fnmatch (pattern, string, flags)
+     const char *pattern;
+     const char *string;
+     int flags;
 {
   register const char *p = pattern, *n = string;
   register unsigned char c;
 
-#define FOLD(c)	((flags & FNM_CASEFOLD) ? TOLOWER (c) : (c))
+/* Note that this evalutes C many times.  */
+#define FOLD(c)	((flags & FNM_CASEFOLD) && isupper (c) ? tolower (c) : (c))
 
   while ((c = *p++) != '\0')
     {
@@ -124,7 +129,7 @@ fnmatch (const char *pattern, const char *string, int flags)
 	case '[':
 	  {
 	    /* Nonzero if the sense of the character class is inverted.  */
-	    register int negate;
+	    register int not;
 
 	    if (*n == '\0')
 	      return FNM_NOMATCH;
@@ -133,8 +138,8 @@ fnmatch (const char *pattern, const char *string, int flags)
 		(n == string || ((flags & FNM_FILE_NAME) && n[-1] == '/')))
 	      return FNM_NOMATCH;
 
-	    negate = (*p == '!' || *p == '^');
-	    if (negate)
+	    not = (*p == '!' || *p == '^');
+	    if (not)
 	      ++p;
 
 	    c = *p++;
@@ -177,7 +182,7 @@ fnmatch (const char *pattern, const char *string, int flags)
 		if (c == ']')
 		  break;
 	      }
-	    if (!negate)
+	    if (!not)
 	      return FNM_NOMATCH;
 	    break;
 
@@ -194,7 +199,7 @@ fnmatch (const char *pattern, const char *string, int flags)
 		  /* XXX 1003.2d11 is unclear if this is right.  */
 		  ++p;
 	      }
-	    if (negate)
+	    if (not)
 	      return FNM_NOMATCH;
 	  }
 	  break;

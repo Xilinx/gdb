@@ -1,5 +1,5 @@
-/* Motorola MCore support for BFD.
-   Copyright 1995, 1999, 2000 Free Software Foundation, Inc.
+/* Motorolla MCore support for BFD.
+   Copyright (C) 1995, 1999 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -15,7 +15,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* This file holds definitions specific to the MCore ELF ABI. */
 #ifndef _ELF_MORE_H
@@ -34,11 +34,8 @@ START_RELOC_NUMBERS (elf_mcore_reloc_type)
   RELOC_NUMBER (R_MCORE_PCRELJSR_IMM11BY2, 6)
   RELOC_NUMBER (R_MCORE_GNU_VTINHERIT, 7)
   RELOC_NUMBER (R_MCORE_GNU_VTENTRY, 8)
-  RELOC_NUMBER (R_MCORE_RELATIVE, 9)
-  RELOC_NUMBER (R_MCORE_COPY, 10)
-  RELOC_NUMBER (R_MCORE_GLOB_DAT, 11)
-  RELOC_NUMBER (R_MCORE_JUMP_SLOT, 12)
-END_RELOC_NUMBERS (R_MCORE_max)
+  EMPTY_RELOC  (R_MCORE_max)
+END_RELOC_NUMBERS
 
 /* Section Attributes.  */
 #define SHF_MCORE_NOREAD	0x80000000

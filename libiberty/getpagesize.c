@@ -2,14 +2,20 @@
 
 /*
 
-@deftypefn Supplemental int getpagesize (void)
+NAME
 
-Returns the number of bytes in a page of memory.  This is the
-granularity of many of the system memory management routines.  No
-guarantee is made as to whether or not it is the same as the basic
-memory management hardware page size.
+	getpagesize -- return the number of bytes in page of memory
 
-@end deftypefn
+SYNOPSIS
+
+	int getpagesize (void)
+
+DESCRIPTION
+
+	Returns the number of bytes in a page of memory.  This is the
+	granularity of many of the system memory management routines.
+	No guarantee is made as to whether or not it is the same as the
+	basic memory management hardware page size.
 
 BUGS
 
@@ -61,7 +67,7 @@ BUGS
 #endif /* GNU_OUR_PAGESIZE */
 
 int
-getpagesize (void)
+getpagesize ()
 {
   return (GNU_OUR_PAGESIZE);
 }
@@ -76,7 +82,7 @@ getpagesize (void)
 #endif
 extern unsigned long lib$getsyi(const unsigned short *,...);
 
-int getpagesize (void)
+int getpagesize ()
 {
   long pagsiz = 0L;
   unsigned short itmcod = SYI$_PAGE_SIZE;

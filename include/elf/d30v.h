@@ -1,5 +1,5 @@
 /* d30v ELF support for BFD.
-   Copyright 1998, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1998 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef _ELF_D30V_H
 #define _ELF_D30V_H
@@ -37,6 +37,6 @@ START_RELOC_NUMBERS (elf_d30v_reloc_type)
   RELOC_NUMBER (R_D30V_32, 10)
   RELOC_NUMBER (R_D30V_32_PCREL, 11)
   RELOC_NUMBER (R_D30V_32_NORMAL, 12)
-END_RELOC_NUMBERS (R_D30V_max)
+END_RELOC_NUMBERS
 
 #endif

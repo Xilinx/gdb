@@ -1,40 +1,64 @@
 /* Handle list of needed message catalogs
-   Copyright (C) 1995-1999, 2000, 2001 Free Software Foundation, Inc.
-   Written by Ulrich Drepper <drepper@gnu.org>, 1995.
+   Copyright (C) 1995, 1996, 1997 Free Software Foundation, Inc.
+   Written by Ulrich Drepper <drepper@gnu.ai.mit.edu>, 1995.
 
-   This program is free software; you can redistribute it and/or modify it
-   under the terms of the GNU Library General Public License as published
-   by the Free Software Foundation; either version 2, or (at your option)
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
    any later version.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-   You should have received a copy of the GNU Library General Public
-   License along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301,
-   USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software Foundation,
+   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
+#include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <sys/types.h>
-#include <stdlib.h>
-#include <string.h>
+
+#if defined STDC_HEADERS || defined _LIBC
+# include <stdlib.h>
+#else
+# ifdef HAVE_MALLOC_H
+#  include <malloc.h>
+# else
+void free ();
+# endif
+#endif
+
+#if defined HAVE_STRING_H || defined _LIBC
+# include <string.h>
+#else
+# include <strings.h>
+# ifndef memcpy
+#  define memcpy(Dst, Src, Num) bcopy (Src, Dst, Num)
+# endif
+#endif
+#if !HAVE_STRCHR && !defined _LIBC
+# ifndef strchr
+#  define strchr index
+# endif
+#endif
 
 #if defined HAVE_UNISTD_H || defined _LIBC
 # include <unistd.h>
 #endif
 
+#include "gettext.h"
 #include "gettextP.h"
 #ifdef _LIBC
 # include <libintl.h>
 #else
-# include "libgnuintl.h"
+# include "libgettext.h"
 #endif
 
 /* @@ end of prolog @@ */
@@ -46,12 +70,10 @@ static struct loaded_l10nfile *_nl_loaded_domains;
    the DOMAINNAME and CATEGORY parameters with respect to the currently
    established bindings.  */
 struct loaded_l10nfile *
-internal_function
-_nl_find_domain (dirname, locale, domainname, domainbinding)
+_nl_find_domain (dirname, locale, domainname)
      const char *dirname;
      char *locale;
      const char *domainname;
-     struct binding *domainbinding;
 {
   struct loaded_l10nfile *retval;
   const char *language;
@@ -73,9 +95,9 @@ _nl_find_domain (dirname, locale, domainname, domainbinding)
 
 	language[_territory][+audience][+special][,[sponsor][_revision]]
 
-     Beside the first part all of them are allowed to be missing.  If
-     the full specified locale is not found, the less specific one are
-     looked for.  The various parts will be stripped off according to
+     Beside the first all of them are allowed to be missing.  If the
+     full specified locale is not found, the less specific one are
+     looked for.  The various part will be stripped of according to
      the following order:
 		(1) revision
 		(2) sponsor
@@ -97,7 +119,7 @@ _nl_find_domain (dirname, locale, domainname, domainbinding)
       int cnt;
 
       if (retval->decided == 0)
-	_nl_load_domain (retval, domainbinding);
+	_nl_load_domain (retval);
 
       if (retval->data != NULL)
 	return retval;
@@ -105,7 +127,7 @@ _nl_find_domain (dirname, locale, domainname, domainbinding)
       for (cnt = 0; retval->successor[cnt] != NULL; ++cnt)
 	{
 	  if (retval->successor[cnt]->decided == 0)
-	    _nl_load_domain (retval->successor[cnt], domainbinding);
+	    _nl_load_domain (retval->successor[cnt]);
 
 	  if (retval->successor[cnt]->data != NULL)
 	    break;
@@ -120,18 +142,12 @@ _nl_find_domain (dirname, locale, domainname, domainbinding)
   alias_value = _nl_expand_alias (locale);
   if (alias_value != NULL)
     {
-#if defined _LIBC || defined HAVE_STRDUP
-      locale = strdup (alias_value);
-      if (locale == NULL)
-	return NULL;
-#else
       size_t len = strlen (alias_value) + 1;
       locale = (char *) malloc (len);
       if (locale == NULL)
 	return NULL;
 
       memcpy (locale, alias_value, len);
-#endif
     }
 
   /* Now we determine the single parts of the locale name.  First
@@ -152,14 +168,14 @@ _nl_find_domain (dirname, locale, domainname, domainbinding)
     return NULL;
 
   if (retval->decided == 0)
-    _nl_load_domain (retval, domainbinding);
+    _nl_load_domain (retval);
   if (retval->data == NULL)
     {
       int cnt;
       for (cnt = 0; retval->successor[cnt] != NULL; ++cnt)
 	{
 	  if (retval->successor[cnt]->decided == 0)
-	    _nl_load_domain (retval->successor[cnt], domainbinding);
+	    _nl_load_domain (retval->successor[cnt]);
 	  if (retval->successor[cnt]->data != NULL)
 	    break;
 	}
@@ -169,27 +185,5 @@ _nl_find_domain (dirname, locale, domainname, domainbinding)
   if (alias_value != NULL)
     free (locale);
 
-  /* The space for normalized_codeset is dynamically allocated.  Free it.  */
-  if (mask & XPG_NORM_CODESET)
-    free ((void *) normalized_codeset);
-
   return retval;
 }
-
-
-#ifdef _LIBC
-libc_freeres_fn (free_mem)
-{
-  struct loaded_l10nfile *runp = _nl_loaded_domains;
-
-  while (runp != NULL)
-    {
-      struct loaded_l10nfile *here = runp;
-      if (runp->data != NULL)
-	_nl_unload_domain ((struct loaded_domain *) runp->data);
-      runp = runp->next;
-      free ((char *) here->filename);
-      free (here);
-    }
-}
-#endif

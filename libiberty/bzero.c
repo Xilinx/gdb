@@ -2,22 +2,30 @@
    This function is in the public domain.  */
 
 /*
+NAME
+	bzero -- zero the contents of a specified memory region
 
-@deftypefn Supplemental void bzero (char *@var{mem}, int @var{count})
+SYNOPSIS
+	void bzero (char *to, int count)
 
-Zeros @var{count} bytes starting at @var{mem}.  Use of this function
-is deprecated in favor of @code{memset}.
+DESCRIPTION
+	Zero COUNT bytes of memory pointed to by TO.
 
-@end deftypefn
+BUGS
+	Significant speed enhancements may be made in some environments
+	by zeroing more than a single byte at a time, or by unrolling the
+	loop.
 
 */
 
-#include <stddef.h>
-
-extern void *memset(void *, int, size_t);
 
 void
-bzero (void *to, size_t count)
+bzero (to, count)
+  char *to;
+  int count;
 {
-  memset (to, 0, count);
+  while (count-- > 0)
+    {
+      *to++ = 0;
+    }
 }

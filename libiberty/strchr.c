@@ -2,21 +2,27 @@
    This function is in the public domain.  */
 
 /*
+NAME
+	strchr -- return pointer to first occurance of a character
 
-@deftypefn Supplemental char* strchr (const char *@var{s}, int @var{c})
+SYNOPSIS
+	char *strchr (const char *s, int c)
 
-Returns a pointer to the first occurrence of the character @var{c} in
-the string @var{s}, or @code{NULL} if not found.  If @var{c} is itself the
-null character, the results are undefined.
-
-@end deftypefn
-
+DESCRIPTION
+	Returns a pointer to the first occurance of character C in
+	string S, or a NULL pointer if no occurance is found.
+	
+BUGS
+	Behavior when character is the null character is implementation
+	dependent.
 */
 
 #include <ansidecl.h>
 
 char *
-strchr (register const char *s, int c)
+strchr (s, c)
+  register const char *s;
+  int c;
 {
   do {
     if (*s == c)

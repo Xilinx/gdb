@@ -19,42 +19,36 @@ HOST_U_64BIT_TYPE=
 
 case "${host}" in
 
-hppa*64*-*-hpux*)	# HP/UX's ftello64 et.al. declarations are only
-			# visible when _LARGEFILE64_SOURCE is defined.
-			# Without those declarations, real_ftell et.al.
-			# get mis-compiled.
-			HDEFINES="-DHOST_HPPAHPUX -D_LARGEFILE64_SOURCE"
-			host64=true;;
-hppa*-*-hpux*)		HDEFINES="-DHOST_HPPAHPUX -D_LARGEFILE64_SOURCE" ;;
+alpha*-*-*)		host64=true; HOST_64BIT_TYPE=long ;;
+
+hppa*-*-hpux*)		HDEFINES=-DHOST_HPPAHPUX ;;
 hppa*-*-hiux*)		HDEFINES=-DHOST_HPPAHPUX ;;
 hppa*-*-mpeix*)		HDEFINES=-DHOST_HPPAMPEIX ;;
 hppa*-*-bsd*)		HDEFINES=-DHOST_HPPABSD ;;
 hppa*-*-osf*)		HDEFINES=-DHOST_HPPAOSF ;;
 
-ia64-*-hpux*)		HDEFINES=-D_LARGEFILE64_SOURCE
-			host64=true;;
-ia64-*-*)		host64=true;;
+i[3456]86-sequent-bsd*)	HDEFINES=-Dshared=genshared ;;
+i[3456]86-sequent-sysv4*) ;;
+i[3456]86-sequent-sysv*)	HDEFINES=-Dshared=genshared ;;
 
-# Workaround for limitations on win9x where file contents are
-# not zero'd out if you seek past the end and then write.
-i[3-7]86-*-mingw32*)	HDEFINES=-D__USE_MINGW_FSEEK;;
-
-i[3-7]86-sequent-bsd*)	HDEFINES=-Dshared=genshared ;;
-i[3-7]86-sequent-sysv4*) ;;
-i[3-7]86-sequent-sysv*)	HDEFINES=-Dshared=genshared ;;
-
-mips*-*-netbsd*)	;;
+mips*-dec-netbsd*)	;;
 mips*-*-openbsd*)	;;
 mips*-dec-*)		HDEFINES="-G 4"	;;
 mips*-sgi-irix3*)	HDEFINES="-G 4" ;;
 mips*-sgi-irix4*)	HDEFINES="-G 4" ;;
-mips*-sgi-irix6*)	host64=true;;
-mips64*-*-linux*)	host64=true;;
+mips*-sgi-irix6*)	host64=true
+			HOST_64BIT_TYPE="long long";
+			HOST_U_64BIT_TYPE="unsigned long long";
+			;;
 mips*-*-sysv4*)		;;
 mips*-*-sysv*)		HDEFINES="-G 4" ;;
 mips*-*-riscos*)	HDEFINES="-G 4" ;;
 
 m68*-hp-hpux*)		HDEFINES=-DHOST_HP300HPUX ;;
+
+*-*-solaris*)		HOST_64BIT_TYPE="long long"
+			HOST_U_64BIT_TYPE="unsigned long long"
+			;;
 
 *-*-windows*)
 			HOST_64BIT_TYPE=__int64
@@ -69,8 +63,6 @@ m68*-hp-hpux*)		HDEFINES=-DHOST_HP300HPUX ;;
 			ac_cv_func_getpagesize=no
 			ac_cv_func_madvise=no
 			ac_cv_func_mprotect=no
-			ac_cv_func_getuid=no
-			ac_cv_func_getgid=no
 			ac_cv_header_sys_file_h=no
 			ac_cv_header_sys_time_h=no
 			ac_cv_header_unistd_h=no

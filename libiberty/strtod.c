@@ -1,5 +1,5 @@
 /* Implementation of strtod for systems with atof.
-   Copyright (C) 1991, 1995, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1995 Free Software Foundation, Inc.
 
 This file is part of the libiberty library.  This library is free
 software; you can redistribute it and/or modify it under the
@@ -14,7 +14,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 As a special exception, if you link this library with files
 compiled with a GNU compiler to produce an executable, this does not cause
@@ -22,32 +22,18 @@ the resulting executable to be covered by the GNU General Public License.
 This exception does not however invalidate any other reasons why
 the executable file might be covered by the GNU General Public License. */
 
-/*
+#include <ctype.h>
 
-@deftypefn Supplemental double strtod (const char *@var{string}, char **@var{endptr})
-
-This ISO C function converts the initial portion of @var{string} to a
-@code{double}.  If @var{endptr} is not @code{NULL}, a pointer to the
-character after the last character used in the conversion is stored in
-the location referenced by @var{endptr}.  If no conversion is
-performed, zero is returned and the value of @var{string} is stored in
-the location referenced by @var{endptr}.
-
-@end deftypefn
-
-*/
-
-#include "ansidecl.h"
-#include "safe-ctype.h"
-
-extern double atof (const char *);
+extern double atof ();
 
 /* Disclaimer: this is currently just used by CHILL in GDB and therefore
    has not been tested well.  It may have been tested for nothing except
    that it compiles.  */
 
 double
-strtod (char *str, char **ptr)
+strtod (str, ptr)
+     char *str;
+     char **ptr;
 {
   char *p;
 
@@ -56,7 +42,7 @@ strtod (char *str, char **ptr)
   
   p = str;
   
-  while (ISSPACE (*p))
+  while (isspace (*p))
     ++p;
   
   if (*p == '+' || *p == '-')
@@ -73,7 +59,7 @@ strtod (char *str, char **ptr)
 	  && (p[6] == 't' || p[6] == 'T')
 	  && (p[7] == 'y' || p[7] == 'Y'))
 	{
-	  *ptr = p + 8;
+	  *ptr = p + 7;
 	  return atof (str);
 	}
       else
@@ -102,10 +88,10 @@ strtod (char *str, char **ptr)
     }
 
   /* digits, with 0 or 1 periods in it.  */
-  if (ISDIGIT (*p) || *p == '.')
+  if (isdigit (*p) || *p == '.')
     {
       int got_dot = 0;
-      while (ISDIGIT (*p) || (!got_dot && *p == '.'))
+      while (isdigit (*p) || (!got_dot && *p == '.'))
 	{
 	  if (*p == '.')
 	    got_dot = 1;
@@ -119,9 +105,9 @@ strtod (char *str, char **ptr)
 	  i = 1;
 	  if (p[i] == '+' || p[i] == '-')
 	    ++i;
-	  if (ISDIGIT (p[i]))
+	  if (isdigit (p[i]))
 	    {
-	      while (ISDIGIT (p[i]))
+	      while (isdigit (p[i]))
 		++i;
 	      *ptr = p + i;
 	      return atof (str);

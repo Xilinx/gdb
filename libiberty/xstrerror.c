@@ -2,45 +2,21 @@
    Fri Jun 16 18:30:00 1995  Pat Rankin  <rankin@eql.caltech.edu>
    This code is in the public domain.  */
 
-/*
-
-@deftypefn Replacement char* xstrerror (int @var{errnum})
-
-Behaves exactly like the standard @code{strerror} function, but
-will never return a @code{NULL} pointer.
-
-@end deftypefn
-
-*/
-
 #include <stdio.h>
 
-#include "config.h"
 #include "libiberty.h"
+#include "config.h"
 
 #ifdef VMS
-#  include <errno.h>
-#  if !defined (__STRICT_ANSI__) && !defined (__HIDE_FORBIDDEN_NAMES)
-#    ifdef __cplusplus
-extern "C" {
-#    endif /* __cplusplus */
-extern char *strerror (int,...);
-#    define DONT_DECLARE_STRERROR
-#    ifdef __cplusplus
-}
-#    endif /* __cplusplus */
-#  endif
-#endif  /* VMS */
-
+#include <errno.h>
+#if !defined (__STRICT_ANSI__) && !defined (__HIDE_FORBIDDEN_NAMES)
+extern char *strerror PARAMS ((int,...));
+#define DONT_DECLARE_STRERROR
+#endif
+#endif	/* VMS */
 
 #ifndef DONT_DECLARE_STRERROR
-#  ifdef __cplusplus
-extern "C" {
-#  endif /* __cplusplus */
-extern char *strerror (int);
-#  ifdef __cplusplus
-}
-#  endif /* __cplusplus */
+extern char *strerror PARAMS ((int));
 #endif
 
 /* If strerror returns NULL, we'll format the number into a static buffer.  */
@@ -51,14 +27,15 @@ static char xstrerror_buf[sizeof ERRSTR_FMT + 20];
 /* Like strerror, but result is never a null pointer.  */
 
 char *
-xstrerror (int errnum)
+xstrerror (errnum)
+     int errnum;
 {
   char *errstr;
 #ifdef VMS
-  char *(*vmslib_strerror) (int,...);
+  char *(*vmslib_strerror) PARAMS ((int,...));
 
   /* Override any possibly-conflicting declaration from system header.  */
-  vmslib_strerror = (char *(*) (int,...)) strerror;
+  vmslib_strerror = (char *(*) PARAMS ((int,...))) strerror;
   /* Second argument matters iff first is EVMSERR, but it's simpler to
      pass it unconditionally.  `vaxc$errno' is declared in <errno.h>
      and maintained by the run-time library in parallel to `errno'.

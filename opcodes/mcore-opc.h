@@ -1,22 +1,20 @@
-/* Assembler instructions for Motorola's Mcore processor
-   Copyright 1999, 2000, 2002, 2007 Free Software Foundation, Inc.
+/* Assembler instructions for Motorolla's Mcore processor
+   Copyright (C) 1999 Free Software Foundation, Inc.
 
-   This file is part of the GNU opcodes library.
+   
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
 
-   This library is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3, or (at your option)
-   any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-   It is distributed in the hope that it will be useful, but WITHOUT
-   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
-   License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
-   MA 02110-1301, USA.  */
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "ansidecl.h"
 
@@ -26,7 +24,6 @@ typedef enum
   OMa,   SI,   I7,   LS,   BR,    BL,    LR,    LJ,
   RM,    RQ,   JSR,  JMP,  OBRa,  OBRb,  OBRc,  OBR2,
   O1R1,  OMb,  OMc,  SIa,
-  MULSH, OPSR,
   JC,    JU,   JL,   RSI,  DO21,  OB2
 }
 mcore_opclass;
@@ -41,7 +38,7 @@ typedef struct inst
 mcore_opcode_info;
 
 #ifdef DEFINE_TABLE
-const mcore_opcode_info mcore_table[] =
+mcore_opcode_info mcore_table[] =
 {
   { "bkpt",	O0,	0,	0x0000 },
   { "sync",	O0,	0,	0x0001 },
@@ -51,7 +48,6 @@ const mcore_opcode_info mcore_table[] =
   { "stop",	O0,	0,	0x0004 },
   { "wait",	O0,	0,	0x0005 },
   { "doze",	O0,	0,	0x0006 },
-  { "idly4",    O0,     0,      0x0007 },
   { "trap",	OT,	0,	0x0008 },
 /* SPACE:                       0x000C - 0x000F */
 /* SPACE:                       0x0010 - 0x001F */
@@ -103,8 +99,6 @@ const mcore_opcode_info mcore_table[] =
   { "tst",	O2,	0,	0x0E00 },
   { "cmpne",	O2,	0,	0x0F00 },
   { "mfcr",	OC,	0,	0x1000 },
-  { "psrclr",	OPSR,	0,	0x11F0 },
-  { "psrset",	OPSR,	0,	0x11F8 },
   { "mov",	O2,	0,	0x1200 },
   { "bgenr",	O2,	0,	0x1300 },
   { "rsub",	O2,	0,	0x1400 },
@@ -115,7 +109,6 @@ const mcore_opcode_info mcore_table[] =
   { "asr",	O2,	0,	0x1A00 },
   { "lsl",	O2,	0,	0x1B00 },
   { "addu",	O2,	0,	0x1C00 },
-  { "add",	O2,	0,	0x1C00 }, /* Official alias.  */
   { "ixh",	O2,	0,	0x1D00 },
   { "or",	O2,	0,	0x1E00 },
   { "andn",	O2,	0,	0x1F00 },
@@ -153,8 +146,6 @@ const mcore_opcode_info mcore_table[] =
   { "movi",	I7,	0,	0x6000 },
 #define MCORE_INST_BMASKI_ALT	0x6000
 #define MCORE_INST_BGENI_ALT	0x6000
-  { "mulsh",    MULSH,  0,      0x6800 },
-  { "muls.h",   MULSH,  0,      0x6800 },
 /* SPACE:                       0x6900 - 0x6FFF */
   { "jmpi",	LJ,	1,	0x7000 },
   { "jsri",	LJ,	0,	0x7F00 },

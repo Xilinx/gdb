@@ -1,6 +1,6 @@
 /* Like sprintf but provides a pointer to malloc'd storage, which must
    be freed by the caller.
-   Copyright (C) 1997, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1997 Free Software Foundation, Inc.
    Contributed by Cygnus Solutions.
 
 This file is part of the libiberty library.
@@ -16,41 +16,42 @@ Library General Public License for more details.
 
 You should have received a copy of the GNU Library General Public
 License along with libiberty; see the file COPYING.LIB.  If
-not, write to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
-Boston, MA 02110-1301, USA.  */
+not, write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
 #include "ansidecl.h"
 #include "libiberty.h"
 
+#if defined (ANSI_PROTOTYPES) || defined (ALMOST_STDC)
+#define USE_STDARG
+#endif
+
+#ifdef USE_STDARG
 #include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
 
-/*
-
-@deftypefn Extension int asprintf (char **@var{resptr}, const char *@var{format}, ...)
-
-Like @code{sprintf}, but instead of passing a pointer to a buffer, you
-pass a pointer to a pointer.  This function will compute the size of
-the buffer needed, allocate memory with @code{malloc}, and store a
-pointer to the allocated memory in @code{*@var{resptr}}.  The value
-returned is the same as @code{sprintf} would return.  If memory could
-not be allocated, minus one is returned and @code{NULL} is stored in
-@code{*@var{resptr}}.
-
-@end deftypefn
-
-*/
-
+/* VARARGS */
+#ifdef USE_STDARG
 int
 asprintf (char **buf, const char *fmt, ...)
+#else
+int
+asprintf (buf, fmt, va_alist)
+     char **buf;
+     const char *fmt;
+     va_dcl
+#endif
 {
   int status;
-  VA_OPEN (ap, fmt);
-  VA_FIXEDARG (ap, char **, buf);
-  VA_FIXEDARG (ap, const char *, fmt);
+  va_list ap;
+#ifdef USE_STDARG
+  va_start (ap, fmt);
+#else
+  va_start (ap);
+#endif
   status = vasprintf (buf, fmt, ap);
-  VA_CLOSE (ap);
+  va_end (ap);
   return status;
 }

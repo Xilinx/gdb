@@ -1,5 +1,5 @@
 /* v850.h -- Header file for NEC V850 opcode table
-   Copyright 1996, 1997, 2001, 2003 Free Software Foundation, Inc.
+   Copyright 1996 Free Software Foundation, Inc.
    Written by J.T. Conklin, Cygnus Support
 
 This file is part of GDB, GAS, and the GNU binutils.
@@ -16,7 +16,7 @@ the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this file; see the file COPYING.  If not, write to the Free
-Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef V850_H
 #define V850_H
@@ -59,7 +59,6 @@ struct v850_opcode
 #define PROCESSOR_V850E		(1 << 1)		/* Just the V850E. */
 #define PROCESSOR_NOT_V850	(~ PROCESSOR_V850)	/* Any processor except the V850.  */
 #define PROCESSOR_V850EA	(1 << 2)		/* Just the V850EA. */
-#define PROCESSOR_V850E1	(1 << 3)		/* Just the V850E1. */
 
 /* The table itself is sorted by major opcode number, and is otherwise
    in the order in which the disassembler should consider
@@ -96,8 +95,8 @@ struct v850_operand
      string (the operand will be inserted in any case).  If the
      operand value is legal, *ERRMSG will be unchanged (most operands
      can accept any value).  */
-  unsigned long (* insert)
-    (unsigned long instruction, long op, const char ** errmsg);
+  unsigned long (* insert) PARAMS ((unsigned long instruction, long op,
+				   const char ** errmsg));
 
   /* Extraction function.  This is used by the disassembler.  To
      extract this operand type from an instruction, check this field.
@@ -115,7 +114,7 @@ struct v850_operand
      non-zero if this operand type can not actually be extracted from
      this operand (i.e., the instruction does not match).  If the
      operand is valid, *INVALID will not be changed.  */
-  unsigned long (* extract) (unsigned long instruction, int * invalid);
+  unsigned long (* extract) PARAMS ((unsigned long instruction, int * invalid));
 
   /* One bit syntax flags.  */
   int flags;
@@ -154,6 +153,7 @@ extern const struct v850_operand v850_operands[];
 /* The register specified must not be r0 */
 #define V850_NOT_R0	        0x80
 
+/* CYGNUS LOCAL v850e */
 /* push/pop type instruction, V850E specific.  */
 #define V850E_PUSH_POP		0x100
 

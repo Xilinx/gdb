@@ -1,24 +1,22 @@
 /* BFD back-end for binary objects.
-   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-   2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+   Copyright 1994, 95, 96, 97, 98, 1999 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support, <ian@cygnus.com>
 
-   This file is part of BFD, the Binary File Descriptor library.
+This file is part of BFD, the Binary File Descriptor library.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
-   MA 02110-1301, USA.  */
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* This is a BFD backend which may be used to write binary objects.
    It may only be used for output, not input.  The intention is that
@@ -33,26 +31,36 @@
    the file.  objcopy cooperates by specially setting the start
    address to zero by default.  */
 
-#include "sysdep.h"
+#include <ctype.h>
+
 #include "bfd.h"
-#include "safe-ctype.h"
+#include "sysdep.h"
 #include "libbfd.h"
 
 /* Any bfd we create by reading a binary file has three symbols:
    a start symbol, an end symbol, and an absolute length symbol.  */
 #define BIN_SYMS 3
 
-/* Set by external programs - specifies the BFD architecture and
-   machine number to be uses when creating binary BFDs.  */
-enum bfd_architecture  bfd_external_binary_architecture = bfd_arch_unknown;
-unsigned long          bfd_external_machine = 0;
+static boolean binary_mkobject PARAMS ((bfd *));
+static const bfd_target *binary_object_p PARAMS ((bfd *));
+static boolean binary_get_section_contents
+  PARAMS ((bfd *, asection *, PTR, file_ptr, bfd_size_type));
+static long binary_get_symtab_upper_bound PARAMS ((bfd *));
+static char *mangle_name PARAMS ((bfd *, char *));
+static long binary_get_symtab PARAMS ((bfd *, asymbol **));
+static asymbol *binary_make_empty_symbol PARAMS ((bfd *));
+static void binary_get_symbol_info PARAMS ((bfd *, asymbol *, symbol_info *));
+static boolean binary_set_section_contents
+  PARAMS ((bfd *, asection *, PTR, file_ptr, bfd_size_type));
+static int binary_sizeof_headers PARAMS ((bfd *, boolean));
 
 /* Create a binary object.  Invoked via bfd_set_format.  */
 
-static bfd_boolean
-binary_mkobject (bfd *abfd ATTRIBUTE_UNUSED)
+static boolean
+binary_mkobject (abfd)
+     bfd *abfd;
 {
-  return TRUE;
+  return true;
 }
 
 /* Any file may be considered to be a binary file, provided the target
@@ -60,11 +68,11 @@ binary_mkobject (bfd *abfd ATTRIBUTE_UNUSED)
    being binary.  */
 
 static const bfd_target *
-binary_object_p (bfd *abfd)
+binary_object_p (abfd)
+     bfd *abfd;
 {
   struct stat statbuf;
   asection *sec;
-  flagword flags;
 
   if (abfd->target_defaulted)
     {
@@ -82,50 +90,44 @@ binary_object_p (bfd *abfd)
     }
 
   /* One data section.  */
-  flags = SEC_ALLOC | SEC_LOAD | SEC_DATA | SEC_HAS_CONTENTS;
-  sec = bfd_make_section_with_flags (abfd, ".data", flags);
+  sec = bfd_make_section (abfd, ".data");
   if (sec == NULL)
     return NULL;
+  sec->flags = SEC_ALLOC | SEC_LOAD | SEC_DATA | SEC_HAS_CONTENTS;
   sec->vma = 0;
-  sec->size = statbuf.st_size;
+  sec->_raw_size = statbuf.st_size;
   sec->filepos = 0;
 
-  abfd->tdata.any = (void *) sec;
-
-  if (bfd_get_arch_info (abfd) != NULL)
-    {
-      if ((bfd_get_arch_info (abfd)->arch == bfd_arch_unknown)
-          && (bfd_external_binary_architecture != bfd_arch_unknown))
-        bfd_set_arch_info (abfd, bfd_lookup_arch
-			   (bfd_external_binary_architecture, bfd_external_machine));
-    }
+  abfd->tdata.any = (PTR) sec;
 
   return abfd->xvec;
 }
 
-#define binary_close_and_cleanup     _bfd_generic_close_and_cleanup
-#define binary_bfd_free_cached_info  _bfd_generic_bfd_free_cached_info
-#define binary_new_section_hook      _bfd_generic_new_section_hook
+#define binary_close_and_cleanup _bfd_generic_close_and_cleanup
+#define binary_bfd_free_cached_info _bfd_generic_bfd_free_cached_info
+#define binary_new_section_hook _bfd_generic_new_section_hook
 
 /* Get contents of the only section.  */
 
-static bfd_boolean
-binary_get_section_contents (bfd *abfd,
-			     asection *section ATTRIBUTE_UNUSED,
-			     void * location,
-			     file_ptr offset,
-			     bfd_size_type count)
+static boolean
+binary_get_section_contents (abfd, section, location, offset, count)
+     bfd *abfd;
+     asection *section;
+     PTR location;
+     file_ptr offset;
+     bfd_size_type count;
 {
   if (bfd_seek (abfd, offset, SEEK_SET) != 0
-      || bfd_bread (location, count, abfd) != count)
-    return FALSE;
-  return TRUE;
+      || bfd_read (location, 1, count, abfd) != count)
+    return false;
+  return true;
 }
 
 /* Return the amount of memory needed to read the symbol table.  */
 
 static long
-binary_get_symtab_upper_bound (bfd *abfd ATTRIBUTE_UNUSED)
+binary_get_symtab_upper_bound (abfd)
+     bfd *abfd;
 {
   return (BIN_SYMS + 1) * sizeof (asymbol *);
 }
@@ -133,9 +135,11 @@ binary_get_symtab_upper_bound (bfd *abfd ATTRIBUTE_UNUSED)
 /* Create a symbol name based on the bfd's filename.  */
 
 static char *
-mangle_name (bfd *abfd, char *suffix)
+mangle_name (abfd, suffix)
+     bfd *abfd;
+     char *suffix;
 {
-  bfd_size_type size;
+  int size;
   char *buf;
   char *p;
 
@@ -143,7 +147,7 @@ mangle_name (bfd *abfd, char *suffix)
 	  + strlen (suffix)
 	  + sizeof "_binary__");
 
-  buf = bfd_alloc (abfd, size);
+  buf = (char *) bfd_alloc (abfd, size);
   if (buf == NULL)
     return "";
 
@@ -151,7 +155,7 @@ mangle_name (bfd *abfd, char *suffix)
 
   /* Change any non-alphanumeric characters to underscores.  */
   for (p = buf; *p; p++)
-    if (! ISALNUM (*p))
+    if (! isalnum ((unsigned char) *p))
       *p = '_';
 
   return buf;
@@ -160,16 +164,17 @@ mangle_name (bfd *abfd, char *suffix)
 /* Return the symbol table.  */
 
 static long
-binary_canonicalize_symtab (bfd *abfd, asymbol **alocation)
+binary_get_symtab (abfd, alocation)
+     bfd *abfd;
+     asymbol **alocation;
 {
   asection *sec = (asection *) abfd->tdata.any;
   asymbol *syms;
   unsigned int i;
-  bfd_size_type amt = BIN_SYMS * sizeof (asymbol);
 
-  syms = bfd_alloc (abfd, amt);
+  syms = (asymbol *) bfd_alloc (abfd, BIN_SYMS * sizeof (asymbol));
   if (syms == NULL)
-    return -1;
+    return false;
 
   /* Start symbol.  */
   syms[0].the_bfd = abfd;
@@ -182,7 +187,7 @@ binary_canonicalize_symtab (bfd *abfd, asymbol **alocation)
   /* End symbol.  */
   syms[1].the_bfd = abfd;
   syms[1].name = mangle_name (abfd, "end");
-  syms[1].value = sec->size;
+  syms[1].value = sec->_raw_size;
   syms[1].flags = BSF_GLOBAL;
   syms[1].section = sec;
   syms[1].udata.p = NULL;
@@ -190,7 +195,7 @@ binary_canonicalize_symtab (bfd *abfd, asymbol **alocation)
   /* Size symbol.  */
   syms[2].the_bfd = abfd;
   syms[2].name = mangle_name (abfd, "size");
-  syms[2].value = sec->size;
+  syms[2].value = sec->_raw_size;
   syms[2].flags = BSF_GLOBAL;
   syms[2].section = bfd_abs_section_ptr;
   syms[2].udata.p = NULL;
@@ -202,63 +207,73 @@ binary_canonicalize_symtab (bfd *abfd, asymbol **alocation)
   return BIN_SYMS;
 }
 
-#define binary_make_empty_symbol  _bfd_generic_make_empty_symbol
-#define binary_print_symbol       _bfd_nosymbols_print_symbol
+/* Make an empty symbol.  */
+
+static asymbol *
+binary_make_empty_symbol (abfd)
+     bfd *abfd;
+{
+  return (asymbol *) bfd_alloc (abfd, sizeof (asymbol));
+}
+
+#define binary_print_symbol _bfd_nosymbols_print_symbol
 
 /* Get information about a symbol.  */
 
 static void
-binary_get_symbol_info (bfd *ignore_abfd ATTRIBUTE_UNUSED,
-			asymbol *symbol,
-			symbol_info *ret)
+binary_get_symbol_info (ignore_abfd, symbol, ret)
+     bfd *ignore_abfd;
+     asymbol *symbol;
+     symbol_info *ret;
 {
   bfd_symbol_info (symbol, ret);
 }
 
-#define binary_bfd_is_local_label_name      bfd_generic_is_local_label_name
-#define binary_get_lineno                  _bfd_nosymbols_get_lineno
-#define binary_find_nearest_line           _bfd_nosymbols_find_nearest_line
-#define binary_find_inliner_info           _bfd_nosymbols_find_inliner_info
-#define binary_bfd_make_debug_symbol       _bfd_nosymbols_bfd_make_debug_symbol
-#define binary_read_minisymbols            _bfd_generic_read_minisymbols
-#define binary_minisymbol_to_symbol        _bfd_generic_minisymbol_to_symbol
-#define binary_bfd_is_target_special_symbol ((bfd_boolean (*) (bfd *, asymbol *)) bfd_false)
+#define binary_bfd_is_local_label_name bfd_generic_is_local_label_name
+#define binary_get_lineno _bfd_nosymbols_get_lineno
+#define binary_find_nearest_line _bfd_nosymbols_find_nearest_line
+#define binary_bfd_make_debug_symbol _bfd_nosymbols_bfd_make_debug_symbol
+#define binary_read_minisymbols _bfd_generic_read_minisymbols
+#define binary_minisymbol_to_symbol _bfd_generic_minisymbol_to_symbol
+
+#define binary_get_reloc_upper_bound \
+  ((long (*) PARAMS ((bfd *, asection *))) bfd_0l)
+#define binary_canonicalize_reloc \
+  ((long (*) PARAMS ((bfd *, asection *, arelent **, asymbol **))) bfd_0l)
+#define binary_bfd_reloc_type_lookup _bfd_norelocs_bfd_reloc_type_lookup
 
 /* Set the architecture of a binary file.  */
 #define binary_set_arch_mach _bfd_generic_set_arch_mach
 
 /* Write section contents of a binary file.  */
 
-static bfd_boolean
-binary_set_section_contents (bfd *abfd,
-			     asection *sec,
-			     const void * data,
-			     file_ptr offset,
-			     bfd_size_type size)
+static boolean
+binary_set_section_contents (abfd, sec, data, offset, size)
+     bfd *abfd;
+     asection *sec;
+     PTR data;
+     file_ptr offset;
+     bfd_size_type size;
 {
-  if (size == 0)
-    return TRUE;
-
   if (! abfd->output_has_begun)
     {
-      bfd_boolean found_low;
+      boolean found_low;
       bfd_vma low;
       asection *s;
 
       /* The lowest section LMA sets the virtual address of the start
          of the file.  We use this to set the file position of all the
          sections.  */
-      found_low = FALSE;
+      found_low = false;
       low = 0;
       for (s = abfd->sections; s != NULL; s = s->next)
 	if (((s->flags
 	      & (SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC | SEC_NEVER_LOAD))
 	     == (SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC))
-	    && (s->size > 0)
 	    && (! found_low || s->lma < low))
 	  {
 	    low = s->lma;
-	    found_low = TRUE;
+	    found_low = true;
 	  }
 
       for (s = abfd->sections; s != NULL; s = s->next)
@@ -266,18 +281,17 @@ binary_set_section_contents (bfd *abfd,
 	  s->filepos = s->lma - low;
 
 	  /* Skip following warning check for sections that will not
-	     occupy file space.  */
+	     occupy file space.  */ 
 	  if ((s->flags
 	       & (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_NEVER_LOAD))
-	      != (SEC_HAS_CONTENTS | SEC_ALLOC)
-	      || (s->size == 0))
+	      != (SEC_HAS_CONTENTS | SEC_ALLOC))
 	    continue;
 
 	  /* If attempting to generate a binary file from a bfd with
 	     LMA's all over the place, huge (sparse?) binary files may
 	     result.  This condition attempts to detect this situation
 	     and print a warning.  Better heuristics would be nice to
-	     have.  */
+	     have. */
 
 	  if (s->filepos < 0)
 	    (*_bfd_error_handler)
@@ -286,16 +300,16 @@ binary_set_section_contents (bfd *abfd,
 	       (unsigned long) s->filepos);
 	}
 
-      abfd->output_has_begun = TRUE;
+      abfd->output_has_begun = true;
     }
 
   /* We don't want to output anything for a section that is neither
      loaded nor allocated.  The contents of such a section are not
      meaningful in the binary format.  */
   if ((sec->flags & (SEC_LOAD | SEC_ALLOC)) == 0)
-    return TRUE;
+    return true;
   if ((sec->flags & SEC_NEVER_LOAD) != 0)
-    return TRUE;
+    return true;
 
   return _bfd_generic_set_section_contents (abfd, sec, data, offset, size);
 }
@@ -303,26 +317,23 @@ binary_set_section_contents (bfd *abfd,
 /* No space is required for header information.  */
 
 static int
-binary_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
-		       struct bfd_link_info *info ATTRIBUTE_UNUSED)
+binary_sizeof_headers (abfd, exec)
+     bfd *abfd;
+     boolean exec;
 {
   return 0;
 }
 
-#define binary_bfd_get_relocated_section_contents  bfd_generic_get_relocated_section_contents
-#define binary_bfd_relax_section                   bfd_generic_relax_section
-#define binary_bfd_gc_sections                     bfd_generic_gc_sections
-#define binary_bfd_merge_sections                  bfd_generic_merge_sections
-#define binary_bfd_is_group_section                bfd_generic_is_group_section
-#define binary_bfd_discard_group                   bfd_generic_discard_group
-#define binary_section_already_linked             _bfd_generic_section_already_linked
-#define binary_bfd_link_hash_table_create         _bfd_generic_link_hash_table_create
-#define binary_bfd_link_hash_table_free           _bfd_generic_link_hash_table_free
-#define binary_bfd_link_just_syms                 _bfd_generic_link_just_syms
-#define binary_bfd_link_add_symbols               _bfd_generic_link_add_symbols
-#define binary_bfd_final_link                     _bfd_generic_final_link
-#define binary_bfd_link_split_section             _bfd_generic_link_split_section
-#define binary_get_section_contents_in_window     _bfd_generic_get_section_contents_in_window
+#define binary_bfd_get_relocated_section_contents \
+  bfd_generic_get_relocated_section_contents
+#define binary_bfd_relax_section bfd_generic_relax_section
+#define binary_bfd_gc_sections bfd_generic_gc_sections
+#define binary_bfd_link_hash_table_create _bfd_generic_link_hash_table_create
+#define binary_bfd_link_add_symbols _bfd_generic_link_add_symbols
+#define binary_bfd_final_link _bfd_generic_final_link
+#define binary_bfd_link_split_section _bfd_generic_link_split_section
+#define binary_get_section_contents_in_window \
+  _bfd_generic_get_section_contents_in_window
 
 const bfd_target binary_vec =
 {
@@ -344,7 +355,7 @@ const bfd_target binary_vec =
   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* hdrs */
   {				/* bfd_check_format */
     _bfd_dummy_target,
-    binary_object_p,
+    binary_object_p,		/* bfd_check_format */
     _bfd_dummy_target,
     _bfd_dummy_target,
   },
@@ -366,12 +377,10 @@ const bfd_target binary_vec =
   BFD_JUMP_TABLE_CORE (_bfd_nocore),
   BFD_JUMP_TABLE_ARCHIVE (_bfd_noarchive),
   BFD_JUMP_TABLE_SYMBOLS (binary),
-  BFD_JUMP_TABLE_RELOCS (_bfd_norelocs),
+  BFD_JUMP_TABLE_RELOCS (binary),
   BFD_JUMP_TABLE_WRITE (binary),
   BFD_JUMP_TABLE_LINK (binary),
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
-
-  NULL,
 
   NULL
 };

@@ -1,24 +1,22 @@
 /* BFD back-end for Apple M68K COFF A/UX 3.x files.
-   Copyright 1996, 1997, 2000, 2002, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright 1996, 1997 Free Software Foundation, Inc.
    Written by Richard Henderson <rth@tamu.edu>.
 
-   This file is part of BFD, the Binary File Descriptor library.
+This file is part of BFD, the Binary File Descriptor library.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
-   MA 02110-1301, USA.  */
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #define TARGET_SYM	m68kaux_coff_vec
 #define TARGET_NAME	"coff-m68k-aux"
@@ -32,26 +30,22 @@
 /* 4k pages */
 #define COFF_PAGE_SIZE 0x1000
 
-/* On AUX, a STYP_NOLOAD|STYP_BSS section is part of a shared library.  */
+/* On AUX, a STYP_NOLOAD|STYP_BSS section is part of a shared library. */
 #define BSS_NOLOAD_IS_SHARED_LIBRARY
 
 #define STATIC_RELOCS
 
 #define COFF_COMMON_ADDEND
 
-#include "sysdep.h"
 #include "bfd.h"
+#include "sysdep.h"
 
-static bfd_boolean coff_m68k_aux_link_add_one_symbol
-  PARAMS ((struct bfd_link_info *, bfd *, const char *, flagword,
-           asection *, bfd_vma, const char *, bfd_boolean, bfd_boolean,
+static boolean coff_m68k_aux_link_add_one_symbol
+  PARAMS ((struct bfd_link_info *, bfd *, const char *, flagword, 
+           asection *, bfd_vma, const char *, boolean, boolean, 
            struct bfd_link_hash_entry **));
 
 #define coff_link_add_one_symbol coff_m68k_aux_link_add_one_symbol
-
-#ifndef bfd_pe_print_pdata
-#define bfd_pe_print_pdata	NULL
-#endif
 
 #include "coff/aux-coff.h"  /* override coff/internal.h and coff/m68k.h */
 #include "coff-m68k.c"
@@ -60,9 +54,9 @@ static bfd_boolean coff_m68k_aux_link_add_one_symbol
    mirrors Apple's "solution" to let a static library symbol override
    a shared library symbol.  On the whole not a good thing, given how
    shared libraries work here, but can work if you are careful with
-   what you include in the shared object.  */
+   what you include in the shared object. */
 
-static bfd_boolean
+static boolean
 coff_m68k_aux_link_add_one_symbol (info, abfd, name, flags, section, value,
 				   string, copy, collect, hashp)
      struct bfd_link_info *info;
@@ -72,8 +66,8 @@ coff_m68k_aux_link_add_one_symbol (info, abfd, name, flags, section, value,
      asection *section;
      bfd_vma value;
      const char *string;
-     bfd_boolean copy;
-     bfd_boolean collect;
+     boolean copy;
+     boolean collect;
      struct bfd_link_hash_entry **hashp;
 {
   struct bfd_link_hash_entry *h;
@@ -92,21 +86,21 @@ coff_m68k_aux_link_add_one_symbol (info, abfd, name, flags, section, value,
 	}
       else
 	{
-	  h = bfd_link_hash_lookup (info->hash, name, TRUE, copy, FALSE);
+	  h = bfd_link_hash_lookup (info->hash, name, true, copy, false);
 	  if (h == NULL)
 	    {
 	      if (hashp != NULL)
 		*hashp = NULL;
-	      return FALSE;
+	      return false;
 	    }
 	}
 
       if (info->notice_hash != (struct bfd_hash_table *) NULL
-	  && (bfd_hash_lookup (info->notice_hash, name, FALSE, FALSE)
+	  && (bfd_hash_lookup (info->notice_hash, name, false, false)
 	      != (struct bfd_hash_entry *) NULL))
 	{
 	  if (! (*info->callbacks->notice) (info, name, abfd, section, value))
-	    return FALSE;
+	    return false;
 	}
 
       if (hashp != (struct bfd_link_hash_entry **) NULL)
@@ -127,10 +121,10 @@ coff_m68k_aux_link_add_one_symbol (info, abfd, name, flags, section, value,
 	    {
 	      h->u.def.section = section;
 	      h->u.def.value = value;
-	      return TRUE;
+	      return true;
 	    }
 	  else if (bfd_is_abs_section (section) && !bfd_is_abs_section (msec))
-	    return TRUE;
+	    return true;
 	}
     }
 

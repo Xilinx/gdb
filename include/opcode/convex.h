@@ -1,5 +1,5 @@
 /* Information for instruction disassembly on the Convex.
-   Copyright 1989, 1993, 2002 Free Software Foundation, Inc.
+   Copyright 1989, 1993 Free Software Foundation.  
 
 This file is part of GDB.
 
@@ -15,7 +15,11 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+
+#ifndef	CONST
+#define	CONST
+#endif	/* CONST */
 
 #define xxx 0
 #define rrr 1
@@ -63,7 +67,7 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 #define CPUID 20
 #define TID 21
 
-const char *op[] = {
+CONST char *op[] = {
   "",
   "v0\0v1\0v2\0v3\0v4\0v5\0v6\0v7",
   "s0\0s1\0s2\0s3\0s4\0s5\0s6\0s7",
@@ -88,7 +92,7 @@ const char *op[] = {
   "tid",
 };
 
-const struct formstr format0[] = {
+CONST struct formstr format0[] = {
   {0,0,rrr,V,S,S},	/* mov */
   {0,0,rrr,S,S,V},	/* mov */
   {1,1,rrr,V,V,V},	/* merg.t */
@@ -155,7 +159,7 @@ const struct formstr format0[] = {
   {4,8,rrr,V,S,V},	/* div.l */
 };
 
-const struct formstr format1[] = {
+CONST struct formstr format1[] = {
   {11,0,xxx,0,0,0},	/* exit */
   {12,0,a3,0,0,0},	/* jmp */
   {13,2,a3,0,0,0},	/* jmpi.f */
@@ -222,7 +226,7 @@ const struct formstr format1[] = {
   {21,8,a2r,V,0,0},	/* st.l */
 };
 
-const struct formstr format2[] = {
+CONST struct formstr format2[] = {
   {28,5,rr,A,A,0},	/* cvtw.b */
   {28,6,rr,A,A,0},	/* cvtw.h */
   {29,7,rr,A,A,0},	/* cvtb.w */
@@ -353,7 +357,7 @@ const struct formstr format2[] = {
   {4,8,rr,S,S,0},	/* div.l */
 };
 
-const struct formstr format3[] = {
+CONST struct formstr format3[] = {
   {32,3,rr,V,V,0},	/* cvtd.s */
   {31,4,rr,V,V,0},	/* cvts.d */
   {33,4,rr,V,V,0},	/* cvtl.d */
@@ -420,7 +424,7 @@ const struct formstr format3[] = {
   {43,8,rr,S,S,0},	/* neg.l */
 };
 
-const struct formstr format4[] = {
+CONST struct formstr format4[] = {
   {46,0,nops,0,0,0},	/* nop */
   {47,0,pcrel,0,0,0},	/* br */
   {48,2,pcrel,0,0,0},	/* bri.f */
@@ -431,7 +435,7 @@ const struct formstr format4[] = {
   {50,1,pcrel,0,0,0},	/* brs.t */
 };
 
-const struct formstr format5[] = {
+CONST struct formstr format5[] = {
   {51,5,rr,V,V,0},	/* ldvi.b */
   {51,6,rr,V,V,0},	/* ldvi.h */
   {51,7,rr,V,V,0},	/* ldvi.w */
@@ -450,7 +454,7 @@ const struct formstr format5[] = {
   {52,8,rxr,S,V,0},	/* stvi.l */
 };
 
-const struct formstr format6[] = {
+CONST struct formstr format6[] = {
   {53,0,r,A,0,0},	/* ldsdr */
   {54,0,r,A,0,0},	/* ldkdr */
   {55,3,r,S,0,0},	/* ln.s */
@@ -517,7 +521,7 @@ const struct formstr format6[] = {
   {83,4,r,S,0,0},	/* atan.d */
 };
 
-const struct formstr format7[] = {
+CONST struct formstr format7[] = {
   {84,5,r,V,0,0},	/* sum.b */
   {84,6,r,V,0,0},	/* sum.h */
   {84,7,r,V,0,0},	/* sum.w */
@@ -552,11 +556,11 @@ const struct formstr format7[] = {
   {0,0,0,0,0,0},
 };
 
-const struct formstr formatx[] = {
+CONST struct formstr formatx[] = {
   {0,0,0,0,0,0},
 };
 
-const struct formstr format1a[] = {
+CONST struct formstr format1a[] = {
   {91,0,imr,A,0,0},	/* halt */
   {92,0,a4,0,0,0},	/* sysc */
   {18,6,imr,A,0,0},	/* ld.h */
@@ -591,7 +595,7 @@ const struct formstr format1a[] = {
   {41,7,imr,A,0,0},	/* lt.w */
 };
 
-const struct formstr format1b[] = {
+CONST struct formstr format1b[] = {
   {18,4,imr,S,0,0},	/* ld.d */
   {18,10,imr,S,0,0},	/* ld.u */
   {18,8,imr,S,0,0},	/* ld.l */
@@ -626,7 +630,7 @@ const struct formstr format1b[] = {
   {41,7,imr,S,0,0},	/* lt.w */
 };
 
-const struct formstr e0_format0[] = {
+CONST struct formstr e0_format0[] = {
   {10,3,rrr,S,V,V},	/* sub.s */
   {10,4,rrr,S,V,V},	/* sub.d */
   {4,3,rrr,S,V,V},	/* div.s */
@@ -693,7 +697,7 @@ const struct formstr e0_format0[] = {
   {4,16,rrr,V,S,V},	/* div.l.f */
 };
 
-const struct formstr e0_format1[] = {
+CONST struct formstr e0_format1[] = {
   {0,0,0,0,0,0},
   {94,0,a3,0,0,0},	/* tst */
   {95,0,a3,0,0,0},	/* lck */
@@ -760,7 +764,7 @@ const struct formstr e0_format1[] = {
   {21,16,a2r,V,0,0},	/* st.l.f */
 };
 
-const struct formstr e0_format2[] = {
+CONST struct formstr e0_format2[] = {
   {28,5,rr,V,V,0},	/* cvtw.b */
   {28,6,rr,V,V,0},	/* cvtw.h */
   {29,7,rr,V,V,0},	/* cvtb.w */
@@ -891,7 +895,7 @@ const struct formstr e0_format2[] = {
   {0,0,0,0,0,0},
 };
 
-const struct formstr e0_format3[] = {
+CONST struct formstr e0_format3[] = {
   {32,11,rr,V,V,0},	/* cvtd.s.f */
   {31,12,rr,V,V,0},	/* cvts.d.f */
   {33,12,rr,V,V,0},	/* cvtl.d.f */
@@ -958,7 +962,7 @@ const struct formstr e0_format3[] = {
   {0,0,0,0,0,0},
 };
 
-const struct formstr e0_format4[] = {
+CONST struct formstr e0_format4[] = {
   {0,0,0,0,0,0},
   {0,0,0,0,0,0},
   {0,0,0,0,0,0},
@@ -969,7 +973,7 @@ const struct formstr e0_format4[] = {
   {0,0,0,0,0,0},
 };
 
-const struct formstr e0_format5[] = {
+CONST struct formstr e0_format5[] = {
   {51,13,rr,V,V,0},	/* ldvi.b.f */
   {51,14,rr,V,V,0},	/* ldvi.h.f */
   {51,15,rr,V,V,0},	/* ldvi.w.f */
@@ -988,7 +992,7 @@ const struct formstr e0_format5[] = {
   {52,16,rxr,S,V,0},	/* stvi.l.f */
 };
 
-const struct formstr e0_format6[] = {
+CONST struct formstr e0_format6[] = {
   {0,0,rxl,S,CIR,0},	/* mov */
   {0,0,lr,CIR,S,0},	/* mov */
   {0,0,lr,TOC,S,0},	/* mov */
@@ -1055,7 +1059,7 @@ const struct formstr e0_format6[] = {
   {0,0,0,0,0,0},
 };
 
-const struct formstr e0_format7[] = {
+CONST struct formstr e0_format7[] = {
   {84,13,r,V,0,0},	/* sum.b.f */
   {84,14,r,V,0,0},	/* sum.h.f */
   {84,15,r,V,0,0},	/* sum.w.f */
@@ -1090,7 +1094,7 @@ const struct formstr e0_format7[] = {
   {0,0,0,0,0,0},
 };
 
-const struct formstr e1_format0[] = {
+CONST struct formstr e1_format0[] = {
   {0,0,0,0,0,0},
   {0,0,0,0,0,0},
   {0,0,0,0,0,0},
@@ -1157,7 +1161,7 @@ const struct formstr e1_format0[] = {
   {4,23,rrr,V,S,V},	/* div.l.t */
 };
 
-const struct formstr e1_format1[] = {
+CONST struct formstr e1_format1[] = {
   {0,0,0,0,0,0},
   {0,0,0,0,0,0},
   {0,0,0,0,0,0},
@@ -1224,7 +1228,7 @@ const struct formstr e1_format1[] = {
   {21,23,a2r,V,0,0},	/* st.l.t */
 };
 
-const struct formstr e1_format2[] = {
+CONST struct formstr e1_format2[] = {
   {0,0,0,0,0,0},
   {0,0,0,0,0,0},
   {0,0,0,0,0,0},
@@ -1355,7 +1359,7 @@ const struct formstr e1_format2[] = {
   {0,0,0,0,0,0},
 };
 
-const struct formstr e1_format3[] = {
+CONST struct formstr e1_format3[] = {
   {32,18,rr,V,V,0},	/* cvtd.s.t */
   {31,19,rr,V,V,0},	/* cvts.d.t */
   {33,19,rr,V,V,0},	/* cvtl.d.t */
@@ -1422,7 +1426,7 @@ const struct formstr e1_format3[] = {
   {0,0,0,0,0,0},
 };
 
-const struct formstr e1_format4[] = {
+CONST struct formstr e1_format4[] = {
   {0,0,0,0,0,0},
   {0,0,0,0,0,0},
   {0,0,0,0,0,0},
@@ -1433,7 +1437,7 @@ const struct formstr e1_format4[] = {
   {0,0,0,0,0,0},
 };
 
-const struct formstr e1_format5[] = {
+CONST struct formstr e1_format5[] = {
   {51,20,rr,V,V,0},	/* ldvi.b.t */
   {51,21,rr,V,V,0},	/* ldvi.h.t */
   {51,22,rr,V,V,0},	/* ldvi.w.t */
@@ -1452,7 +1456,7 @@ const struct formstr e1_format5[] = {
   {52,23,rxr,S,V,0},	/* stvi.l.t */
 };
 
-const struct formstr e1_format6[] = {
+CONST struct formstr e1_format6[] = {
   {0,0,0,0,0,0},
   {0,0,0,0,0,0},
   {0,0,0,0,0,0},
@@ -1519,7 +1523,7 @@ const struct formstr e1_format6[] = {
   {0,0,0,0,0,0},
 };
 
-const struct formstr e1_format7[] = {
+CONST struct formstr e1_format7[] = {
   {84,20,r,V,0,0},	/* sum.b.t */
   {84,21,r,V,0,0},	/* sum.h.t */
   {84,22,r,V,0,0},	/* sum.w.t */

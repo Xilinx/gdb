@@ -2,23 +2,23 @@
 
 THIS FILE IS MACHINE GENERATED WITH CGEN.
 
-Copyright 1996-2007 Free Software Foundation, Inc.
+Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
 
 This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 
-   This file is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3, or (at your option)
-   any later version.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
-   It is distributed in the hope that it will be useful, but WITHOUT
-   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
-   License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License along
-   with this program; if not, write to the Free Software Foundation, Inc.,
-   51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 */
 
@@ -28,156 +28,144 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 #include "symcat.h"
 #include "fr30-desc.h"
 #include "fr30-opc.h"
-#include "libiberty.h"
 
 /* The hash functions are recorded here to help keep assembler code out of
    the disassembler and vice versa.  */
 
-static int asm_hash_insn_p        (const CGEN_INSN *);
-static unsigned int asm_hash_insn (const char *);
-static int dis_hash_insn_p        (const CGEN_INSN *);
-static unsigned int dis_hash_insn (const char *, CGEN_INSN_INT);
+static int asm_hash_insn_p PARAMS ((const CGEN_INSN *));
+static unsigned int asm_hash_insn PARAMS ((const char *));
+static int dis_hash_insn_p PARAMS ((const CGEN_INSN *));
+static unsigned int dis_hash_insn PARAMS ((const char *, CGEN_INSN_INT));
 
 /* Instruction formats.  */
 
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
-#define F(f) & fr30_cgen_ifld_table[FR30_##f]
-#else
-#define F(f) & fr30_cgen_ifld_table[FR30_/**/f]
-#endif
-static const CGEN_IFMT ifmt_empty ATTRIBUTE_UNUSED = {
-  0, 0, 0x0, { { 0 } }
+#define F(f) & fr30_cgen_ifld_table[CONCAT2 (FR30_,f)]
+
+static const CGEN_IFMT ifmt_empty = {
+  0, 0, 0x0, { 0 }
 };
 
-static const CGEN_IFMT ifmt_add ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_OP2) }, { F (F_RJ) }, { F (F_RI) }, { 0 } }
+static const CGEN_IFMT ifmt_add = {
+  16, 16, 0xff00, { F (F_OP1), F (F_OP2), F (F_RJ), F (F_RI), 0 }
 };
 
-static const CGEN_IFMT ifmt_addi ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_OP2) }, { F (F_U4) }, { F (F_RI) }, { 0 } }
+static const CGEN_IFMT ifmt_addi = {
+  16, 16, 0xff00, { F (F_OP1), F (F_OP2), F (F_U4), F (F_RI), 0 }
 };
 
-static const CGEN_IFMT ifmt_add2 ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_OP2) }, { F (F_M4) }, { F (F_RI) }, { 0 } }
+static const CGEN_IFMT ifmt_add2 = {
+  16, 16, 0xff00, { F (F_OP1), F (F_OP2), F (F_M4), F (F_RI), 0 }
 };
 
-static const CGEN_IFMT ifmt_div0s ATTRIBUTE_UNUSED = {
-  16, 16, 0xfff0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_OP3) }, { F (F_RI) }, { 0 } }
+static const CGEN_IFMT ifmt_div0s = {
+  16, 16, 0xfff0, { F (F_OP1), F (F_OP2), F (F_OP3), F (F_RI), 0 }
 };
 
-static const CGEN_IFMT ifmt_div3 ATTRIBUTE_UNUSED = {
-  16, 16, 0xffff, { { F (F_OP1) }, { F (F_OP2) }, { F (F_OP3) }, { F (F_OP4) }, { 0 } }
+static const CGEN_IFMT ifmt_div3 = {
+  16, 16, 0xffff, { F (F_OP1), F (F_OP2), F (F_OP3), F (F_OP4), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldi8 ATTRIBUTE_UNUSED = {
-  16, 16, 0xf000, { { F (F_OP1) }, { F (F_I8) }, { F (F_RI) }, { 0 } }
+static const CGEN_IFMT ifmt_ldi8 = {
+  16, 16, 0xf000, { F (F_OP1), F (F_I8), F (F_RI), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldi20 ATTRIBUTE_UNUSED = {
-  16, 32, 0xff00, { { F (F_OP1) }, { F (F_I20) }, { F (F_OP2) }, { F (F_RI) }, { 0 } }
+static const CGEN_IFMT ifmt_ldi20 = {
+  16, 32, 0xff00, { F (F_OP1), F (F_I20), F (F_OP2), F (F_RI), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldi32 ATTRIBUTE_UNUSED = {
-  16, 48, 0xfff0, { { F (F_OP1) }, { F (F_I32) }, { F (F_OP2) }, { F (F_OP3) }, { F (F_RI) }, { 0 } }
+static const CGEN_IFMT ifmt_ldi32 = {
+  16, 48, 0xfff0, { F (F_OP1), F (F_I32), F (F_OP2), F (F_OP3), F (F_RI), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldr14 ATTRIBUTE_UNUSED = {
-  16, 16, 0xf000, { { F (F_OP1) }, { F (F_DISP10) }, { F (F_RI) }, { 0 } }
+static const CGEN_IFMT ifmt_ldr14 = {
+  16, 16, 0xf000, { F (F_OP1), F (F_DISP10), F (F_RI), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldr14uh ATTRIBUTE_UNUSED = {
-  16, 16, 0xf000, { { F (F_OP1) }, { F (F_DISP9) }, { F (F_RI) }, { 0 } }
+static const CGEN_IFMT ifmt_ldr14uh = {
+  16, 16, 0xf000, { F (F_OP1), F (F_DISP9), F (F_RI), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldr14ub ATTRIBUTE_UNUSED = {
-  16, 16, 0xf000, { { F (F_OP1) }, { F (F_DISP8) }, { F (F_RI) }, { 0 } }
+static const CGEN_IFMT ifmt_ldr14ub = {
+  16, 16, 0xf000, { F (F_OP1), F (F_DISP8), F (F_RI), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldr15 ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_OP2) }, { F (F_UDISP6) }, { F (F_RI) }, { 0 } }
+static const CGEN_IFMT ifmt_ldr15 = {
+  16, 16, 0xff00, { F (F_OP1), F (F_OP2), F (F_UDISP6), F (F_RI), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldr15dr ATTRIBUTE_UNUSED = {
-  16, 16, 0xfff0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_OP3) }, { F (F_RS2) }, { 0 } }
+static const CGEN_IFMT ifmt_ldr15dr = {
+  16, 16, 0xfff0, { F (F_OP1), F (F_OP2), F (F_OP3), F (F_RS2), 0 }
 };
 
-static const CGEN_IFMT ifmt_movdr ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_OP2) }, { F (F_RS1) }, { F (F_RI) }, { 0 } }
+static const CGEN_IFMT ifmt_movdr = {
+  16, 16, 0xff00, { F (F_OP1), F (F_OP2), F (F_RS1), F (F_RI), 0 }
 };
 
-static const CGEN_IFMT ifmt_call ATTRIBUTE_UNUSED = {
-  16, 16, 0xf800, { { F (F_OP1) }, { F (F_OP5) }, { F (F_REL12) }, { 0 } }
+static const CGEN_IFMT ifmt_call = {
+  16, 16, 0xf800, { F (F_OP1), F (F_OP5), F (F_REL12), 0 }
 };
 
-static const CGEN_IFMT ifmt_int ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_OP2) }, { F (F_U8) }, { 0 } }
+static const CGEN_IFMT ifmt_int = {
+  16, 16, 0xff00, { F (F_OP1), F (F_OP2), F (F_U8), 0 }
 };
 
-static const CGEN_IFMT ifmt_brad ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_CC) }, { F (F_REL9) }, { 0 } }
+static const CGEN_IFMT ifmt_brad = {
+  16, 16, 0xff00, { F (F_OP1), F (F_CC), F (F_REL9), 0 }
 };
 
-static const CGEN_IFMT ifmt_dmovr13 ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_OP2) }, { F (F_DIR10) }, { 0 } }
+static const CGEN_IFMT ifmt_dmovr13 = {
+  16, 16, 0xff00, { F (F_OP1), F (F_OP2), F (F_DIR10), 0 }
 };
 
-static const CGEN_IFMT ifmt_dmovr13h ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_OP2) }, { F (F_DIR9) }, { 0 } }
+static const CGEN_IFMT ifmt_dmovr13h = {
+  16, 16, 0xff00, { F (F_OP1), F (F_OP2), F (F_DIR9), 0 }
 };
 
-static const CGEN_IFMT ifmt_dmovr13b ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_OP2) }, { F (F_DIR8) }, { 0 } }
+static const CGEN_IFMT ifmt_dmovr13b = {
+  16, 16, 0xff00, { F (F_OP1), F (F_OP2), F (F_DIR8), 0 }
 };
 
-static const CGEN_IFMT ifmt_copop ATTRIBUTE_UNUSED = {
-  16, 32, 0xfff0, { { F (F_OP1) }, { F (F_CCC) }, { F (F_OP2) }, { F (F_OP3) }, { F (F_CRJ) }, { F (F_U4C) }, { F (F_CRI) }, { 0 } }
+static const CGEN_IFMT ifmt_copop = {
+  16, 32, 0xfff0, { F (F_OP1), F (F_CCC), F (F_OP2), F (F_OP3), F (F_CRJ), F (F_U4C), F (F_CRI), 0 }
 };
 
-static const CGEN_IFMT ifmt_copld ATTRIBUTE_UNUSED = {
-  16, 32, 0xfff0, { { F (F_OP1) }, { F (F_CCC) }, { F (F_OP2) }, { F (F_OP3) }, { F (F_RJC) }, { F (F_U4C) }, { F (F_CRI) }, { 0 } }
+static const CGEN_IFMT ifmt_copld = {
+  16, 32, 0xfff0, { F (F_OP1), F (F_CCC), F (F_OP2), F (F_OP3), F (F_RJC), F (F_U4C), F (F_CRI), 0 }
 };
 
-static const CGEN_IFMT ifmt_copst ATTRIBUTE_UNUSED = {
-  16, 32, 0xfff0, { { F (F_OP1) }, { F (F_CCC) }, { F (F_OP2) }, { F (F_OP3) }, { F (F_CRJ) }, { F (F_U4C) }, { F (F_RIC) }, { 0 } }
+static const CGEN_IFMT ifmt_copst = {
+  16, 32, 0xfff0, { F (F_OP1), F (F_CCC), F (F_OP2), F (F_OP3), F (F_CRJ), F (F_U4C), F (F_RIC), 0 }
 };
 
-static const CGEN_IFMT ifmt_addsp ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_OP2) }, { F (F_S10) }, { 0 } }
+static const CGEN_IFMT ifmt_addsp = {
+  16, 16, 0xff00, { F (F_OP1), F (F_OP2), F (F_S10), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldm0 ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_OP2) }, { F (F_REGLIST_LOW_LD) }, { 0 } }
+static const CGEN_IFMT ifmt_ldm0 = {
+  16, 16, 0xff00, { F (F_OP1), F (F_OP2), F (F_REGLIST_LOW_LD), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldm1 ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_OP2) }, { F (F_REGLIST_HI_LD) }, { 0 } }
+static const CGEN_IFMT ifmt_ldm1 = {
+  16, 16, 0xff00, { F (F_OP1), F (F_OP2), F (F_REGLIST_HI_LD), 0 }
 };
 
-static const CGEN_IFMT ifmt_stm0 ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_OP2) }, { F (F_REGLIST_LOW_ST) }, { 0 } }
+static const CGEN_IFMT ifmt_stm0 = {
+  16, 16, 0xff00, { F (F_OP1), F (F_OP2), F (F_REGLIST_LOW_ST), 0 }
 };
 
-static const CGEN_IFMT ifmt_stm1 ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_OP2) }, { F (F_REGLIST_HI_ST) }, { 0 } }
+static const CGEN_IFMT ifmt_stm1 = {
+  16, 16, 0xff00, { F (F_OP1), F (F_OP2), F (F_REGLIST_HI_ST), 0 }
 };
 
-static const CGEN_IFMT ifmt_enter ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_OP2) }, { F (F_U10) }, { 0 } }
+static const CGEN_IFMT ifmt_enter = {
+  16, 16, 0xff00, { F (F_OP1), F (F_OP2), F (F_U10), 0 }
 };
 
 #undef F
 
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
-#define A(a) (1 << CGEN_INSN_##a)
-#else
-#define A(a) (1 << CGEN_INSN_/**/a)
-#endif
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
-#define OPERAND(op) FR30_OPERAND_##op
-#else
-#define OPERAND(op) FR30_OPERAND_/**/op
-#endif
+#define A(a) (1 << CONCAT2 (CGEN_INSN_,a))
 #define MNEM CGEN_SYNTAX_MNEMONIC /* syntax value for mnemonic */
+#define OPERAND(op) CONCAT2 (FR30_OPERAND_,op)
 #define OP(field) CGEN_SYNTAX_MAKE_FIELD (OPERAND (field))
 
 /* The instruction table.  */
@@ -187,7 +175,7 @@ static const CGEN_OPCODE fr30_cgen_insn_opcode_table[MAX_INSNS] =
   /* Special null first entry.
      A `num' value of zero is thus invalid.
      Also, the special `invalid' insn resides here.  */
-  { { 0, 0, 0, 0 }, {{0}}, 0, {0}},
+  { { 0 } },
 /* add $Rj,$Ri */
   {
     { 0, 0, 0, 0 },
@@ -1181,44 +1169,33 @@ static const CGEN_OPCODE fr30_cgen_insn_opcode_table[MAX_INSNS] =
 };
 
 #undef A
-#undef OPERAND
 #undef MNEM
+#undef OPERAND
 #undef OP
 
 /* Formats for ALIAS macro-insns.  */
 
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
-#define F(f) & fr30_cgen_ifld_table[FR30_##f]
-#else
-#define F(f) & fr30_cgen_ifld_table[FR30_/**/f]
-#endif
-static const CGEN_IFMT ifmt_ldi8m ATTRIBUTE_UNUSED = {
-  16, 16, 0xf000, { { F (F_OP1) }, { F (F_I8) }, { F (F_RI) }, { 0 } }
+#define F(f) & fr30_cgen_ifld_table[CONCAT2 (FR30_,f)]
+
+static const CGEN_IFMT ifmt_ldi8m = {
+  16, 16, 0xf000, { F (F_OP1), F (F_I8), F (F_RI), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldi20m ATTRIBUTE_UNUSED = {
-  16, 32, 0xff00, { { F (F_OP1) }, { F (F_OP2) }, { F (F_RI) }, { F (F_I20) }, { 0 } }
+static const CGEN_IFMT ifmt_ldi20m = {
+  16, 32, 0xff00, { F (F_OP1), F (F_I20), F (F_OP2), F (F_RI), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldi32m ATTRIBUTE_UNUSED = {
-  16, 48, 0xfff0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_OP3) }, { F (F_RI) }, { F (F_I32) }, { 0 } }
+static const CGEN_IFMT ifmt_ldi32m = {
+  16, 48, 0xfff0, { F (F_OP1), F (F_I32), F (F_OP2), F (F_OP3), F (F_RI), 0 }
 };
 
 #undef F
 
 /* Each non-simple macro entry points to an array of expansion possibilities.  */
 
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
-#define A(a) (1 << CGEN_INSN_##a)
-#else
-#define A(a) (1 << CGEN_INSN_/**/a)
-#endif
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
-#define OPERAND(op) FR30_OPERAND_##op
-#else
-#define OPERAND(op) FR30_OPERAND_/**/op
-#endif
+#define A(a) (1 << CONCAT2 (CGEN_INSN_,a))
 #define MNEM CGEN_SYNTAX_MNEMONIC /* syntax value for mnemonic */
+#define OPERAND(op) CONCAT2 (FR30_OPERAND_,op)
 #define OP(field) CGEN_SYNTAX_MAKE_FIELD (OPERAND (field))
 
 /* The macro instruction table.  */
@@ -1228,17 +1205,17 @@ static const CGEN_IBASE fr30_cgen_macro_insn_table[] =
 /* ldi8 $i8,$Ri */
   {
     -1, "ldi8m", "ldi8", 16,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* ldi20 $i20,$Ri */
   {
     -1, "ldi20m", "ldi20", 32,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* ldi32 $i32,$Ri */
   {
     -1, "ldi32m", "ldi32", 48,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 };
 
@@ -1267,8 +1244,8 @@ static const CGEN_OPCODE fr30_cgen_macro_insn_opcode_table[] =
 };
 
 #undef A
-#undef OPERAND
 #undef MNEM
+#undef OPERAND
 #undef OP
 
 #ifndef CGEN_ASM_HASH_P
@@ -1284,7 +1261,7 @@ static const CGEN_OPCODE fr30_cgen_macro_insn_opcode_table[] =
 
 static int
 asm_hash_insn_p (insn)
-     const CGEN_INSN *insn ATTRIBUTE_UNUSED;
+     const CGEN_INSN *insn;
 {
   return CGEN_ASM_HASH_P (insn);
 }
@@ -1334,8 +1311,8 @@ asm_hash_insn (mnem)
 
 static unsigned int
 dis_hash_insn (buf, value)
-     const char * buf ATTRIBUTE_UNUSED;
-     CGEN_INSN_INT value ATTRIBUTE_UNUSED;
+     const char * buf;
+     CGEN_INSN_INT value;
 {
   return CGEN_DIS_HASH (buf, value);
 }
@@ -1343,7 +1320,9 @@ dis_hash_insn (buf, value)
 /* Set the recorded length of the insn in the CGEN_FIELDS struct.  */
 
 static void
-set_fields_bitsize (CGEN_FIELDS *fields, int size)
+set_fields_bitsize (fields, size)
+     CGEN_FIELDS *fields;
+     int size;
 {
   CGEN_FIELDS_BITSIZE (fields) = size;
 }
@@ -1352,21 +1331,20 @@ set_fields_bitsize (CGEN_FIELDS *fields, int size)
    This plugs the opcode entries and macro instructions into the cpu table.  */
 
 void
-fr30_cgen_init_opcode_table (CGEN_CPU_DESC cd)
+fr30_cgen_init_opcode_table (cd)
+     CGEN_CPU_DESC cd;
 {
   int i;
   int num_macros = (sizeof (fr30_cgen_macro_insn_table) /
 		    sizeof (fr30_cgen_macro_insn_table[0]));
   const CGEN_IBASE *ib = & fr30_cgen_macro_insn_table[0];
   const CGEN_OPCODE *oc = & fr30_cgen_macro_insn_opcode_table[0];
-  CGEN_INSN *insns = xmalloc (num_macros * sizeof (CGEN_INSN));
-
+  CGEN_INSN *insns = (CGEN_INSN *) xmalloc (num_macros * sizeof (CGEN_INSN));
   memset (insns, 0, num_macros * sizeof (CGEN_INSN));
   for (i = 0; i < num_macros; ++i)
     {
       insns[i].base = &ib[i];
       insns[i].opcode = &oc[i];
-      fr30_cgen_build_insn_regex (& insns[i]);
     }
   cd->macro_insn_table.init_entries = insns;
   cd->macro_insn_table.entry_size = sizeof (CGEN_IBASE);
@@ -1375,10 +1353,7 @@ fr30_cgen_init_opcode_table (CGEN_CPU_DESC cd)
   oc = & fr30_cgen_insn_opcode_table[0];
   insns = (CGEN_INSN *) cd->insn_table.init_entries;
   for (i = 0; i < MAX_INSNS; ++i)
-    {
-      insns[i].opcode = &oc[i];
-      fr30_cgen_build_insn_regex (& insns[i]);
-    }
+    insns[i].opcode = &oc[i];
 
   cd->sizeof_fields = sizeof (CGEN_FIELDS);
   cd->set_fields_bitsize = set_fields_bitsize;

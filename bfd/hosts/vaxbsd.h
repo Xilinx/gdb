@@ -1,24 +1,12 @@
-/* Copyright 2007 Free Software Foundation, Inc.
-
-   This file is part of BFD, the Binary File Descriptor library.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
-   MA 02110-1301, USA.  */
-
 #define	NO_CORE_COMMAND		/* No command name in core file */
 
+#if 0
+#undef	ALIGN			/* They use it, we use it too */
+/* Does not exist on BSD 4.3, it uses machine/machparam.h.
+   Whatever it is, it's included by <sys/param.h>, which trad-core.c,
+   the only place that uses this (I think), already includes.  */
+#include <machine/param.h>
+#endif
 #undef	ALIGN			/* They use it, we use it too */
 
 /* Note that HOST_PAGE_SIZE -- the page size as far as executable files

@@ -14,131 +14,60 @@ Library General Public License for more details.
 
 You should have received a copy of the GNU Library General Public
 License along with libiberty; see the file COPYING.LIB.  If
-not, write to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
-Boston, MA 02110-1301, USA.  */
+not, write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
-/*
-
-@deftypefn Replacement void* xmalloc (size_t)
-
-Allocate memory without fail.  If @code{malloc} fails, this will print
-a message to @code{stderr} (using the name set by
-@code{xmalloc_set_program_name},
-if any) and then call @code{xexit}.  Note that it is therefore safe for
-a program to contain @code{#define malloc xmalloc} in its source.
-
-@end deftypefn
-
-@deftypefn Replacement void* xrealloc (void *@var{ptr}, size_t @var{size})
-Reallocate memory without fail.  This routine functions like @code{realloc},
-but will behave the same as @code{xmalloc} if memory cannot be found.
-
-@end deftypefn
-
-@deftypefn Replacement void* xcalloc (size_t @var{nelem}, size_t @var{elsize})
-
-Allocate memory without fail, and set it to zero.  This routine functions
-like @code{calloc}, but will behave the same as @code{xmalloc} if memory
-cannot be found.
-
-@end deftypefn
-
-@deftypefn Replacement void xmalloc_set_program_name (const char *@var{name})
-
-You can use this to set the name of the program used by
-@code{xmalloc_failed} when printing a failure message.
-
-@end deftypefn
-
-@deftypefn Replacement void xmalloc_failed (size_t)
-
-This function is not meant to be called by client code, and is listed
-here for completeness only.  If any of the allocation routines fail, this
-function will be called to print an error message and terminate execution.
-
-@end deftypefn
-
-*/
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
 #include "ansidecl.h"
 #include "libiberty.h"
 
 #include <stdio.h>
 
+#ifdef __STDC__
 #include <stddef.h>
+#else
+#define size_t unsigned long
+#define ptrdiff_t long
+#endif
 
 #if VMS
 #include <stdlib.h>
 #include <unixlib.h>
 #else
 /* For systems with larger pointers than ints, these must be declared.  */
-#  if HAVE_STDLIB_H && HAVE_UNISTD_H && HAVE_DECL_MALLOC \
-      && HAVE_DECL_REALLOC && HAVE_DECL_CALLOC && HAVE_DECL_SBRK
-#    include <stdlib.h>
-#    include <unistd.h>
-#  else
-#    ifdef __cplusplus
-extern "C" {
-#    endif /* __cplusplus */
-void *malloc (size_t);
-void *realloc (void *, size_t);
-void *calloc (size_t, size_t);
-void *sbrk (ptrdiff_t);
-#    ifdef __cplusplus
-}
-#    endif /* __cplusplus */
-#  endif /* HAVE_STDLIB_H ...  */
-#endif /* VMS */
+PTR malloc PARAMS ((size_t));
+PTR realloc PARAMS ((PTR, size_t));
+PTR calloc PARAMS ((size_t, size_t));
+PTR sbrk PARAMS ((ptrdiff_t));
+#endif
 
 /* The program name if set.  */
 static const char *name = "";
 
-#ifdef HAVE_SBRK
+#if !defined (__CYGWIN__) && defined (__CYGWIN32__)
+#define __CYGWIN__ 1
+#endif
+
+#if ! defined (_WIN32) || defined (__CYGWIN__) || defined (__UWIN__)
 /* The initial sbrk, set when the program name is set. Not used for win32
    ports other than cygwin32.  */
 static char *first_break = NULL;
-#endif /* HAVE_SBRK */
+#endif /* ! _WIN32 || __CYGWIN __ || __UWIN__ */
 
 void
-xmalloc_set_program_name (const char *s)
+xmalloc_set_program_name (s)
+     const char *s;
 {
   name = s;
-#ifdef HAVE_SBRK
+#if ! defined (_WIN32) || defined (__CYGWIN__) || defined (__UWIN__)
   /* Win32 ports other than cygwin32 don't have brk() */
   if (first_break == NULL)
     first_break = (char *) sbrk (0);
-#endif /* HAVE_SBRK */
+#endif /* ! _WIN32 || __CYGWIN __ || __UWIN__ */
 }
 
-void
-xmalloc_failed (size_t size)
-{
-#ifdef HAVE_SBRK
-  extern char **environ;
-  size_t allocated;
-
-  if (first_break != NULL)
-    allocated = (char *) sbrk (0) - first_break;
-  else
-    allocated = (char *) sbrk (0) - (char *) &environ;
-  fprintf (stderr,
-	   "\n%s%sout of memory allocating %lu bytes after a total of %lu bytes\n",
-	   name, *name ? ": " : "",
-	   (unsigned long) size, (unsigned long) allocated);
-#else /* HAVE_SBRK */
-  fprintf (stderr,
-	   "\n%s%sout of memory allocating %lu bytes\n",
-	   name, *name ? ": " : "",
-	   (unsigned long) size);
-#endif /* HAVE_SBRK */
-  xexit (1);
-}  
-
 PTR
-xmalloc (size_t size)
+xmalloc (size)
+    size_t size;
 {
   PTR newmem;
 
@@ -146,13 +75,33 @@ xmalloc (size_t size)
     size = 1;
   newmem = malloc (size);
   if (!newmem)
-    xmalloc_failed (size);
+    {
+#if ! defined (_WIN32) || defined (__CYGWIN__) || defined (__UWIN__)
+      extern char **environ;
+      size_t allocated;
 
+      if (first_break != NULL)
+	allocated = (char *) sbrk (0) - first_break;
+      else
+	allocated = (char *) sbrk (0) - (char *) &environ;
+      fprintf (stderr,
+	       "\n%s%sCan not allocate %lu bytes after allocating %lu bytes\n",
+	       name, *name ? ": " : "",
+	       (unsigned long) size, (unsigned long) allocated);
+#else
+      fprintf (stderr,
+              "\n%s%sCan not allocate %lu bytes\n",
+              name, *name ? ": " : "",
+              (unsigned long) size);
+#endif /* ! _WIN32 || __CYGWIN __ || __UWIN__ */
+      xexit (1);
+    }
   return (newmem);
 }
 
 PTR
-xcalloc (size_t nelem, size_t elsize)
+xcalloc (nelem, elsize)
+  size_t nelem, elsize;
 {
   PTR newmem;
 
@@ -161,13 +110,34 @@ xcalloc (size_t nelem, size_t elsize)
 
   newmem = calloc (nelem, elsize);
   if (!newmem)
-    xmalloc_failed (nelem * elsize);
+    {
+#if ! defined (_WIN32) || defined (__CYGWIN__)
+      extern char **environ;
+      size_t allocated;
 
+      if (first_break != NULL)
+	allocated = (char *) sbrk (0) - first_break;
+      else
+	allocated = (char *) sbrk (0) - (char *) &environ;
+      fprintf (stderr,
+	       "\n%s%sCan not allocate %lu bytes after allocating %lu bytes\n",
+	       name, *name ? ": " : "",
+	       (unsigned long) (nelem * elsize), (unsigned long) allocated);
+#else
+      fprintf (stderr,
+              "\n%s%sCan not allocate %lu bytes\n",
+              name, *name ? ": " : "",
+              (unsigned long) (nelem * elsize));
+#endif /* ! _WIN32 || __CYGWIN __ */
+      xexit (1);
+    }
   return (newmem);
 }
 
 PTR
-xrealloc (PTR oldmem, size_t size)
+xrealloc (oldmem, size)
+    PTR oldmem;
+    size_t size;
 {
   PTR newmem;
 
@@ -178,7 +148,26 @@ xrealloc (PTR oldmem, size_t size)
   else
     newmem = realloc (oldmem, size);
   if (!newmem)
-    xmalloc_failed (size);
+    {
+#ifndef __MINGW32__
+      extern char **environ;
+      size_t allocated;
 
+      if (first_break != NULL)
+	allocated = (char *) sbrk (0) - first_break;
+      else
+	allocated = (char *) sbrk (0) - (char *) &environ;
+      fprintf (stderr,
+	       "\n%s%sCan not reallocate %lu bytes after allocating %lu bytes\n",
+	       name, *name ? ": " : "",
+	       (unsigned long) size, (unsigned long) allocated);
+#else
+      fprintf (stderr,
+              "\n%s%sCan not reallocate %lu bytes\n",
+              name, *name ? ": " : "",
+              (unsigned long) size);
+#endif /* __MINGW32__ */
+      xexit (1);
+    }
   return (newmem);
 }

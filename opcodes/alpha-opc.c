@@ -1,28 +1,27 @@
 /* alpha-opc.c -- Alpha AXP opcode list
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2007
-   Free Software Foundation, Inc.
+   Copyright (c) 1996, 1998, 1999 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@cygnus.com>,
    patterned after the PPC opcode handling written by Ian Lance Taylor.
 
-   This file is part of libopcodes.
+   This file is part of GDB, GAS, and the GNU binutils.
 
-   This library is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3, or (at your option)
-   any later version.
+   GDB, GAS, and the GNU binutils are free software; you can redistribute
+   them and/or modify them under the terms of the GNU General Public
+   License as published by the Free Software Foundation; either version
+   2, or (at your option) any later version.
 
-   It is distributed in the hope that it will be useful, but WITHOUT
-   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
-   License for more details.
+   GDB, GAS, and the GNU binutils are distributed in the hope that they
+   will be useful, but WITHOUT ANY WARRANTY; without even the implied
+   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
+   the GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
    along with this file; see the file COPYING.  If not, write to the
-   Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
-   02110-1301, USA.  */
+   Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
 #include <stdio.h>
-#include "sysdep.h"
+#include "ansidecl.h"
 #include "opcode/alpha.h"
 #include "bfd.h"
 #include "opintl.h"
@@ -31,10 +30,10 @@
    almost all of the extended instruction mnemonics.  This permits the
    disassembler to use them, and simplifies the assembler logic, at the
    cost of increasing the table size.  The table is strictly constant
-   data, so the compiler should be able to put it in the text segment.
+   data, so the compiler should be able to put it in the .text section.
 
    This file also holds the operand table.  All knowledge about inserting
-   and extracting operands from instructions is kept in this file.
+   operands into instructions and vice-versa is kept in this file.
 
    The information for the base instruction set was compiled from the
    _Alpha Architecture Handbook_, Digital Order Number EC-QD2KB-TE,
@@ -54,21 +53,181 @@
    _Alpha 21164 Microprocessor Hardware Reference Manual_, Digital
    Order Number EC-QAEQB-TE, preliminary revision dated April 1995.  */
 
+/* Local insertion and extraction functions */
+
+static unsigned insert_rba PARAMS((unsigned, int, const char **));
+static unsigned insert_rca PARAMS((unsigned, int, const char **));
+static unsigned insert_za PARAMS((unsigned, int, const char **));
+static unsigned insert_zb PARAMS((unsigned, int, const char **));
+static unsigned insert_zc PARAMS((unsigned, int, const char **));
+static unsigned insert_bdisp PARAMS((unsigned, int, const char **));
+static unsigned insert_jhint PARAMS((unsigned, int, const char **));
+static unsigned insert_ev6hwjhint PARAMS((unsigned, int, const char **));
+
+static int extract_rba PARAMS((unsigned, int *));
+static int extract_rca PARAMS((unsigned, int *));
+static int extract_za PARAMS((unsigned, int *));
+static int extract_zb PARAMS((unsigned, int *));
+static int extract_zc PARAMS((unsigned, int *));
+static int extract_bdisp PARAMS((unsigned, int *));
+static int extract_jhint PARAMS((unsigned, int *));
+static int extract_ev6hwjhint PARAMS((unsigned, int *));
+
+
+/* The operands table  */
+
+const struct alpha_operand alpha_operands[] =
+{
+  /* The fields are bits, shift, insert, extract, flags */
+  /* The zero index is used to indicate end-of-list */
+#define UNUSED		0
+  { 0, 0, 0, 0, 0 },
+
+  /* The plain integer register fields */
+#define RA		(UNUSED + 1)
+  { 5, 21, 0, AXP_OPERAND_IR, 0, 0 },
+#define RB		(RA + 1)
+  { 5, 16, 0, AXP_OPERAND_IR, 0, 0 },
+#define RC		(RB + 1)
+  { 5, 0, 0, AXP_OPERAND_IR, 0, 0 },
+
+  /* The plain fp register fields */
+#define FA		(RC + 1)
+  { 5, 21, 0, AXP_OPERAND_FPR, 0, 0 },
+#define FB		(FA + 1)
+  { 5, 16, 0, AXP_OPERAND_FPR, 0, 0 },
+#define FC		(FB + 1)
+  { 5, 0, 0, AXP_OPERAND_FPR, 0, 0 },
+
+  /* The integer registers when they are ZERO */
+#define ZA		(FC + 1)
+  { 5, 21, 0, AXP_OPERAND_FAKE, insert_za, extract_za },
+#define ZB		(ZA + 1)
+  { 5, 16, 0, AXP_OPERAND_FAKE, insert_zb, extract_zb },
+#define ZC		(ZB + 1)
+  { 5, 0, 0, AXP_OPERAND_FAKE, insert_zc, extract_zc },
+
+  /* The RB field when it needs parentheses */
+#define PRB		(ZC + 1)
+  { 5, 16, 0, AXP_OPERAND_IR|AXP_OPERAND_PARENS, 0, 0 },
+
+  /* The RB field when it needs parentheses _and_ a preceding comma */
+#define CPRB		(PRB + 1)
+  { 5, 16, 0,
+    AXP_OPERAND_IR|AXP_OPERAND_PARENS|AXP_OPERAND_COMMA, 0, 0 },
+
+  /* The RB field when it must be the same as the RA field */
+#define RBA		(CPRB + 1)
+  { 5, 16, 0, AXP_OPERAND_FAKE, insert_rba, extract_rba },
+
+  /* The RC field when it must be the same as the RB field */
+#define RCA		(RBA + 1)
+  { 5, 0, 0, AXP_OPERAND_FAKE, insert_rca, extract_rca },
+
+  /* The RC field when it can *default* to RA */
+#define DRC1		(RCA + 1)
+  { 5, 0, 0,
+    AXP_OPERAND_IR|AXP_OPERAND_DEFAULT_FIRST, 0, 0 },
+
+  /* The RC field when it can *default* to RB */
+#define DRC2		(DRC1 + 1)
+  { 5, 0, 0,
+    AXP_OPERAND_IR|AXP_OPERAND_DEFAULT_SECOND, 0, 0 },
+
+  /* The FC field when it can *default* to RA */
+#define DFC1		(DRC2 + 1)
+  { 5, 0, 0,
+    AXP_OPERAND_FPR|AXP_OPERAND_DEFAULT_FIRST, 0, 0 },
+
+  /* The FC field when it can *default* to RB */
+#define DFC2		(DFC1 + 1)
+  { 5, 0, 0,
+    AXP_OPERAND_FPR|AXP_OPERAND_DEFAULT_SECOND, 0, 0 },
+
+  /* The unsigned 8-bit literal of Operate format insns */
+#define LIT		(DFC2 + 1)
+  { 8, 13, -LIT, AXP_OPERAND_UNSIGNED, 0, 0 },
+
+  /* The signed 16-bit displacement of Memory format insns.  From here
+     we can't tell what relocation should be used, so don't use a default. */
+#define MDISP		(LIT + 1)
+  { 16, 0, -MDISP, AXP_OPERAND_SIGNED, 0, 0 },
+
+  /* The signed "23-bit" aligned displacement of Branch format insns */
+#define BDISP		(MDISP + 1)
+  { 21, 0, BFD_RELOC_23_PCREL_S2, 
+    AXP_OPERAND_RELATIVE, insert_bdisp, extract_bdisp },
+
+  /* The 26-bit PALcode function */
+#define PALFN		(BDISP + 1)
+  { 26, 0, -PALFN, AXP_OPERAND_UNSIGNED, 0, 0 },
+
+  /* The optional signed "16-bit" aligned displacement of the JMP/JSR hint */
+#define JMPHINT		(PALFN + 1)
+  { 14, 0, BFD_RELOC_ALPHA_HINT,
+    AXP_OPERAND_RELATIVE|AXP_OPERAND_DEFAULT_ZERO|AXP_OPERAND_NOOVERFLOW,
+    insert_jhint, extract_jhint },
+
+  /* The optional hint to RET/JSR_COROUTINE */
+#define RETHINT		(JMPHINT + 1)
+  { 14, 0, -RETHINT,
+    AXP_OPERAND_UNSIGNED|AXP_OPERAND_DEFAULT_ZERO, 0, 0 },
+
+  /* The 12-bit displacement for the ev[46] hw_{ld,st} (pal1b/pal1f) insns */
+#define EV4HWDISP	(RETHINT + 1)
+#define EV6HWDISP	(EV4HWDISP)
+  { 12, 0, -EV4HWDISP, AXP_OPERAND_SIGNED, 0, 0 },
+
+  /* The 5-bit index for the ev4 hw_m[ft]pr (pal19/pal1d) insns */
+#define EV4HWINDEX	(EV4HWDISP + 1)
+  { 5, 0, -EV4HWINDEX, AXP_OPERAND_UNSIGNED, 0, 0 },
+
+  /* The 8-bit index for the oddly unqualified hw_m[tf]pr insns
+     that occur in DEC PALcode.  */
+#define EV4EXTHWINDEX	(EV4HWINDEX + 1)
+  { 8, 0, -EV4EXTHWINDEX, AXP_OPERAND_UNSIGNED, 0, 0 },
+
+  /* The 10-bit displacement for the ev5 hw_{ld,st} (pal1b/pal1f) insns */
+#define EV5HWDISP	(EV4EXTHWINDEX + 1)
+  { 10, 0, -EV5HWDISP, AXP_OPERAND_SIGNED, 0, 0 },
+
+  /* The 16-bit index for the ev5 hw_m[ft]pr (pal19/pal1d) insns */
+#define EV5HWINDEX	(EV5HWDISP + 1)
+  { 16, 0, -EV5HWINDEX, AXP_OPERAND_UNSIGNED, 0, 0 },
+
+  /* The 16-bit combined index/scoreboard mask for the ev6
+     hw_m[ft]pr (pal19/pal1d) insns */
+#define EV6HWINDEX	(EV5HWINDEX + 1)
+  { 16, 0, -EV6HWINDEX, AXP_OPERAND_UNSIGNED, 0, 0 },
+
+  /* The 13-bit branch hint for the ev6 hw_jmp/jsr (pal1e) insn */
+#define EV6HWJMPHINT	(EV6HWINDEX+ 1)
+  { 8, 0, -EV6HWJMPHINT,
+    AXP_OPERAND_RELATIVE|AXP_OPERAND_DEFAULT_ZERO|AXP_OPERAND_NOOVERFLOW,
+    insert_ev6hwjhint, extract_ev6hwjhint }
+};
+
+const int alpha_num_operands = sizeof(alpha_operands)/sizeof(*alpha_operands);
+
 /* The RB field when it is the same as the RA field in the same insn.
    This operand is marked fake.  The insertion function just copies
    the RA field into the RB field, and the extraction function just
    checks that the fields are the same. */
 
+/*ARGSUSED*/
 static unsigned
-insert_rba (unsigned insn,
-	    int value ATTRIBUTE_UNUSED,
-	    const char **errmsg ATTRIBUTE_UNUSED)
+insert_rba(insn, value, errmsg)
+     unsigned insn;
+     int value;
+     const char **errmsg;
 {
   return insn | (((insn >> 21) & 0x1f) << 16);
 }
 
 static int
-extract_rba (unsigned insn, int *invalid)
+extract_rba(insn, invalid)
+     unsigned insn;
+     int *invalid;
 {
   if (invalid != (int *) NULL
       && ((insn >> 21) & 0x1f) != ((insn >> 16) & 0x1f))
@@ -76,18 +235,23 @@ extract_rba (unsigned insn, int *invalid)
   return 0;
 }
 
-/* The same for the RC field.  */
 
+/* The same for the RC field */
+
+/*ARGSUSED*/
 static unsigned
-insert_rca (unsigned insn,
-	    int value ATTRIBUTE_UNUSED,
-	    const char **errmsg ATTRIBUTE_UNUSED)
+insert_rca(insn, value, errmsg)
+     unsigned insn;
+     int value;
+     const char **errmsg;
 {
   return insn | ((insn >> 21) & 0x1f);
 }
 
 static int
-extract_rca (unsigned insn, int *invalid)
+extract_rca(insn, invalid)
+     unsigned insn;
+     int *invalid;
 {
   if (invalid != (int *) NULL
       && ((insn >> 21) & 0x1f) != (insn & 0x1f))
@@ -95,50 +259,63 @@ extract_rca (unsigned insn, int *invalid)
   return 0;
 }
 
-/* Fake arguments in which the registers must be set to ZERO.  */
 
+/* Fake arguments in which the registers must be set to ZERO */
+
+/*ARGSUSED*/
 static unsigned
-insert_za (unsigned insn,
-	   int value ATTRIBUTE_UNUSED,
-	   const char **errmsg ATTRIBUTE_UNUSED)
+insert_za(insn, value, errmsg)
+     unsigned insn;
+     int value;
+     const char **errmsg;
 {
   return insn | (31 << 21);
 }
 
 static int
-extract_za (unsigned insn, int *invalid)
+extract_za(insn, invalid)
+     unsigned insn;
+     int *invalid;
 {
   if (invalid != (int *) NULL && ((insn >> 21) & 0x1f) != 31)
     *invalid = 1;
   return 0;
 }
 
+/*ARGSUSED*/
 static unsigned
-insert_zb (unsigned insn,
-	   int value ATTRIBUTE_UNUSED,
-	   const char **errmsg ATTRIBUTE_UNUSED)
+insert_zb(insn, value, errmsg)
+     unsigned insn;
+     int value;
+     const char **errmsg;
 {
   return insn | (31 << 16);
 }
 
 static int
-extract_zb (unsigned insn, int *invalid)
+extract_zb(insn, invalid)
+     unsigned insn;
+     int *invalid;
 {
   if (invalid != (int *) NULL && ((insn >> 16) & 0x1f) != 31)
     *invalid = 1;
   return 0;
 }
 
+/*ARGSUSED*/
 static unsigned
-insert_zc (unsigned insn,
-	   int value ATTRIBUTE_UNUSED,
-	   const char **errmsg ATTRIBUTE_UNUSED)
+insert_zc(insn, value, errmsg)
+     unsigned insn;
+     int value;
+     const char **errmsg;
 {
   return insn | 31;
 }
 
 static int
-extract_zc (unsigned insn, int *invalid)
+extract_zc(insn, invalid)
+     unsigned insn;
+     int *invalid;
 {
   if (invalid != (int *) NULL && (insn & 0x1f) != 31)
     *invalid = 1;
@@ -149,31 +326,44 @@ extract_zc (unsigned insn, int *invalid)
 /* The displacement field of a Branch format insn.  */
 
 static unsigned
-insert_bdisp (unsigned insn, int value, const char **errmsg)
+insert_bdisp(insn, value, errmsg)
+     unsigned insn;
+     int value;
+     const char **errmsg;
 {
   if (errmsg != (const char **)NULL && (value & 3))
     *errmsg = _("branch operand unaligned");
   return insn | ((value / 4) & 0x1FFFFF);
 }
 
+/*ARGSUSED*/
 static int
-extract_bdisp (unsigned insn, int *invalid ATTRIBUTE_UNUSED)
+extract_bdisp(insn, invalid)
+     unsigned insn;
+     int *invalid;
 {
   return 4 * (((insn & 0x1FFFFF) ^ 0x100000) - 0x100000);
 }
 
+
 /* The hint field of a JMP/JSR insn.  */
 
 static unsigned
-insert_jhint (unsigned insn, int value, const char **errmsg)
+insert_jhint(insn, value, errmsg)
+     unsigned insn;
+     int value;
+     const char **errmsg;
 {
   if (errmsg != (const char **)NULL && (value & 3))
     *errmsg = _("jump hint unaligned");
   return insn | ((value / 4) & 0x3FFF);
 }
 
+/*ARGSUSED*/
 static int
-extract_jhint (unsigned insn, int *invalid ATTRIBUTE_UNUSED)
+extract_jhint(insn, invalid)
+     unsigned insn;
+     int *invalid;
 {
   return 4 * (((insn & 0x3FFF) ^ 0x2000) - 0x2000);
 }
@@ -181,205 +371,76 @@ extract_jhint (unsigned insn, int *invalid ATTRIBUTE_UNUSED)
 /* The hint field of an EV6 HW_JMP/JSR insn.  */
 
 static unsigned
-insert_ev6hwjhint (unsigned insn, int value, const char **errmsg)
+insert_ev6hwjhint(insn, value, errmsg)
+     unsigned insn;
+     int value;
+     const char **errmsg;
 {
   if (errmsg != (const char **)NULL && (value & 3))
     *errmsg = _("jump hint unaligned");
   return insn | ((value / 4) & 0x1FFF);
 }
 
+/*ARGSUSED*/
 static int
-extract_ev6hwjhint (unsigned insn, int *invalid ATTRIBUTE_UNUSED)
+extract_ev6hwjhint(insn, invalid)
+     unsigned insn;
+     int *invalid;
 {
   return 4 * (((insn & 0x1FFF) ^ 0x1000) - 0x1000);
 }
-
-/* The operands table.   */
-
-const struct alpha_operand alpha_operands[] =
-{
-  /* The fields are bits, shift, insert, extract, flags */
-  /* The zero index is used to indicate end-of-list */
-#define UNUSED		0
-  { 0, 0, 0, 0, 0, 0 },
-
-  /* The plain integer register fields.  */
-#define RA		(UNUSED + 1)
-  { 5, 21, 0, AXP_OPERAND_IR, 0, 0 },
-#define RB		(RA + 1)
-  { 5, 16, 0, AXP_OPERAND_IR, 0, 0 },
-#define RC		(RB + 1)
-  { 5, 0, 0, AXP_OPERAND_IR, 0, 0 },
-
-  /* The plain fp register fields.  */
-#define FA		(RC + 1)
-  { 5, 21, 0, AXP_OPERAND_FPR, 0, 0 },
-#define FB		(FA + 1)
-  { 5, 16, 0, AXP_OPERAND_FPR, 0, 0 },
-#define FC		(FB + 1)
-  { 5, 0, 0, AXP_OPERAND_FPR, 0, 0 },
-
-  /* The integer registers when they are ZERO.  */
-#define ZA		(FC + 1)
-  { 5, 21, 0, AXP_OPERAND_FAKE, insert_za, extract_za },
-#define ZB		(ZA + 1)
-  { 5, 16, 0, AXP_OPERAND_FAKE, insert_zb, extract_zb },
-#define ZC		(ZB + 1)
-  { 5, 0, 0, AXP_OPERAND_FAKE, insert_zc, extract_zc },
-
-  /* The RB field when it needs parentheses.  */
-#define PRB		(ZC + 1)
-  { 5, 16, 0, AXP_OPERAND_IR|AXP_OPERAND_PARENS, 0, 0 },
-
-  /* The RB field when it needs parentheses _and_ a preceding comma.  */
-#define CPRB		(PRB + 1)
-  { 5, 16, 0,
-    AXP_OPERAND_IR|AXP_OPERAND_PARENS|AXP_OPERAND_COMMA, 0, 0 },
-
-  /* The RB field when it must be the same as the RA field.  */
-#define RBA		(CPRB + 1)
-  { 5, 16, 0, AXP_OPERAND_FAKE, insert_rba, extract_rba },
-
-  /* The RC field when it must be the same as the RB field.  */
-#define RCA		(RBA + 1)
-  { 5, 0, 0, AXP_OPERAND_FAKE, insert_rca, extract_rca },
-
-  /* The RC field when it can *default* to RA.  */
-#define DRC1		(RCA + 1)
-  { 5, 0, 0,
-    AXP_OPERAND_IR|AXP_OPERAND_DEFAULT_FIRST, 0, 0 },
-
-  /* The RC field when it can *default* to RB.  */
-#define DRC2		(DRC1 + 1)
-  { 5, 0, 0,
-    AXP_OPERAND_IR|AXP_OPERAND_DEFAULT_SECOND, 0, 0 },
-
-  /* The FC field when it can *default* to RA.  */
-#define DFC1		(DRC2 + 1)
-  { 5, 0, 0,
-    AXP_OPERAND_FPR|AXP_OPERAND_DEFAULT_FIRST, 0, 0 },
-
-  /* The FC field when it can *default* to RB.  */
-#define DFC2		(DFC1 + 1)
-  { 5, 0, 0,
-    AXP_OPERAND_FPR|AXP_OPERAND_DEFAULT_SECOND, 0, 0 },
-
-  /* The unsigned 8-bit literal of Operate format insns.  */
-#define LIT		(DFC2 + 1)
-  { 8, 13, -LIT, AXP_OPERAND_UNSIGNED, 0, 0 },
-
-  /* The signed 16-bit displacement of Memory format insns.  From here
-     we can't tell what relocation should be used, so don't use a default.  */
-#define MDISP		(LIT + 1)
-  { 16, 0, -MDISP, AXP_OPERAND_SIGNED, 0, 0 },
-
-  /* The signed "23-bit" aligned displacement of Branch format insns.  */
-#define BDISP		(MDISP + 1)
-  { 21, 0, BFD_RELOC_23_PCREL_S2, 
-    AXP_OPERAND_RELATIVE, insert_bdisp, extract_bdisp },
-
-  /* The 26-bit PALcode function */
-#define PALFN		(BDISP + 1)
-  { 26, 0, -PALFN, AXP_OPERAND_UNSIGNED, 0, 0 },
-
-  /* The optional signed "16-bit" aligned displacement of the JMP/JSR hint.  */
-#define JMPHINT		(PALFN + 1)
-  { 14, 0, BFD_RELOC_ALPHA_HINT,
-    AXP_OPERAND_RELATIVE|AXP_OPERAND_DEFAULT_ZERO|AXP_OPERAND_NOOVERFLOW,
-    insert_jhint, extract_jhint },
-
-  /* The optional hint to RET/JSR_COROUTINE.  */
-#define RETHINT		(JMPHINT + 1)
-  { 14, 0, -RETHINT,
-    AXP_OPERAND_UNSIGNED|AXP_OPERAND_DEFAULT_ZERO, 0, 0 },
-
-  /* The 12-bit displacement for the ev[46] hw_{ld,st} (pal1b/pal1f) insns.  */
-#define EV4HWDISP	(RETHINT + 1)
-#define EV6HWDISP	(EV4HWDISP)
-  { 12, 0, -EV4HWDISP, AXP_OPERAND_SIGNED, 0, 0 },
-
-  /* The 5-bit index for the ev4 hw_m[ft]pr (pal19/pal1d) insns.  */
-#define EV4HWINDEX	(EV4HWDISP + 1)
-  { 5, 0, -EV4HWINDEX, AXP_OPERAND_UNSIGNED, 0, 0 },
-
-  /* The 8-bit index for the oddly unqualified hw_m[tf]pr insns
-     that occur in DEC PALcode.  */
-#define EV4EXTHWINDEX	(EV4HWINDEX + 1)
-  { 8, 0, -EV4EXTHWINDEX, AXP_OPERAND_UNSIGNED, 0, 0 },
-
-  /* The 10-bit displacement for the ev5 hw_{ld,st} (pal1b/pal1f) insns.  */
-#define EV5HWDISP	(EV4EXTHWINDEX + 1)
-  { 10, 0, -EV5HWDISP, AXP_OPERAND_SIGNED, 0, 0 },
-
-  /* The 16-bit index for the ev5 hw_m[ft]pr (pal19/pal1d) insns.  */
-#define EV5HWINDEX	(EV5HWDISP + 1)
-  { 16, 0, -EV5HWINDEX, AXP_OPERAND_UNSIGNED, 0, 0 },
-
-  /* The 16-bit combined index/scoreboard mask for the ev6
-     hw_m[ft]pr (pal19/pal1d) insns.  */
-#define EV6HWINDEX	(EV5HWINDEX + 1)
-  { 16, 0, -EV6HWINDEX, AXP_OPERAND_UNSIGNED, 0, 0 },
-
-  /* The 13-bit branch hint for the ev6 hw_jmp/jsr (pal1e) insn.  */
-#define EV6HWJMPHINT	(EV6HWINDEX+ 1)
-  { 8, 0, -EV6HWJMPHINT,
-    AXP_OPERAND_RELATIVE|AXP_OPERAND_DEFAULT_ZERO|AXP_OPERAND_NOOVERFLOW,
-    insert_ev6hwjhint, extract_ev6hwjhint }
-};
-
-const unsigned alpha_num_operands = sizeof(alpha_operands)/sizeof(*alpha_operands);
 
 
-/* Macros used to form opcodes.  */
+/* Macros used to form opcodes */
 
-/* The main opcode.  */
+/* The main opcode */
 #define OP(x)		(((x) & 0x3F) << 26)
 #define OP_MASK		0xFC000000
 
-/* Branch format instructions.  */
+/* Branch format instructions */
 #define BRA_(oo)	OP(oo)
 #define BRA_MASK	OP_MASK
 #define BRA(oo)		BRA_(oo), BRA_MASK
 
-/* Floating point format instructions.  */
+/* Floating point format instructions */
 #define FP_(oo,fff)	(OP(oo) | (((fff) & 0x7FF) << 5))
 #define FP_MASK		(OP_MASK | 0xFFE0)
 #define FP(oo,fff)	FP_(oo,fff), FP_MASK
 
-/* Memory format instructions.  */
+/* Memory format instructions */
 #define MEM_(oo)	OP(oo)
 #define MEM_MASK	OP_MASK
 #define MEM(oo)		MEM_(oo), MEM_MASK
 
-/* Memory/Func Code format instructions.  */
+/* Memory/Func Code format instructions */
 #define MFC_(oo,ffff)	(OP(oo) | ((ffff) & 0xFFFF))
 #define MFC_MASK	(OP_MASK | 0xFFFF)
 #define MFC(oo,ffff)	MFC_(oo,ffff), MFC_MASK
 
-/* Memory/Branch format instructions.  */
+/* Memory/Branch format instructions */
 #define MBR_(oo,h)	(OP(oo) | (((h) & 3) << 14))
 #define MBR_MASK	(OP_MASK | 0xC000)
 #define MBR(oo,h)	MBR_(oo,h), MBR_MASK
 
 /* Operate format instructions.  The OPRL variant specifies a
-   literal second argument.  */
+   literal second argument. */
 #define OPR_(oo,ff)	(OP(oo) | (((ff) & 0x7F) << 5))
 #define OPRL_(oo,ff)	(OPR_((oo),(ff)) | 0x1000)
 #define OPR_MASK	(OP_MASK | 0x1FE0)
 #define OPR(oo,ff)	OPR_(oo,ff), OPR_MASK
 #define OPRL(oo,ff)	OPRL_(oo,ff), OPR_MASK
 
-/* Generic PALcode format instructions.  */
+/* Generic PALcode format instructions */
 #define PCD_(oo)	OP(oo)
 #define PCD_MASK	OP_MASK
 #define PCD(oo)		PCD_(oo), PCD_MASK
 
-/* Specific PALcode instructions.  */
+/* Specific PALcode instructions */
 #define SPCD_(oo,ffff)	(OP(oo) | ((ffff) & 0x3FFFFFF))
 #define SPCD_MASK	0xFFFFFFFF
 #define SPCD(oo,ffff)	SPCD_(oo,ffff), SPCD_MASK
 
-/* Hardware memory (hw_{ld,st}) instructions.  */
+/* Hardware memory (hw_{ld,st}) instructions */
 #define EV4HWMEM_(oo,f)	(OP(oo) | (((f) & 0xF) << 12))
 #define EV4HWMEM_MASK	(OP_MASK | 0xF000)
 #define EV4HWMEM(oo,f)	EV4HWMEM_(oo,f), EV4HWMEM_MASK
@@ -405,7 +466,7 @@ const unsigned alpha_num_operands = sizeof(alpha_operands)/sizeof(*alpha_operand
 #define CIX			AXP_OPCODE_CIX
 #define MAX			AXP_OPCODE_MAX
 
-/* Common combinations of arguments.  */
+/* Common combinations of arguments */
 #define ARG_NONE		{ 0 }
 #define ARG_BRA			{ RA, BDISP }
 #define ARG_FBRA		{ FA, BDISP }
@@ -465,30 +526,23 @@ const unsigned alpha_num_operands = sizeof(alpha_operands)/sizeof(*alpha_operand
 
    EV56 UNA	opcodes that were introduced as of the ev56 with
    		presumably undefined results on previous implementations
-		that were not assigned to a particular extension.  */
+		that were not assigned to a particular extension.
+*/
 
-const struct alpha_opcode alpha_opcodes[] =
-{
+const struct alpha_opcode alpha_opcodes[] = {
   { "halt",		SPCD(0x00,0x0000), BASE, ARG_NONE },
   { "draina",		SPCD(0x00,0x0002), BASE, ARG_NONE },
   { "bpt",		SPCD(0x00,0x0080), BASE, ARG_NONE },
-  { "bugchk",		SPCD(0x00,0x0081), BASE, ARG_NONE },
   { "callsys",		SPCD(0x00,0x0083), BASE, ARG_NONE },
   { "chmk", 		SPCD(0x00,0x0083), BASE, ARG_NONE },
   { "imb",		SPCD(0x00,0x0086), BASE, ARG_NONE },
-  { "rduniq",		SPCD(0x00,0x009e), BASE, ARG_NONE },
-  { "wruniq",		SPCD(0x00,0x009f), BASE, ARG_NONE },
-  { "gentrap",		SPCD(0x00,0x00aa), BASE, ARG_NONE },
   { "call_pal",		PCD(0x00), BASE, ARG_PCD },
   { "pal",		PCD(0x00), BASE, ARG_PCD },		/* alias */
 
-  { "lda",		MEM(0x08), BASE, { RA, MDISP, ZB } },	/* pseudo */
   { "lda",		MEM(0x08), BASE, ARG_MEM },
-  { "ldah",		MEM(0x09), BASE, { RA, MDISP, ZB } },	/* pseudo */
   { "ldah",		MEM(0x09), BASE, ARG_MEM },
   { "ldbu",		MEM(0x0A), BWX, ARG_MEM },
-  { "unop",		MEM_(0x0B) | (30 << 16),
-			MEM_MASK, BASE, { ZA } },		/* pseudo */
+  { "unop",		MEM(0x0B), BASE, { ZA } },		/* pseudo */
   { "ldq_u",		MEM(0x0B), BASE, ARG_MEM },
   { "ldwu",		MEM(0x0C), BWX, ARG_MEM },
   { "stw",		MEM(0x0D), BWX, ARG_MEM },
@@ -1042,15 +1096,13 @@ const struct alpha_opcode alpha_opcodes[] =
   { "excb",		MFC(0x18,0x0400), BASE, ARG_NONE },
   { "mb",		MFC(0x18,0x4000), BASE, ARG_NONE },
   { "wmb",		MFC(0x18,0x4400), BASE, ARG_NONE },
-  { "fetch",		MFC(0x18,0x8000), BASE, { ZA, PRB } },
-  { "fetch_m",		MFC(0x18,0xA000), BASE, { ZA, PRB } },
-  { "rpcc",		MFC(0x18,0xC000), BASE, { RA, ZB } },
-  { "rpcc",		MFC(0x18,0xC000), BASE, { RA, RB } },	/* ev6 una */
+  { "fetch",		MFC(0x18,0x8000), BASE, { PRB } },
+  { "fetch_m",		MFC(0x18,0xA000), BASE, { PRB } },
+  { "rpcc",		MFC(0x18,0xC000), BASE, { RA } },
   { "rc",		MFC(0x18,0xE000), BASE, { RA } },
-  { "ecb",		MFC(0x18,0xE800), BASE, { ZA, PRB } },	/* ev56 una */
+  { "ecb",		MFC(0x18,0xE800), BASE, { PRB } },	/* ev56 una */
   { "rs",		MFC(0x18,0xF000), BASE, { RA } },
-  { "wh64",		MFC(0x18,0xF800), BASE, { ZA, PRB } },	/* ev56 una */
-  { "wh64en",		MFC(0x18,0xFC00), BASE, { ZA, PRB } },	/* ev7 una */
+  { "wh64",		MFC(0x18,0xF800), BASE, { PRB } },	/* ev56 una */
 
   { "hw_mfpr",		OPR(0x19,0x00), EV4, { RA, RBA, EV4EXTHWINDEX } },
   { "hw_mfpr",		OP(0x19), OP_MASK, EV5, { RA, RBA, EV5HWINDEX } },
@@ -1064,12 +1116,8 @@ const struct alpha_opcode alpha_opcodes[] =
   { "hw_mfpr/pai",	OPR(0x19,0x07), EV4, ARG_EV4HWMPR },
   { "pal19",		PCD(0x19), BASE, ARG_PCD },
 
-  { "jmp",		MBR_(0x1A,0), MBR_MASK | 0x3FFF,	/* pseudo */
-			BASE, { ZA, CPRB } },
   { "jmp",		MBR(0x1A,0), BASE, { RA, CPRB, JMPHINT } },
   { "jsr",		MBR(0x1A,1), BASE, { RA, CPRB, JMPHINT } },
-  { "ret",		MBR_(0x1A,2) | (31 << 21) | (26 << 16) | 1,/* pseudo */
-			0xFFFFFFFF, BASE, { 0 } },
   { "ret",		MBR(0x1A,2), BASE, { RA, CPRB, RETHINT } },
   { "jcr",		MBR(0x1A,3), BASE, { RA, CPRB, RETHINT } }, /* alias */
   { "jsr_coroutine",	MBR(0x1A,3), BASE, { RA, CPRB, RETHINT } },
@@ -1495,4 +1543,4 @@ const struct alpha_opcode alpha_opcodes[] =
   { "bgt",		BRA(0x3F), BASE, ARG_BRA },
 };
 
-const unsigned alpha_num_opcodes = sizeof(alpha_opcodes)/sizeof(*alpha_opcodes);
+const int alpha_num_opcodes = sizeof(alpha_opcodes)/sizeof(*alpha_opcodes);

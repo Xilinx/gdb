@@ -10,22 +10,16 @@
  * is provided ``as is'' without express or implied warranty.
  */
 
-/*
-  
-@deftypefn Supplemental int strcasecmp (const char *@var{s1}, const char *@var{s2})
-
-A case-insensitive @code{strcmp}.
-
-@end deftypefn
-
-*/
-
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)strcasecmp.c	5.5 (Berkeley) 11/24/87";
 #endif /* LIBC_SCCS and not lint */
 
 #include <ansidecl.h>
+#ifdef __STDC__
 #include <stddef.h>
+#else
+#define size_t unsigned long
+#endif
 
 /*
  * This array is designed for mapping upper and lower case letter
@@ -33,7 +27,7 @@ static char sccsid[] = "@(#)strcasecmp.c	5.5 (Berkeley) 11/24/87";
  * based upon ascii character sequences.
  */
 typedef unsigned char uc;
-static const unsigned char charmap[] = {
+static unsigned char charmap[] = {
 	(uc)'\000',(uc)'\001',(uc)'\002',(uc)'\003',(uc)'\004',(uc)'\005',(uc)'\006',(uc)'\007',
 	(uc)'\010',(uc)'\011',(uc)'\012',(uc)'\013',(uc)'\014',(uc)'\015',(uc)'\016',(uc)'\017',
 	(uc)'\020',(uc)'\021',(uc)'\022',(uc)'\023',(uc)'\024',(uc)'\025',(uc)'\026',(uc)'\027',
@@ -69,7 +63,8 @@ static const unsigned char charmap[] = {
 };
 
 int
-strcasecmp(const char *s1, const char *s2)
+strcasecmp(s1, s2)
+    const char *s1, *s2;
 {
     register unsigned char u1, u2;
 

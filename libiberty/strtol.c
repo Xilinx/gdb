@@ -10,7 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. [rescinded 22 July 1999]
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -28,39 +31,13 @@
  * SUCH DAMAGE.
  */
 
-/*
-
-@deftypefn Supplemental {long int} strtol (const char *@var{string}, char **@var{endptr}, int @var{base})
-@deftypefnx Supplemental {unsigned long int} strtoul (const char *@var{string}, char **@var{endptr}, int @var{base})
-
-The @code{strtol} function converts the string in @var{string} to a
-long integer value according to the given @var{base}, which must be
-between 2 and 36 inclusive, or be the special value 0.  If @var{base}
-is 0, @code{strtol} will look for the prefixes @code{0} and @code{0x}
-to indicate bases 8 and 16, respectively, else default to base 10.
-When the base is 16 (either explicitly or implicitly), a prefix of
-@code{0x} is allowed.  The handling of @var{endptr} is as that of
-@code{strtod} above.  The @code{strtoul} function is the same, except
-that the converted value is unsigned.
-
-@end deftypefn
-
-*/
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-#ifdef HAVE_LIMITS_H
 #include <limits.h>
-#endif
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
+#include <ctype.h>
 #include <errno.h>
-#ifdef NEED_DECLARATION_ERRNO
-extern int errno;
+#if 0
+#include <stdlib.h>
 #endif
-#include "safe-ctype.h"
+#include "ansidecl.h"
 
 /* FIXME: It'd be nice to configure around these, but the include files are too
    painful.  These macros should at least be more portable than hardwired hex
@@ -85,7 +62,10 @@ extern int errno;
  * alphabets and digits are each contiguous.
  */
 long
-strtol(const char *nptr, char **endptr, register int base)
+strtol(nptr, endptr, base)
+	const char *nptr;
+	char **endptr;
+	register int base;
 {
 	register const char *s = nptr;
 	register unsigned long acc;
@@ -100,7 +80,7 @@ strtol(const char *nptr, char **endptr, register int base)
 	 */
 	do {
 		c = *s++;
-	} while (ISSPACE(c));
+	} while (isspace(c));
 	if (c == '-') {
 		neg = 1;
 		c = *s++;
@@ -136,15 +116,15 @@ strtol(const char *nptr, char **endptr, register int base)
 	cutlim = cutoff % (unsigned long)base;
 	cutoff /= (unsigned long)base;
 	for (acc = 0, any = 0;; c = *s++) {
-		if (ISDIGIT(c))
+		if (isdigit(c))
 			c -= '0';
-		else if (ISALPHA(c))
-			c -= ISUPPER(c) ? 'A' - 10 : 'a' - 10;
+		else if (isalpha(c))
+			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
 		else
 			break;
 		if (c >= base)
 			break;
-		if (any < 0 || acc > cutoff || (acc == cutoff && c > cutlim))
+		if (any < 0 || acc > cutoff || acc == cutoff && c > cutlim)
 			any = -1;
 		else {
 			any = 1;

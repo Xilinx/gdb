@@ -1,43 +1,38 @@
 /* CGEN generic opcode support.
 
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2003, 2005, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
 
-   This file is part of libopcodes.
+   This file is part of the GNU Binutils and GDB, the GNU debugger.
 
-   This library is free software; you can redistribute it and/or modify
+   This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3, or (at your option)
+   the Free Software Foundation; either version 2, or (at your option)
    any later version.
 
-   It is distributed in the hope that it will be useful, but WITHOUT
-   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
-   License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License along
    with this program; if not, write to the Free Software Foundation, Inc.,
-   51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "sysdep.h"
+#include <ctype.h>
 #include <stdio.h>
 #include "ansidecl.h"
 #include "libiberty.h"
-#include "safe-ctype.h"
 #include "bfd.h"
 #include "symcat.h"
 #include "opcode/cgen.h"
 
-#ifdef HAVE_ALLOCA_H
-#include <alloca.h>
-#endif
-
 static unsigned int hash_keyword_name
-  (const CGEN_KEYWORD *, const char *, int);
+  PARAMS ((const CGEN_KEYWORD *, const char *, int));
 static unsigned int hash_keyword_value
-  (const CGEN_KEYWORD *, unsigned int);
+  PARAMS ((const CGEN_KEYWORD *, unsigned int));
 static void build_keyword_hash_tables
-  (CGEN_KEYWORD *);
+  PARAMS ((CGEN_KEYWORD *));
 
 /* Return number of hash table entries to use for N elements.  */
 #define KEYWORD_HASH_SIZE(n) ((n) <= 31 ? 17 : 31)
@@ -46,7 +41,9 @@ static void build_keyword_hash_tables
    The result is the keyword entry or NULL if not found.  */
 
 const CGEN_KEYWORD_ENTRY *
-cgen_keyword_lookup_name (CGEN_KEYWORD *kt, const char *name)
+cgen_keyword_lookup_name (kt, name)
+     CGEN_KEYWORD *kt;
+     const char *name;
 {
   const CGEN_KEYWORD_ENTRY *ke;
   const char *p,*n;
@@ -67,7 +64,9 @@ cgen_keyword_lookup_name (CGEN_KEYWORD *kt, const char *name)
 
       while (*p
 	     && (*p == *n
-		 || (ISALPHA (*p) && (TOLOWER (*p) == TOLOWER (*n)))))
+		 || (isalpha ((unsigned char) *p)
+		     && (tolower ((unsigned char) *p)
+			 == tolower ((unsigned char) *n)))))
 	++n, ++p;
 
       if (!*p && !*n)
@@ -85,7 +84,9 @@ cgen_keyword_lookup_name (CGEN_KEYWORD *kt, const char *name)
    The result is the keyword entry or NULL if not found.  */
 
 const CGEN_KEYWORD_ENTRY *
-cgen_keyword_lookup_value (CGEN_KEYWORD *kt, int value)
+cgen_keyword_lookup_value (kt, value)
+     CGEN_KEYWORD *kt;
+     int value;
 {
   const CGEN_KEYWORD_ENTRY *ke;
 
@@ -107,10 +108,11 @@ cgen_keyword_lookup_value (CGEN_KEYWORD *kt, int value)
 /* Add an entry to a keyword table.  */
 
 void
-cgen_keyword_add (CGEN_KEYWORD *kt, CGEN_KEYWORD_ENTRY *ke)
+cgen_keyword_add (kt, ke)
+     CGEN_KEYWORD *kt;
+     CGEN_KEYWORD_ENTRY *ke;
 {
   unsigned int hash;
-  size_t i;
 
   if (kt->name_hash_table == NULL)
     build_keyword_hash_tables (kt);
@@ -125,21 +127,6 @@ cgen_keyword_add (CGEN_KEYWORD *kt, CGEN_KEYWORD_ENTRY *ke)
 
   if (ke->name[0] == 0)
     kt->null_entry = ke;
-
-  for (i = 1; i < strlen (ke->name); i++)
-    if (! ISALNUM (ke->name[i])
-	&& ! strchr (kt->nonalpha_chars, ke->name[i]))
-      {
-	size_t idx = strlen (kt->nonalpha_chars);
-	
-	/* If you hit this limit, please don't just
-	   increase the size of the field, instead
-	   look for a better algorithm.  */
-	if (idx >= sizeof (kt->nonalpha_chars) - 1)
-	  abort ();
-	kt->nonalpha_chars[idx] = ke->name[i];
-	kt->nonalpha_chars[idx+1] = 0;
-      }
 }
 
 /* FIXME: Need function to return count of keywords.  */
@@ -153,11 +140,13 @@ cgen_keyword_add (CGEN_KEYWORD *kt, CGEN_KEYWORD_ENTRY *ke)
    It is passed to each call to cgen_keyword_search_next.  */
 
 CGEN_KEYWORD_SEARCH
-cgen_keyword_search_init (CGEN_KEYWORD *kt, const char *spec)
+cgen_keyword_search_init (kt, spec)
+     CGEN_KEYWORD *kt;
+     const char *spec;
 {
   CGEN_KEYWORD_SEARCH search;
 
-  /* FIXME: Need to specify format of params.  */
+  /* FIXME: Need to specify format of PARAMS.  */
   if (spec != NULL)
     abort ();
 
@@ -175,7 +164,8 @@ cgen_keyword_search_init (CGEN_KEYWORD *kt, const char *spec)
    The result is the next entry or NULL if there are no more.  */
 
 const CGEN_KEYWORD_ENTRY *
-cgen_keyword_search_next (CGEN_KEYWORD_SEARCH *search)
+cgen_keyword_search_next (search)
+     CGEN_KEYWORD_SEARCH *search;
 {
   /* Has search finished?  */
   if (search->current_hash == search->table->hash_table_size)
@@ -209,9 +199,10 @@ cgen_keyword_search_next (CGEN_KEYWORD_SEARCH *search)
    If CASE_SENSITIVE_P is non-zero, return a case sensitive hash.  */
 
 static unsigned int
-hash_keyword_name (const CGEN_KEYWORD *kt,
-		   const char *name,
-		   int case_sensitive_p)
+hash_keyword_name (kt, name, case_sensitive_p)
+     const CGEN_KEYWORD *kt;
+     const char *name;
+     int case_sensitive_p;
 {
   unsigned int hash;
 
@@ -220,14 +211,16 @@ hash_keyword_name (const CGEN_KEYWORD *kt,
       hash = (hash * 97) + (unsigned char) *name;
   else
     for (hash = 0; *name; ++name)
-      hash = (hash * 97) + (unsigned char) TOLOWER (*name);
+      hash = (hash * 97) + (unsigned char) tolower (*name);
   return hash % kt->hash_table_size;
 }
 
 /* Return first entry in hash chain for VALUE.  */
 
 static unsigned int
-hash_keyword_value (const CGEN_KEYWORD *kt, unsigned int value)
+hash_keyword_value (kt, value)
+     const CGEN_KEYWORD *kt;
+     unsigned int value;
 {
   return value % kt->hash_table_size;
 }
@@ -237,7 +230,8 @@ hash_keyword_value (const CGEN_KEYWORD *kt, unsigned int value)
    we're using the disassembler, but we keep things simple.  */
 
 static void
-build_keyword_hash_tables (CGEN_KEYWORD *kt)
+build_keyword_hash_tables (kt)
+     CGEN_KEYWORD *kt;
 {
   int i;
   /* Use the number of compiled in entries as an estimate for the
@@ -265,9 +259,11 @@ build_keyword_hash_tables (CGEN_KEYWORD *kt)
    mach/isa.  */
 
 const CGEN_HW_ENTRY *
-cgen_hw_lookup_by_name (CGEN_CPU_DESC cd, const char *name)
+cgen_hw_lookup_by_name (cd, name)
+     CGEN_CPU_DESC cd;
+     const char *name;
 {
-  unsigned int i;
+  int i;
   const CGEN_HW_ENTRY **hw = cd->hw_table.entries;
 
   for (i = 0; i < cd->hw_table.num_entries; ++i)
@@ -283,9 +279,11 @@ cgen_hw_lookup_by_name (CGEN_CPU_DESC cd, const char *name)
    Returns NULL if HWNUM is not supported by the currently selected mach.  */
 
 const CGEN_HW_ENTRY *
-cgen_hw_lookup_by_num (CGEN_CPU_DESC cd, unsigned int hwnum)
+cgen_hw_lookup_by_num (cd, hwnum)
+     CGEN_CPU_DESC cd;
+     int hwnum;
 {
-  unsigned int i;
+  int i;
   const CGEN_HW_ENTRY **hw = cd->hw_table.entries;
 
   /* ??? This can be speeded up.  */
@@ -303,9 +301,11 @@ cgen_hw_lookup_by_num (CGEN_CPU_DESC cd, unsigned int hwnum)
    mach/isa.  */
 
 const CGEN_OPERAND *
-cgen_operand_lookup_by_name (CGEN_CPU_DESC cd, const char *name)
+cgen_operand_lookup_by_name (cd, name)
+     CGEN_CPU_DESC cd;
+     const char *name;
 {
-  unsigned int i;
+  int i;
   const CGEN_OPERAND **op = cd->operand_table.entries;
 
   for (i = 0; i < cd->operand_table.num_entries; ++i)
@@ -322,7 +322,9 @@ cgen_operand_lookup_by_name (CGEN_CPU_DESC cd, const char *name)
    mach/isa.  */
 
 const CGEN_OPERAND *
-cgen_operand_lookup_by_num (CGEN_CPU_DESC cd, int opnum)
+cgen_operand_lookup_by_num (cd, opnum)
+     CGEN_CPU_DESC cd;
+     int opnum;
 {
   return cd->operand_table.entries[opnum];
 }
@@ -332,7 +334,8 @@ cgen_operand_lookup_by_num (CGEN_CPU_DESC cd, int opnum)
 /* Return number of instructions.  This includes any added at runtime.  */
 
 int
-cgen_insn_count (CGEN_CPU_DESC cd)
+cgen_insn_count (cd)
+     CGEN_CPU_DESC cd;
 {
   int count = cd->insn_table.num_init_entries;
   CGEN_INSN_LIST *rt_insns = cd->insn_table.new_entries;
@@ -347,7 +350,8 @@ cgen_insn_count (CGEN_CPU_DESC cd)
    This includes any added at runtime.  */
 
 int
-cgen_macro_insn_count (CGEN_CPU_DESC cd)
+cgen_macro_insn_count (cd)
+     CGEN_CPU_DESC cd;
 {
   int count = cd->macro_insn_table.num_init_entries;
   CGEN_INSN_LIST *rt_insns = cd->macro_insn_table.new_entries;
@@ -361,34 +365,32 @@ cgen_macro_insn_count (CGEN_CPU_DESC cd)
 /* Cover function to read and properly byteswap an insn value.  */
 
 CGEN_INSN_INT
-cgen_get_insn_value (CGEN_CPU_DESC cd, unsigned char *buf, int length)
+cgen_get_insn_value (cd, buf, length)
+     CGEN_CPU_DESC cd;
+     unsigned char *buf;
+     int length;
 {
-  int big_p = (cd->insn_endian == CGEN_ENDIAN_BIG);
-  int insn_chunk_bitsize = cd->insn_chunk_bitsize;
-  CGEN_INSN_INT value = 0;
+  CGEN_INSN_INT value;
 
-  if (insn_chunk_bitsize != 0 && insn_chunk_bitsize < length)
+  switch (length)
     {
-      /* We need to divide up the incoming value into insn_chunk_bitsize-length
-	 segments, and endian-convert them, one at a time. */
-      int i;
-
-      /* Enforce divisibility. */ 
-      if ((length % insn_chunk_bitsize) != 0)
-	abort ();
-
-      for (i = 0; i < length; i += insn_chunk_bitsize) /* NB: i == bits */
-	{
-	  int index;
-	  bfd_vma this_value;
-	  index = i; /* NB: not dependent on endianness; opposite of cgen_put_insn_value! */
-	  this_value = bfd_get_bits (& buf[index / 8], insn_chunk_bitsize, big_p);
-	  value = (value << insn_chunk_bitsize) | this_value;
-	}
-    }
-  else
-    {
-      value = bfd_get_bits (buf, length, cd->insn_endian == CGEN_ENDIAN_BIG);
+    case 8:
+      value = *buf;
+      break;
+    case 16:
+      if (cd->insn_endian == CGEN_ENDIAN_BIG)
+	value = bfd_getb16 (buf);
+      else
+	value = bfd_getl16 (buf);
+      break;
+    case 32:
+      if (cd->insn_endian == CGEN_ENDIAN_BIG)
+	value = bfd_getb32 (buf);
+      else
+	value = bfd_getl32 (buf);
+      break;
+    default:
+      abort ();
     }
 
   return value;
@@ -397,35 +399,31 @@ cgen_get_insn_value (CGEN_CPU_DESC cd, unsigned char *buf, int length)
 /* Cover function to store an insn value properly byteswapped.  */
 
 void
-cgen_put_insn_value (CGEN_CPU_DESC cd,
-		     unsigned char *buf,
-		     int length,
-		     CGEN_INSN_INT value)
+cgen_put_insn_value (cd, buf, length, value)
+     CGEN_CPU_DESC cd;
+     unsigned char *buf;
+     int length;
+     CGEN_INSN_INT value;
 {
-  int big_p = (cd->insn_endian == CGEN_ENDIAN_BIG);
-  int insn_chunk_bitsize = cd->insn_chunk_bitsize;
-
-  if (insn_chunk_bitsize != 0 && insn_chunk_bitsize < length)
+  switch (length)
     {
-      /* We need to divide up the incoming value into insn_chunk_bitsize-length
-	 segments, and endian-convert them, one at a time. */
-      int i;
-
-      /* Enforce divisibility. */ 
-      if ((length % insn_chunk_bitsize) != 0)
-	abort ();
-
-      for (i = 0; i < length; i += insn_chunk_bitsize) /* NB: i == bits */
-	{
-	  int index;
-	  index = (length - insn_chunk_bitsize - i); /* NB: not dependent on endianness! */
-	  bfd_put_bits ((bfd_vma) value, & buf[index / 8], insn_chunk_bitsize, big_p);
-	  value >>= insn_chunk_bitsize;
-	}
-    }
-  else
-    {
-      bfd_put_bits ((bfd_vma) value, buf, length, big_p);
+    case 8:
+      buf[0] = value;
+      break;
+    case 16:
+      if (cd->insn_endian == CGEN_ENDIAN_BIG)
+	bfd_putb16 (value, buf);
+      else
+	bfd_putl16 (value, buf);
+      break;
+    case 32:
+      if (cd->insn_endian == CGEN_ENDIAN_BIG)
+	bfd_putb32 (value, buf);
+      else
+	bfd_putl32 (value, buf);
+      break;
+    default:
+      abort ();
     }
 }
 
@@ -445,14 +443,16 @@ cgen_put_insn_value (CGEN_CPU_DESC cd,
 /* ??? Will need to be revisited for VLIW architectures.  */
 
 const CGEN_INSN *
-cgen_lookup_insn (CGEN_CPU_DESC cd,
-		  const CGEN_INSN *insn,
-		  CGEN_INSN_INT insn_int_value,
-		  /* ??? CGEN_INSN_BYTES would be a nice type name to use here.  */
-		  unsigned char *insn_bytes_value,
-		  int length,
-		  CGEN_FIELDS *fields,
-		  int alias_p)
+cgen_lookup_insn (cd, insn, insn_int_value, insn_bytes_value, length, fields,
+		  alias_p)
+     CGEN_CPU_DESC cd;
+     const CGEN_INSN *insn;
+     CGEN_INSN_INT insn_int_value;
+     /* ??? CGEN_INSN_BYTES would be a nice type name to use here.  */
+     unsigned char *insn_bytes_value;
+     int length;
+     CGEN_FIELDS *fields;
+     int alias_p;
 {
   unsigned char *buf;
   CGEN_INSN_INT base_insn;
@@ -483,7 +483,7 @@ cgen_lookup_insn (CGEN_CPU_DESC cd,
       /* The instructions are stored in hash lists.
 	 Pick the first one and keep trying until we find the right one.  */
 
-      insn_list = cgen_dis_lookup_insn (cd, (char *) buf, base_insn);
+      insn_list = cgen_dis_lookup_insn (cd, buf, base_insn);
       while (insn_list != NULL)
 	{
 	  insn = insn_list->insn;
@@ -542,10 +542,11 @@ cgen_lookup_insn (CGEN_CPU_DESC cd,
    in.  */
 
 void
-cgen_get_insn_operands (CGEN_CPU_DESC cd,
-			const CGEN_INSN *insn,
-			const CGEN_FIELDS *fields,
-			int *indices)
+cgen_get_insn_operands (cd, insn, fields, indices)
+     CGEN_CPU_DESC cd;
+     const CGEN_INSN *insn;
+     const CGEN_FIELDS *fields;
+     int *indices;
 {
   const CGEN_OPINST *opinst;
   int i;
@@ -573,14 +574,16 @@ cgen_get_insn_operands (CGEN_CPU_DESC cd,
    recognized.  */
 
 const CGEN_INSN *
-cgen_lookup_get_insn_operands (CGEN_CPU_DESC cd,
-			       const CGEN_INSN *insn,
-			       CGEN_INSN_INT insn_int_value,
-			       /* ??? CGEN_INSN_BYTES would be a nice type name to use here.  */
-			       unsigned char *insn_bytes_value,
-			       int length,
-			       int *indices,
-			       CGEN_FIELDS *fields)
+cgen_lookup_get_insn_operands (cd, insn, insn_int_value, insn_bytes_value,
+			       length, indices, fields)
+     CGEN_CPU_DESC cd;
+     const CGEN_INSN *insn;
+     CGEN_INSN_INT insn_int_value;
+     /* ??? CGEN_INSN_BYTES would be a nice type name to use here.  */
+     unsigned char *insn_bytes_value;
+     int length;
+     int *indices;
+     CGEN_FIELDS *fields;
 {
   /* Pass non-zero for ALIAS_P only if INSN != NULL.
      If INSN == NULL, we want a real insn.  */
@@ -591,25 +594,4 @@ cgen_lookup_get_insn_operands (CGEN_CPU_DESC cd,
 
   cgen_get_insn_operands (cd, insn, fields, indices);
   return insn;
-}
-
-/* Allow signed overflow of instruction fields.  */
-void
-cgen_set_signed_overflow_ok (CGEN_CPU_DESC cd)
-{
-  cd->signed_overflow_ok_p = 1;
-}
-
-/* Generate an error message if a signed field in an instruction overflows.  */
-void
-cgen_clear_signed_overflow_ok (CGEN_CPU_DESC cd)
-{
-  cd->signed_overflow_ok_p = 0;
-}
-
-/* Will an error message be generated if a signed field in an instruction overflows ? */
-unsigned int
-cgen_signed_overflow_ok_p (CGEN_CPU_DESC cd)
-{
-  return cd->signed_overflow_ok_p;
 }

@@ -2,6 +2,9 @@
    Written by Fred Fish.  fnf@cygnus.com
    This file is in the public domain.  --Per Bothner.  */
 
+#include "ansidecl.h"
+#include "libiberty.h"
+
 #include "config.h"
 
 #ifdef HAVE_SYS_ERRLIST
@@ -10,40 +13,32 @@
    incompatible with our later declaration, perhaps by using const
    attributes.  So we hide the declaration in errno.h (if any) using a
    macro. */
-#define sys_nerr sys_nerr__
 #define sys_errlist sys_errlist__
 #endif
-
-#include "ansidecl.h"
-#include "libiberty.h"
 
 #include <stdio.h>
 #include <errno.h>
 
 #ifdef HAVE_SYS_ERRLIST
-#undef sys_nerr
 #undef sys_errlist
 #endif
 
 /*  Routines imported from standard C runtime libraries. */
 
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#else
-extern PTR malloc ();
-#endif
-
-#ifdef HAVE_STRING_H
-#include <string.h>
-#else
-extern PTR memset ();
-#endif
+#ifdef __STDC__
+#include <stddef.h>
+extern void *malloc (size_t size);				/* 4.10.3.3 */
+extern void *memset (void *s, int c, size_t n);			/* 4.11.6.1 */
+#else	/* !__STDC__ */
+extern char *malloc ();		/* Standard memory allocater */
+extern char *memset ();
+#endif	/* __STDC__ */
 
 #ifndef MAX
 #  define MAX(a,b) ((a) > (b) ? (a) : (b))
 #endif
 
-static void init_error_tables (void);
+static void init_error_tables PARAMS ((void));
 
 /* Translation table for errno values.  See intro(2) in most UNIX systems
    Programmers Reference Manuals.
@@ -58,10 +53,10 @@ static void init_error_tables (void);
 
 struct error_info
 {
-  const int value;		/* The numeric value from <errno.h> */
-  const char *const name;	/* The equivalent symbolic value */
+  int value;		/* The numeric value from <errno.h> */
+  const char *name;	/* The equivalent symbolic value */
 #ifndef HAVE_SYS_ERRLIST
-  const char *const msg;	/* Short message about this value */
+  const char *msg;	/* Short message about this value */
 #endif
 };
 
@@ -462,8 +457,6 @@ static int num_error_names = 0;
 
 #ifndef HAVE_SYS_ERRLIST
 
-#define sys_nerr sys_nerr__
-#define sys_errlist sys_errlist__
 static int sys_nerr;
 static const char **sys_errlist;
 
@@ -473,6 +466,7 @@ extern int sys_nerr;
 extern char *sys_errlist[];
 
 #endif
+
 
 /*
 
@@ -503,7 +497,7 @@ BUGS
 */
 
 static void
-init_error_tables (void)
+init_error_tables ()
 {
   const struct error_info *eip;
   int nbytes;
@@ -563,28 +557,33 @@ init_error_tables (void)
 
 /*
 
+NAME
 
-@deftypefn Extension int errno_max (void)
+	errno_max -- return the max errno value
 
-Returns the maximum @code{errno} value for which a corresponding
-symbolic name or message is available.  Note that in the case where we
-use the @code{sys_errlist} supplied by the system, it is possible for
-there to be more symbolic names than messages, or vice versa.  In
-fact, the manual page for @code{perror(3C)} explicitly warns that one
-should check the size of the table (@code{sys_nerr}) before indexing
-it, since new error codes may be added to the system before they are
-added to the table.  Thus @code{sys_nerr} might be smaller than value
-implied by the largest @code{errno} value defined in @code{<errno.h>}.
+SYNOPSIS
 
-We return the maximum value that can be used to obtain a meaningful
-symbolic name or message.
+	int errno_max ();
 
-@end deftypefn
+DESCRIPTION
+
+	Returns the maximum errno value for which a corresponding symbolic
+	name or message is available.  Note that in the case where
+	we use the sys_errlist supplied by the system, it is possible for
+	there to be more symbolic names than messages, or vice versa.
+	In fact, the manual page for perror(3C) explicitly warns that one
+	should check the size of the table (sys_nerr) before indexing it,
+	since new error codes may be added to the system before they are
+	added to the table.  Thus sys_nerr might be smaller than value
+	implied by the largest errno value defined in <errno.h>.
+
+	We return the maximum value that can be used to obtain a meaningful
+	symbolic name or message.
 
 */
 
 int
-errno_max (void)
+errno_max ()
 {
   int maxsize;
 
@@ -600,32 +599,39 @@ errno_max (void)
 
 /*
 
-@deftypefn Supplemental char* strerror (int @var{errnoval})
+NAME
 
-Maps an @code{errno} number to an error message string, the contents
-of which are implementation defined.  On systems which have the
-external variables @code{sys_nerr} and @code{sys_errlist}, these
-strings will be the same as the ones used by @code{perror}.
+	strerror -- map an error number to an error message string
 
-If the supplied error number is within the valid range of indices for
-the @code{sys_errlist}, but no message is available for the particular
-error number, then returns the string @samp{Error @var{num}}, where
-@var{num} is the error number.
+SYNOPSIS
 
-If the supplied error number is not a valid index into
-@code{sys_errlist}, returns @code{NULL}.
+	char *strerror (int errnoval)
 
-The returned string is only guaranteed to be valid only until the
-next call to @code{strerror}.
+DESCRIPTION
 
-@end deftypefn
+	Maps an errno number to an error message string, the contents of
+	which are implementation defined.  On systems which have the external
+	variables sys_nerr and sys_errlist, these strings will be the same
+	as the ones used by perror().
+
+	If the supplied error number is within the valid range of indices
+	for the sys_errlist, but no message is available for the particular
+	error number, then returns the string "Error NUM", where NUM is the
+	error number.
+
+	If the supplied error number is not a valid index into sys_errlist,
+	returns NULL.
+
+	The returned string is only guaranteed to be valid only until the
+	next call to strerror.
 
 */
 
 char *
-strerror (int errnoval)
+strerror (errnoval)
+  int errnoval;
 {
-  const char *msg;
+  char *msg;
   static char buf[32];
 
 #ifndef HAVE_SYS_ERRLIST
@@ -667,29 +673,38 @@ strerror (int errnoval)
 
 /*
 
-@deftypefn Replacement {const char*} strerrno (int @var{errnum})
+NAME
 
-Given an error number returned from a system call (typically returned
-in @code{errno}), returns a pointer to a string containing the
-symbolic name of that error number, as found in @code{<errno.h>}.
+	strerrno -- map an error number to a symbolic name string
 
-If the supplied error number is within the valid range of indices for
-symbolic names, but no name is available for the particular error
-number, then returns the string @samp{Error @var{num}}, where @var{num}
-is the error number.
+SYNOPSIS
 
-If the supplied error number is not within the range of valid
-indices, then returns @code{NULL}.
+	const char *strerrno (int errnoval)
 
-The contents of the location pointed to are only guaranteed to be
-valid until the next call to @code{strerrno}.
+DESCRIPTION
 
-@end deftypefn
+	Given an error number returned from a system call (typically
+	returned in errno), returns a pointer to a string containing the
+	symbolic name of that error number, as found in <errno.h>.
+
+	If the supplied error number is within the valid range of indices
+	for symbolic names, but no name is available for the particular
+	error number, then returns the string "Error NUM", where NUM is
+	the error number.
+
+	If the supplied error number is not within the range of valid
+	indices, then returns NULL.
+
+BUGS
+
+	The contents of the location pointed to are only guaranteed to be
+	valid until the next call to strerrno.
 
 */
 
 const char *
-strerrno (int errnoval)
+strerrno (errnoval)
+  int errnoval;
 {
   const char *name;
   static char buf[32];
@@ -726,17 +741,24 @@ strerrno (int errnoval)
 
 /*
 
-@deftypefn Extension int strtoerrno (const char *@var{name})
+NAME
 
-Given the symbolic name of a error number (e.g., @code{EACCES}), map it
-to an errno value.  If no translation is found, returns 0.
+	strtoerrno -- map a symbolic errno name to a numeric value
 
-@end deftypefn
+SYNOPSIS
+
+	int strtoerrno (char *name)
+
+DESCRIPTION
+
+	Given the symbolic name of a error number, map it to an errno value.
+	If no translation is found, returns 0.
 
 */
 
 int
-strtoerrno (const char *name)
+strtoerrno (name)
+     const char *name;
 {
   int errnoval = 0;
 
@@ -776,12 +798,12 @@ strtoerrno (const char *name)
 #include <stdio.h>
 
 int
-main (void)
+main ()
 {
   int errn;
   int errnmax;
   const char *name;
-  const char *msg;
+  char *msg;
   char *strerror ();
 
   errnmax = errno_max ();

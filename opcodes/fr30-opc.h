@@ -2,23 +2,23 @@
 
 THIS FILE IS MACHINE GENERATED WITH CGEN.
 
-Copyright 1996-2007 Free Software Foundation, Inc.
+Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
 
 This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 
-   This file is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3, or (at your option)
-   any later version.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
-   It is distributed in the hope that it will be useful, but WITHOUT
-   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
-   License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License along
-   with this program; if not, write to the Free Software Foundation, Inc.,
-   51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 */
 
@@ -28,9 +28,9 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 /* -- opc.h */
 
 /* ??? This can be improved upon.  */
-#undef  CGEN_DIS_HASH_SIZE
+#undef CGEN_DIS_HASH_SIZE
 #define CGEN_DIS_HASH_SIZE 16
-#undef  CGEN_DIS_HASH
+#undef CGEN_DIS_HASH
 #define CGEN_DIS_HASH(buffer, value) (((unsigned char *) (buffer))[0] >> 4)
 
 /* -- */
@@ -77,21 +77,20 @@ typedef enum cgen_insn_type {
  , FR30_INSN_ORCCR, FR30_INSN_STILM, FR30_INSN_ADDSP, FR30_INSN_EXTSB
  , FR30_INSN_EXTUB, FR30_INSN_EXTSH, FR30_INSN_EXTUH, FR30_INSN_LDM0
  , FR30_INSN_LDM1, FR30_INSN_STM0, FR30_INSN_STM1, FR30_INSN_ENTER
- , FR30_INSN_LEAVE, FR30_INSN_XCHB
+ , FR30_INSN_LEAVE, FR30_INSN_XCHB, FR30_INSN_MAX
 } CGEN_INSN_TYPE;
 
 /* Index of `invalid' insn place holder.  */
 #define CGEN_INSN_INVALID FR30_INSN_INVALID
 
 /* Total number of insns in table.  */
-#define MAX_INSNS ((int) FR30_INSN_XCHB + 1)
+#define MAX_INSNS ((int) FR30_INSN_MAX)
 
 /* This struct records data prior to insertion or after extraction.  */
 struct cgen_fields
 {
   int length;
   long f_nil;
-  long f_anyof;
   long f_op1;
   long f_op2;
   long f_op3;

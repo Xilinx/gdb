@@ -2,64 +2,55 @@
 
 THIS FILE IS MACHINE GENERATED WITH CGEN.
 
-Copyright 1996-2007 Free Software Foundation, Inc.
+Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
 
 This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 
-   This file is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3, or (at your option)
-   any later version.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
-   It is distributed in the hope that it will be useful, but WITHOUT
-   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
-   License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License along
-   with this program; if not, write to the Free Software Foundation, Inc.,
-   51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 */
 
 #ifndef FR30_CPU_H
 #define FR30_CPU_H
 
-#include "opcode/cgen-bitset.h"
-
 #define CGEN_ARCH fr30
 
 /* Given symbol S, return fr30_cgen_<S>.  */
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
-#define CGEN_SYM(s) fr30##_cgen_##s
-#else
-#define CGEN_SYM(s) fr30/**/_cgen_/**/s
-#endif
-
+#define CGEN_SYM(s) CONCAT3 (fr30,_cgen_,s)
 
 /* Selected cpu families.  */
 #define HAVE_CPU_FR30BF
 
 #define CGEN_INSN_LSB0_P 0
 
-/* Minimum size of any insn (in bytes).  */
-#define CGEN_MIN_INSN_SIZE 2
-
 /* Maximum size of any insn (in bytes).  */
 #define CGEN_MAX_INSN_SIZE 6
 
 #define CGEN_INT_INSN_P 0
 
-/* Maximum number of syntax elements in an instruction.  */
-#define CGEN_ACTUAL_MAX_SYNTAX_ELEMENTS 15
+/* FIXME: Need to compute CGEN_MAX_SYNTAX_BYTES.  */
 
 /* CGEN_MNEMONIC_OPERANDS is defined if mnemonics have operands.
    e.g. In "b,a foo" the ",a" is an operand.  If mnemonics have operands
    we can't hash on everything up to the space.  */
 #define CGEN_MNEMONIC_OPERANDS
+/* Maximum number of operands any insn or macro-insn has.  */
+#define CGEN_MAX_INSN_OPERANDS 16
 
 /* Maximum number of fields in an instruction.  */
-#define CGEN_ACTUAL_MAX_IFMT_OPERANDS 7
+#define CGEN_MAX_IFMT_OPERANDS 7
 
 /* Enums.  */
 
@@ -146,6 +137,8 @@ typedef enum isa_attr {
 
 /* Ifield support.  */
 
+extern const struct cgen_ifld fr30_cgen_ifld_table[];
+
 /* Ifield attribute indices.  */
 
 /* Enum declaration for cgen_ifld attrs.  */
@@ -158,28 +151,19 @@ typedef enum cgen_ifld_attr {
 /* Number of non-boolean elements in cgen_ifld_attr.  */
 #define CGEN_IFLD_NBOOL_ATTRS (CGEN_IFLD_END_NBOOLS - CGEN_IFLD_START_NBOOLS - 1)
 
-/* cgen_ifld attribute accessor macros.  */
-#define CGEN_ATTR_CGEN_IFLD_MACH_VALUE(attrs) ((attrs)->nonbool[CGEN_IFLD_MACH-CGEN_IFLD_START_NBOOLS-1].nonbitset)
-#define CGEN_ATTR_CGEN_IFLD_VIRTUAL_VALUE(attrs) (((attrs)->bool & (1 << CGEN_IFLD_VIRTUAL)) != 0)
-#define CGEN_ATTR_CGEN_IFLD_PCREL_ADDR_VALUE(attrs) (((attrs)->bool & (1 << CGEN_IFLD_PCREL_ADDR)) != 0)
-#define CGEN_ATTR_CGEN_IFLD_ABS_ADDR_VALUE(attrs) (((attrs)->bool & (1 << CGEN_IFLD_ABS_ADDR)) != 0)
-#define CGEN_ATTR_CGEN_IFLD_RESERVED_VALUE(attrs) (((attrs)->bool & (1 << CGEN_IFLD_RESERVED)) != 0)
-#define CGEN_ATTR_CGEN_IFLD_SIGN_OPT_VALUE(attrs) (((attrs)->bool & (1 << CGEN_IFLD_SIGN_OPT)) != 0)
-#define CGEN_ATTR_CGEN_IFLD_SIGNED_VALUE(attrs) (((attrs)->bool & (1 << CGEN_IFLD_SIGNED)) != 0)
-
 /* Enum declaration for fr30 ifield types.  */
 typedef enum ifield_type {
-  FR30_F_NIL, FR30_F_ANYOF, FR30_F_OP1, FR30_F_OP2
- , FR30_F_OP3, FR30_F_OP4, FR30_F_OP5, FR30_F_CC
- , FR30_F_CCC, FR30_F_RJ, FR30_F_RI, FR30_F_RS1
- , FR30_F_RS2, FR30_F_RJC, FR30_F_RIC, FR30_F_CRJ
- , FR30_F_CRI, FR30_F_U4, FR30_F_U4C, FR30_F_I4
- , FR30_F_M4, FR30_F_U8, FR30_F_I8, FR30_F_I20_4
- , FR30_F_I20_16, FR30_F_I20, FR30_F_I32, FR30_F_UDISP6
- , FR30_F_DISP8, FR30_F_DISP9, FR30_F_DISP10, FR30_F_S10
- , FR30_F_U10, FR30_F_REL9, FR30_F_DIR8, FR30_F_DIR9
- , FR30_F_DIR10, FR30_F_REL12, FR30_F_REGLIST_HI_ST, FR30_F_REGLIST_LOW_ST
- , FR30_F_REGLIST_HI_LD, FR30_F_REGLIST_LOW_LD, FR30_F_MAX
+  FR30_F_NIL, FR30_F_OP1, FR30_F_OP2, FR30_F_OP3
+ , FR30_F_OP4, FR30_F_OP5, FR30_F_CC, FR30_F_CCC
+ , FR30_F_RJ, FR30_F_RI, FR30_F_RS1, FR30_F_RS2
+ , FR30_F_RJC, FR30_F_RIC, FR30_F_CRJ, FR30_F_CRI
+ , FR30_F_U4, FR30_F_U4C, FR30_F_I4, FR30_F_M4
+ , FR30_F_U8, FR30_F_I8, FR30_F_I20_4, FR30_F_I20_16
+ , FR30_F_I20, FR30_F_I32, FR30_F_UDISP6, FR30_F_DISP8
+ , FR30_F_DISP9, FR30_F_DISP10, FR30_F_S10, FR30_F_U10
+ , FR30_F_REL9, FR30_F_DIR8, FR30_F_DIR9, FR30_F_DIR10
+ , FR30_F_REL12, FR30_F_REGLIST_HI_ST, FR30_F_REGLIST_LOW_ST, FR30_F_REGLIST_HI_LD
+ , FR30_F_REGLIST_LOW_LD, FR30_F_MAX
 } IFIELD_TYPE;
 
 #define MAX_IFLD ((int) FR30_F_MAX)
@@ -194,13 +178,6 @@ typedef enum cgen_hw_attr {
 
 /* Number of non-boolean elements in cgen_hw_attr.  */
 #define CGEN_HW_NBOOL_ATTRS (CGEN_HW_END_NBOOLS - CGEN_HW_START_NBOOLS - 1)
-
-/* cgen_hw attribute accessor macros.  */
-#define CGEN_ATTR_CGEN_HW_MACH_VALUE(attrs) ((attrs)->nonbool[CGEN_HW_MACH-CGEN_HW_START_NBOOLS-1].nonbitset)
-#define CGEN_ATTR_CGEN_HW_VIRTUAL_VALUE(attrs) (((attrs)->bool & (1 << CGEN_HW_VIRTUAL)) != 0)
-#define CGEN_ATTR_CGEN_HW_CACHE_ADDR_VALUE(attrs) (((attrs)->bool & (1 << CGEN_HW_CACHE_ADDR)) != 0)
-#define CGEN_ATTR_CGEN_HW_PC_VALUE(attrs) (((attrs)->bool & (1 << CGEN_HW_PC)) != 0)
-#define CGEN_ATTR_CGEN_HW_PROFILE_VALUE(attrs) (((attrs)->bool & (1 << CGEN_HW_PROFILE)) != 0)
 
 /* Enum declaration for fr30 hardware types.  */
 typedef enum cgen_hw_type {
@@ -228,18 +205,6 @@ typedef enum cgen_operand_attr {
 /* Number of non-boolean elements in cgen_operand_attr.  */
 #define CGEN_OPERAND_NBOOL_ATTRS (CGEN_OPERAND_END_NBOOLS - CGEN_OPERAND_START_NBOOLS - 1)
 
-/* cgen_operand attribute accessor macros.  */
-#define CGEN_ATTR_CGEN_OPERAND_MACH_VALUE(attrs) ((attrs)->nonbool[CGEN_OPERAND_MACH-CGEN_OPERAND_START_NBOOLS-1].nonbitset)
-#define CGEN_ATTR_CGEN_OPERAND_VIRTUAL_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_VIRTUAL)) != 0)
-#define CGEN_ATTR_CGEN_OPERAND_PCREL_ADDR_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_PCREL_ADDR)) != 0)
-#define CGEN_ATTR_CGEN_OPERAND_ABS_ADDR_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_ABS_ADDR)) != 0)
-#define CGEN_ATTR_CGEN_OPERAND_SIGN_OPT_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_SIGN_OPT)) != 0)
-#define CGEN_ATTR_CGEN_OPERAND_SIGNED_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_SIGNED)) != 0)
-#define CGEN_ATTR_CGEN_OPERAND_NEGATIVE_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_NEGATIVE)) != 0)
-#define CGEN_ATTR_CGEN_OPERAND_RELAX_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_RELAX)) != 0)
-#define CGEN_ATTR_CGEN_OPERAND_SEM_ONLY_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_SEM_ONLY)) != 0)
-#define CGEN_ATTR_CGEN_OPERAND_HASH_PREFIX_VALUE(attrs) (((attrs)->bool & (1 << CGEN_OPERAND_HASH_PREFIX)) != 0)
-
 /* Enum declaration for fr30 operand types.  */
 typedef enum cgen_operand_type {
   FR30_OPERAND_PC, FR30_OPERAND_RI, FR30_OPERAND_RJ, FR30_OPERAND_RIC
@@ -258,7 +223,7 @@ typedef enum cgen_operand_type {
 } CGEN_OPERAND_TYPE;
 
 /* Number of operands types.  */
-#define MAX_OPERANDS 49
+#define MAX_OPERANDS ((int) FR30_OPERAND_MAX)
 
 /* Maximum number of operands referenced by any insn.  */
 #define MAX_OPERAND_INSTANCES 8
@@ -268,7 +233,7 @@ typedef enum cgen_operand_type {
 /* Enum declaration for cgen_insn attrs.  */
 typedef enum cgen_insn_attr {
   CGEN_INSN_ALIAS, CGEN_INSN_VIRTUAL, CGEN_INSN_UNCOND_CTI, CGEN_INSN_COND_CTI
- , CGEN_INSN_SKIP_CTI, CGEN_INSN_DELAY_SLOT, CGEN_INSN_RELAXABLE, CGEN_INSN_RELAXED
+ , CGEN_INSN_SKIP_CTI, CGEN_INSN_DELAY_SLOT, CGEN_INSN_RELAXABLE, CGEN_INSN_RELAX
  , CGEN_INSN_NO_DIS, CGEN_INSN_PBB, CGEN_INSN_NOT_IN_DELAY_SLOT, CGEN_INSN_END_BOOLS
  , CGEN_INSN_START_NBOOLS = 31, CGEN_INSN_MACH, CGEN_INSN_END_NBOOLS
 } CGEN_INSN_ATTR;
@@ -276,24 +241,8 @@ typedef enum cgen_insn_attr {
 /* Number of non-boolean elements in cgen_insn_attr.  */
 #define CGEN_INSN_NBOOL_ATTRS (CGEN_INSN_END_NBOOLS - CGEN_INSN_START_NBOOLS - 1)
 
-/* cgen_insn attribute accessor macros.  */
-#define CGEN_ATTR_CGEN_INSN_MACH_VALUE(attrs) ((attrs)->nonbool[CGEN_INSN_MACH-CGEN_INSN_START_NBOOLS-1].nonbitset)
-#define CGEN_ATTR_CGEN_INSN_ALIAS_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_ALIAS)) != 0)
-#define CGEN_ATTR_CGEN_INSN_VIRTUAL_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_VIRTUAL)) != 0)
-#define CGEN_ATTR_CGEN_INSN_UNCOND_CTI_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_UNCOND_CTI)) != 0)
-#define CGEN_ATTR_CGEN_INSN_COND_CTI_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_COND_CTI)) != 0)
-#define CGEN_ATTR_CGEN_INSN_SKIP_CTI_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_SKIP_CTI)) != 0)
-#define CGEN_ATTR_CGEN_INSN_DELAY_SLOT_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_DELAY_SLOT)) != 0)
-#define CGEN_ATTR_CGEN_INSN_RELAXABLE_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_RELAXABLE)) != 0)
-#define CGEN_ATTR_CGEN_INSN_RELAXED_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_RELAXED)) != 0)
-#define CGEN_ATTR_CGEN_INSN_NO_DIS_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_NO_DIS)) != 0)
-#define CGEN_ATTR_CGEN_INSN_PBB_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_PBB)) != 0)
-#define CGEN_ATTR_CGEN_INSN_NOT_IN_DELAY_SLOT_VALUE(attrs) (((attrs)->bool & (1 << CGEN_INSN_NOT_IN_DELAY_SLOT)) != 0)
-
 /* cgen.h uses things we just defined.  */
 #include "opcode/cgen.h"
-
-extern const struct cgen_ifld fr30_cgen_ifld_table[];
 
 /* Attributes.  */
 extern const CGEN_ATTR_TABLE fr30_cgen_hardware_attr_table[];
@@ -311,7 +260,6 @@ extern CGEN_KEYWORD fr30_cgen_opval_h_r13;
 extern CGEN_KEYWORD fr30_cgen_opval_h_r14;
 extern CGEN_KEYWORD fr30_cgen_opval_h_r15;
 
-extern const CGEN_HW_ENTRY fr30_cgen_hw_table[];
 
 
 

@@ -1,6 +1,5 @@
 /* ELF support for BFD.
-   Copyright 1991, 1992, 1993, 1994, 1995, 1997, 1998, 2000, 2001, 2002,
-   2003, 2006, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 1991, 92, 93, 94, 95, 97, 1998 Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
    in "UNIX System V Release 4, Programmers Guide: ANSI C and
@@ -20,7 +19,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 
 /* This file is part of ELF support for BFD, and contains the portions
@@ -37,51 +36,31 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 #ifndef _ELF_INTERNAL_H
 #define _ELF_INTERNAL_H
 
-/* Special section indices, which may show up in st_shndx fields, among
-   other places.  */
-
-#undef SHN_UNDEF
-#undef SHN_LORESERVE
-#undef SHN_LOPROC
-#undef SHN_HIPROC
-#undef SHN_LOOS
-#undef SHN_HIOS
-#undef SHN_ABS
-#undef SHN_COMMON
-#undef SHN_XINDEX
-#undef SHN_HIRESERVE
-#define SHN_UNDEF	0		/* Undefined section reference */
-#define SHN_LORESERVE	(-0x100u)	/* Begin range of reserved indices */
-#define SHN_LOPROC	(-0x100u)	/* Begin range of appl-specific */
-#define SHN_HIPROC	(-0xE1u)	/* End range of appl-specific */
-#define SHN_LOOS	(-0xE0u)	/* OS specific semantics, lo */
-#define SHN_HIOS	(-0xC1u)	/* OS specific semantics, hi */
-#define SHN_ABS		(-0xFu)		/* Associated symbol is absolute */
-#define SHN_COMMON	(-0xEu)		/* Associated symbol is in common */
-#define SHN_XINDEX	(-0x1u)		/* Section index is held elsewhere */
-#define SHN_HIRESERVE	(-0x1u)		/* End range of reserved indices */
-#define SHN_BAD		(-0x101u)	/* Used internally by bfd */
-
 /* ELF Header */
 
 #define EI_NIDENT	16		/* Size of e_ident[] */
 
 typedef struct elf_internal_ehdr {
-  unsigned char		e_ident[EI_NIDENT]; /* ELF "magic number" */
-  bfd_vma		e_entry;	/* Entry point virtual address */
-  bfd_size_type		e_phoff;	/* Program header table file offset */
-  bfd_size_type		e_shoff;	/* Section header table file offset */
-  unsigned long		e_version;	/* Identifies object file version */
-  unsigned long		e_flags;	/* Processor-specific flags */
-  unsigned short	e_type;		/* Identifies object file type */
-  unsigned short	e_machine;	/* Specifies required architecture */
-  unsigned int		e_ehsize;	/* ELF header size in bytes */
-  unsigned int		e_phentsize;	/* Program header table entry size */
-  unsigned int		e_phnum;	/* Program header table entry count */
-  unsigned int		e_shentsize;	/* Section header table entry size */
-  unsigned int		e_shnum;	/* Section header table entry count */
-  unsigned int		e_shstrndx;	/* Section header string table index */
+  unsigned char		e_ident[EI_NIDENT];	/* ELF "magic number" */
+  bfd_vma		e_entry;		/* Entry point virtual address */
+  bfd_size_type		e_phoff;		/* Program header table file offset */
+  bfd_size_type		e_shoff;		/* Section header table file offset */
+  unsigned long		e_version;		/* Identifies object file version */
+  unsigned long		e_flags;		/* Processor-specific flags */
+  unsigned short	e_type;			/* Identifies object file type */
+  unsigned short	e_machine;		/* Specifies required architecture */
+  unsigned short	e_ehsize;		/* ELF header size in bytes */
+  unsigned short	e_phentsize;		/* Program header table entry size */
+  unsigned short	e_phnum;		/* Program header table entry count */
+  unsigned short	e_shentsize;		/* Section header table entry size */
+  unsigned short	e_shnum;		/* Section header table entry count */
+  unsigned short	e_shstrndx;		/* Section header string table index */
 } Elf_Internal_Ehdr;
+
+#define elf32_internal_ehdr elf_internal_ehdr
+#define Elf32_Internal_Ehdr Elf_Internal_Ehdr
+#define elf64_internal_ehdr elf_internal_ehdr
+#define Elf64_Internal_Ehdr Elf_Internal_Ehdr
 
 /* Program header */
 
@@ -97,6 +76,10 @@ struct elf_internal_phdr {
 };
 
 typedef struct elf_internal_phdr Elf_Internal_Phdr;
+#define elf32_internal_phdr elf_internal_phdr
+#define Elf32_Internal_Phdr Elf_Internal_Phdr
+#define elf64_internal_phdr elf_internal_phdr
+#define Elf64_Internal_Phdr Elf_Internal_Phdr
 
 /* Section header */
 
@@ -105,17 +88,22 @@ typedef struct elf_internal_shdr {
   unsigned int	sh_type;		/* Type of section */
   bfd_vma	sh_flags;		/* Miscellaneous section attributes */
   bfd_vma	sh_addr;		/* Section virtual addr at execution */
-  file_ptr	sh_offset;		/* Section file offset */
   bfd_size_type	sh_size;		/* Size of section in bytes */
-  unsigned int	sh_link;		/* Index of another section */
-  unsigned int	sh_info;		/* Additional section information */
-  bfd_vma	sh_addralign;		/* Section alignment */
   bfd_size_type	sh_entsize;		/* Entry size if section holds table */
+  unsigned long	sh_link;		/* Index of another section */
+  unsigned long	sh_info;		/* Additional section information */
+  file_ptr	sh_offset;		/* Section file offset */
+  unsigned int	sh_addralign;		/* Section alignment */
 
   /* The internal rep also has some cached info associated with it. */
   asection *	bfd_section;		/* Associated BFD section.  */
-  unsigned char *contents;		/* Section contents.  */
+  PTR		contents;		/* Section contents.  */
 } Elf_Internal_Shdr;
+
+#define elf32_internal_shdr elf_internal_shdr
+#define Elf32_Internal_Shdr Elf_Internal_Shdr
+#define elf64_internal_shdr elf_internal_shdr
+#define Elf64_Internal_Shdr Elf_Internal_Shdr
 
 /* Symbol table entry */
 
@@ -124,11 +112,16 @@ struct elf_internal_sym {
   bfd_vma	st_size;		/* Associated symbol size */
   unsigned long	st_name;		/* Symbol name, index in string tbl */
   unsigned char	st_info;		/* Type and binding attributes */
-  unsigned char	st_other;		/* Visibilty, and target specific */
-  unsigned int  st_shndx;		/* Associated section index */
+  unsigned char	st_other;		/* No defined meaning, 0 */
+  unsigned short st_shndx;		/* Associated section index */
 };
 
 typedef struct elf_internal_sym Elf_Internal_Sym;
+
+#define elf32_internal_sym elf_internal_sym
+#define elf64_internal_sym elf_internal_sym
+#define Elf32_Internal_Sym Elf_Internal_Sym
+#define Elf64_Internal_Sym Elf_Internal_Sym
 
 /* Note segments */
 
@@ -140,14 +133,32 @@ typedef struct elf_internal_note {
   char *	descdata;		/* Start of the desc data */
   bfd_vma	descpos;		/* File offset of the descdata */
 } Elf_Internal_Note;
+#define Elf32_Internal_Note	Elf_Internal_Note
+#define elf32_internal_note	elf_internal_note
 
 /* Relocation Entries */
+
+typedef struct elf_internal_rel {
+  bfd_vma	r_offset;	/* Location at which to apply the action */
+  /* This needs to support 64-bit values in elf64.  */
+  bfd_vma	r_info;		/* index and type of relocation */
+} Elf_Internal_Rel;
+
+#define elf32_internal_rel elf_internal_rel
+#define Elf32_Internal_Rel Elf_Internal_Rel
+#define elf64_internal_rel elf_internal_rel
+#define Elf64_Internal_Rel Elf_Internal_Rel
 
 typedef struct elf_internal_rela {
   bfd_vma	r_offset;	/* Location at which to apply the action */
   bfd_vma	r_info;		/* Index and Type of relocation */
-  bfd_vma	r_addend;	/* Constant addend used to compute value */
+  bfd_signed_vma r_addend;	/* Constant addend used to compute value */
 } Elf_Internal_Rela;
+
+#define elf32_internal_rela elf_internal_rela
+#define elf64_internal_rela elf_internal_rela
+#define Elf32_Internal_Rela Elf_Internal_Rela
+#define Elf64_Internal_Rela Elf_Internal_Rela
 
 /* dynamic section structure */
 
@@ -160,6 +171,11 @@ typedef struct elf_internal_dyn {
     bfd_vma	d_ptr;
   } d_un;
 } Elf_Internal_Dyn;
+
+#define elf32_internal_dyn elf_internal_dyn
+#define elf64_internal_dyn elf_internal_dyn
+#define Elf32_Internal_Dyn Elf_Internal_Dyn
+#define Elf64_Internal_Dyn Elf_Internal_Dyn
 
 /* This structure appears in a SHT_GNU_verdef section.  */
 
@@ -239,13 +255,30 @@ typedef struct
   unsigned short int	si_flags;
 } Elf_Internal_Syminfo;
 
-/* This structure appears on the stack and in NT_AUXV core file notes.  */
-typedef struct
-{
-  bfd_vma a_type;
-  bfd_vma a_val;
-} Elf_Internal_Auxv;
 
+#define elf32_internal_verdef elf_internal_verdef
+#define elf64_internal_verdef elf_internal_verdef
+#define elf32_internal_verdaux elf_internal_verdaux
+#define elf64_internal_verdaux elf_internal_verdaux
+#define elf32_internal_verneed elf_internal_verneed
+#define elf64_internal_verneed elf_internal_verneed
+#define elf32_internal_vernaux elf_internal_vernaux
+#define elf64_internal_vernaux elf_internal_vernaux
+#define elf32_internal_versym elf_internal_versym
+#define elf64_internal_versym elf_internal_versym
+
+#define Elf32_Internal_Verdef Elf_Internal_Verdef
+#define Elf64_Internal_Verdef Elf_Internal_Verdef
+#define Elf32_Internal_Verdaux Elf_Internal_Verdaux
+#define Elf64_Internal_Verdaux Elf_Internal_Verdaux
+#define Elf32_Internal_Verneed Elf_Internal_Verneed
+#define Elf64_Internal_Verneed Elf_Internal_Verneed
+#define Elf32_Internal_Vernaux Elf_Internal_Vernaux
+#define Elf64_Internal_Vernaux Elf_Internal_Vernaux
+#define Elf32_Internal_Versym Elf_Internal_Versym
+#define Elf64_Internal_Versym Elf_Internal_Versym
+#define Elf32_Internal_Syminfo Elf_Internal_Syminfo
+#define Elf64_Internal_Syminfo Elf_Internal_Syminfo
 
 /* This structure is used to describe how sections should be assigned
    to program segments.  */
@@ -260,24 +293,12 @@ struct elf_segment_map
   unsigned long p_flags;
   /* Program segment physical address.  */
   bfd_vma p_paddr;
-  /* Program segment virtual address offset from section vma.  */
-  bfd_vma p_vaddr_offset;
-  /* Program segment alignment.  */
-  bfd_vma p_align;
-  /* Segment size in file and memory */
-  bfd_vma p_size;
   /* Whether the p_flags field is valid; if not, the flags are based
      on the section flags.  */
   unsigned int p_flags_valid : 1;
   /* Whether the p_paddr field is valid; if not, the physical address
      is based on the section lma values.  */
   unsigned int p_paddr_valid : 1;
-  /* Whether the p_align field is valid; if not, PT_LOAD segment
-     alignment is based on the default maximum page size.  */
-  unsigned int p_align_valid : 1;
-  /* Whether the p_size field is valid; if not, the size are based
-     on the section sizes.  */
-  unsigned int p_size_valid : 1;
   /* Whether this segment includes the file header.  */
   unsigned int includes_filehdr : 1;
   /* Whether this segment includes the program headers.  */
@@ -287,45 +308,5 @@ struct elf_segment_map
   /* Sections.  Actual number of elements is in count field.  */
   asection *sections[1];
 };
-
-/* .tbss is special.  It doesn't contribute memory space to normal
-   segments and it doesn't take file space in normal segments.  */
-#define ELF_SECTION_SIZE(sec_hdr, segment)			\
-   (((sec_hdr->sh_flags & SHF_TLS) == 0				\
-     || sec_hdr->sh_type != SHT_NOBITS				\
-     || segment->p_type == PT_TLS) ? sec_hdr->sh_size : 0)
-
-/* Decide if the given sec_hdr is in the given segment.  PT_TLS segment
-   contains only SHF_TLS sections.  Only PT_LOAD, PT_GNU_RELRO and
-   and PT_TLS segments can contain SHF_TLS sections.  */
-#define ELF_IS_SECTION_IN_SEGMENT(sec_hdr, segment)			\
-  (((((sec_hdr->sh_flags & SHF_TLS) != 0)				\
-     && (segment->p_type == PT_TLS					\
-	 || segment->p_type == PT_GNU_RELRO				\
-	 || segment->p_type == PT_LOAD))				\
-    || ((sec_hdr->sh_flags & SHF_TLS) == 0				\
-	&& segment->p_type != PT_TLS))					\
-   /* Any section besides one of type SHT_NOBITS must have a file	\
-      offset within the segment.  */					\
-   && (sec_hdr->sh_type == SHT_NOBITS					\
-       || ((bfd_vma) sec_hdr->sh_offset >= segment->p_offset		\
-	   && (sec_hdr->sh_offset + ELF_SECTION_SIZE(sec_hdr, segment)	\
-	       <= segment->p_offset + segment->p_filesz)))		\
-   /* SHF_ALLOC sections must have VMAs within the segment.  Be		\
-      careful about segments right at the end of memory.  */		\
-   && ((sec_hdr->sh_flags & SHF_ALLOC) == 0				\
-       || (sec_hdr->sh_addr >= segment->p_vaddr				\
-	   && (sec_hdr->sh_addr - segment->p_vaddr			\
-	       + ELF_SECTION_SIZE(sec_hdr, segment) <= segment->p_memsz))))
-
-/* Decide if the given sec_hdr is in the given segment in file.  */
-#define ELF_IS_SECTION_IN_SEGMENT_FILE(sec_hdr, segment)	\
-  (sec_hdr->sh_size > 0						\
-   && ELF_IS_SECTION_IN_SEGMENT (sec_hdr, segment))
-
-/* Decide if the given sec_hdr is in the given segment in memory.  */
-#define ELF_IS_SECTION_IN_SEGMENT_MEMORY(sec_hdr, segment)	\
-  (ELF_SECTION_SIZE(sec_hdr, segment) > 0			\
-   && ELF_IS_SECTION_IN_SEGMENT (sec_hdr, segment))
 
 #endif /* _ELF_INTERNAL_H */

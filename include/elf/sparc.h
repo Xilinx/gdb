@@ -1,6 +1,5 @@
 /* SPARC ELF support for BFD.
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2003, 2008
-   Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
    By Doug Evans, Cygnus Support, <dje@cygnus.com>.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -17,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef _ELF_SPARC_H
 #define _ELF_SPARC_H
@@ -30,7 +29,6 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 #define EF_SPARC_32PLUS		0x000100	/* generic V8+ features */
 #define EF_SPARC_SUN_US1	0x000200	/* Sun UltraSPARC1 extensions */
 #define EF_SPARC_HAL_R1		0x000400	/* HAL R1 extensions */
-#define EF_SPARC_SUN_US3	0x000800	/* Sun UltraSPARCIII extensions */
 
 #define EF_SPARC_LEDATA         0x800000	/* little endian data */
 
@@ -45,8 +43,8 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 
 /* Section indices.  */
 
-#define SHN_BEFORE	SHN_LORESERVE		/* used with SHF_ORDERED */
-#define SHN_AFTER	(SHN_LORESERVE + 1)	/* used with SHF_ORDERED */
+#define SHN_BEFORE		0xff00		/* used with SHF_ORDERED */
+#define SHN_AFTER		0xff01		/* used with SHF_ORDERED */
 
 /* Section flags.  */
 
@@ -87,7 +85,7 @@ START_RELOC_NUMBERS (elf_sparc_reloc_type)
   RELOC_NUMBER (R_SPARC_UA32, 23)
 
   /* ??? These 6 relocs are new but not currently used.  For binary
-     compatibility in the sparc64-elf toolchain, we leave them out.
+     compatility in the sparc64-elf toolchain, we leave them out.
      A non-binary upward compatible change is expected for sparc64-elf.  */
 #ifndef SPARC64_OLD_RELOCS
   /* ??? New relocs on the UltraSPARC.  Not sure what they're for yet.  */
@@ -127,60 +125,32 @@ START_RELOC_NUMBERS (elf_sparc_reloc_type)
   RELOC_NUMBER (R_SPARC_UA64, 54)
   RELOC_NUMBER (R_SPARC_UA16, 55)
 
-  RELOC_NUMBER (R_SPARC_TLS_GD_HI22, 56)
-  RELOC_NUMBER (R_SPARC_TLS_GD_LO10, 57)
-  RELOC_NUMBER (R_SPARC_TLS_GD_ADD, 58)
-  RELOC_NUMBER (R_SPARC_TLS_GD_CALL, 59)
-  RELOC_NUMBER (R_SPARC_TLS_LDM_HI22, 60)
-  RELOC_NUMBER (R_SPARC_TLS_LDM_LO10, 61)
-  RELOC_NUMBER (R_SPARC_TLS_LDM_ADD, 62)
-  RELOC_NUMBER (R_SPARC_TLS_LDM_CALL, 63)
-  RELOC_NUMBER (R_SPARC_TLS_LDO_HIX22, 64)
-  RELOC_NUMBER (R_SPARC_TLS_LDO_LOX10, 65)
-  RELOC_NUMBER (R_SPARC_TLS_LDO_ADD, 66)
-  RELOC_NUMBER (R_SPARC_TLS_IE_HI22, 67)
-  RELOC_NUMBER (R_SPARC_TLS_IE_LO10, 68)
-  RELOC_NUMBER (R_SPARC_TLS_IE_LD, 69)
-  RELOC_NUMBER (R_SPARC_TLS_IE_LDX, 70)
-  RELOC_NUMBER (R_SPARC_TLS_IE_ADD, 71)
-  RELOC_NUMBER (R_SPARC_TLS_LE_HIX22, 72)
-  RELOC_NUMBER (R_SPARC_TLS_LE_LOX10, 73)
-  RELOC_NUMBER (R_SPARC_TLS_DTPMOD32, 74)
-  RELOC_NUMBER (R_SPARC_TLS_DTPMOD64, 75)
-  RELOC_NUMBER (R_SPARC_TLS_DTPOFF32, 76)
-  RELOC_NUMBER (R_SPARC_TLS_DTPOFF64, 77)
-  RELOC_NUMBER (R_SPARC_TLS_TPOFF32, 78)
-  RELOC_NUMBER (R_SPARC_TLS_TPOFF64, 79)
-
-  RELOC_NUMBER (R_SPARC_GOTDATA_HIX22, 80)
-  RELOC_NUMBER (R_SPARC_GOTDATA_LOX10, 81)
-  RELOC_NUMBER (R_SPARC_GOTDATA_OP_HIX22, 82)
-  RELOC_NUMBER (R_SPARC_GOTDATA_OP_LOX10, 83)
-  RELOC_NUMBER (R_SPARC_GOTDATA_OP, 84)
-
-  RELOC_NUMBER (R_SPARC_H34, 85)
-  RELOC_NUMBER (R_SPARC_SIZE32, 86)
-  RELOC_NUMBER (R_SPARC_SIZE64, 87)
-  
-  EMPTY_RELOC  (R_SPARC_max_std)
+  /* little endian data relocs */
+  RELOC_NUMBER (R_SPARC_REV32, 56)
 
   RELOC_NUMBER (R_SPARC_GNU_VTINHERIT, 250)
   RELOC_NUMBER (R_SPARC_GNU_VTENTRY, 251)
-  RELOC_NUMBER (R_SPARC_REV32, 252)
 
-END_RELOC_NUMBERS (R_SPARC_max)
+  EMPTY_RELOC  (R_SPARC_max)
+END_RELOC_NUMBERS
 
 /* Relocation macros.  */
 
-#define ELF64_R_TYPE_DATA(info) \
-  (((bfd_signed_vma)(ELF64_R_TYPE(info) >> 8) ^ 0x800000) - 0x800000)
-#define ELF64_R_TYPE_ID(info) \
-  ((info) & 0xff)
-#define ELF64_R_TYPE_INFO(data, type) \
-  (((bfd_vma) ((data) & 0xffffff) << 8) | (bfd_vma) (type))
-
-/* Values for Elf64_Dyn.d_tag.  */
+#define ELF64_R_TYPE_DATA(info)		(((bfd_vma) (info) << 32) >> 40)
+#define ELF64_R_TYPE_ID(info)		(((bfd_vma) (info) << 56) >> 56)
+#define ELF64_R_TYPE_INFO(data, type)	(((bfd_vma) (data) << 8) \
+					 + (bfd_vma) (type))
 
 #define DT_SPARC_REGISTER	0x70000001
+
+/*
+ * FIXME: NOT ABI -- GET RID OF THIS
+ * Defines the format used by the .plt.  Currently defined values are
+ *   0 -- reserved to SI
+ *   1 -- absolute address in .got.plt
+ *   2 -- got-relative address in .got.plt
+ */
+
+#define DT_SPARC_PLTFMT		0x70000001
 
 #endif /* _ELF_SPARC_H */

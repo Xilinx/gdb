@@ -2,23 +2,23 @@
 
 THIS FILE IS MACHINE GENERATED WITH CGEN.
 
-Copyright 1996-2007 Free Software Foundation, Inc.
+Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
 
 This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 
-   This file is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3, or (at your option)
-   any later version.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
-   It is distributed in the hope that it will be useful, but WITHOUT
-   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
-   License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License along
-   with this program; if not, write to the Free Software Foundation, Inc.,
-   51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 */
 
@@ -28,199 +28,128 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 #include "symcat.h"
 #include "m32r-desc.h"
 #include "m32r-opc.h"
-#include "libiberty.h"
 
-/* -- opc.c */
-unsigned int
-m32r_cgen_dis_hash (const char * buf ATTRIBUTE_UNUSED, CGEN_INSN_INT value)
-{
-  unsigned int x;
-
-  if (value & 0xffff0000) /* 32bit instructions.  */
-    value = (value >> 16) & 0xffff;
-
-  x = (value >> 8) & 0xf0;
-  if (x == 0x40 || x == 0xe0 || x == 0x60 || x == 0x50)
-    return x;
-
-  if (x == 0x70 || x == 0xf0)
-    return x | ((value >> 8) & 0x0f);
-
-  if (x == 0x30)
-    return x | ((value & 0x70) >> 4);
-  else
-    return x | ((value & 0xf0) >> 4);
-}
-
-/* -- */
 /* The hash functions are recorded here to help keep assembler code out of
    the disassembler and vice versa.  */
 
-static int asm_hash_insn_p        (const CGEN_INSN *);
-static unsigned int asm_hash_insn (const char *);
-static int dis_hash_insn_p        (const CGEN_INSN *);
-static unsigned int dis_hash_insn (const char *, CGEN_INSN_INT);
+static int asm_hash_insn_p PARAMS ((const CGEN_INSN *));
+static unsigned int asm_hash_insn PARAMS ((const char *));
+static int dis_hash_insn_p PARAMS ((const CGEN_INSN *));
+static unsigned int dis_hash_insn PARAMS ((const char *, CGEN_INSN_INT));
 
 /* Instruction formats.  */
 
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
-#define F(f) & m32r_cgen_ifld_table[M32R_##f]
-#else
-#define F(f) & m32r_cgen_ifld_table[M32R_/**/f]
-#endif
-static const CGEN_IFMT ifmt_empty ATTRIBUTE_UNUSED = {
-  0, 0, 0x0, { { 0 } }
+#define F(f) & m32r_cgen_ifld_table[CONCAT2 (M32R_,f)]
+
+static const CGEN_IFMT ifmt_empty = {
+  0, 0, 0x0, { 0 }
 };
 
-static const CGEN_IFMT ifmt_add ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
+static const CGEN_IFMT ifmt_add = {
+  16, 16, 0xf0f0, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
-static const CGEN_IFMT ifmt_add3 ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
+static const CGEN_IFMT ifmt_add3 = {
+  32, 32, 0xf0f00000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_SIMM16), 0 }
 };
 
-static const CGEN_IFMT ifmt_and3 ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_UIMM16) }, { 0 } }
+static const CGEN_IFMT ifmt_and3 = {
+  32, 32, 0xf0f00000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_UIMM16), 0 }
 };
 
-static const CGEN_IFMT ifmt_or3 ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_UIMM16) }, { 0 } }
+static const CGEN_IFMT ifmt_or3 = {
+  32, 32, 0xf0f00000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_UIMM16), 0 }
 };
 
-static const CGEN_IFMT ifmt_addi ATTRIBUTE_UNUSED = {
-  16, 16, 0xf000, { { F (F_OP1) }, { F (F_R1) }, { F (F_SIMM8) }, { 0 } }
+static const CGEN_IFMT ifmt_addi = {
+  16, 16, 0xf000, { F (F_OP1), F (F_R1), F (F_SIMM8), 0 }
 };
 
-static const CGEN_IFMT ifmt_addv3 ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
+static const CGEN_IFMT ifmt_addv3 = {
+  32, 32, 0xf0f00000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_SIMM16), 0 }
 };
 
-static const CGEN_IFMT ifmt_bc8 ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP8) }, { 0 } }
+static const CGEN_IFMT ifmt_bc8 = {
+  16, 16, 0xff00, { F (F_OP1), F (F_R1), F (F_DISP8), 0 }
 };
 
-static const CGEN_IFMT ifmt_bc24 ATTRIBUTE_UNUSED = {
-  32, 32, 0xff000000, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP24) }, { 0 } }
+static const CGEN_IFMT ifmt_bc24 = {
+  32, 32, 0xff000000, { F (F_OP1), F (F_R1), F (F_DISP24), 0 }
 };
 
-static const CGEN_IFMT ifmt_beq ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_DISP16) }, { 0 } }
+static const CGEN_IFMT ifmt_beq = {
+  32, 32, 0xf0f00000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_DISP16), 0 }
 };
 
-static const CGEN_IFMT ifmt_beqz ATTRIBUTE_UNUSED = {
-  32, 32, 0xfff00000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_DISP16) }, { 0 } }
+static const CGEN_IFMT ifmt_beqz = {
+  32, 32, 0xfff00000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_DISP16), 0 }
 };
 
-static const CGEN_IFMT ifmt_cmp ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
+static const CGEN_IFMT ifmt_cmp = {
+  16, 16, 0xf0f0, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
-static const CGEN_IFMT ifmt_cmpi ATTRIBUTE_UNUSED = {
-  32, 32, 0xfff00000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
+static const CGEN_IFMT ifmt_cmpi = {
+  32, 32, 0xfff00000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_SIMM16), 0 }
 };
 
-static const CGEN_IFMT ifmt_cmpz ATTRIBUTE_UNUSED = {
-  16, 16, 0xfff0, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
+static const CGEN_IFMT ifmt_div = {
+  32, 32, 0xf0f0ffff, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_SIMM16), 0 }
 };
 
-static const CGEN_IFMT ifmt_div ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0f0ffff, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
+static const CGEN_IFMT ifmt_jl = {
+  16, 16, 0xfff0, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
-static const CGEN_IFMT ifmt_jc ATTRIBUTE_UNUSED = {
-  16, 16, 0xfff0, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
+static const CGEN_IFMT ifmt_ld24 = {
+  32, 32, 0xf0000000, { F (F_OP1), F (F_R1), F (F_UIMM24), 0 }
 };
 
-static const CGEN_IFMT ifmt_ld24 ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0000000, { { F (F_OP1) }, { F (F_R1) }, { F (F_UIMM24) }, { 0 } }
+static const CGEN_IFMT ifmt_ldi16 = {
+  32, 32, 0xf0ff0000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_SIMM16), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldi16 ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0ff0000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
+static const CGEN_IFMT ifmt_mvfachi = {
+  16, 16, 0xf0ff, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
-static const CGEN_IFMT ifmt_machi_a ATTRIBUTE_UNUSED = {
-  16, 16, 0xf070, { { F (F_OP1) }, { F (F_R1) }, { F (F_ACC) }, { F (F_OP23) }, { F (F_R2) }, { 0 } }
+static const CGEN_IFMT ifmt_mvfc = {
+  16, 16, 0xf0f0, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
-static const CGEN_IFMT ifmt_mvfachi ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0ff, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
+static const CGEN_IFMT ifmt_mvtachi = {
+  16, 16, 0xf0ff, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
-static const CGEN_IFMT ifmt_mvfachi_a ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0f3, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_ACCS) }, { F (F_OP3) }, { 0 } }
+static const CGEN_IFMT ifmt_mvtc = {
+  16, 16, 0xf0f0, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
-static const CGEN_IFMT ifmt_mvfc ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
+static const CGEN_IFMT ifmt_nop = {
+  16, 16, 0xffff, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
-static const CGEN_IFMT ifmt_mvtachi ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0ff, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
+static const CGEN_IFMT ifmt_seth = {
+  32, 32, 0xf0ff0000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_HI16), 0 }
 };
 
-static const CGEN_IFMT ifmt_mvtachi_a ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0f3, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_ACCS) }, { F (F_OP3) }, { 0 } }
+static const CGEN_IFMT ifmt_slli = {
+  16, 16, 0xf0e0, { F (F_OP1), F (F_R1), F (F_SHIFT_OP2), F (F_UIMM5), 0 }
 };
 
-static const CGEN_IFMT ifmt_mvtc ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
+static const CGEN_IFMT ifmt_st_d = {
+  32, 32, 0xf0f00000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_SIMM16), 0 }
 };
 
-static const CGEN_IFMT ifmt_nop ATTRIBUTE_UNUSED = {
-  16, 16, 0xffff, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
-};
-
-static const CGEN_IFMT ifmt_rac_dsi ATTRIBUTE_UNUSED = {
-  16, 16, 0xf3f2, { { F (F_OP1) }, { F (F_ACCD) }, { F (F_BITS67) }, { F (F_OP2) }, { F (F_ACCS) }, { F (F_BIT14) }, { F (F_IMM1) }, { 0 } }
-};
-
-static const CGEN_IFMT ifmt_seth ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0ff0000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_HI16) }, { 0 } }
-};
-
-static const CGEN_IFMT ifmt_slli ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0e0, { { F (F_OP1) }, { F (F_R1) }, { F (F_SHIFT_OP2) }, { F (F_UIMM5) }, { 0 } }
-};
-
-static const CGEN_IFMT ifmt_st_d ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
-};
-
-static const CGEN_IFMT ifmt_trap ATTRIBUTE_UNUSED = {
-  16, 16, 0xfff0, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_UIMM4) }, { 0 } }
-};
-
-static const CGEN_IFMT ifmt_satb ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0f0ffff, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_UIMM16) }, { 0 } }
-};
-
-static const CGEN_IFMT ifmt_clrpsw ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_R1) }, { F (F_UIMM8) }, { 0 } }
-};
-
-static const CGEN_IFMT ifmt_bset ATTRIBUTE_UNUSED = {
-  32, 32, 0xf8f00000, { { F (F_OP1) }, { F (F_BIT4) }, { F (F_UIMM3) }, { F (F_OP2) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
-};
-
-static const CGEN_IFMT ifmt_btst ATTRIBUTE_UNUSED = {
-  16, 16, 0xf8f0, { { F (F_OP1) }, { F (F_BIT4) }, { F (F_UIMM3) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
+static const CGEN_IFMT ifmt_trap = {
+  16, 16, 0xfff0, { F (F_OP1), F (F_R1), F (F_OP2), F (F_UIMM4), 0 }
 };
 
 #undef F
 
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
-#define A(a) (1 << CGEN_INSN_##a)
-#else
-#define A(a) (1 << CGEN_INSN_/**/a)
-#endif
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
-#define OPERAND(op) M32R_OPERAND_##op
-#else
-#define OPERAND(op) M32R_OPERAND_/**/op
-#endif
+#define A(a) (1 << CONCAT2 (CGEN_INSN_,a))
 #define MNEM CGEN_SYNTAX_MNEMONIC /* syntax value for mnemonic */
+#define OPERAND(op) CONCAT2 (M32R_OPERAND_,op)
 #define OP(field) CGEN_SYNTAX_MAKE_FIELD (OPERAND (field))
 
 /* The instruction table.  */
@@ -230,7 +159,7 @@ static const CGEN_OPCODE m32r_cgen_insn_opcode_table[MAX_INSNS] =
   /* Special null first entry.
      A `num' value of zero is thus invalid.
      Also, the special `invalid' insn resides here.  */
-  { { 0, 0, 0, 0 }, {{0}}, 0, {0}},
+  { { 0 } },
 /* add $dr,$sr */
   {
     { 0, 0, 0, 0 },
@@ -369,18 +298,6 @@ static const CGEN_OPCODE m32r_cgen_insn_opcode_table[MAX_INSNS] =
     { { MNEM, ' ', OP (DISP24), 0 } },
     & ifmt_bc24, { 0xfe000000 }
   },
-/* bcl.s $disp8 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DISP8), 0 } },
-    & ifmt_bc8, { 0x7800 }
-  },
-/* bcl.l $disp24 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DISP24), 0 } },
-    & ifmt_bc24, { 0xf8000000 }
-  },
 /* bnc.s $disp8 */
   {
     { 0, 0, 0, 0 },
@@ -411,18 +328,6 @@ static const CGEN_OPCODE m32r_cgen_insn_opcode_table[MAX_INSNS] =
     { { MNEM, ' ', OP (DISP24), 0 } },
     & ifmt_bc24, { 0xff000000 }
   },
-/* bncl.s $disp8 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DISP8), 0 } },
-    & ifmt_bc8, { 0x7900 }
-  },
-/* bncl.l $disp24 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DISP24), 0 } },
-    & ifmt_bc24, { 0xf9000000 }
-  },
 /* cmp $src1,$src2 */
   {
     { 0, 0, 0, 0 },
@@ -446,18 +351,6 @@ static const CGEN_OPCODE m32r_cgen_insn_opcode_table[MAX_INSNS] =
     { 0, 0, 0, 0 },
     { { MNEM, ' ', OP (SRC2), ',', OP (SIMM16), 0 } },
     & ifmt_cmpi, { 0x80500000 }
-  },
-/* cmpeq $src1,$src2 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), 0 } },
-    & ifmt_cmp, { 0x60 }
-  },
-/* cmpz $src2 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC2), 0 } },
-    & ifmt_cmpz, { 0x70 }
   },
 /* div $dr,$sr */
   {
@@ -483,77 +376,17 @@ static const CGEN_OPCODE m32r_cgen_insn_opcode_table[MAX_INSNS] =
     { { MNEM, ' ', OP (DR), ',', OP (SR), 0 } },
     & ifmt_div, { 0x90300000 }
   },
-/* remh $dr,$sr */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DR), ',', OP (SR), 0 } },
-    & ifmt_div, { 0x90200010 }
-  },
-/* remuh $dr,$sr */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DR), ',', OP (SR), 0 } },
-    & ifmt_div, { 0x90300010 }
-  },
-/* remb $dr,$sr */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DR), ',', OP (SR), 0 } },
-    & ifmt_div, { 0x90200018 }
-  },
-/* remub $dr,$sr */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DR), ',', OP (SR), 0 } },
-    & ifmt_div, { 0x90300018 }
-  },
-/* divuh $dr,$sr */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DR), ',', OP (SR), 0 } },
-    & ifmt_div, { 0x90100010 }
-  },
-/* divb $dr,$sr */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DR), ',', OP (SR), 0 } },
-    & ifmt_div, { 0x90000018 }
-  },
-/* divub $dr,$sr */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DR), ',', OP (SR), 0 } },
-    & ifmt_div, { 0x90100018 }
-  },
-/* divh $dr,$sr */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DR), ',', OP (SR), 0 } },
-    & ifmt_div, { 0x90000010 }
-  },
-/* jc $sr */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SR), 0 } },
-    & ifmt_jc, { 0x1cc0 }
-  },
-/* jnc $sr */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SR), 0 } },
-    & ifmt_jc, { 0x1dc0 }
-  },
 /* jl $sr */
   {
     { 0, 0, 0, 0 },
     { { MNEM, ' ', OP (SR), 0 } },
-    & ifmt_jc, { 0x1ec0 }
+    & ifmt_jl, { 0x1ec0 }
   },
 /* jmp $sr */
   {
     { 0, 0, 0, 0 },
     { { MNEM, ' ', OP (SR), 0 } },
-    & ifmt_jc, { 0x1fc0 }
+    & ifmt_jl, { 0x1fc0 }
   },
 /* ld $dr,@$sr */
   {
@@ -651,23 +484,11 @@ static const CGEN_OPCODE m32r_cgen_insn_opcode_table[MAX_INSNS] =
     { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), 0 } },
     & ifmt_cmp, { 0x3040 }
   },
-/* machi $src1,$src2,$acc */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), ',', OP (ACC), 0 } },
-    & ifmt_machi_a, { 0x3040 }
-  },
 /* maclo $src1,$src2 */
   {
     { 0, 0, 0, 0 },
     { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), 0 } },
     & ifmt_cmp, { 0x3050 }
-  },
-/* maclo $src1,$src2,$acc */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), ',', OP (ACC), 0 } },
-    & ifmt_machi_a, { 0x3050 }
   },
 /* macwhi $src1,$src2 */
   {
@@ -675,23 +496,11 @@ static const CGEN_OPCODE m32r_cgen_insn_opcode_table[MAX_INSNS] =
     { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), 0 } },
     & ifmt_cmp, { 0x3060 }
   },
-/* macwhi $src1,$src2,$acc */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), ',', OP (ACC), 0 } },
-    & ifmt_machi_a, { 0x3060 }
-  },
 /* macwlo $src1,$src2 */
   {
     { 0, 0, 0, 0 },
     { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), 0 } },
     & ifmt_cmp, { 0x3070 }
-  },
-/* macwlo $src1,$src2,$acc */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), ',', OP (ACC), 0 } },
-    & ifmt_machi_a, { 0x3070 }
   },
 /* mul $dr,$sr */
   {
@@ -705,23 +514,11 @@ static const CGEN_OPCODE m32r_cgen_insn_opcode_table[MAX_INSNS] =
     { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), 0 } },
     & ifmt_cmp, { 0x3000 }
   },
-/* mulhi $src1,$src2,$acc */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), ',', OP (ACC), 0 } },
-    & ifmt_machi_a, { 0x3000 }
-  },
 /* mullo $src1,$src2 */
   {
     { 0, 0, 0, 0 },
     { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), 0 } },
     & ifmt_cmp, { 0x3010 }
-  },
-/* mullo $src1,$src2,$acc */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), ',', OP (ACC), 0 } },
-    & ifmt_machi_a, { 0x3010 }
   },
 /* mulwhi $src1,$src2 */
   {
@@ -729,23 +526,11 @@ static const CGEN_OPCODE m32r_cgen_insn_opcode_table[MAX_INSNS] =
     { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), 0 } },
     & ifmt_cmp, { 0x3020 }
   },
-/* mulwhi $src1,$src2,$acc */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), ',', OP (ACC), 0 } },
-    & ifmt_machi_a, { 0x3020 }
-  },
 /* mulwlo $src1,$src2 */
   {
     { 0, 0, 0, 0 },
     { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), 0 } },
     & ifmt_cmp, { 0x3030 }
-  },
-/* mulwlo $src1,$src2,$acc */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), ',', OP (ACC), 0 } },
-    & ifmt_machi_a, { 0x3030 }
   },
 /* mv $dr,$sr */
   {
@@ -759,35 +544,17 @@ static const CGEN_OPCODE m32r_cgen_insn_opcode_table[MAX_INSNS] =
     { { MNEM, ' ', OP (DR), 0 } },
     & ifmt_mvfachi, { 0x50f0 }
   },
-/* mvfachi $dr,$accs */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DR), ',', OP (ACCS), 0 } },
-    & ifmt_mvfachi_a, { 0x50f0 }
-  },
 /* mvfaclo $dr */
   {
     { 0, 0, 0, 0 },
     { { MNEM, ' ', OP (DR), 0 } },
     & ifmt_mvfachi, { 0x50f1 }
   },
-/* mvfaclo $dr,$accs */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DR), ',', OP (ACCS), 0 } },
-    & ifmt_mvfachi_a, { 0x50f1 }
-  },
 /* mvfacmi $dr */
   {
     { 0, 0, 0, 0 },
     { { MNEM, ' ', OP (DR), 0 } },
     & ifmt_mvfachi, { 0x50f2 }
-  },
-/* mvfacmi $dr,$accs */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DR), ',', OP (ACCS), 0 } },
-    & ifmt_mvfachi_a, { 0x50f2 }
   },
 /* mvfc $dr,$scr */
   {
@@ -801,23 +568,11 @@ static const CGEN_OPCODE m32r_cgen_insn_opcode_table[MAX_INSNS] =
     { { MNEM, ' ', OP (SRC1), 0 } },
     & ifmt_mvtachi, { 0x5070 }
   },
-/* mvtachi $src1,$accs */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC1), ',', OP (ACCS), 0 } },
-    & ifmt_mvtachi_a, { 0x5070 }
-  },
 /* mvtaclo $src1 */
   {
     { 0, 0, 0, 0 },
     { { MNEM, ' ', OP (SRC1), 0 } },
     & ifmt_mvtachi, { 0x5071 }
-  },
-/* mvtaclo $src1,$accs */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC1), ',', OP (ACCS), 0 } },
-    & ifmt_mvtachi_a, { 0x5071 }
   },
 /* mvtc $sr,$dcr */
   {
@@ -849,23 +604,11 @@ static const CGEN_OPCODE m32r_cgen_insn_opcode_table[MAX_INSNS] =
     { { MNEM, 0 } },
     & ifmt_nop, { 0x5090 }
   },
-/* rac $accd,$accs,$imm1 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (ACCD), ',', OP (ACCS), ',', OP (IMM1), 0 } },
-    & ifmt_rac_dsi, { 0x5090 }
-  },
 /* rach */
   {
     { 0, 0, 0, 0 },
     { { MNEM, 0 } },
     & ifmt_nop, { 0x5080 }
-  },
-/* rach $accd,$accs,$imm1 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (ACCD), ',', OP (ACCS), ',', OP (IMM1), 0 } },
-    & ifmt_rac_dsi, { 0x5080 }
   },
 /* rte */
   {
@@ -975,18 +718,6 @@ static const CGEN_OPCODE m32r_cgen_insn_opcode_table[MAX_INSNS] =
     { { MNEM, ' ', OP (SRC1), ',', '@', '+', OP (SRC2), 0 } },
     & ifmt_cmp, { 0x2060 }
   },
-/* sth $src1,@$src2+ */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC1), ',', '@', OP (SRC2), '+', 0 } },
-    & ifmt_cmp, { 0x2030 }
-  },
-/* stb $src1,@$src2+ */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC1), ',', '@', OP (SRC2), '+', 0 } },
-    & ifmt_cmp, { 0x2010 }
-  },
 /* st $src1,@-$src2 */
   {
     { 0, 0, 0, 0 },
@@ -1023,275 +754,136 @@ static const CGEN_OPCODE m32r_cgen_insn_opcode_table[MAX_INSNS] =
     { { MNEM, ' ', OP (SRC1), ',', '@', OP (SRC2), 0 } },
     & ifmt_cmp, { 0x2050 }
   },
-/* satb $dr,$sr */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DR), ',', OP (SR), 0 } },
-    & ifmt_satb, { 0x80600300 }
-  },
-/* sath $dr,$sr */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DR), ',', OP (SR), 0 } },
-    & ifmt_satb, { 0x80600200 }
-  },
-/* sat $dr,$sr */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DR), ',', OP (SR), 0 } },
-    & ifmt_satb, { 0x80600000 }
-  },
-/* pcmpbz $src2 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC2), 0 } },
-    & ifmt_cmpz, { 0x370 }
-  },
-/* sadd */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, 0 } },
-    & ifmt_nop, { 0x50e4 }
-  },
-/* macwu1 $src1,$src2 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), 0 } },
-    & ifmt_cmp, { 0x50b0 }
-  },
-/* msblo $src1,$src2 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), 0 } },
-    & ifmt_cmp, { 0x50d0 }
-  },
-/* mulwu1 $src1,$src2 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), 0 } },
-    & ifmt_cmp, { 0x50a0 }
-  },
-/* maclh1 $src1,$src2 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (SRC1), ',', OP (SRC2), 0 } },
-    & ifmt_cmp, { 0x50c0 }
-  },
-/* sc */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, 0 } },
-    & ifmt_nop, { 0x7401 }
-  },
-/* snc */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, 0 } },
-    & ifmt_nop, { 0x7501 }
-  },
-/* clrpsw $uimm8 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (UIMM8), 0 } },
-    & ifmt_clrpsw, { 0x7200 }
-  },
-/* setpsw $uimm8 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (UIMM8), 0 } },
-    & ifmt_clrpsw, { 0x7100 }
-  },
-/* bset $uimm3,@($slo16,$sr) */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (UIMM3), ',', '@', '(', OP (SLO16), ',', OP (SR), ')', 0 } },
-    & ifmt_bset, { 0xa0600000 }
-  },
-/* bclr $uimm3,@($slo16,$sr) */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (UIMM3), ',', '@', '(', OP (SLO16), ',', OP (SR), ')', 0 } },
-    & ifmt_bset, { 0xa0700000 }
-  },
-/* btst $uimm3,$sr */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (UIMM3), ',', OP (SR), 0 } },
-    & ifmt_btst, { 0xf0 }
-  },
 };
 
 #undef A
-#undef OPERAND
 #undef MNEM
+#undef OPERAND
 #undef OP
 
 /* Formats for ALIAS macro-insns.  */
 
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
-#define F(f) & m32r_cgen_ifld_table[M32R_##f]
-#else
-#define F(f) & m32r_cgen_ifld_table[M32R_/**/f]
-#endif
-static const CGEN_IFMT ifmt_bc8r ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP8) }, { 0 } }
+#define F(f) & m32r_cgen_ifld_table[CONCAT2 (M32R_,f)]
+
+static const CGEN_IFMT ifmt_bc8r = {
+  16, 16, 0xff00, { F (F_OP1), F (F_R1), F (F_DISP8), 0 }
 };
 
-static const CGEN_IFMT ifmt_bc24r ATTRIBUTE_UNUSED = {
-  32, 32, 0xff000000, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP24) }, { 0 } }
+static const CGEN_IFMT ifmt_bc24r = {
+  32, 32, 0xff000000, { F (F_OP1), F (F_R1), F (F_DISP24), 0 }
 };
 
-static const CGEN_IFMT ifmt_bl8r ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP8) }, { 0 } }
+static const CGEN_IFMT ifmt_bl8r = {
+  16, 16, 0xff00, { F (F_OP1), F (F_R1), F (F_DISP8), 0 }
 };
 
-static const CGEN_IFMT ifmt_bl24r ATTRIBUTE_UNUSED = {
-  32, 32, 0xff000000, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP24) }, { 0 } }
+static const CGEN_IFMT ifmt_bl24r = {
+  32, 32, 0xff000000, { F (F_OP1), F (F_R1), F (F_DISP24), 0 }
 };
 
-static const CGEN_IFMT ifmt_bcl8r ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP8) }, { 0 } }
+static const CGEN_IFMT ifmt_bnc8r = {
+  16, 16, 0xff00, { F (F_OP1), F (F_R1), F (F_DISP8), 0 }
 };
 
-static const CGEN_IFMT ifmt_bcl24r ATTRIBUTE_UNUSED = {
-  32, 32, 0xff000000, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP24) }, { 0 } }
+static const CGEN_IFMT ifmt_bnc24r = {
+  32, 32, 0xff000000, { F (F_OP1), F (F_R1), F (F_DISP24), 0 }
 };
 
-static const CGEN_IFMT ifmt_bnc8r ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP8) }, { 0 } }
+static const CGEN_IFMT ifmt_bra8r = {
+  16, 16, 0xff00, { F (F_OP1), F (F_R1), F (F_DISP8), 0 }
 };
 
-static const CGEN_IFMT ifmt_bnc24r ATTRIBUTE_UNUSED = {
-  32, 32, 0xff000000, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP24) }, { 0 } }
+static const CGEN_IFMT ifmt_bra24r = {
+  32, 32, 0xff000000, { F (F_OP1), F (F_R1), F (F_DISP24), 0 }
 };
 
-static const CGEN_IFMT ifmt_bra8r ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP8) }, { 0 } }
+static const CGEN_IFMT ifmt_ld_2 = {
+  16, 16, 0xf0f0, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
-static const CGEN_IFMT ifmt_bra24r ATTRIBUTE_UNUSED = {
-  32, 32, 0xff000000, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP24) }, { 0 } }
+static const CGEN_IFMT ifmt_ld_d2 = {
+  32, 32, 0xf0f00000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_SIMM16), 0 }
 };
 
-static const CGEN_IFMT ifmt_bncl8r ATTRIBUTE_UNUSED = {
-  16, 16, 0xff00, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP8) }, { 0 } }
+static const CGEN_IFMT ifmt_ldb_2 = {
+  16, 16, 0xf0f0, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
-static const CGEN_IFMT ifmt_bncl24r ATTRIBUTE_UNUSED = {
-  32, 32, 0xff000000, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP24) }, { 0 } }
+static const CGEN_IFMT ifmt_ldb_d2 = {
+  32, 32, 0xf0f00000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_SIMM16), 0 }
 };
 
-static const CGEN_IFMT ifmt_ld_2 ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
+static const CGEN_IFMT ifmt_ldh_2 = {
+  16, 16, 0xf0f0, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
-static const CGEN_IFMT ifmt_ld_d2 ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
+static const CGEN_IFMT ifmt_ldh_d2 = {
+  32, 32, 0xf0f00000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_SIMM16), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldb_2 ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
+static const CGEN_IFMT ifmt_ldub_2 = {
+  16, 16, 0xf0f0, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldb_d2 ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
+static const CGEN_IFMT ifmt_ldub_d2 = {
+  32, 32, 0xf0f00000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_SIMM16), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldh_2 ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
+static const CGEN_IFMT ifmt_lduh_2 = {
+  16, 16, 0xf0f0, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldh_d2 ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
+static const CGEN_IFMT ifmt_lduh_d2 = {
+  32, 32, 0xf0f00000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_SIMM16), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldub_2 ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
+static const CGEN_IFMT ifmt_pop = {
+  16, 16, 0xf0ff, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldub_d2 ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
+static const CGEN_IFMT ifmt_ldi8a = {
+  16, 16, 0xf000, { F (F_OP1), F (F_R1), F (F_SIMM8), 0 }
 };
 
-static const CGEN_IFMT ifmt_lduh_2 ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
+static const CGEN_IFMT ifmt_ldi16a = {
+  32, 32, 0xf0ff0000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_SIMM16), 0 }
 };
 
-static const CGEN_IFMT ifmt_lduh_d2 ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
+static const CGEN_IFMT ifmt_st_2 = {
+  16, 16, 0xf0f0, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
-static const CGEN_IFMT ifmt_pop ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0ff, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
+static const CGEN_IFMT ifmt_st_d2 = {
+  32, 32, 0xf0f00000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_SIMM16), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldi8a ATTRIBUTE_UNUSED = {
-  16, 16, 0xf000, { { F (F_OP1) }, { F (F_R1) }, { F (F_SIMM8) }, { 0 } }
+static const CGEN_IFMT ifmt_stb_2 = {
+  16, 16, 0xf0f0, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
-static const CGEN_IFMT ifmt_ldi16a ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0ff0000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_R1) }, { F (F_SIMM16) }, { 0 } }
+static const CGEN_IFMT ifmt_stb_d2 = {
+  32, 32, 0xf0f00000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_SIMM16), 0 }
 };
 
-static const CGEN_IFMT ifmt_rac_d ATTRIBUTE_UNUSED = {
-  16, 16, 0xf3ff, { { F (F_OP1) }, { F (F_ACCD) }, { F (F_BITS67) }, { F (F_OP2) }, { F (F_ACCS) }, { F (F_BIT14) }, { F (F_IMM1) }, { 0 } }
+static const CGEN_IFMT ifmt_sth_2 = {
+  16, 16, 0xf0f0, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
-static const CGEN_IFMT ifmt_rac_ds ATTRIBUTE_UNUSED = {
-  16, 16, 0xf3f3, { { F (F_OP1) }, { F (F_ACCD) }, { F (F_BITS67) }, { F (F_OP2) }, { F (F_ACCS) }, { F (F_BIT14) }, { F (F_IMM1) }, { 0 } }
+static const CGEN_IFMT ifmt_sth_d2 = {
+  32, 32, 0xf0f00000, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), F (F_SIMM16), 0 }
 };
 
-static const CGEN_IFMT ifmt_rach_d ATTRIBUTE_UNUSED = {
-  16, 16, 0xf3ff, { { F (F_OP1) }, { F (F_ACCD) }, { F (F_BITS67) }, { F (F_OP2) }, { F (F_ACCS) }, { F (F_BIT14) }, { F (F_IMM1) }, { 0 } }
-};
-
-static const CGEN_IFMT ifmt_rach_ds ATTRIBUTE_UNUSED = {
-  16, 16, 0xf3f3, { { F (F_OP1) }, { F (F_ACCD) }, { F (F_BITS67) }, { F (F_OP2) }, { F (F_ACCS) }, { F (F_BIT14) }, { F (F_IMM1) }, { 0 } }
-};
-
-static const CGEN_IFMT ifmt_st_2 ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
-};
-
-static const CGEN_IFMT ifmt_st_d2 ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
-};
-
-static const CGEN_IFMT ifmt_stb_2 ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
-};
-
-static const CGEN_IFMT ifmt_stb_d2 ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
-};
-
-static const CGEN_IFMT ifmt_sth_2 ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
-};
-
-static const CGEN_IFMT ifmt_sth_d2 ATTRIBUTE_UNUSED = {
-  32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
-};
-
-static const CGEN_IFMT ifmt_push ATTRIBUTE_UNUSED = {
-  16, 16, 0xf0ff, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
+static const CGEN_IFMT ifmt_push = {
+  16, 16, 0xf0ff, { F (F_OP1), F (F_R1), F (F_OP2), F (F_R2), 0 }
 };
 
 #undef F
 
 /* Each non-simple macro entry points to an array of expansion possibilities.  */
 
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
-#define A(a) (1 << CGEN_INSN_##a)
-#else
-#define A(a) (1 << CGEN_INSN_/**/a)
-#endif
-#if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
-#define OPERAND(op) M32R_OPERAND_##op
-#else
-#define OPERAND(op) M32R_OPERAND_/**/op
-#endif
+#define A(a) (1 << CONCAT2 (CGEN_INSN_,a))
 #define MNEM CGEN_SYNTAX_MNEMONIC /* syntax value for mnemonic */
+#define OPERAND(op) CONCAT2 (M32R_OPERAND_,op)
 #define OP(field) CGEN_SYNTAX_MAKE_FIELD (OPERAND (field))
 
 /* The macro instruction table.  */
@@ -1301,182 +893,142 @@ static const CGEN_IBASE m32r_cgen_macro_insn_table[] =
 /* bc $disp8 */
   {
     -1, "bc8r", "bc", 16,
-    { 0|A(RELAXABLE)|A(COND_CTI)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
+    { 0|A(RELAXABLE)|A(COND_CTI)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* bc $disp24 */
   {
     -1, "bc24r", "bc", 32,
-    { 0|A(RELAXED)|A(COND_CTI)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
+    { 0|A(RELAX)|A(COND_CTI)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* bl $disp8 */
   {
     -1, "bl8r", "bl", 16,
-    { 0|A(RELAXABLE)|A(FILL_SLOT)|A(UNCOND_CTI)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
+    { 0|A(RELAXABLE)|A(FILL_SLOT)|A(UNCOND_CTI)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* bl $disp24 */
   {
     -1, "bl24r", "bl", 32,
-    { 0|A(RELAXED)|A(UNCOND_CTI)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
-  },
-/* bcl $disp8 */
-  {
-    -1, "bcl8r", "bcl", 16,
-    { 0|A(RELAXABLE)|A(FILL_SLOT)|A(COND_CTI)|A(ALIAS), { { { (1<<MACH_M32RX)|(1<<MACH_M32R2), 0 } }, { { PIPE_O, 0 } } } }
-  },
-/* bcl $disp24 */
-  {
-    -1, "bcl24r", "bcl", 32,
-    { 0|A(RELAXED)|A(COND_CTI)|A(ALIAS), { { { (1<<MACH_M32RX)|(1<<MACH_M32R2), 0 } }, { { PIPE_NONE, 0 } } } }
+    { 0|A(RELAX)|A(UNCOND_CTI)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* bnc $disp8 */
   {
     -1, "bnc8r", "bnc", 16,
-    { 0|A(RELAXABLE)|A(COND_CTI)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
+    { 0|A(RELAXABLE)|A(COND_CTI)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* bnc $disp24 */
   {
     -1, "bnc24r", "bnc", 32,
-    { 0|A(RELAXED)|A(COND_CTI)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
+    { 0|A(RELAX)|A(COND_CTI)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* bra $disp8 */
   {
     -1, "bra8r", "bra", 16,
-    { 0|A(RELAXABLE)|A(FILL_SLOT)|A(UNCOND_CTI)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
+    { 0|A(RELAXABLE)|A(FILL_SLOT)|A(UNCOND_CTI)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* bra $disp24 */
   {
     -1, "bra24r", "bra", 32,
-    { 0|A(RELAXED)|A(UNCOND_CTI)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
-  },
-/* bncl $disp8 */
-  {
-    -1, "bncl8r", "bncl", 16,
-    { 0|A(RELAXABLE)|A(FILL_SLOT)|A(COND_CTI)|A(ALIAS), { { { (1<<MACH_M32RX)|(1<<MACH_M32R2), 0 } }, { { PIPE_O, 0 } } } }
-  },
-/* bncl $disp24 */
-  {
-    -1, "bncl24r", "bncl", 32,
-    { 0|A(RELAXED)|A(COND_CTI)|A(ALIAS), { { { (1<<MACH_M32RX)|(1<<MACH_M32R2), 0 } }, { { PIPE_NONE, 0 } } } }
+    { 0|A(RELAX)|A(UNCOND_CTI)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* ld $dr,@($sr) */
   {
     -1, "ld-2", "ld", 16,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* ld $dr,@($sr,$slo16) */
   {
     -1, "ld-d2", "ld", 32,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* ldb $dr,@($sr) */
   {
     -1, "ldb-2", "ldb", 16,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* ldb $dr,@($sr,$slo16) */
   {
     -1, "ldb-d2", "ldb", 32,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* ldh $dr,@($sr) */
   {
     -1, "ldh-2", "ldh", 16,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* ldh $dr,@($sr,$slo16) */
   {
     -1, "ldh-d2", "ldh", 32,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* ldub $dr,@($sr) */
   {
     -1, "ldub-2", "ldub", 16,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* ldub $dr,@($sr,$slo16) */
   {
     -1, "ldub-d2", "ldub", 32,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* lduh $dr,@($sr) */
   {
     -1, "lduh-2", "lduh", 16,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* lduh $dr,@($sr,$slo16) */
   {
     -1, "lduh-d2", "lduh", 32,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* pop $dr */
   {
     -1, "pop", "pop", 16,
-    { 0|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
+    { 0|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* ldi $dr,$simm8 */
   {
     -1, "ldi8a", "ldi", 16,
-    { 0|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_OS, 0 } } } }
+    { 0|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* ldi $dr,$hash$slo16 */
   {
     -1, "ldi16a", "ldi", 32,
-    { 0|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
-  },
-/* rac $accd */
-  {
-    -1, "rac-d", "rac", 16,
-    { 0|A(ALIAS), { { { (1<<MACH_M32RX)|(1<<MACH_M32R2), 0 } }, { { PIPE_S, 0 } } } }
-  },
-/* rac $accd,$accs */
-  {
-    -1, "rac-ds", "rac", 16,
-    { 0|A(ALIAS), { { { (1<<MACH_M32RX)|(1<<MACH_M32R2), 0 } }, { { PIPE_S, 0 } } } }
-  },
-/* rach $accd */
-  {
-    -1, "rach-d", "rach", 16,
-    { 0|A(ALIAS), { { { (1<<MACH_M32RX)|(1<<MACH_M32R2), 0 } }, { { PIPE_S, 0 } } } }
-  },
-/* rach $accd,$accs */
-  {
-    -1, "rach-ds", "rach", 16,
-    { 0|A(ALIAS), { { { (1<<MACH_M32RX)|(1<<MACH_M32R2), 0 } }, { { PIPE_S, 0 } } } }
+    { 0|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* st $src1,@($src2) */
   {
     -1, "st-2", "st", 16,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* st $src1,@($src2,$slo16) */
   {
     -1, "st-d2", "st", 32,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* stb $src1,@($src2) */
   {
     -1, "stb-2", "stb", 16,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* stb $src1,@($src2,$slo16) */
   {
     -1, "stb-d2", "stb", 32,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* sth $src1,@($src2) */
   {
     -1, "sth-2", "sth", 16,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* sth $src1,@($src2,$slo16) */
   {
     -1, "sth-d2", "sth", 32,
-    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
+    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE) } }
   },
 /* push $src1 */
   {
     -1, "push", "push", 16,
-    { 0|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
+    { 0|A(ALIAS), { (1<<MACH_BASE) } }
   },
 };
 
@@ -1508,18 +1060,6 @@ static const CGEN_OPCODE m32r_cgen_macro_insn_opcode_table[] =
     { { MNEM, ' ', OP (DISP24), 0 } },
     & ifmt_bl24r, { 0xfe000000 }
   },
-/* bcl $disp8 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DISP8), 0 } },
-    & ifmt_bcl8r, { 0x7800 }
-  },
-/* bcl $disp24 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DISP24), 0 } },
-    & ifmt_bcl24r, { 0xf8000000 }
-  },
 /* bnc $disp8 */
   {
     { 0, 0, 0, 0 },
@@ -1543,18 +1083,6 @@ static const CGEN_OPCODE m32r_cgen_macro_insn_opcode_table[] =
     { 0, 0, 0, 0 },
     { { MNEM, ' ', OP (DISP24), 0 } },
     & ifmt_bra24r, { 0xff000000 }
-  },
-/* bncl $disp8 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DISP8), 0 } },
-    & ifmt_bncl8r, { 0x7900 }
-  },
-/* bncl $disp24 */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (DISP24), 0 } },
-    & ifmt_bncl24r, { 0xf9000000 }
   },
 /* ld $dr,@($sr) */
   {
@@ -1634,30 +1162,6 @@ static const CGEN_OPCODE m32r_cgen_macro_insn_opcode_table[] =
     { { MNEM, ' ', OP (DR), ',', OP (HASH), OP (SLO16), 0 } },
     & ifmt_ldi16a, { 0x90f00000 }
   },
-/* rac $accd */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (ACCD), 0 } },
-    & ifmt_rac_d, { 0x5090 }
-  },
-/* rac $accd,$accs */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (ACCD), ',', OP (ACCS), 0 } },
-    & ifmt_rac_ds, { 0x5090 }
-  },
-/* rach $accd */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (ACCD), 0 } },
-    & ifmt_rach_d, { 0x5080 }
-  },
-/* rach $accd,$accs */
-  {
-    { 0, 0, 0, 0 },
-    { { MNEM, ' ', OP (ACCD), ',', OP (ACCS), 0 } },
-    & ifmt_rach_ds, { 0x5080 }
-  },
 /* st $src1,@($src2) */
   {
     { 0, 0, 0, 0 },
@@ -1703,8 +1207,8 @@ static const CGEN_OPCODE m32r_cgen_macro_insn_opcode_table[] =
 };
 
 #undef A
-#undef OPERAND
 #undef MNEM
+#undef OPERAND
 #undef OP
 
 #ifndef CGEN_ASM_HASH_P
@@ -1720,7 +1224,7 @@ static const CGEN_OPCODE m32r_cgen_macro_insn_opcode_table[] =
 
 static int
 asm_hash_insn_p (insn)
-     const CGEN_INSN *insn ATTRIBUTE_UNUSED;
+     const CGEN_INSN *insn;
 {
   return CGEN_ASM_HASH_P (insn);
 }
@@ -1770,8 +1274,8 @@ asm_hash_insn (mnem)
 
 static unsigned int
 dis_hash_insn (buf, value)
-     const char * buf ATTRIBUTE_UNUSED;
-     CGEN_INSN_INT value ATTRIBUTE_UNUSED;
+     const char * buf;
+     CGEN_INSN_INT value;
 {
   return CGEN_DIS_HASH (buf, value);
 }
@@ -1779,7 +1283,9 @@ dis_hash_insn (buf, value)
 /* Set the recorded length of the insn in the CGEN_FIELDS struct.  */
 
 static void
-set_fields_bitsize (CGEN_FIELDS *fields, int size)
+set_fields_bitsize (fields, size)
+     CGEN_FIELDS *fields;
+     int size;
 {
   CGEN_FIELDS_BITSIZE (fields) = size;
 }
@@ -1788,21 +1294,20 @@ set_fields_bitsize (CGEN_FIELDS *fields, int size)
    This plugs the opcode entries and macro instructions into the cpu table.  */
 
 void
-m32r_cgen_init_opcode_table (CGEN_CPU_DESC cd)
+m32r_cgen_init_opcode_table (cd)
+     CGEN_CPU_DESC cd;
 {
   int i;
   int num_macros = (sizeof (m32r_cgen_macro_insn_table) /
 		    sizeof (m32r_cgen_macro_insn_table[0]));
   const CGEN_IBASE *ib = & m32r_cgen_macro_insn_table[0];
   const CGEN_OPCODE *oc = & m32r_cgen_macro_insn_opcode_table[0];
-  CGEN_INSN *insns = xmalloc (num_macros * sizeof (CGEN_INSN));
-
+  CGEN_INSN *insns = (CGEN_INSN *) xmalloc (num_macros * sizeof (CGEN_INSN));
   memset (insns, 0, num_macros * sizeof (CGEN_INSN));
   for (i = 0; i < num_macros; ++i)
     {
       insns[i].base = &ib[i];
       insns[i].opcode = &oc[i];
-      m32r_cgen_build_insn_regex (& insns[i]);
     }
   cd->macro_insn_table.init_entries = insns;
   cd->macro_insn_table.entry_size = sizeof (CGEN_IBASE);
@@ -1811,10 +1316,7 @@ m32r_cgen_init_opcode_table (CGEN_CPU_DESC cd)
   oc = & m32r_cgen_insn_opcode_table[0];
   insns = (CGEN_INSN *) cd->insn_table.init_entries;
   for (i = 0; i < MAX_INSNS; ++i)
-    {
-      insns[i].opcode = &oc[i];
-      m32r_cgen_build_insn_regex (& insns[i]);
-    }
+    insns[i].opcode = &oc[i];
 
   cd->sizeof_fields = sizeof (CGEN_FIELDS);
   cd->set_fields_bitsize = set_fields_bitsize;

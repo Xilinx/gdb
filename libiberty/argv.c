@@ -1,5 +1,5 @@
 /* Create and destroy argument vectors (argv's)
-   Copyright (C) 1992, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1992 Free Software Foundation, Inc.
    Written by Fred Fish @ Cygnus Support
 
 This file is part of the libiberty library.
@@ -15,26 +15,47 @@ Library General Public License for more details.
 
 You should have received a copy of the GNU Library General Public
 License along with libiberty; see the file COPYING.LIB.  If
-not, write to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
-Boston, MA 02110-1301, USA.  */
+not, write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 
 /*  Create and destroy argument vectors.  An argument vector is simply an
     array of string pointers, terminated by a NULL pointer. */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
 #include "ansidecl.h"
 #include "libiberty.h"
-#include "safe-ctype.h"
+
+#ifdef isspace
+#undef isspace
+#endif
+#define isspace(ch) ((ch) == ' ' || (ch) == '\t')
 
 /*  Routines imported from standard C runtime libraries. */
 
+#ifdef __STDC__
+
 #include <stddef.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
+extern void *memcpy (void *s1, const void *s2, size_t n);	/* 4.11.2.1 */
+extern size_t strlen (const char *s);				/* 4.11.6.3 */
+extern void *malloc (size_t size);				/* 4.10.3.3 */
+extern void *realloc (void *ptr, size_t size);			/* 4.10.3.4 */
+extern void free (void *ptr);					/* 4.10.3.2 */
+extern char *strdup (const char *s);				/* Non-ANSI */
+
+#else	/* !__STDC__ */
+
+#if !defined _WIN32 || defined __GNUC__
+extern char *memcpy ();		/* Copy memory region */
+extern int strlen ();		/* Count length of string */
+extern char *malloc ();		/* Standard memory allocater */
+extern char *realloc ();	/* Standard memory reallocator */
+extern void free ();		/* Free malloc'd memory */
+extern char *strdup ();		/* Duplicate a string */
+#endif
+
+#endif	/* __STDC__ */
+
+#include "alloca-conf.h"
 
 #ifndef NULL
 #define NULL 0
@@ -49,20 +70,32 @@ Boston, MA 02110-1301, USA.  */
 
 /*
 
-@deftypefn Extension char** dupargv (char **@var{vector})
+NAME
 
-Duplicate an argument vector.  Simply scans through @var{vector},
-duplicating each argument until the terminating @code{NULL} is found.
-Returns a pointer to the argument vector if successful.  Returns
-@code{NULL} if there is insufficient memory to complete building the
-argument vector.
+	dupargv -- duplicate an argument vector
 
-@end deftypefn
+SYNOPSIS
+
+	char **dupargv (vector)
+	char **vector;
+
+DESCRIPTION
+
+	Duplicate an argument vector.  Simply scans through the
+	vector, duplicating each argument until the
+	terminating NULL is found.
+
+RETURNS
+
+	Returns a pointer to the argument vector if
+	successful. Returns NULL if there is insufficient memory to
+	complete building the argument vector.
 
 */
 
 char **
-dupargv (char **argv)
+dupargv (argv)
+     char **argv;
 {
   int argc;
   char **copy;
@@ -80,7 +113,7 @@ dupargv (char **argv)
   for (argc = 0; argv[argc] != NULL; argc++)
     {
       int len = strlen (argv[argc]);
-      copy[argc] = (char *) malloc (len + 1);
+      copy[argc] = malloc (sizeof (char *) * (len + 1));
       if (copy[argc] == NULL)
 	{
 	  freeargv (copy);
@@ -94,18 +127,29 @@ dupargv (char **argv)
 
 /*
 
-@deftypefn Extension void freeargv (char **@var{vector})
+NAME
 
-Free an argument vector that was built using @code{buildargv}.  Simply
-scans through @var{vector}, freeing the memory for each argument until
-the terminating @code{NULL} is found, and then frees @var{vector}
-itself.
+	freeargv -- free an argument vector
 
-@end deftypefn
+SYNOPSIS
+
+	void freeargv (vector)
+	char **vector;
+
+DESCRIPTION
+
+	Free an argument vector that was built using buildargv.  Simply scans
+	through the vector, freeing the memory for each argument until the
+	terminating NULL is found, and then frees the vector itself.
+
+RETURNS
+
+	No value.
 
 */
 
-void freeargv (char **vector)
+void freeargv (vector)
+char **vector;
 {
   register char **scan;
 
@@ -121,45 +165,53 @@ void freeargv (char **vector)
 
 /*
 
-@deftypefn Extension char** buildargv (char *@var{sp})
+NAME
 
-Given a pointer to a string, parse the string extracting fields
-separated by whitespace and optionally enclosed within either single
-or double quotes (which are stripped off), and build a vector of
-pointers to copies of the string for each field.  The input string
-remains unchanged.  The last element of the vector is followed by a
-@code{NULL} element.
+	buildargv -- build an argument vector from a string
 
-All of the memory for the pointer array and copies of the string
-is obtained from @code{malloc}.  All of the memory can be returned to the
-system with the single function call @code{freeargv}, which takes the
-returned result of @code{buildargv}, as it's argument.
+SYNOPSIS
 
-Returns a pointer to the argument vector if successful.  Returns
-@code{NULL} if @var{sp} is @code{NULL} or if there is insufficient
-memory to complete building the argument vector.
+	char **buildargv (sp)
+	char *sp;
 
-If the input is a null string (as opposed to a @code{NULL} pointer),
-then buildarg returns an argument vector that has one arg, a null
-string.
+DESCRIPTION
 
-@end deftypefn
+	Given a pointer to a string, parse the string extracting fields
+	separated by whitespace and optionally enclosed within either single
+	or double quotes (which are stripped off), and build a vector of
+	pointers to copies of the string for each field.  The input string
+	remains unchanged.
 
-The memory for the argv array is dynamically expanded as necessary.
+	All of the memory for the pointer array and copies of the string
+	is obtained from malloc.  All of the memory can be returned to the
+	system with the single function call freeargv, which takes the
+	returned result of buildargv, as it's argument.
 
-In order to provide a working buffer for extracting arguments into,
-with appropriate stripping of quotes and translation of backslash
-sequences, we allocate a working buffer at least as long as the input
-string.  This ensures that we always have enough space in which to
-work, since the extracted arg is never larger than the input string.
+	The memory for the argv array is dynamically expanded as necessary.
 
-The argument vector is always kept terminated with a @code{NULL} arg
-pointer, so it can be passed to @code{freeargv} at any time, or
-returned, as appropriate.
+RETURNS
 
+	Returns a pointer to the argument vector if successful. Returns NULL
+	if the input string pointer is NULL or if there is insufficient
+	memory to complete building the argument vector.
+
+NOTES
+
+	In order to provide a working buffer for extracting arguments into,
+	with appropriate stripping of quotes and translation of backslash
+	sequences, we allocate a working buffer at least as long as the input
+	string.  This ensures that we always have enough space in which to
+	work, since the extracted arg is never larger than the input string.
+
+	If the input is a null string (as opposed to a NULL pointer), then
+	buildarg returns an argv that has one arg, a null string.
+
+	Argv is always kept terminated with a NULL arg pointer, so it can
+	be passed to freeargv at any time, or returned, as appropriate.
 */
 
-char **buildargv (const char *input)
+char **buildargv (input)
+char *input;
 {
   char *arg;
   char *copybuf;
@@ -179,7 +231,7 @@ char **buildargv (const char *input)
       do
 	{
 	  /* Pick off argv[argc] */
-	  while (ISBLANK (*input))
+	  while (isspace (*input))
 	    {
 	      input++;
 	    }
@@ -212,7 +264,7 @@ char **buildargv (const char *input)
 	  arg = copybuf;
 	  while (*input != EOS)
 	    {
-	      if (ISSPACE (*input) && !squote && !dquote && !bsquote)
+	      if (isspace (*input) && !squote && !dquote && !bsquote)
 		{
 		  break;
 		}
@@ -278,7 +330,7 @@ char **buildargv (const char *input)
 	  argc++;
 	  argv[argc] = NULL;
 
-	  while (ISSPACE (*input))
+	  while (isspace (*input))
 	    {
 	      input++;
 	    }
@@ -288,184 +340,11 @@ char **buildargv (const char *input)
   return (argv);
 }
 
-/*
-
-@deftypefn Extension int writeargv (const char **@var{argv}, FILE *@var{file})
-
-Write each member of ARGV, handling all necessary quoting, to the file
-named by FILE, separated by whitespace.  Return 0 on success, non-zero
-if an error occurred while writing to FILE.
-
-@end deftypefn
-
-*/
-
-int
-writeargv (char **argv, FILE *f)
-{
-  int status = 0;
-
-  if (f == NULL)
-    return 1;
-
-  while (*argv != NULL)
-    {
-      const char *arg = *argv;
-
-      while (*arg != EOS)
-        {
-          char c = *arg;
-
-          if (ISSPACE(c) || c == '\\' || c == '\'' || c == '"')
-            if (EOF == fputc ('\\', f))
-              {
-                status = 1;
-                goto done;
-              }
-
-          if (EOF == fputc (c, f))
-            {
-              status = 1;
-              goto done;
-            }
-          arg++;
-        }
-
-      if (EOF == fputc ('\n', f))
-        {
-          status = 1;
-          goto done;
-        }
-      argv++;
-    }
-
- done:
-  return status;
-}
-
-/*
-
-@deftypefn Extension void expandargv (int *@var{argcp}, char ***@var{argvp})
-
-The @var{argcp} and @code{argvp} arguments are pointers to the usual
-@code{argc} and @code{argv} arguments to @code{main}.  This function
-looks for arguments that begin with the character @samp{@@}.  Any such
-arguments are interpreted as ``response files''.  The contents of the
-response file are interpreted as additional command line options.  In
-particular, the file is separated into whitespace-separated strings;
-each such string is taken as a command-line option.  The new options
-are inserted in place of the option naming the response file, and
-@code{*argcp} and @code{*argvp} will be updated.  If the value of
-@code{*argvp} is modified by this function, then the new value has
-been dynamically allocated and can be deallocated by the caller with
-@code{freeargv}.  However, most callers will simply call
-@code{expandargv} near the beginning of @code{main} and allow the
-operating system to free the memory when the program exits.
-
-@end deftypefn
-
-*/
-
-void
-expandargv (int *argcp, char ***argvp)
-{
-  /* The argument we are currently processing.  */
-  int i = 0;
-  /* Non-zero if ***argvp has been dynamically allocated.  */
-  int argv_dynamic = 0;
-  /* Loop over the arguments, handling response files.  We always skip
-     ARGVP[0], as that is the name of the program being run.  */
-  while (++i < *argcp)
-    {
-      /* The name of the response file.  */
-      const char *filename;
-      /* The response file.  */
-      FILE *f;
-      /* An upper bound on the number of characters in the response
-	 file.  */
-      long pos;
-      /* The number of characters in the response file, when actually
-	 read.  */
-      size_t len;
-      /* A dynamically allocated buffer used to hold options read from a
-	 response file.  */
-      char *buffer;
-      /* Dynamically allocated storage for the options read from the
-	 response file.  */
-      char **file_argv;
-      /* The number of options read from the response file, if any.  */
-      size_t file_argc;
-      /* We are only interested in options of the form "@file".  */
-      filename = (*argvp)[i];
-      if (filename[0] != '@')
-	continue;
-      /* Read the contents of the file.  */
-      f = fopen (++filename, "r");
-      if (!f)
-	continue;
-      if (fseek (f, 0L, SEEK_END) == -1)
-	goto error;
-      pos = ftell (f);
-      if (pos == -1)
-	goto error;
-      if (fseek (f, 0L, SEEK_SET) == -1)
-	goto error;
-      buffer = (char *) xmalloc (pos * sizeof (char) + 1);
-      len = fread (buffer, sizeof (char), pos, f);
-      if (len != (size_t) pos
-	  /* On Windows, fread may return a value smaller than POS,
-	     due to CR/LF->CR translation when reading text files.
-	     That does not in-and-of itself indicate failure.  */
-	  && ferror (f))
-	goto error;
-      /* Add a NUL terminator.  */
-      buffer[len] = '\0';
-      /* Parse the string.  */
-      file_argv = buildargv (buffer);
-      /* If *ARGVP is not already dynamically allocated, copy it.  */
-      if (!argv_dynamic)
-	{
-	  *argvp = dupargv (*argvp);
-	  if (!*argvp)
-	    {
-	      fputs ("\nout of memory\n", stderr);
-	      xexit (1);
-	    }
-	}
-      /* Count the number of arguments.  */
-      file_argc = 0;
-      while (file_argv[file_argc] && *file_argv[file_argc])
-	++file_argc;
-      /* Now, insert FILE_ARGV into ARGV.  The "+1" below handles the
-	 NULL terminator at the end of ARGV.  */ 
-      *argvp = ((char **) 
-		xrealloc (*argvp, 
-			  (*argcp + file_argc + 1) * sizeof (char *)));
-      memmove (*argvp + i + file_argc, *argvp + i + 1, 
-	       (*argcp - i) * sizeof (char *));
-      memcpy (*argvp + i, file_argv, file_argc * sizeof (char *));
-      /* The original option has been replaced by all the new
-	 options.  */
-      *argcp += file_argc - 1;
-      /* Free up memory allocated to process the response file.  We do
-	 not use freeargv because the individual options in FILE_ARGV
-	 are now in the main ARGV.  */
-      free (file_argv);
-      free (buffer);
-      /* Rescan all of the arguments just read to support response
-	 files that include other response files.  */
-      --i;
-    error:
-      /* We're all done with the file now.  */
-      fclose (f);
-    }
-}
-
 #ifdef MAIN
 
 /* Simple little test driver. */
 
-static const char *const tests[] =
+static char *tests[] =
 {
   "a simple command line",
   "arg 'foo' is single quoted",
@@ -482,11 +361,10 @@ static const char *const tests[] =
   NULL
 };
 
-int
-main (void)
+main ()
 {
   char **argv;
-  const char *const *test;
+  char **test;
   char **targs;
 
   for (test = tests; *test != NULL; test++)
@@ -507,7 +385,6 @@ main (void)
       freeargv (argv);
     }
 
-  return 0;
 }
 
 #endif	/* MAIN */
