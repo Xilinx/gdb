@@ -30,7 +30,7 @@
 #
 
 load_lib mi-support.exp
-set MIFLAGS "-i=mi0"
+set MIFLAGS "-i=mi1"
 
 gdb_exit
 if [mi_gdb_start] {
@@ -139,7 +139,7 @@ proc test_breakpoints_deletion {} {
              "break-delete (all) operation"
 
     mi_gdb_test "201-break-list" \
-             ".*\\\^done,BreakpointTable=\\\{\\\}" \
+             ".*\\\^done,BreakpointTable=\\\{.*,body=\\\[\\\]\\\}" \
              "all breakpoints removed"
 }
 

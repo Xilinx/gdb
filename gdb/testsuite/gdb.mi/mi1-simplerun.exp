@@ -29,7 +29,7 @@
 #
 
 load_lib mi-support.exp
-set MIFLAGS "-i=mi0"
+set MIFLAGS "-i=mi1"
 
 gdb_exit
 if [mi_gdb_start] {
@@ -78,7 +78,7 @@ proc test_breakpoints_creation_and_listing {} {
              "insert breakpoint at \"<fullfilename>\":6 (callee4)"
 
     mi_gdb_test "204-break-list" \
-                "204\\^done,BreakpointTable=\{hdr=\{.*\},bkpt=\{number=\"1\",type=\"breakpoint\",disp=\"keep\",enabled=\"y\",addr=\"$hex\",func=\"main\",file=\".*basics.c\",line=\"32\",times=\"0\"\},.*\}\}" \
+	    "204\\^done,BreakpointTable=\{.*,hdr=\\\[.*\\\],body=\\\[bkpt=\{number=\"1\",type=\"breakpoint\",disp=\"keep\",enabled=\"y\",addr=\"$hex\",func=\"main\",file=\".*basics.c\",line=\"32\",times=\"0\"\},.*\}\\\]\}" \
                 "list of breakpoints"
 
     mi_gdb_test "205-break-disable 2 3 4" \
@@ -86,7 +86,7 @@ proc test_breakpoints_creation_and_listing {} {
                 "disabling of breakpoints"
 
     mi_gdb_test "206-break-info 2" \
-                "206\\^done,BreakpointTable=\{hdr=\{.*\},bkpt=\{number=\"2\",.*,enabled=\"n\",.*\}\}" \
+	    "206\\^done,BreakpointTable=\{.*,hdr=\\\[.*\\\],body=\\\[bkpt=\{number=\"2\",.*,enabled=\"n\",.*\}\\\]\}" \
                 "list of breakpoints, 16 disabled"
 }
 
@@ -104,7 +104,7 @@ proc test_running_the_program {} {
     # The following is equivalent to a send_gdb "000-exec-run\n"
     mi_run_cmd
     gdb_expect {
-	-re "000\\*stopped,reason=\"breakpoint-hit\",bkptno=\"1\",thread-id=\"\[01\]\",frame=\{addr=\"$hex\",func=\"main\",args=\{\},file=\".*basics.c\",line=\"32\"\}\r\n$mi_gdb_prompt$" {
+	-re "000\\*stopped,reason=\"breakpoint-hit\",bkptno=\"1\",thread-id=\"\[01\]\",frame=\{addr=\"$hex\",func=\"main\",args=\\\[\\\],file=\".*basics.c\",line=\"32\"\}\r\n$mi_gdb_prompt$" {
 	    pass "run to main"
 	}
 	-re ".*$mi_gdb_prompt$" {
@@ -129,26 +129,24 @@ proc test_controlled_execution {} {
     # -exec-step
     # -exec-finish
 
-    # mi_gdb_test cannot be used for asynchronous commands because there are
-    # two prompts involved and this can lead to a race condition.
-    mi0_next_to "main" "" "basics.c" "33" "next at main"
+    mi_next_to "main" "" "basics.c" "33" "next at main"
 
     # FIXME: A string argument is not printed right; should be fixed and
     #        we should look for the right thing here.
     # NOTE: The ``\\\\\"'' is for \".
-    mi0_step_to "callee1" \
+    mi_step_to "callee1" \
 	"\{name=\"intarg\",value=\"2\"\},\{name=\"strarg\",value=\"$hex \\\\\"A string argument\.\\\\\"\"\},\{name=\"fltarg\",value=\"3.5\"\}" \
 	"basics.c" "27" "step at main"
 
     # FIXME: A string argument is not printed right; should be fixed and
     #        we should look for the right thing here.
-    mi0_execute_to "exec-step 3" "end-stepping-range" "callee4" "" \
+    mi_execute_to "exec-step 3" "end-stepping-range" "callee4" "" \
 	"basics.c" "8" "" "step to callee4"
 
     # FIXME: A string argument is not printed right; should be fixed and
     #        we should look for the right thing here.
     # NOTE: The ``.'' is part of ``gdb-result-var="$1"''
-    mi0_finish_to "callee3" ".*" "basics.c" "18" ".1" "0" "exec-finish"
+    mi_finish_to "callee3" ".*" "basics.c" "18" ".1" "0" "exec-finish"
 }
 
 proc test_controlling_breakpoints {} {
