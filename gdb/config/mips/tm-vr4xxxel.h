@@ -1,5 +1,4 @@
-/* Macro definitions for running gdb on a Sparc running Linux.
-   Copyright (C) 1989, 1992, 1996, 1998 Free Software Foundation, Inc.
+/* Copyright (C) 1998 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -18,12 +17,9 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-#include <nm-sysv4.h>
-#include "solib.h"
+#define GDB_MULTI_ARCH 1
+#define MIPS_DEFAULT_FPU_TYPE MIPS_FPU_DOUBLE
+#define TARGET_BYTE_ORDER_SELECTABLE_P 1
+#define TARGET_MONITOR_PROMPT "<RISQ> "
 
-#define FETCH_INFERIOR_REGISTERS
-
-/* Return sizeof user struct to callers in less machine dependent routines */
-
-#define KERNEL_U_SIZE kernel_u_size()
-extern int kernel_u_size PARAMS ((void));
+#include "mips/tm-mips64.h"

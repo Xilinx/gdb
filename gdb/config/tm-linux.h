@@ -1,5 +1,6 @@
-/* Macro definitions for running gdb on a Sparc running Linux.
-   Copyright (C) 1989, 1992, 1996, 1998 Free Software Foundation, Inc.
+/* Native support for GNU/Linux, for GDB, the GNU debugger.
+   Copyright (C) 1999
+   Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -18,12 +19,18 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-#include <nm-sysv4.h>
-#include "solib.h"
+/* Some versions of Linux have real-time signal support in the C library, and
+   some don't.  We have to include this file to find out.  */
+#include <signal.h>
 
-#define FETCH_INFERIOR_REGISTERS
+#ifdef __SIGRTMIN
+#define REALTIME_LO __SIGRTMIN
+#define REALTIME_HI (__SIGRTMAX + 1)
+#else
+#define REALTIME_LO 32
+#define REALTIME_HI 64
+#endif
 
-/* Return sizeof user struct to callers in less machine dependent routines */
+/* We need this file for the SOLIB_TRAMPOLINE stuff. */
 
-#define KERNEL_U_SIZE kernel_u_size()
-extern int kernel_u_size PARAMS ((void));
+#include "tm-sysv4.h"
