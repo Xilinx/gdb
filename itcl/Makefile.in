@@ -33,7 +33,7 @@ all:
 	done;
 
 test:
-	for dir in itcl itk iwidgets3.0.0 ; do \
+	for dir in itcl itk ; do \
 		if test -d $$dir ; then \
 		    echo "$$dir: $(MAKE) $@" ;\
 		    if (cd $$dir; $(MAKE) $@) ; then true ; else exit 1 ; fi ; \
@@ -102,8 +102,6 @@ install-libraries:
 		fi \
 	done;
 
-install-info info install-check:
-
 clean:
 	for dir in $(subdirs) ; do \
 		if test -d $$dir ; then \
@@ -131,12 +129,10 @@ distclean:
 # to put the distribution.
 #
 
-# CYGNUS LOCAL
-#configure: configure.in
-#	autoconf
-#	for dir in $(subdirs) ; do \
-#		if (cd $$dir; autoconf) ; then true ; else exit 1 ; fi ; \
-#	done;
-# END CYGNUS LOCAL
+configure: configure.in
+	autoconf
+	for dir in $(subdirs) ; do \
+		if (cd $$dir; autoconf) ; then true ; else exit 1 ; fi ; \
+	done;
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.

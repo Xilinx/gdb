@@ -1,18 +1,12 @@
 dnl	This file is an input file used by the GNU "autoconf" program to
 dnl	generate the file "configure", which is run during [incr Tcl]
-dnl     installation to configure the system for the local environment.
-dnl     RCS: $Id$
-
-# CYGNUS LOCAL
-AC_PREREQ(2.5)
+dnl installation to configure the system for the local environment.
 
 AC_INIT(itcl/generic/itcl.h)
-AC_CANONICAL_HOST
+# RCS: $Id$
 
-# Note, we don't use the files in the config subdirectory!
-AC_CONFIG_AUX_DIR(..)
-AC_PROG_MAKE_SET
-# END CYGNUS LOCAL
+AC_CONFIG_AUX_DIR(config)
+AC_PREREQ(2.0)
 
 # -----------------------------------------------------------------------
 #
@@ -24,7 +18,8 @@ AC_PROG_MAKE_SET
 AC_PREFIX_DEFAULT(/usr/local)
 AC_PREFIX_PROGRAM(itclsh)
 
-AC_CONFIG_SUBDIRS(itcl itk iwidgets3.0.0)
+AC_CONFIG_SUBDIRS(itcl itk)
+
 
 AC_OUTPUT(Makefile,
 	chmod +x ${srcdir}/config/install-sh ${srcdir}/config/mkinstalldirs)
