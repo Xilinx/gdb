@@ -1,3 +1,8 @@
+2005-03-17  Jim Blandy  <jimb@redhat.com>
+
+	* gdb.arch/e500-regs.exp: Expect to see 'dbl' members in ev
+	registers.
+
 2004-07-27  Michael Chastain  <mec.gnu@mindspring.com>
 
 	* gdb.ada/gnat_ada.gpr.in: Rename from here ...

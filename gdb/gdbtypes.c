@@ -858,6 +858,7 @@ build_builtin_type_vec64 (void)
   union __gdb_builtin_type_vec64
   {
     int64_t uint64;
+    double dbl;
     float v2_float[2];
     int32_t v2_int32[2];
     int16_t v4_int16[4];
@@ -869,6 +870,7 @@ build_builtin_type_vec64 (void)
 
   t = init_composite_type ("__gdb_builtin_type_vec64", TYPE_CODE_UNION);
   append_composite_type_field (t, "uint64", builtin_type_int64);
+  append_composite_type_field (t, "dbl", builtin_type_double);
   append_composite_type_field (t, "v2_float", builtin_type_v2_float);
   append_composite_type_field (t, "v2_int32", builtin_type_v2_int32);
   append_composite_type_field (t, "v4_int16", builtin_type_v4_int16);
