@@ -37,6 +37,7 @@
 #include "ppc-tdep.h"
 #include "trad-frame.h"
 #include "frame-unwind.h"
+#include "gdb_assert.h"
 
 /* The following instructions are used in the signal trampoline code
    on GNU/Linux PPC. The kernel used to use magic syscalls 0x6666 and
@@ -1058,6 +1059,98 @@ ppc_linux_regset_from_core_section (struct gdbarch *core_arch,
 }
 
 static void
+ppc_linux_supply_speregset (const struct regset *regset,
+                            struct regcache *regcache,
+                            int regnum,
+                            const void *buf,
+                            size_t len)
+{
+  struct gdbarch *arch = get_regcache_arch (regcache);
+  struct gdbarch_tdep *tdep = gdbarch_tdep (arch);
+  const struct speregset *speregset = buf;
+
+  gdb_assert (len == sizeof (*speregset));
+  gdb_assert (register_size (arch, tdep->ppc_ev0_regnum)
+              == sizeof (speregset->gpr[0]));
+  gdb_assert (register_size (arch, tdep->ppc_acc_regnum)
+              == sizeof (speregset->acc));
+  gdb_assert (register_size (arch, tdep->ppc_spefscr_regnum)
+              == sizeof (speregset->spefscr));
+
+  if (regnum == -1)
+    {
+      int i;
+
+      for (i = 0; i < 32; i++)
+        regcache_raw_supply (regcache, tdep->ppc_ev0_regnum + i,
+                             &speregset->gpr[i]);
+    }
+  else if (tdep->ppc_ev0_regnum <= regnum
+           && regnum <= tdep->ppc_ev31_regnum)
+    regcache_raw_supply (regcache,  tdep->ppc_ev0_regnum + regnum,
+                         &speregset->gpr[regnum - tdep->ppc_ev0_regnum]);
+
+  if (regnum == tdep->ppc_acc_regnum
+      || regnum == -1)
+    regcache_raw_supply (regcache, tdep->ppc_acc_regnum,
+                         &speregset->acc);
+
+  if (regnum == tdep->ppc_spefscr_regnum
+      || regnum == -1)
+    regcache_raw_supply (regcache, tdep->ppc_spefscr_regnum,
+                         &speregset->spefscr);
+}
+
+static void
+ppc_linux_collect_speregset (const struct regset *regset,
+                             const struct regcache *regcache,
+                             int regnum,
+                             void *buf,
+                             size_t len)
+{
+  struct gdbarch *arch = get_regcache_arch (regcache);
+  struct gdbarch_tdep *tdep = gdbarch_tdep (arch);
+  struct speregset *speregset = buf;
+
+  gdb_assert (len == sizeof (*speregset));
+  gdb_assert (register_size (arch, tdep->ppc_ev0_regnum)
+              == sizeof (speregset->gpr[0]));
+  gdb_assert (register_size (arch, tdep->ppc_acc_regnum)
+              == sizeof (speregset->acc));
+  gdb_assert (register_size (arch, tdep->ppc_spefscr_regnum)
+              == sizeof (speregset->spefscr));
+
+  if (regnum == -1)
+    {
+      int i;
+
+      for (i = 0; i < 32; i++)
+        regcache_raw_collect (regcache, tdep->ppc_ev0_regnum + i,
+                              &speregset->gpr[i]);
+    }
+  else if (tdep->ppc_ev0_regnum <= regnum
+           && regnum <= tdep->ppc_ev31_regnum)
+    regcache_raw_collect (regcache, regnum,
+                          &speregset->gpr[regnum - tdep->ppc_ev0_regnum]);
+
+  if (regnum == tdep->ppc_acc_regnum
+      || regnum == -1)
+    regcache_raw_collect (regcache, tdep->ppc_acc_regnum, &speregset->acc);
+    
+  if (regnum == tdep->ppc_spefscr_regnum
+      || regnum == -1)
+    regcache_raw_collect (regcache, tdep->ppc_spefscr_regnum,
+                          &speregset->spefscr);
+}
+
+static const struct regset ppc_linux_speregset =
+{
+  0,
+  ppc_linux_supply_speregset,
+  ppc_linux_collect_speregset
+};
+
+static void
 ppc_linux_init_abi (struct gdbarch_info info,
                     struct gdbarch *gdbarch)
 {
@@ -1092,6 +1185,18 @@ ppc_linux_init_abi (struct gdbarch_info info,
                                         ppc_linux_skip_trampoline_code);
       set_solib_svr4_fetch_link_map_offsets
         (gdbarch, ppc_linux_svr4_fetch_link_map_offsets);
+    }
+
+  if (info.bfd_arch_info->arch == bfd_arch_powerpc
+      && info.bfd_arch_info->mach == bfd_mach_ppc_e500)
+    {
+      /* On the e500, the GPR's are really 64 bits long.  However, we
+         continue to treat the gpr's as if they were 32 bits long, and
+         handle the upper haves separately.  This means that we need a
+         special way to pass the upper halves through thread_db.  */
+      set_gdbarch_xregs_regset (gdbarch, &ppc_linux_speregset);
+      set_gdbarch_xregs_size (gdbarch, sizeof (struct speregset));
+      set_gdbarch_xregs_name (gdbarch, "SPE vector");
     }
   
   if (tdep->wordsize == 8)
