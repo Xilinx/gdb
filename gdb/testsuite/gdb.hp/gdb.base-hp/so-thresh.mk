@@ -3,7 +3,6 @@
 OBJDIR=.
 SRCDIR=.
 CFLAGS = +DA1.1 -g
-CC=cc
 
 # This is how to build this generator.
 genso-thresh.o: ${SRCDIR}/genso-thresh.c

@@ -1,18 +1,19 @@
 # Tests of wide register displays for GDB on HPPA 2.0 machines
-#   Copyright 1994, 1995, 2007, 2008 Free Software Foundation, Inc.
+#   Copyright 1994, 1995 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
+# the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-gdb@prep.ai.mit.edu
@@ -31,8 +32,8 @@ if ![istarget "hppa*-*-*"] {
     return 0
 }
 
-if ![istarget "hppa64-hp-hpux*"] {
-    verbose "reg-pa64.exp is only for PA2.0W (aka PA64)."
+if ![istarget "hppa2.0w-hp-hpux*"] {
+    verbose "reg-pa64.exp is only for PA2.0W."
     return 0
 }
 
@@ -53,8 +54,7 @@ set binfile ${objdir}/${subdir}/${testfile}
 #
 
 if { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable {debug}] != "" } {
-    untested reg-pa64.exp
-    return -1
+    gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
 }
 
 gdb_exit
@@ -131,13 +131,13 @@ gdb_test "info reg fpe2" ".*fpe2 .*" "fpe2"
 gdb_test "info reg fpe3" ".*fpe3 .*" "fpe3"
 #DTS CLLbs16708
 #info reg should recognize fpe4..fpe7.
-setup_xfail hppa64-hp-hpux* CLLbs16708
+setup_xfail hppa2.0w-hp-hpux* CLLbs16708
 gdb_test "info reg fpe4" ".*fpe4 .*" "fpe4"
-setup_xfail hppa64-hp-hpux* CLLbs16708
+setup_xfail hppa2.0w-hp-hpux* CLLbs16708
 gdb_test "info reg fpe5" ".*fpe5 .*" "fpe5"
-setup_xfail hppa64-hp-hpux* CLLbs16708
+setup_xfail hppa2.0w-hp-hpux* CLLbs16708
 gdb_test "info reg fpe6" ".*fpe6 .*" "fpe6"
-setup_xfail hppa64-hp-hpux* CLLbs16708
+setup_xfail hppa2.0w-hp-hpux* CLLbs16708
 gdb_test "info reg fpe7" ".*fpe7 .*" "fpe7"
 
 gdb_test "info reg fr4"  ".*fr4.*(double precision).* 1.*"

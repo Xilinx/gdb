@@ -1,17 +1,18 @@
-#   Copyright (C) 1997, 1998, 2007, 2008 Free Software Foundation, Inc.
+#   Copyright (C) 1997, 1998 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
+# the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-gdb@prep.ai.mit.edu
@@ -36,8 +37,7 @@ set binfile ${objdir}/${subdir}/${testfile}
 
 # build the first test case
 if  { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable {debug}] != "" } {
-     untested hwwatchbus.exp
-     return -1
+     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
 }
 
 if [get_compiler_info ${binfile}] {
@@ -54,7 +54,7 @@ gdb_load ${binfile}
 
 
 # We ought to be able to set a hardware watchpoint, step, and
-# get a SIGBUS or SIGSEGV signal reported.
+# get a SIGBUS signal reported.
 #
 if ![runto_main] then {
   fail "can't run to main"
@@ -72,11 +72,11 @@ gdb_expect {
 
 send_gdb "step\n"
 gdb_expect {
-  -re "Program received signal (SIGBUS|SIGSEGV), (Bus error|Segmentation fault).* in main .*${srcfile}:8.*$gdb_prompt $"\
-          {pass "see real signal when h/w watchpoint set"}
+  -re "Program received signal SIGBUS, Bus error.* in main .*${srcfile}:8.*$gdb_prompt $"\
+          {pass "see real SIGBUS when h/w watchpoint set"}
   -re "$gdb_prompt $"\
-          {fail "see real signal when h/w watchpoint set"}
-  timeout {fail "(timeout) see real signal when h/w watchpoint set"}
+          {fail "see real SIGBUS when h/w watchpoint set"}
+  timeout {fail "(timeout) see real SIGBUS when h/w watchpoint set"}
 }
 
 remote_exec build "mv ${binfile} ${binfile}.bak"

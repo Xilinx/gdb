@@ -1,8 +1,8 @@
-# Copyright (C) 1998, 2007, 2008 Free Software Foundation, Inc.
+# Copyright (C) 1998 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
+# the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
@@ -11,7 +11,8 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-gdb@prep.ai.mit.edu
@@ -31,18 +32,15 @@ set binfile2 ${objdir}/${subdir}/${testfile2}
 set binfile ${objdir}/${subdir}/${testfile}
 
 if  { [gdb_compile "${srcdir}/${subdir}/average.c" "${binfile1}.o" object {debug}] != "" } {
-     untested xdb3.exp
-     return -1
+     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
 }
 
 if  { [gdb_compile "${srcdir}/${subdir}/sum.c" "${binfile2}.o" object {debug}] != "" } {
-     untested xdb3.exp
-     return -1
+     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
 }
 
 if  { [gdb_compile "${binfile1}.o ${binfile2}.o" ${binfile} executable {debug}] != "" } {
-     untested xdb3.exp
-     return -1
+     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
 }
 
 if [get_compiler_info ${binfile}] {
@@ -115,7 +113,7 @@ proc test_dir_list { } {
 #test_list_sources
 #
 proc test_list_sources { } {
-    if [istarget "hppa64-*-*"] {
+    if [istarget "hppa2.0w-*-*"] {
 	gdb_test "lf" "Source files for which symbols have been read in:\r\n\r\n.*average\\.c.*Source files for which symbols will be read in on demand:\r\n\r\nglobals,.*\[se\]\[un\]\[md\]\\.c.*\[se\]\[un\]\[md\]\\.c"
     } else {
 	gdb_test "lf" "Source files for which symbols have been read in:\r\n\r\n.*average\\.c.*\r\n\r\nSource files for which symbols will be read in on demand:\r\n\r\nglobals, end\\.c,.*sum\\.c"
@@ -132,7 +130,7 @@ proc test_vlist { } {
 #test_va
 #
 proc test_va { } {
-    if [istarget "hppa64-*-*"] {
+    if [istarget "hppa2.0w-*-*"] {
 	gdb_test "va main" "Dump of assembler code for function main:\r\n.*0x.* <main>:\[ \t\]+std %rp,-0x10\\(%sp\\)\r\n0x.* <main\\+4>:\[ \t\]+std,ma %r3,0xd0\\(%sp\\)\r\n.*0x.* <main\\+8>:\[ \t\]+std %r4,-0xc8\\(%sp\\)\r\n.*0x.* <main\\+12>:\[ \t\]+copy %ret1,%r3\r\n.*"
     } else {
 	gdb_test "va main" "Dump of assembler code for function main:\r\n.*0x.* <main>:\[ \t\]+stw %rp,-0x14\\(%sr0,%sp\\)\r\n0x.* <main\\+4>:\[ \t\]+ldo 0x\[48\]0\\(%sp\\),%sp\r\n.*0x.* <main\\+8>:\[ \t\]+stw %r0,-0x.*\\(%sr0,%sp\\)\r\n.*0x.* <main\\+12>:\[ \t\]+stw %r0,-0x.*\\(%sr0,%sp\\)\r\n.*"
@@ -151,7 +149,7 @@ proc test_list_globals { } {
 #test_list_registers
 #
 proc test_list_registers { } {
-    if [istarget "hppa64-*-*"] {
+    if [istarget "hppa2.0w-*-*"] {
 	gdb_test "lr" "\[ \t\]+flags:.*r17:.*pcsqh:.*cr0:.*\r\n\[ \t\]+r1:.*r18:.*pcoqt:.*cr8:.*"
     } else {
 	gdb_test "lr" "\[ \t\]+flags:.*r18:.*pcsqt:.*ccr:.*\r\n\[ \t\]+r1:.*r19:.*eiem:.*cr12:.*"
