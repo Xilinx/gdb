@@ -27,6 +27,8 @@
 #include "inferior.h"
 #include "symtab.h"
 #include "target.h"
+#include "regset.h"
+#include "regcache.h"
 
 /* Prototypes for supply_gregset etc.  */
 #include "gregset.h"
@@ -131,7 +133,11 @@ ps_lcontinue (gdb_ps_prochandle_t ph, lwpid_t lwpid)
 ps_err_e
 ps_lgetxregsize (gdb_ps_prochandle_t ph, lwpid_t lwpid, int *xregsize)
 {
-  /* FIXME: Not supported yet.  */
+  if (! gdbarch_xregs_regset (current_gdbarch))
+    /* This architecture has no extra registers.  */
+    return PS_ERR;
+
+  *xregsize = gdbarch_xregs_size (current_gdbarch);
   return PS_OK;
 }
 
@@ -141,7 +147,21 @@ ps_lgetxregsize (gdb_ps_prochandle_t ph, lwpid_t lwpid, int *xregsize)
 ps_err_e
 ps_lgetxregs (gdb_ps_prochandle_t ph, lwpid_t lwpid, caddr_t xregset)
 {
-  /* FIXME: Not supported yet.  */
+  struct cleanup *old_chain = save_inferior_ptid ();
+  struct regset *xregs_regset = gdbarch_xregs_regset (current_gdbarch);
+
+  if (! xregs_regset)
+    /* This target has no extra registers.  */
+    return PS_OK;
+
+  inferior_ptid = BUILD_LWP (lwpid, ph->pid);
+
+  target_fetch_registers (-1);
+  xregs_regset->collect_regset (xregs_regset, current_regcache, -1,
+                                (void *) xregset, 
+                                gdbarch_xregs_size (current_gdbarch));
+
+  do_cleanups (old_chain);
   return PS_OK;
 }
 
@@ -151,7 +171,23 @@ ps_lgetxregs (gdb_ps_prochandle_t ph, lwpid_t lwpid, caddr_t xregset)
 ps_err_e
 ps_lsetxregs (gdb_ps_prochandle_t ph, lwpid_t lwpid, caddr_t xregset)
 {
-  /* FIXME: Not supported yet.  */
+  struct cleanup *old_chain = save_inferior_ptid ();
+  struct regset *xregs_regset = gdbarch_xregs_regset (current_gdbarch);
+
+  if (! xregs_regset)
+    /* This architecture has no extended register set.  */
+    return PS_OK;
+
+  inferior_ptid = BUILD_LWP (lwpid, ph->pid);
+
+  xregs_regset->supply_regset (xregs_regset, current_regcache, -1,
+                               (void *) xregset,
+                               gdbarch_xregs_size (current_gdbarch));
+
+  target_store_registers (-1);
+
+  do_cleanups (old_chain);
+
   return PS_OK;
 }
 
