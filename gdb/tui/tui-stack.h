@@ -1,5 +1,8 @@
-/* TUI layout window management.
-   Copyright 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+/* TUI display locator.
+
+   Copyright 1998, 1999, 2000, 2001, 2002, 2004 Free Software
+   Foundation, Inc.
+
    Contributed by Hewlett-Packard Company.
 
    This file is part of GDB.
@@ -19,12 +22,13 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-#ifndef TUI_LAYOUT_H
-#define TUI_LAYOUT_H
+#ifndef TUI_STACK_H
+#define TUI_STACK_H
 
-extern void tuiAddWinToLayout (TuiWinType);
-extern int tuiDefaultWinHeight (TuiWinType, TuiLayoutType);
-extern int tuiDefaultWinViewportHeight (TuiWinType, TuiLayoutType);
-extern TuiStatus tuiSetLayout (TuiLayoutType, TuiRegisterDisplayType);
+struct frame_info;
 
-#endif /*TUI_LAYOUT_H */
+extern void tui_update_locator_filename (const char *);
+extern void tui_show_locator_content (void);
+extern void tui_show_frame_info (struct frame_info *);
+
+#endif

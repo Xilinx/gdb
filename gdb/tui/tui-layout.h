@@ -1,5 +1,8 @@
-/* TUI display source window.
-   Copyright 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+/* TUI layout window management.
+
+   Copyright 1998, 1999, 2000, 2001, 2002, 2004 Free Software
+   Foundation, Inc.
+
    Contributed by Hewlett-Packard Company.
 
    This file is part of GDB.
@@ -19,15 +22,17 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-#ifndef _TUI_SOURCE_H
-#define _TUI_SOURCE_H
+#ifndef TUI_LAYOUT_H
+#define TUI_LAYOUT_H
 
-#include "defs.h"
+#include "tui/tui.h"
+#include "tui/tui-data.h"
 
-extern TuiStatus tuiSetSourceContent (struct symtab *, int, int);
-extern void tuiShowSource (struct symtab *, TuiLineOrAddress, int);
-extern int tuiSourceIsDisplayed (char *);
-extern void tuiVerticalSourceScroll (TuiScrollDirection, int);
+extern void tui_add_win_to_layout (enum tui_win_type);
+extern int tui_default_win_height (enum tui_win_type, enum tui_layout_type);
+extern int tui_default_win_viewport_height (enum tui_win_type,
+					    enum tui_layout_type);
+extern enum tui_status tui_set_layout (enum tui_layout_type,
+				       enum tui_register_display_type);
 
-#endif
-/*_TUI_SOURCE_H*/
+#endif /*TUI_LAYOUT_H */
