@@ -1,0 +1,244 @@
+2006-01-20  Christopher Faylor  <cgf@timesys.com>
+
+	* include/sys/dirent.h: Add comments for people who are REALLY confused
+	about whether they should be using something called __invalid_d_ino or
+	not.
+
+2006-01-19  Christopher Faylor  <cgf@timesys.com>
+
+	* include/sys/dirent.h (__invalid_ino32): Rename from __ino32.  Don't
+	define unused d_type macros.
+
+2006-01-18  Corinna Vinschen  <corinna@vinschen.de>
+
+	* include/cygwin/socket.h (struct sockaddr_storage): Fix typo in
+	ss_family member name.
+
+2006-01-13  Corinna Vinschen  <corinna@vinschen.de>
+
+	* uname.cc (uname): Concatenate a "-WOW64" to utsname's sysname
+	member to see when running under WOW64.
+
+2006-01-13  Corinna Vinschen  <corinna@vinschen.de>
+
+	* net.cc (cygwin_setsockopt): Ignore errors when setting IP_TOS on
+	Windows 2000 and above. Clarify the comment about IP_TOS and move
+	to the place where the magic happens.
+	(get_ifconf): Remove unused code.
+	* wincap.h (wincaps::has_disabled_user_tos_setting): New element.
+	* wincap.cc: Implement above element throughout.
+
+2006-01-12  Christopher Faylor  <cgf@timesys.com>
+
+	* fhandler_console.cc (set_console_state_for_spawn): Fix to recognize
+	ttys >= 0.
+
+2006-01-12  Christopher Faylor  <cgf@timesys.com>
+
+	* fhandler.h (set_console_state_for_spawn): Whackamole the argument
+	back to a bool.
+	* spawn.cc (spawn_guts): Ditto, i.e., once again call
+	set_console_state_for_spawn with an indication of whether we're about
+	to start a cygwin process.
+	* fhandler_console.cc (set_console_state_for_spawn): Don't set the
+	console state if we know we're starting a cygwin process or if we're
+	using a "real" tty.
+
+2006-01-10  Corinna Vinschen  <corinna@vinschen.de>
+
+	* dcrt0.cc (dll_crt0_0): Remove call to wincap.init.
+	* init.cc (dll_entry): Rename is_wow64_proc to wow64_test_stack_marker.
+	Call wincap.init here before doing anything else.  Use wincap.is_wow64
+	to determine if we're running in a WOW64 emulator.
+	* mmap.cc (MapViewNT): Don't use AT_ROUND_TO_PAGE in WOW64, it's
+	apparently not supported.
+	(mmap64): Don't create mappings beyond EOF, which would need to use
+	AT_ROUND_TO_PAGE, on WOW64.
+	* wincap.cc (wincap): Throw into the .cygwin_dll_common section.
+	(wincapc::init): Determine if running in WOW64 and set wow_64 flag.
+	* wincap.h (class wincapc): Add wow64 member.
+	(wincapc::is_wow64): New method.
+
+2006-01-10  Christopher Faylor  <cgf@timesys.com>
+
+	* fhandler_proc.cc (format_proc_cpuinfo): Avoid leading whitespace in
+	model name.
+
+2006-01-09  Christopher Faylor  <cgf@timesys.com>
+
+	* spawn.cc (spawn_guts): Reorganize slightly so that 16 bit check is
+	done prior to check for command.com/cmd.com.  Don't bother setting
+	CREATE_SUSPENDED flag for a MS-DOS process since it doesn't work
+	anyway.  Avoid calling remember() when the child process has already
+	exited.
+	(av::fixup): Explicitly set cygexec flag to false on a 16 bit process.
+
+2006-01-09  Corinna Vinschen  <corinna@vinschen.de>
+
+	* include/getopt.h (getopt_long_only): Declare.
+
+2006-01-09  Eric Blake  <ebb9@byu.net>
+
+	* cygwin.din: Export getsubopt.
+	* include/cygwin/version.h: Bump API minor version.
+
+2006-01-08  Christopher Faylor  <cgf@timesys.com>
+
+	* fhandler_tty.cc (fhandler_tty_slave::dup): Don't assign a controlling
+	terminal to a process when duped.  Linux doesn't do this, so we won't
+	either.
+
+2006-01-08  Christopher Faylor  <cgf@timesys.com>
+
+	* environ.cc (spenvs[]): windir -> WINDIR.
+
+2006-01-07  Christopher Faylor  <cgf@timesys.com>
+
+	* fhandler_console.cc (fhandler_console::need_invisible): Remove
+	duplicate test.
+
+2006-01-07  Christopher Faylor  <cgf@timesys.com>
+
+	* fhandler.h (set_console_state_for_spawn): Eliminate argument from
+	declaration.
+	* fhandler.cc (set_console_state_for_spawn): Eliminate argument from
+	definition.  Always check for invisible console.
+	(fhandler_console::need_invisible): Don't do anything if the windows
+	station is already not visible.
+	* spawn.cc (spawn_guts): Accommodate change of argument to
+	set_console_state_for_spawn.
+
+2006-01-05  Christopher Faylor  <cgf@timesys.com>
+
+	* sigproc.cc (no_signals_available): Use existence of signal thread
+	handle to figure out if we can actually send signals rather than
+	relying on my_sendsig.
+	(hwait_sig): Make static.
+	(sigproc_init): Don't set my_sendsig to anything special.  Use new
+	global static hwait_sig.
+	(wait_sig): Set hwait_sig to NULL when we are exiting.
+
+2006-01-05  Christopher Faylor  <cgf@timesys.com>
+
+	* include/getopt.h: Accommodate recent unfortunate newlib changes.
+
+2006-01-05  Christopher Faylor  <cgf@timesys.com>
+
+	* cygtls.cc (_cygtls::remove): Don't output debugging info if this
+	isn't a cygwin thread.
+	* sigproc.cc (sigproc_init): Move clearing of sync_startup here to
+	lessen the likelihood of trying to deal with non-cygwin threads in
+	dll_entry.
+
+	* fhandler_console: Fix set_console_state_for_spawn comment.
+
+2006-01-05  Igor Peshansky  <pechtcha@cs.nyu.edu>
+
+	* spawn.cc (spawn_guts): Invert the argument to
+	set_console_state_for_spawn.
+
+2006-01-04  Christopher Faylor  <cgf@timesys.com>
+
+	* fhandler_console.cc (fhandler_console::need_invisible): Only try to
+	open "CygwinInvisible" windows station if opening of default station
+	fails.  Use CloseWindowStation to close window station handle.
+
+2006-01-04  Christopher Faylor  <cgf@timesys.com>
+
+	* fhandler_console.cc (fhandler_console::need_invisible): Open up the
+	security of the newly created windows station.
+
+2006-01-04  Eric Blake  <ebb9@byu.net>
+
+	* path.cc (dot_special_chars): Add ", <, >, and |.
+
+2006-01-03  Christopher Faylor  <cgf@timesys.com>
+
+	* fhandler_console.cc (beep): Use MB_OK which is documented as using
+	the default bell rather than -1 which seems to behave differently on
+	different versions of Windows.
+
+2006-01-03  Christopher Faylor  <cgf@timesys.com>
+
+	* fhandler_process.cc (fhandler_process::readdir): Add missing argument
+	to syscall_printf.
+
+	* fhandler_console.cc (fhandler_console::need_invisible): Use made-up
+	name for windows station rather than asking Windows to create one for
+	us.
+
+	* spawn.cc (spawn_guts): Don't mess with console if we're detaching.
+
+2006-01-03  Christopher Faylor  <cgf@timesys.com>
+
+	* dir.cc (readdir_worker): Minor code cleanup.
+
+	* fhandler_console.cc (beep): Use a more Windows-generic wav file if
+	the beep is missing.  Use a more foolproof way to find out whether we
+	should be recreating the missing key.
+
+	* registry.h (reg_key::_disposition): New field.
+	(reg_key::created): New function.
+	* registry.cc (reg_key::reg_key): Set _disposition to zero by default.
+	(reg_key::build_key): Fill in _disposition field.
+
+2006-01-03  Eric Blake  <ebb9@byu.net>
+
+	* dir.cc (readdir_worker): Ensure that saw_dot* flags are updated when
+	not handling inodes.
+
+2006-01-02  Christopher Faylor  <cgf@timesys.com>
+
+	* fhandler_console.cc (beep): New function.  Restores missing "Default
+	Beep", if necessary.
+	(fhandler_console::write_normal): Use beep().
+
+2006-01-02  Christopher Faylor  <cgf@timesys.com>
+
+	* dcrt0.cc (_dll_crt0): Remove more leftover debugging stuff.
+	(cygwin_dll_init): Remove unneeded initializations.  Call _dll_crt0
+	rather than dll_crt0_1.
+
+2006-01-02  Corinna Vinschen  <corinna@vinschen.de>
+
+	* syslog.cc: Include sys/un.h instead of sys/socket.h.
+	(syslogd_inited): Convert to enum type noting the exact result of
+	trying to connect to syslog daemon.  Use this way throughout.
+	(connect_syslogd): New static function taking over the task to
+	connect to syslog socket.  Use correct struct sockaddr_un instead of
+	struct sockaddr.
+	(try_connect_syslogd): Call connect_syslogd.  If write fails on
+	connection oriented socket, try to reconnect to syslog socket and
+	try to write again.
+
+2006-01-01  Christopher Faylor  <cgf@timesys.com>
+
+	* pinfo.cc (pinfo::exit): Swap signal and normal exit value when not
+	started from a cygwin process - just like the good-old-days of B20.
+
+2006-01-01  Christopher Faylor  <cgf@timesys.com>
+
+	* strace.cc (strace::write_childpid):  Remove debugging output.
+
+2006-01-01  Christopher Faylor  <cgf@timesys.com>
+
+	* cygtls.cc (_cygtls::remove): Remove left over debugging cruft which
+	caused this function to always return prematurely.
+
+2006-01-01  Christopher Faylor  <cgf@timesys.com>
+
+	* exceptions.cc (sigpacket::process): Pass actual reference to signal's
+	sigaction structure to setup_handler.
+
+2006-01-01  Christopher Faylor  <cgf@timesys.com>
+
+	* exceptions.cc (_cygtls::interrupt_setup): Implement SA_RESETHAND.
+	* include/cygwin/signal.h: Define SA_ONESHOT and SA_NOMASK.
+
+	* dcrt0.cc (get_cygwin_startup_info): Remove commented out code.
+
+2006-01-01  Corinna Vinschen  <corinna@vinschen.de>
+
+	* syslog.cc (vklog): Never log kernel messages using the vsyslog
+	interface.
+
