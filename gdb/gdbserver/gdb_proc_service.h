@@ -31,7 +31,14 @@
 #include <sys/procfs.h>
 #endif
 
-#include "gregset.h"
+/* Not all platforms bring in <linux/elf.h> via <sys/procfs.h>.  If
+   <sys/procfs.h> wasn't enough to find elf_fpregset_t, try the kernel
+   headers also (but don't if we don't need to).  */
+#ifndef HAVE_ELF_FPREGSET_T
+# ifdef HAVE_LINUX_ELF_H
+#  include <linux/elf.h>
+# endif
+#endif
 
 typedef enum
 {
@@ -50,32 +57,13 @@ typedef unsigned int lwpid_t;
 
 #ifndef HAVE_PSADDR_T
 typedef unsigned long psaddr_t;
-typedef unsigned long paddr_t;
-#else
-typedef psaddr_t paddr_t;
 #endif
 
 #ifndef HAVE_PRGREGSET_T
-typedef gdb_gregset_t prgregset_t;
-#endif
-
-#ifndef HAVE_PRFPREGSET_T
-typedef gdb_fpregset_t prfpregset_t;
+typedef elf_gregset_t prgregset_t;
 #endif
 
 #endif /* HAVE_PROC_SERVICE_H */
-
-/* Fix-up some broken systems.  */
-
-/* Unfortunately glibc 2.1.3 was released with a broken prfpregset_t
-   type.  We let configure check for this lossage, and make
-   appropriate typedefs here.  */
-
-#ifdef PRFPREGSET_T_BROKEN
-typedef gdb_fpregset_t gdb_prfpregset_t;
-#else
-typedef prfpregset_t gdb_prfpregset_t;
-#endif
 
 /* Structure that identifies the target process.  */
 struct ps_prochandle
