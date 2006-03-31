@@ -1,12 +1,3 @@
-2006-03-30  Daniel Jacobowitz  <dan@codesourcery.com>
-
-	* gdb.base/commands.exp (stray_arg0_test): New test.
-
-2006-03-30  Paul Brook  <paul@codesourcery.com>
-
-	* gdb.mi/mi-until.exp: kfail broken until command.
-	* gdb.mi/mi2-until.exp: Ditto.
-
 2006-03-27  Nick Roberts  <nickrob@snap.net.nz>
 
 	* gdb.mi/mi-var-child-f.exp, gdb.mi/array.f: New files.

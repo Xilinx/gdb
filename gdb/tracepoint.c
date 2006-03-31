@@ -194,15 +194,13 @@ trace_error (char *buf)
 
 /* Utility: wait for reply from stub, while accepting "O" packets.  */
 static char *
-remote_get_noisy_reply (char **buf_p,
-			long *sizeof_buf)
+remote_get_noisy_reply (char *buf,
+			long sizeof_buf)
 {
   do				/* Loop on reply from remote stub.  */
     {
-      char *buf;
       QUIT;			/* allow user to bail out with ^C */
-      getpkt (buf_p, sizeof_buf, 0);
-      buf = *buf_p;
+      getpkt (buf, sizeof_buf, 0);
       if (buf[0] == 0)
 	error (_("Target does not support this command."));
       else if (buf[0] == 'E')
@@ -1702,8 +1700,7 @@ add_aexpr (struct collection_list *collect, struct agent_expr *aexpr)
   collect->next_aexpr_elt++;
 }
 
-static char *target_buf;
-static long target_buf_size;
+static char target_buf[2048];
 
 /* Set "transparent" memory ranges
 
@@ -1745,7 +1742,7 @@ remote_set_transparent_ranges (void)
   if (anysecs)
     {
       putpkt (target_buf);
-      getpkt (&target_buf, &target_buf_size, 0);
+      getpkt (target_buf, sizeof (target_buf), 0);
     }
 }
 
@@ -1771,7 +1768,7 @@ trace_start_command (char *args, int from_tty)
   if (target_is_remote ())
     {
       putpkt ("QTinit");
-      remote_get_noisy_reply (&target_buf, &target_buf_size);
+      remote_get_noisy_reply (target_buf, sizeof (target_buf));
       if (strcmp (target_buf, "OK"))
 	error (_("Target does not support this command."));
 
@@ -1788,7 +1785,7 @@ trace_start_command (char *args, int from_tty)
 	if (t->actions)
 	  strcat (buf, "-");
 	putpkt (buf);
-	remote_get_noisy_reply (&target_buf, &target_buf_size);
+	remote_get_noisy_reply (target_buf, sizeof (target_buf));
 	if (strcmp (target_buf, "OK"))
 	  error (_("Target does not support tracepoints."));
 
@@ -1812,8 +1809,8 @@ trace_start_command (char *args, int from_tty)
 			     ((tdp_actions[ndx + 1] || stepping_actions)
 			      ? '-' : 0));
 		    putpkt (buf);
-		    remote_get_noisy_reply (&target_buf,
-					    &target_buf_size);
+		    remote_get_noisy_reply (target_buf, 
+					    sizeof (target_buf));
 		    if (strcmp (target_buf, "OK"))
 		      error (_("Error on target while setting tracepoints."));
 		  }
@@ -1829,8 +1826,8 @@ trace_start_command (char *args, int from_tty)
 			     stepping_actions[ndx],
 			     (stepping_actions[ndx + 1] ? "-" : ""));
 		    putpkt (buf);
-		    remote_get_noisy_reply (&target_buf,
-					    &target_buf_size);
+		    remote_get_noisy_reply (target_buf, 
+					    sizeof (target_buf));
 		    if (strcmp (target_buf, "OK"))
 		      error (_("Error on target while setting tracepoints."));
 		  }
@@ -1843,7 +1840,7 @@ trace_start_command (char *args, int from_tty)
       remote_set_transparent_ranges ();
       /* Now insert traps and begin collecting data.  */
       putpkt ("QTStart");
-      remote_get_noisy_reply (&target_buf, &target_buf_size);
+      remote_get_noisy_reply (target_buf, sizeof (target_buf));
       if (strcmp (target_buf, "OK"))
 	error (_("Bogus reply from target: %s"), target_buf);
       set_traceframe_num (-1);	/* All old traceframes invalidated.  */
@@ -1865,7 +1862,7 @@ trace_stop_command (char *args, int from_tty)
   if (target_is_remote ())
     {
       putpkt ("QTStop");
-      remote_get_noisy_reply (&target_buf, &target_buf_size);
+      remote_get_noisy_reply (target_buf, sizeof (target_buf));
       if (strcmp (target_buf, "OK"))
 	error (_("Bogus reply from target: %s"), target_buf);
       trace_running_p = 0;
@@ -1885,7 +1882,7 @@ trace_status_command (char *args, int from_tty)
   if (target_is_remote ())
     {
       putpkt ("qTStatus");
-      remote_get_noisy_reply (&target_buf, &target_buf_size);
+      remote_get_noisy_reply (target_buf, sizeof (target_buf));
 
       if (target_buf[0] != 'T' ||
 	  (target_buf[1] != '0' && target_buf[1] != '1'))
@@ -1900,8 +1897,8 @@ trace_status_command (char *args, int from_tty)
 
 /* Worker function for the various flavors of the tfind command.  */
 static void
-finish_tfind_command (char **msg,
-		      long *sizeof_msg,
+finish_tfind_command (char *msg,
+		      long sizeof_msg,
 		      int from_tty)
 {
   int target_frameno = -1, target_tracept = -1;
@@ -1912,7 +1909,7 @@ finish_tfind_command (char **msg,
   old_frame_addr = get_frame_base (get_current_frame ());
   old_func = find_pc_function (read_pc ());
 
-  putpkt (*msg);
+  putpkt (msg);
   reply = remote_get_noisy_reply (msg, sizeof_msg);
 
   while (reply && *reply)
@@ -2057,7 +2054,7 @@ trace_find_command (char *args, int from_tty)
 	error (_("invalid input (%d is less than zero)"), frameno);
 
       sprintf (target_buf, "QTFrame:%x", frameno);
-      finish_tfind_command (&target_buf, &target_buf_size, from_tty);
+      finish_tfind_command (target_buf, sizeof (target_buf), from_tty);
     }
   else
     error (_("Trace can only be run on remote targets."));
@@ -2100,7 +2097,7 @@ trace_find_pc_command (char *args, int from_tty)
 
       sprintf_vma (tmp, pc);
       sprintf (target_buf, "QTFrame:pc:%s", tmp);
-      finish_tfind_command (&target_buf, &target_buf_size, from_tty);
+      finish_tfind_command (target_buf, sizeof (target_buf), from_tty);
     }
   else
     error (_("Trace can only be run on remote targets."));
@@ -2125,7 +2122,7 @@ trace_find_tracepoint_command (char *args, int from_tty)
 	tdp = parse_and_eval_long (args);
 
       sprintf (target_buf, "QTFrame:tdp:%x", tdp);
-      finish_tfind_command (&target_buf, &target_buf_size, from_tty);
+      finish_tfind_command (target_buf, sizeof (target_buf), from_tty);
     }
   else
     error (_("Trace can only be run on remote targets."));
@@ -2223,7 +2220,7 @@ trace_find_line_command (char *args, int from_tty)
       else
 	sprintf (target_buf, "QTFrame:outside:%s:%s", 
 		 startpc_str, endpc_str);
-      finish_tfind_command (&target_buf, &target_buf_size,
+      finish_tfind_command (target_buf, sizeof (target_buf), 
 			    from_tty);
       do_cleanups (old_chain);
     }
@@ -2264,7 +2261,7 @@ trace_find_range_command (char *args, int from_tty)
       sprintf_vma (start_str, start);
       sprintf_vma (stop_str, stop);
       sprintf (target_buf, "QTFrame:range:%s:%s", start_str, stop_str);
-      finish_tfind_command (&target_buf, &target_buf_size, from_tty);
+      finish_tfind_command (target_buf, sizeof (target_buf), from_tty);
     }
   else
     error (_("Trace can only be run on remote targets."));
@@ -2303,7 +2300,7 @@ trace_find_outside_command (char *args, int from_tty)
       sprintf_vma (start_str, start);
       sprintf_vma (stop_str, stop);
       sprintf (target_buf, "QTFrame:outside:%s:%s", start_str, stop_str);
-      finish_tfind_command (&target_buf, &target_buf_size, from_tty);
+      finish_tfind_command (target_buf, sizeof (target_buf), from_tty);
     }
   else
     error (_("Trace can only be run on remote targets."));
@@ -2870,7 +2867,4 @@ Do \"help tracepoints\" for info on other tracepoint commands."));
   add_com_alias ("tr", "trace", class_alias, 1);
   add_com_alias ("tra", "trace", class_alias, 1);
   add_com_alias ("trac", "trace", class_alias, 1);
-
-  target_buf_size = 2048;
-  target_buf = xmalloc (target_buf_size);
 }

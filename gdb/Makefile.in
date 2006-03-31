@@ -2033,7 +2033,7 @@ hppa-linux-nat.o: hppa-linux-nat.c $(defs_h) $(gdbcore_h) $(regcache_h) \
 hppa-linux-tdep.o: hppa-linux-tdep.c $(defs_h) $(gdbcore_h) $(osabi_h) \
 	$(target_h) $(objfiles_h) $(solib_svr4_h) $(glibc_tdep_h) \
 	$(frame_unwind_h) $(trad_frame_h) $(dwarf2_frame_h) $(value_h) \
-	$(hppa_tdep_h) $(elf_common_h) $(regset_h)
+	$(hppa_tdep_h) $(elf_common_h)
 hppa-tdep.o: hppa-tdep.c $(defs_h) $(bfd_h) $(inferior_h) $(regcache_h) \
 	$(completer_h) $(osabi_h) $(gdb_assert_h) $(arch_utils_h) \
 	$(symtab_h) $(dis_asm_h) $(trad_frame_h) $(frame_unwind_h) \
@@ -2200,7 +2200,7 @@ linux-nat.o: linux-nat.c $(defs_h) $(inferior_h) $(target_h) $(gdb_string_h) \
 linux-thread-db.o: linux-thread-db.c $(defs_h) $(gdb_assert_h) \
 	$(gdb_proc_service_h) $(gdb_thread_db_h) $(bfd_h) $(exceptions_h) \
 	$(gdbthread_h) $(inferior_h) $(symfile_h) $(objfiles_h) $(target_h) \
-	$(regcache_h) $(solib_svr4_h) $(gdbcore_h) $(linux_nat_h)
+	$(regcache_h) $(solib_svr4_h) $(gdbcore_h)
 lynx-nat.o: lynx-nat.c $(defs_h) $(frame_h) $(inferior_h) $(target_h) \
 	$(gdbcore_h) $(regcache_h)
 m2-exp.o: m2-exp.c $(defs_h) $(gdb_string_h) $(expression_h) $(language_h) \

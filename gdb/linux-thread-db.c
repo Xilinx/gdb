@@ -37,7 +37,6 @@
 #include "regcache.h"
 #include "solib-svr4.h"
 #include "gdbcore.h"
-#include "linux-nat.h"
 
 #ifdef HAVE_GNU_LIBC_VERSION_H
 #include <gnu/libc-version.h>
@@ -627,49 +626,59 @@ check_thread_signals (void)
 #endif
 }
 
-/* Check whether thread_db is usable.  This function is called when
-   an inferior is created (or otherwise acquired, e.g. attached to)
-   and when new shared libraries are loaded into a running process.  */
-
-void
-check_for_thread_db (void)
+static void
+thread_db_new_objfile (struct objfile *objfile)
 {
   td_err_e err;
-  static int already_loaded;
 
   /* First time through, report that libthread_db was successfuly
      loaded.  Can't print this in in thread_db_load as, at that stage,
-     the interpreter and it's console haven't started.  */
+     the interpreter and it's console haven't started.  The real
+     problem here is that libthread_db is loaded too early - it should
+     only be loaded when there is a program to debug.  */
+  {
+    static int dejavu;
+    if (!dejavu)
+      {
+	Dl_info info;
+	const char *library = NULL;
+	/* Try dladdr.  */
+	if (dladdr ((*td_ta_new_p), &info) != 0)
+	  library = info.dli_fname;
+	/* Try dlinfo?  */
+	if (library == NULL)
+	  /* Paranoid - don't let a NULL path slip through.  */
+	  library = LIBTHREAD_DB_SO;
+	printf_unfiltered (_("Using host libthread_db library \"%s\".\n"),
+			   library);
+	dejavu = 1;
+      }
+  }
 
-  if (!already_loaded)
+  /* Don't attempt to use thread_db on targets which can not run
+     (core files).  */
+  if (objfile == NULL || !target_has_execution)
     {
-      Dl_info info;
-      const char *library = NULL;
-      if (dladdr ((*td_ta_new_p), &info) != 0)
-	library = info.dli_fname;
+      /* All symbols have been discarded.  If the thread_db target is
+         active, deactivate it now.  */
+      if (using_thread_db)
+	{
+	  gdb_assert (proc_handle.pid == 0);
+	  unpush_target (&thread_db_ops);
+	  using_thread_db = 0;
+	}
 
-      /* Try dlinfo?  */
-
-      if (library == NULL)
-	/* Paranoid - don't let a NULL path slip through.  */
-	library = LIBTHREAD_DB_SO;
-
-      printf_unfiltered (_("Using host libthread_db library \"%s\".\n"),
-			 library);
-      already_loaded = 1;
+      goto quit;
     }
 
   if (using_thread_db)
     /* Nothing to do.  The thread library was already detected and the
        target vector was already activated.  */
-    return;
+    goto quit;
 
-  /* Don't attempt to use thread_db on targets which can not run
-     (executables not running yet, core files) for now.  */
-  if (!target_has_execution)
-    return;
-
-  /* Initialize the structure that identifies the child process.  */
+  /* Initialize the structure that identifies the child process.  Note
+     that at this point there is no guarantee that we actually have a
+     child process.  */
   proc_handle.pid = GET_PID (inferior_ptid);
 
   /* Now attempt to open a connection to the thread library.  */
@@ -696,14 +705,8 @@ check_for_thread_db (void)
 	       thread_db_err_str (err));
       break;
     }
-}
 
-static void
-thread_db_new_objfile (struct objfile *objfile)
-{
-  if (objfile != NULL)
-    check_for_thread_db ();
-
+quit:
   if (target_new_objfile_chain)
     target_new_objfile_chain (objfile);
 }

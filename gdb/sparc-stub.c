@@ -306,7 +306,7 @@ retry:
       count = 0;
 
       /* now, read until a # or end of buffer is found */
-      while (count < BUFMAX - 1)
+      while (count < BUFMAX)
 	{
 	  ch = getDebugChar ();
           if (ch == '$')

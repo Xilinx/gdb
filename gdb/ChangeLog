@@ -1,3 +1,14 @@
+2006-03-31  Michael Snyder  <msnyder@redhat.com>
+
+	Target interface for reverse execution.
+	* target.h (enum target_waitkind): 
+	Add new wait event, TARGET_WAITKIND_NO_HISTORY.
+	(enum exec_direction_kind): New enum.
+	(struct target_ops): New methods to_set_execdir, to_get_execdir.
+	(target_set_execution_direction): New macro.
+	(target_get_execution_direction): New macro.
+	* target.c (update_current_target): Inherit new execdir methods.
+
 2006-03-31  Andrew Stubbs  <andrew.stubbs@st.com>
 
 	* value.h (struct internalvar): Add field 'endian'.

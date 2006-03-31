@@ -245,7 +245,6 @@ struct internalvar
   struct internalvar *next;
   char *name;
   struct value *value;
-  int endian;
 };
 
 
