@@ -1,9 +1,6 @@
-/* Macro definitions for i386 running under the win32 API Unix.
+/* This testcase is part of GDB, the GNU debugger.
 
-   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2004 Free
-   Software Foundation, Inc.
-
-   This file is part of GDB.
+   Copyright 2006 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +14,23 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
-#define ATTACH_NO_WAIT
-#define ADD_SHARED_SYMBOL_FILES dll_symbol_command
-void dll_symbol_command (char *, int);
+   Please email any bugs, comments, and/or additions to this file to:
+   bug-gdb@prep.ai.mit.edu  */
+
+#include <stdio.h>
+
+void
+hello (void)
+{
+  printf ("Hello world.\n");
+}
+
+int
+main (void)
+{
+  hello ();
+
+  return 0;
+}
