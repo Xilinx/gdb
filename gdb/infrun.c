@@ -272,6 +272,9 @@ static struct
 }
 pending_follow;
 
+int detach_fork = 1;		/* Default behavior is to detach
+				   newly forked processes (legacy).  */
+
 static const char follow_fork_mode_child[] = "child";
 static const char follow_fork_mode_parent[] = "parent";
 
@@ -965,13 +968,10 @@ resume (int step, enum target_signal sig)
 {
   int should_resume = 1;
   struct cleanup *old_cleanups = make_cleanup (resume_cleanups, 0);
-
-  /* Note that these must be reset if we follow a fork below.  */
   struct regcache *regcache = get_current_regcache ();
   struct gdbarch *gdbarch = get_regcache_arch (regcache);
   struct thread_info *tp = inferior_thread ();
   CORE_ADDR pc = regcache_read_pc (regcache);
-
   QUIT;
 
   if (debug_infrun)
@@ -1056,13 +1056,6 @@ a command like `return' or `jump' to continue execution."));
       pending_follow.kind = TARGET_WAITKIND_SPURIOUS;
       if (follow_fork ())
 	should_resume = 0;
-
-      /* Following a child fork will change our notion of current
-	 thread.  */
-      tp = inferior_thread ();
-      regcache = get_current_regcache ();
-      gdbarch = get_regcache_arch (regcache);
-      pc = regcache_read_pc (regcache);
       break;
 
     case TARGET_WAITKIND_EXECD:
@@ -1158,11 +1151,11 @@ a command like `return' or `jump' to continue execution."));
           displaced_step_dump_bytes (gdb_stdlog, buf, sizeof (buf));
         }
 
+      target_resume (resume_ptid, step, sig);
+
       /* Avoid confusing the next resume, if the next stop/resume
 	 happens to apply to another thread.  */
       tp->stop_signal = TARGET_SIGNAL_0;
-
-      target_resume (resume_ptid, step, sig);
     }
 
   discard_cleanups (old_cleanups);
