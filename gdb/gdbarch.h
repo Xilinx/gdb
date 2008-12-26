@@ -54,6 +54,7 @@ struct displaced_step_closure;
 struct core_regset_section;
 
 extern struct gdbarch *current_gdbarch;
+extern struct gdbarch *target_gdbarch;
 
 
 /* The following are pre-initialized by GDBARCH. */
@@ -63,6 +64,9 @@ extern const struct bfd_arch_info * gdbarch_bfd_arch_info (struct gdbarch *gdbar
 
 extern int gdbarch_byte_order (struct gdbarch *gdbarch);
 /* set_gdbarch_byte_order() - not applicable - pre-initialized. */
+
+extern int gdbarch_byte_order_for_code (struct gdbarch *gdbarch);
+/* set_gdbarch_byte_order_for_code() - not applicable - pre-initialized. */
 
 extern enum gdb_osabi gdbarch_osabi (struct gdbarch *gdbarch);
 /* set_gdbarch_osabi() - not applicable - pre-initialized. */
@@ -487,14 +491,14 @@ extern void set_gdbarch_convert_from_func_ptr_addr (struct gdbarch *gdbarch, gdb
    sort of generic thing to handle alignment or segmentation (it's
    possible it should be in TARGET_READ_PC instead). */
 
-typedef CORE_ADDR (gdbarch_addr_bits_remove_ftype) (CORE_ADDR addr);
+typedef CORE_ADDR (gdbarch_addr_bits_remove_ftype) (struct gdbarch *gdbarch, CORE_ADDR addr);
 extern CORE_ADDR gdbarch_addr_bits_remove (struct gdbarch *gdbarch, CORE_ADDR addr);
 extern void set_gdbarch_addr_bits_remove (struct gdbarch *gdbarch, gdbarch_addr_bits_remove_ftype *addr_bits_remove);
 
 /* It is not at all clear why gdbarch_smash_text_address is not folded into
    gdbarch_addr_bits_remove. */
 
-typedef CORE_ADDR (gdbarch_smash_text_address_ftype) (CORE_ADDR addr);
+typedef CORE_ADDR (gdbarch_smash_text_address_ftype) (struct gdbarch *gdbarch, CORE_ADDR addr);
 extern CORE_ADDR gdbarch_smash_text_address (struct gdbarch *gdbarch, CORE_ADDR addr);
 extern void set_gdbarch_smash_text_address (struct gdbarch *gdbarch, gdbarch_smash_text_address_ftype *smash_text_address);
 
@@ -538,7 +542,7 @@ typedef CORE_ADDR (gdbarch_skip_trampoline_code_ftype) (struct frame_info *frame
 extern CORE_ADDR gdbarch_skip_trampoline_code (struct gdbarch *gdbarch, struct frame_info *frame, CORE_ADDR pc);
 extern void set_gdbarch_skip_trampoline_code (struct gdbarch *gdbarch, gdbarch_skip_trampoline_code_ftype *skip_trampoline_code);
 
-/* If IN_SOLIB_DYNSYM_RESOLVE_CODE returns true, and SKIP_SOLIB_RESOLVER
+/* If in_solib_dynsym_resolve_code() returns true, and SKIP_SOLIB_RESOLVER
    evaluates non-zero, this is the address where the debugger will place
    a step-resume breakpoint to get us past the dynamic linker. */
 
@@ -586,9 +590,6 @@ extern void set_gdbarch_elf_make_msymbol_special (struct gdbarch *gdbarch, gdbar
 typedef void (gdbarch_coff_make_msymbol_special_ftype) (int val, struct minimal_symbol *msym);
 extern void gdbarch_coff_make_msymbol_special (struct gdbarch *gdbarch, int val, struct minimal_symbol *msym);
 extern void set_gdbarch_coff_make_msymbol_special (struct gdbarch *gdbarch, gdbarch_coff_make_msymbol_special_ftype *coff_make_msymbol_special);
-
-extern const char * gdbarch_name_of_malloc (struct gdbarch *gdbarch);
-extern void set_gdbarch_name_of_malloc (struct gdbarch *gdbarch, const char * name_of_malloc);
 
 extern int gdbarch_cannot_step_breakpoint (struct gdbarch *gdbarch);
 extern void set_gdbarch_cannot_step_breakpoint (struct gdbarch *gdbarch, int cannot_step_breakpoint);
@@ -788,6 +789,20 @@ extern void set_gdbarch_static_transform_name (struct gdbarch *gdbarch, gdbarch_
 extern int gdbarch_sofun_address_maybe_missing (struct gdbarch *gdbarch);
 extern void set_gdbarch_sofun_address_maybe_missing (struct gdbarch *gdbarch, int sofun_address_maybe_missing);
 
+/* For the process record and replay target */
+
+extern int gdbarch_process_record_p (struct gdbarch *gdbarch);
+
+typedef int (gdbarch_process_record_ftype) (struct gdbarch *gdbarch, CORE_ADDR addr);
+extern int gdbarch_process_record (struct gdbarch *gdbarch, CORE_ADDR addr);
+extern void set_gdbarch_process_record (struct gdbarch *gdbarch, gdbarch_process_record_ftype *process_record);
+
+extern int gdbarch_process_record_dasm_p (struct gdbarch *gdbarch);
+
+typedef void (gdbarch_process_record_dasm_ftype) (struct gdbarch *gdbarch);
+extern void gdbarch_process_record_dasm (struct gdbarch *gdbarch);
+extern void set_gdbarch_process_record_dasm (struct gdbarch *gdbarch, gdbarch_process_record_dasm_ftype *process_record_dasm);
+
 /* Signal translation: translate inferior's signal (host's) number into
    GDB's representation. */
 
@@ -809,6 +824,15 @@ extern int gdbarch_record_special_symbol_p (struct gdbarch *gdbarch);
 typedef void (gdbarch_record_special_symbol_ftype) (struct gdbarch *gdbarch, struct objfile *objfile, asymbol *sym);
 extern void gdbarch_record_special_symbol (struct gdbarch *gdbarch, struct objfile *objfile, asymbol *sym);
 extern void set_gdbarch_record_special_symbol (struct gdbarch *gdbarch, gdbarch_record_special_symbol_ftype *record_special_symbol);
+
+/* True if the list of shared libraries is one and only for all
+   processes, as opposed to a list of shared libraries per inferior.
+   When this property is true, GDB assumes that since shared libraries
+   are shared across processes, so is all code.  Hence, GDB further
+   assumes an inserted breakpoint location is visible to all processes. */
+
+extern int gdbarch_has_global_solist (struct gdbarch *gdbarch);
+extern void set_gdbarch_has_global_solist (struct gdbarch *gdbarch, int has_global_solist);
 
 extern struct gdbarch_tdep *gdbarch_tdep (struct gdbarch *gdbarch);
 
@@ -884,6 +908,8 @@ struct gdbarch_info
 
   /* Use default: BFD_ENDIAN_UNKNOWN (NB: is not ZERO).  */
   int byte_order;
+
+  int byte_order_for_code;
 
   /* Use default: NULL (ZERO). */
   bfd *abfd;
@@ -979,20 +1005,6 @@ extern struct gdbarch *gdbarch_find_by_info (struct gdbarch_info info);
    a single active architecture.  */
 
 extern void deprecated_current_gdbarch_select_hack (struct gdbarch *gdbarch);
-
-
-/* For the record target */
-
-extern int gdbarch_record_p (struct gdbarch *gdbarch);
-typedef int (gdbarch_record_ftype) (struct gdbarch *gdbarch, CORE_ADDR addr);
-extern int gdbarch_record (struct gdbarch *gdbarch, CORE_ADDR addr);
-extern void set_gdbarch_record (struct gdbarch *gdbarch,
-				gdbarch_record_ftype * record);
-
-typedef void (gdbarch_record_dasm_ftype) (struct gdbarch *gdbarch);
-extern void gdbarch_record_dasm (struct gdbarch *gdbarch);
-extern void set_gdbarch_record_dasm (struct gdbarch *gdbarch,
-				     gdbarch_record_dasm_ftype * record_dasm);
 
 
 /* Register per-architecture data-pointer.

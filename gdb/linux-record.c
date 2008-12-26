@@ -6,7 +6,7 @@
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
+   the Free Software Foundation; either version 3 of the License, or
    (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
@@ -81,7 +81,13 @@
 #define RECORD_Q_XGETQSTAT	(('5'<<8)+(5))
 #define RECORD_Q_XGETQUOTA	(('3'<<8)+(3))
 
-/* Record the values of the registers and memory that will be changed in
+/* When the architecture process record get a Linux syscall instruction, it
+   will get a Linux syscall number of this architecture and convert it to the
+   Linux syscall number "num" which is internal to GDB.
+   Most Linux syscalls across architectures in Linux would be similar and
+   mostly differ by sizes of types and structures.  This sizes are put
+   to "tdep".
+   Record the values of the registers and memory that will be changed in
    current system call.
    Return -1 if something wrong.  */
 
@@ -103,7 +109,7 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 	target_terminal_ours ();
 	q =
 	  yquery (_
-		  ("The next instruction is syscall exit.  It will make the program exit.  Do you want to stop the program."));
+		  ("The next instruction is syscall exit.  It will make the program exit.  Do you want to stop the program?"));
 	target_terminal_inferior ();
 	if (q)
 	  {
@@ -408,13 +414,13 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
       else if (tmpu32 == tdep->ioctl_TIOCSERGSTRUCT)
 	{
 	  printf_unfiltered (_
-			     ("Record: record and reverse target doesn't support ioctl request TIOCSERGSTRUCT\n"));
+			     ("Process record and replay target doesn't support ioctl request TIOCSERGSTRUCT\n"));
 	  return (1);
 	}
       else
 	{
 	  printf_unfiltered (_
-			     ("Record: record and reverse target doesn't support ioctl request 0x%08x.\n"),
+			     ("Process record and replay target doesn't support ioctl request 0x%08x.\n"),
 			     tmpu32);
 	  return (1);
 	}
@@ -571,22 +577,13 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
       /* old_select */
     case 82:
       {
-	/*
-	   struct sel_arg_struct {
-	   unsigned long n;
-	   fd_set *inp;
-	   fd_set *outp;
-	   fd_set *exp;
-	   struct timeval *tvp;
-	   };
-	 */
 	struct sel_arg_struct
 	{
-	  uint32_t n;
-	  uint32_t inp;
-	  uint32_t outp;
-	  uint32_t exp;
-	  uint32_t tvp;
+	  CORE_ADDR n;
+	  CORE_ADDR inp;
+	  CORE_ADDR outp;
+	  CORE_ADDR exp;
+	  CORE_ADDR tvp;
 	} sel;
 
 	regcache_raw_read (record_regcache, tdep->arg1,
@@ -595,9 +592,12 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 	  {
 	    if (target_read_memory (tmpu32, (gdb_byte *) & sel, sizeof (sel)))
 	      {
-		fprintf_unfiltered (gdb_stdlog,
-				    "Record: read memory addr = 0x%s len = %lu error.\n",
-				    paddr_nz (tmpu32), (unsigned long) sizeof (sel));
+		if (record_debug)
+		  {
+		    fprintf_unfiltered (gdb_stdlog,
+					"Process record: error reading memory at addr = 0x%s len = %d.\n",
+					paddr_nz (tmpu32), sizeof (sel));
+		  }
 		return (-1);
 	      }
 	    if (record_arch_list_add_mem (sel.inp, tdep->size_fd_set))
@@ -651,7 +651,7 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 	target_terminal_ours ();
 	q =
 	  yquery (_
-		  ("The next instruction is syscall reboot.  It will restart the computer.  Do you want to stop the program."));
+		  ("The next instruction is syscall reboot.  It will restart the computer.  Do you want to stop the program?"));
 	target_terminal_inferior ();
 	if (q)
 	  {
@@ -685,7 +685,7 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 	target_terminal_ours ();
 	q =
 	  yquery (_
-		  ("The next instruction is syscall munmap.  It will free the memory addr = 0x%s len = %d.  It will make record target get error.  Do you want to stop the program."),
+		  ("The next instruction is syscall munmap.  It will free the memory addr = 0x%s len = %d.  It will make record target get error.  Do you want to stop the program?"),
 		  paddr_nz (tmpu32), len);
 	target_terminal_inferior ();
 	if (q)
@@ -747,9 +747,12 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 	      {
 		if (target_read_memory (tmpu32, (gdb_byte *) a, sizeof (a)))
 		  {
-		    fprintf_unfiltered (gdb_stdlog,
-					"Record: read memory addr = 0x%s len = %lu error.\n",
-					paddr_nz (tmpu32), (unsigned long) sizeof (a));
+		    if (record_debug)
+		      {
+		        fprintf_unfiltered (gdb_stdlog,
+					    "Process record: error reading memory at addr = 0x%s len = %d.\n",
+					    paddr_nz (tmpu32), sizeof (a));
+		      }
 		    return (-1);
 		  }
 		if (record_arch_list_add_mem (a[1], tdep->size_sockaddr))
@@ -773,9 +776,12 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 	      {
 		if (target_read_memory (tmpu32, (gdb_byte *) a, sizeof (a)))
 		  {
-		    fprintf_unfiltered (gdb_stdlog,
-					"Record: read memory addr = 0x%s len = %lu error.\n",
-					paddr_nz (tmpu32), (unsigned long) sizeof (a));
+		    if (record_debug)
+		      {
+		        fprintf_unfiltered (gdb_stdlog,
+					    "Process record: error reading memory at addr = 0x%s len = %d.\n",
+					    paddr_nz (tmpu32), sizeof (a));
+		      }
 		    return (-1);
 		  }
 		if (record_arch_list_add_mem (a[3], tdep->size_int))
@@ -797,9 +803,12 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 	      {
 		if (target_read_memory (tmpu32, (gdb_byte *) a, sizeof (a)))
 		  {
-		    fprintf_unfiltered (gdb_stdlog,
-					"Record: read memory addr = 0x%s len = %lu error.\n",
-					paddr_nz (tmpu32), (unsigned long) sizeof (a));
+		    if (record_debug)
+		      {
+		        fprintf_unfiltered (gdb_stdlog,
+					    "Process record: error reading memory at addr = 0x%s len = %d.\n",
+					    paddr_nz (tmpu32), sizeof (a));
+		      }
 		    return (-1);
 		  }
 		if (a[2])
@@ -807,9 +816,12 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 		    if (target_read_memory
 			(a[2], (gdb_byte *) & (a[2]), sizeof (a[2])))
 		      {
-			fprintf_unfiltered (gdb_stdlog,
-					    "Record: read memory addr = 0x%s len = %lu error.\n",
-					    paddr_nz (a[2]), (unsigned long) sizeof (a[2]));
+			if (record_debug)
+			  {
+			    fprintf_unfiltered (gdb_stdlog,
+						"Process record: error reading memory at addr = 0x%s len = %d.\n",
+						paddr_nz (a[2]), sizeof (a[2]));
+			  }
 			return (-1);
 		      }
 		    if (record_arch_list_add_mem (a[1], a[2]))
@@ -829,9 +841,12 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 	      {
 		if (target_read_memory (tmpu32, (gdb_byte *) a, sizeof (a)))
 		  {
-		    fprintf_unfiltered (gdb_stdlog,
-					"Record: read memory addr = 0x%s len = %lu error.\n",
-					paddr_nz (tmpu32), (unsigned long) sizeof (a));
+		    if (record_debug)
+		      {
+			fprintf_unfiltered (gdb_stdlog,
+					    "Process record: error reading memory at addr = 0x%s len = %d.\n",
+					    paddr_nz (tmpu32), sizeof (a));
+		      }
 		    return (-1);
 		  }
 		if (a[2])
@@ -839,9 +854,13 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 		    if (target_read_memory
 			(a[2], (gdb_byte *) & (a[2]), sizeof (a[2])))
 		      {
-			fprintf_unfiltered (gdb_stdlog,
-					    "Record: read memory addr = 0x%s len = %lu error.\n",
-					    paddr_nz (a[2]), (unsigned long) sizeof (a[2]));
+			if (record_debug)
+			  {
+			    fprintf_unfiltered (gdb_stdlog,
+						"Process record: error reading memory at addr = 0x%s len = %d.\n",
+						paddr_nz (a[2]),
+						sizeof (a[2]));
+			  }
 			return (-1);
 		      }
 		    if (record_arch_list_add_mem (a[1], a[2]))
@@ -874,9 +893,12 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 	      {
 		if (target_read_memory (tmpu32, (gdb_byte *) a, sizeof (a)))
 		  {
-		    fprintf_unfiltered (gdb_stdlog,
-					"Record: read memory addr = 0x%s len = %lu error.\n",
-					paddr_nz (tmpu32), (unsigned long) sizeof (a));
+		    if (record_debug)
+		      {
+			fprintf_unfiltered (gdb_stdlog,
+					    "Process record: error reading memory at addr = 0x%s len = %d.\n",
+					    paddr_nz (tmpu32), sizeof (a));
+		      }
 		    return (-1);
 		  }
 		if (a[4])
@@ -884,9 +906,12 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 		    if (target_read_memory
 			(a[4], (gdb_byte *) & av, sizeof (av)))
 		      {
-			fprintf_unfiltered (gdb_stdlog,
-					    "Record: read memory addr = 0x%s len = %lu error.\n",
-					    paddr_nz (a[4]), (unsigned long) sizeof (av));
+			if (record_debug)
+			  {
+			    fprintf_unfiltered (gdb_stdlog,
+						"Process record: error reading memory at addr = 0x%s len = %d.\n",
+						paddr_nz (a[4]), sizeof (av));
+			  }
 			return (-1);
 		      }
 		    if (record_arch_list_add_mem (a[3], av))
@@ -928,9 +953,12 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 	      {
 		if (target_read_memory (tmpu32, (gdb_byte *) a, sizeof (a)))
 		  {
-		    fprintf_unfiltered (gdb_stdlog,
-					"Record: read memory addr = 0x%s len = %lu error.\n",
-					paddr_nz (tmpu32), (unsigned long) sizeof (a));
+		    if (record_debug)
+		      {
+			fprintf_unfiltered (gdb_stdlog,
+					    "Process record: error reading memory at addr = 0x%s len = %d.\n",
+					    paddr_nz (tmpu32), sizeof (a));
+		      }
 		    return (-1);
 		  }
 		if (record_arch_list_add_mem (a[1], tdep->size_msghdr))
@@ -942,9 +970,13 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 		    if (target_read_memory
 			(a[1], (gdb_byte *) & rec, sizeof (rec)))
 		      {
-			fprintf_unfiltered (gdb_stdlog,
-					    "Record: read memory addr = 0x%s len = %lu error.\n",
-					    paddr_nz (a[1]), (unsigned long) sizeof (rec));
+			if (record_debug)
+			  {
+			    fprintf_unfiltered (gdb_stdlog,
+						"Process record: error reading memory at addr = 0x%s len = %d.\n",
+						paddr_nz (a[1]),
+						sizeof (rec));
+			  }
 			return (-1);
 		      }
 		    if (record_arch_list_add_mem
@@ -965,10 +997,14 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 				(rec.msg_iov, (gdb_byte *) & iov,
 				 sizeof (iov)))
 			      {
-				fprintf_unfiltered (gdb_stdlog,
-						    "Record: read memory addr = 0x%s len = %lu error.\n",
-						    paddr_nz (rec.msg_iov),
-						    (unsigned long) sizeof (iov));
+				if (record_debug)
+				  {
+				    fprintf_unfiltered (gdb_stdlog,
+							"Process record: error reading memory at addr = 0x%s len = %d.\n",
+							paddr_nz (rec.
+								  msg_iov),
+							sizeof (iov));
+				  }
 				return (-1);
 			      }
 			    if (record_arch_list_add_mem
@@ -985,7 +1021,7 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 	  break;
 	default:
 	  printf_unfiltered (_
-			     ("Record: record and reverse function doesn't support socketcall call 0x%08x\n"),
+			     ("Process record and replay target doesn't support socketcall call 0x%08x\n"),
 			     tmpu32);
 	  return (-1);
 	  break;
@@ -1333,10 +1369,13 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 		if (target_read_memory
 		    (vec, (gdb_byte *) & iov, sizeof (struct record_iovec)))
 		  {
-		    fprintf_unfiltered (gdb_stdlog,
-					"Record: read memory addr = 0x%s len = %lu error.\n",
-					paddr_nz (vec),
-					(unsigned long) sizeof (struct record_iovec));
+		    if (record_debug)
+		      {
+			fprintf_unfiltered (gdb_stdlog,
+					    "Process record: error reading memory at addr = 0x%s len = %d.\n",
+					    paddr_nz (vec),
+					    sizeof (struct record_iovec));
+		      }
 		    return (-1);
 		  }
 		if (record_arch_list_add_mem (iov.iov_base, iov.iov_len))
@@ -1971,9 +2010,12 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 	  if (target_read_memory
 	      (tmpu32, (gdb_byte *) iocbp, nr * tdep->size_int))
 	    {
-	      fprintf_unfiltered (gdb_stdlog,
-				  "Record: read memory addr = 0x%s len = %d error.\n",
-				  paddr_nz (tmpu32), nr * tdep->size_int);
+	      if (record_debug)
+		{
+		  fprintf_unfiltered (gdb_stdlog,
+				      "Process record: error reading memory at addr = 0x%s len = %d.\n",
+				      paddr_nz (tmpu32), nr * tdep->size_int);
+		}
 	      return (-1);
 	    }
 	  for (i = 0; i < nr; i++)
@@ -2008,7 +2050,7 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 	target_terminal_ours ();
 	q =
 	  yquery (_
-		  ("The next instruction is syscall exit_group.  It will make the program exit.  Do you want to stop the program."));
+		  ("The next instruction is syscall exit_group.  It will make the program exit.  Do you want to stop the program?"));
 	target_terminal_inferior ();
 	if (q)
 	  {
@@ -2455,7 +2497,7 @@ record_linux_system_call (int num, linux_record_tdep_t * tdep)
 
     default:
       printf_unfiltered (_
-			 ("Record: record and reverse function doesn't support syscall number 0x%08x\n"),
+			 ("Process record and replay target doesn't support syscall number 0x%08x\n"),
 			 tmpu32);
       return (-1);
       break;

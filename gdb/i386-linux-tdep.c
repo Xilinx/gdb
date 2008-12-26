@@ -355,7 +355,7 @@ i386_linux_write_pc (struct regcache *regcache, CORE_ADDR pc)
    values of the registers and memory that will be changed in current system
    call instruction to "record_arch_list". This instruction is "int 0x80" (Linux
    Kernel2.4) or "sysenter" (Linux Kernel 2.6).
-   Return -1 if something wrong. */
+   Return -1 if something wrong.  */
 
 static linux_record_tdep_t linux_record_tdep;
 
@@ -373,7 +373,7 @@ i386_linux_intx80_sysenter_record (void)
       return ret;
     }
 
-  /* Record the return of system call. */
+  /* Record the return of system call.  */
   if (record_arch_list_add_reg (I386_EAX_REGNUM))
     {
       return -1;
@@ -448,8 +448,9 @@ static int i386_linux_sc_reg_offset[] =
   0 * 4				/* %gs */
 };
 
-/* These macros are the size of the type that will be use in system call. The values of
-   these macros are gotten from Linux Kernel source. */
+/* These macros are the size of the type that will be used in system
+   call.  The values of these macros are gotten from Linux Kernel
+   source.  */
 #define I386_RECORD_SIZE__old_kernel_stat	32
 #define I386_RECORD_SIZE_tms			16
 #define I386_RECORD_SIZE_loff_t			8
@@ -519,7 +520,7 @@ static int i386_linux_sc_reg_offset[] =
 
 /* These macros are the values of the second argument of system call
    "sys_ioctl". The values of these macros are gotten from Linux Kernel
-   source. */
+   source.  */
 #define I386_RECORD_IOCTL_TCGETS		0x5401
 #define I386_RECORD_IOCTL_TCSETS		0x5402
 #define I386_RECORD_IOCTL_TCSETSW		0x5403

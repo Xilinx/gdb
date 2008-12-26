@@ -521,7 +521,7 @@ struct i386_frame_cache
   /* Saved registers.  */
   CORE_ADDR saved_regs[I386_NUM_SAVED_REGS];
   CORE_ADDR saved_sp;
-  int stack_align;
+  int saved_sp_reg;
   int pc_in_eax;
 
   /* Stack space reserved for local variables.  */
@@ -548,7 +548,7 @@ i386_alloc_frame_cache (void)
   for (i = 0; i < I386_NUM_SAVED_REGS; i++)
     cache->saved_regs[i] = -1;
   cache->saved_sp = 0;
-  cache->stack_align = 0;
+  cache->saved_sp_reg = -1;
   cache->pc_in_eax = 0;
 
   /* Frameless until proven otherwise.  */
@@ -710,37 +710,111 @@ static CORE_ADDR
 i386_analyze_stack_align (CORE_ADDR pc, CORE_ADDR current_pc,
 			  struct i386_frame_cache *cache)
 {
-  /* The register used by the compiler to perform the stack re-alignment 
-     is, in order of preference, either %ecx, %edx, or %eax.  GCC should
-     never use %ebx as it always treats it as callee-saved, whereas
-     the compiler can only use caller-saved registers.  */
-  static const gdb_byte insns_ecx[10] = { 
-    0x8d, 0x4c, 0x24, 0x04,	/* leal  4(%esp), %ecx */
-    0x83, 0xe4, 0xf0,		/* andl  $-16, %esp */
-    0xff, 0x71, 0xfc		/* pushl -4(%ecx) */
-  };
-  static const gdb_byte insns_edx[10] = { 
-    0x8d, 0x54, 0x24, 0x04,	/* leal  4(%esp), %edx */
-    0x83, 0xe4, 0xf0,		/* andl  $-16, %esp */
-    0xff, 0x72, 0xfc		/* pushl -4(%edx) */
-  };
-  static const gdb_byte insns_eax[10] = { 
-    0x8d, 0x44, 0x24, 0x04,	/* leal  4(%esp), %eax */
-    0x83, 0xe4, 0xf0,		/* andl  $-16, %esp */
-    0xff, 0x70, 0xfc		/* pushl -4(%eax) */
-  };
-  gdb_byte buf[10];
+  /* There are 2 code sequences to re-align stack before the frame
+     gets set up:
 
-  if (target_read_memory (pc, buf, sizeof buf)
-      || (memcmp (buf, insns_ecx, sizeof buf) != 0
-          && memcmp (buf, insns_edx, sizeof buf) != 0
-          && memcmp (buf, insns_eax, sizeof buf) != 0))
+	1. Use a caller-saved saved register:
+
+		leal  4(%esp), %reg
+		andl  $-XXX, %esp
+		pushl -4(%reg)
+
+	2. Use a callee-saved saved register:
+
+		pushl %reg
+		leal  8(%esp), %reg
+		andl  $-XXX, %esp
+		pushl -4(%reg)
+
+     "andl $-XXX, %esp" can be either 3 bytes or 6 bytes:
+     
+     	0x83 0xe4 0xf0			andl $-16, %esp
+     	0x81 0xe4 0x00 0xff 0xff 0xff	andl $-256, %esp
+   */
+
+  gdb_byte buf[14];
+  int reg;
+  int offset, offset_and;
+  static int regnums[8] = {
+    I386_EAX_REGNUM,		/* %eax */
+    I386_ECX_REGNUM,		/* %ecx */
+    I386_EDX_REGNUM,		/* %edx */
+    I386_EBX_REGNUM,		/* %ebx */
+    I386_ESP_REGNUM,		/* %esp */
+    I386_EBP_REGNUM,		/* %ebp */
+    I386_ESI_REGNUM,		/* %esi */
+    I386_EDI_REGNUM		/* %edi */
+  };
+
+  if (target_read_memory (pc, buf, sizeof buf))
     return pc;
 
-  if (current_pc > pc + 4)
-    cache->stack_align = 1;
+  /* Check caller-saved saved register.  The first instruction has
+     to be "leal 4(%esp), %reg".  */
+  if (buf[0] == 0x8d && buf[2] == 0x24 && buf[3] == 0x4)
+    {
+      /* MOD must be binary 10 and R/M must be binary 100.  */
+      if ((buf[1] & 0xc7) != 0x44)
+	return pc;
 
-  return min (pc + 10, current_pc);
+      /* REG has register number.  */
+      reg = (buf[1] >> 3) & 7;
+      offset = 4;
+    }
+  else
+    {
+      /* Check callee-saved saved register.  The first instruction
+	 has to be "pushl %reg".  */
+      if ((buf[0] & 0xf8) != 0x50)
+	return pc;
+
+      /* Get register.  */
+      reg = buf[0] & 0x7;
+
+      /* The next instruction has to be "leal 8(%esp), %reg".  */
+      if (buf[1] != 0x8d || buf[3] != 0x24 || buf[4] != 0x8)
+	return pc;
+
+      /* MOD must be binary 10 and R/M must be binary 100.  */
+      if ((buf[2] & 0xc7) != 0x44)
+	return pc;
+      
+      /* REG has register number.  Registers in pushl and leal have to
+	 be the same.  */
+      if (reg != ((buf[2] >> 3) & 7))
+	return pc;
+
+      offset = 5;
+    }
+
+  /* Rigister can't be %esp nor %ebp.  */
+  if (reg == 4 || reg == 5)
+    return pc;
+
+  /* The next instruction has to be "andl $-XXX, %esp".  */
+  if (buf[offset + 1] != 0xe4
+      || (buf[offset] != 0x81 && buf[offset] != 0x83))
+    return pc;
+
+  offset_and = offset;
+  offset += buf[offset] == 0x81 ? 6 : 3;
+
+  /* The next instruction has to be "pushl -4(%reg)".  8bit -4 is
+     0xfc.  REG must be binary 110 and MOD must be binary 01.  */
+  if (buf[offset] != 0xff
+      || buf[offset + 2] != 0xfc
+      || (buf[offset + 1] & 0xf8) != 0x70)
+    return pc;
+
+  /* R/M has register.  Registers in leal and pushl have to be the
+     same.  */
+  if (reg != (buf[offset + 1] & 7))
+    return pc;
+
+  if (current_pc > pc + offset_and)
+    cache->saved_sp_reg = regnums[reg];
+
+  return min (pc + offset + 3, current_pc);
 }
 
 /* Maximum instruction length we need to handle.  */
@@ -1204,7 +1278,7 @@ i386_unwind_pc (struct gdbarch *gdbarch, struct frame_info *next_frame)
   gdb_byte buf[8];
 
   frame_unwind_register (next_frame, gdbarch_pc_regnum (gdbarch), buf);
-  return extract_typed_address (buf, builtin_type_void_func_ptr);
+  return extract_typed_address (buf, builtin_type (gdbarch)->builtin_func_ptr);
 }
 
 
@@ -1244,10 +1318,10 @@ i386_frame_cache (struct frame_info *this_frame, void **this_cache)
   if (cache->pc != 0)
     i386_analyze_prologue (cache->pc, get_frame_pc (this_frame), cache);
 
-  if (cache->stack_align)
+  if (cache->saved_sp_reg != -1)
     {
-      /* Saved stack pointer has been saved in %ecx.  */
-      get_frame_register (this_frame, I386_ECX_REGNUM, buf);
+      /* Saved stack pointer has been saved.  */
+      get_frame_register (this_frame, cache->saved_sp_reg, buf);
       cache->saved_sp = extract_unsigned_integer(buf, 4);
     }
 
@@ -1261,7 +1335,7 @@ i386_frame_cache (struct frame_info *this_frame, void **this_cache)
 	 frame by looking at the stack pointer.  For truly "frameless"
 	 functions this might work too.  */
 
-      if (cache->stack_align)
+      if (cache->saved_sp_reg != -1)
 	{
 	  /* We're halfway aligning the stack.  */
 	  cache->base = ((cache->saved_sp - 4) & 0xfffffff0) - 4;
@@ -1641,8 +1715,8 @@ i386_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
      (i386_frame_this_id, i386_sigtramp_frame_this_id,
      i386_dummy_id).  It's there, since all frame unwinders for
      a given target have to agree (within a certain margin) on the
-     definition of the stack address of a frame.  Otherwise
-     frame_id_inner() won't work correctly.  Since DWARF2/GCC uses the
+     definition of the stack address of a frame.  Otherwise frame id
+     comparison might not work correctly.  Since DWARF2/GCC uses the
      stack address *before* the function call as a frame's CFA.  On
      the i386, when %ebp is used as a frame pointer, the offset
      between the contents %ebp and the CFA as defined by GCC.  */
@@ -1967,7 +2041,7 @@ i386_mmx_type (struct gdbarch *gdbarch)
       append_composite_type_field (t, "v8_int8",
 				   init_vector_type (builtin_type_int8, 8));
 
-      TYPE_FLAGS (t) |= TYPE_FLAG_VECTOR;
+      TYPE_VECTOR (t) = 1;
       TYPE_NAME (t) = "builtin_type_vec64i";
       tdep->i386_mmx_type = t;
     }
@@ -2000,9 +2074,11 @@ i386_sse_type (struct gdbarch *gdbarch)
 
       t = init_composite_type ("__gdb_builtin_type_vec128i", TYPE_CODE_UNION);
       append_composite_type_field (t, "v4_float",
-				   init_vector_type (builtin_type_float, 4));
+				   init_vector_type (builtin_type (gdbarch)
+						     ->builtin_float, 4));
       append_composite_type_field (t, "v2_double",
-				   init_vector_type (builtin_type_double, 2));
+				   init_vector_type (builtin_type (gdbarch)
+						     ->builtin_double, 2));
       append_composite_type_field (t, "v16_int8",
 				   init_vector_type (builtin_type_int8, 16));
       append_composite_type_field (t, "v8_int16",
@@ -2013,7 +2089,7 @@ i386_sse_type (struct gdbarch *gdbarch)
 				   init_vector_type (builtin_type_int64, 2));
       append_composite_type_field (t, "uint128", builtin_type_int128);
 
-      TYPE_FLAGS (t) |= TYPE_FLAG_VECTOR;
+      TYPE_VECTOR (t) = 1;
       TYPE_NAME (t) = "builtin_type_vec128i";
       tdep->i386_sse_type = t;
     }
@@ -2029,13 +2105,13 @@ static struct type *
 i386_register_type (struct gdbarch *gdbarch, int regnum)
 {
   if (regnum == I386_EIP_REGNUM)
-    return builtin_type_void_func_ptr;
+    return builtin_type (gdbarch)->builtin_func_ptr;
 
   if (regnum == I386_EFLAGS_REGNUM)
     return i386_eflags_type;
 
   if (regnum == I386_EBP_REGNUM || regnum == I386_ESP_REGNUM)
-    return builtin_type_void_data_ptr;
+    return builtin_type (gdbarch)->builtin_data_ptr;
 
   if (i386_fp_regnum_p (gdbarch, regnum))
     return builtin_type_i387_ext;
@@ -2049,7 +2125,7 @@ i386_register_type (struct gdbarch *gdbarch, int regnum)
   if (regnum == I387_MXCSR_REGNUM (gdbarch_tdep (gdbarch)))
     return i386_mxcsr_type;
 
-  return builtin_type_int;
+  return builtin_type (gdbarch)->builtin_int;
 }
 
 /* Map a cooked register onto a raw register or memory.  For the i386,
@@ -2553,6 +2629,18 @@ i386_fetch_pointer_argument (struct frame_info *frame, int argi,
   return read_memory_unsigned_integer (sp + (4 * (argi + 1)), 4);
 }
 
+static void
+i386_skip_permanent_breakpoint (struct regcache *regcache)
+{
+  CORE_ADDR current_pc = regcache_read_pc (regcache);
+
+ /* On i386, breakpoint is exactly 1 byte long, so we just
+    adjust the PC in the regcache.  */
+  current_pc += 1;
+  regcache_write_pc (regcache, current_pc);
+}
+
+
 #define PREFIX_REPZ	0x01
 #define PREFIX_REPNZ	0x02
 #define PREFIX_LOCK	0x04
@@ -2595,8 +2683,12 @@ i386_record_modrm (void)
 {
   if (target_read_memory (i386_record_pc, &modrm, 1))
     {
-      printf_unfiltered (_("Process record: read memeory 0x%s error.\n"),
-			 paddr_nz (i386_record_pc));
+      if (record_debug)
+	{
+	  printf_unfiltered (_
+			     ("Process record: error reading memory at addr 0x%s len = 1.\n"),
+			     paddr_nz (i386_record_pc));
+	}
       return (-1);
     }
   i386_record_pc++;
@@ -2631,8 +2723,12 @@ i386_record_lea_modrm_addr (uint32_t * addr)
 	  havesib = 1;
 	  if (target_read_memory (i386_record_pc, &tmpu8, 1))
 	    {
-	      printf_unfiltered (_("Process record: read memeory 0x%s error.\n"),
-				 paddr_nz (i386_record_pc));
+	      if (record_debug)
+		{
+		  printf_unfiltered (_
+				     ("Process record: error reading memory at addr 0x%s len = 1.\n"),
+				     paddr_nz (i386_record_pc));
+		}
 	      return (-1);
 	    }
 	  i386_record_pc++;
@@ -2649,8 +2745,12 @@ i386_record_lea_modrm_addr (uint32_t * addr)
 	      base = 0xff;
 	      if (target_read_memory (i386_record_pc, (gdb_byte *) addr, 4))
 		{
-		  printf_unfiltered (_("Process record: read memeory 0x%s error.\n"),
-				     paddr_nz (i386_record_pc));
+		  if (record_debug)
+		    {
+		      printf_unfiltered (_
+					 ("Process record: error reading memory at addr 0x%s len = 4.\n"),
+					 paddr_nz (i386_record_pc));
+		    }
 		  return (-1);
 		}
 	      i386_record_pc += 4;
@@ -2663,8 +2763,12 @@ i386_record_lea_modrm_addr (uint32_t * addr)
 	case 1:
 	  if (target_read_memory (i386_record_pc, &tmpu8, 1))
 	    {
-	      printf_unfiltered (_("Process record: read memeory 0x%s error.\n"),
-				 paddr_nz (i386_record_pc));
+	      if (record_debug)
+		{
+		  printf_unfiltered (_
+				     ("Process record: error reading memory at addr 0x%s len = 1.\n"),
+				     paddr_nz (i386_record_pc));
+		}
 	      return (-1);
 	    }
 	  i386_record_pc++;
@@ -2673,8 +2777,12 @@ i386_record_lea_modrm_addr (uint32_t * addr)
 	case 2:
 	  if (target_read_memory (i386_record_pc, (gdb_byte *) addr, 4))
 	    {
-	      printf_unfiltered (_("Process record: read memeory 0x%s error.\n"),
-				 paddr_nz (i386_record_pc));
+	      if (record_debug)
+		{
+		  printf_unfiltered (_
+				     ("Process record: error reading memory at addr 0x%s len = 4.\n"),
+				     paddr_nz (i386_record_pc));
+		}
 	      return (-1);
 	    }
 	  i386_record_pc += 4;
@@ -2705,8 +2813,12 @@ i386_record_lea_modrm_addr (uint32_t * addr)
 	      if (target_read_memory
 		  (i386_record_pc, (gdb_byte *) & tmpu16, 2))
 		{
-		  printf_unfiltered (_("Process record: read memeory 0x%s error.\n"),
-				     paddr_nz (i386_record_pc));
+		  if (record_debug)
+		    {
+		      printf_unfiltered (_
+					 ("Process record: error reading memory at addr 0x%s len = 2.\n"),
+					 paddr_nz (i386_record_pc));
+		    }
 		  return (-1);
 		}
 	      i386_record_pc += 2;
@@ -2722,8 +2834,12 @@ i386_record_lea_modrm_addr (uint32_t * addr)
 	case 1:
 	  if (target_read_memory (i386_record_pc, &tmpu8, 1))
 	    {
-	      printf_unfiltered (_("Process record: read memeory 0x%s error.\n"),
-				 paddr_nz (i386_record_pc));
+	      if (record_debug)
+		{
+		  printf_unfiltered (_
+				     ("Process record: error reading memory at addr 0x%s len = 1.\n"),
+				     paddr_nz (i386_record_pc));
+		}
 	      return (-1);
 	    }
 	  i386_record_pc++;
@@ -2732,8 +2848,12 @@ i386_record_lea_modrm_addr (uint32_t * addr)
 	case 2:
 	  if (target_read_memory (i386_record_pc, (gdb_byte *) & tmpu16, 2))
 	    {
-	      printf_unfiltered (_("Process record: read memeory 0x%s error.\n"),
-				 paddr_nz (i386_record_pc));
+	      if (record_debug)
+		{
+		  printf_unfiltered (_
+				     ("Process record: error reading memory at addr 0x%s len = 2.\n"),
+				     paddr_nz (i386_record_pc));
+		}
 	      return (-1);
 	    }
 	  i386_record_pc += 2;
@@ -2815,7 +2935,7 @@ i386_record_lea_modrm (void)
     {
       if (record_debug)
 	printf_unfiltered (_
-			   ("Process record ignores the memory change of instruction in address 0x%s because it can't get the value of the segment register.\n"),
+			   ("Process record ignores the memory change of instruction at address 0x%s because it can't get the value of the segment register.\n"),
 			   paddr_nz (i386_record_pc));
       return (0);
     }
@@ -2837,7 +2957,7 @@ i386_record_lea_modrm (void)
    memory that will be changed in current instruction to "record_arch_list".
    Return -1 if something wrong. */
 static int
-i386_record (struct gdbarch *gdbarch, CORE_ADDR addr)
+i386_process_record (struct gdbarch *gdbarch, CORE_ADDR addr)
 {
   int prefixes = 0;
   uint8_t tmpu8;
@@ -2861,8 +2981,12 @@ i386_record (struct gdbarch *gdbarch, CORE_ADDR addr)
     {
       if (target_read_memory (i386_record_pc, &tmpu8, 1))
 	{
-	  printf_unfiltered (_("Process record: read memeory 0x%s error.\n"),
-			     paddr_nz (i386_record_pc));
+	  if (record_debug)
+	    {
+	      printf_unfiltered (_
+				 ("Process record: error reading memory at addr 0x%s len = 1.\n"),
+				 paddr_nz (i386_record_pc));
+	    }
 	  return (-1);
 	}
       i386_record_pc++;
@@ -2924,8 +3048,12 @@ reswitch:
     case 0x0f:
       if (target_read_memory (i386_record_pc, &tmpu8, 1))
 	{
-	  printf_unfiltered (_("Process record: read memeory 0x%s error.\n"),
-			     paddr_nz (i386_record_pc));
+	  if (record_debug)
+	    {
+	      printf_unfiltered (_
+				 ("Process record: error reading memory at addr 0x%s len = 1.\n"),
+				 paddr_nz (i386_record_pc));
+	    }
 	  return (-1);
 	}
       i386_record_pc++;
@@ -2934,14 +3062,54 @@ reswitch:
       break;
 
       /* arith & logic */
-    case 0x00 ... 0x05:
-    case 0x08 ... 0x0d:
-    case 0x10 ... 0x15:
-    case 0x18 ... 0x1d:
-    case 0x20 ... 0x25:
-    case 0x28 ... 0x2d:
-    case 0x30 ... 0x35:
-    case 0x38 ... 0x3d:
+    case 0x00:
+    case 0x01:
+    case 0x02:
+    case 0x03:
+    case 0x04:
+    case 0x05:
+    case 0x08:
+    case 0x09:
+    case 0x0a:
+    case 0x0b:
+    case 0x0c:
+    case 0x0d:
+    case 0x10:
+    case 0x11:
+    case 0x12:
+    case 0x13:
+    case 0x14:
+    case 0x15:
+    case 0x18:
+    case 0x19:
+    case 0x1a:
+    case 0x1b:
+    case 0x1c:
+    case 0x1d:
+    case 0x20:
+    case 0x21:
+    case 0x22:
+    case 0x23:
+    case 0x24:
+    case 0x25:
+    case 0x28:
+    case 0x29:
+    case 0x2a:
+    case 0x2b:
+    case 0x2c:
+    case 0x2d:
+    case 0x30:
+    case 0x31:
+    case 0x32:
+    case 0x33:
+    case 0x34:
+    case 0x35:
+    case 0x38:
+    case 0x39:
+    case 0x3a:
+    case 0x3b:
+    case 0x3c:
+    case 0x3d:
       if (((opcode >> 3) & 7) != OP_CMPL)
 	{
 	  if ((opcode & 1) == 0)
@@ -3011,7 +3179,10 @@ reswitch:
       break;
 
       /* GRP1 */
-    case 0x80 ... 0x83:
+    case 0x80:
+    case 0x81:
+    case 0x82:
+    case 0x83:
       if (i386_record_modrm ())
 	{
 	  return (-1);
@@ -3050,9 +3221,23 @@ reswitch:
       break;
 
       /* inv */
-    case 0x40 ... 0x47:
+    case 0x40:
+    case 0x41:
+    case 0x42:
+    case 0x43:
+    case 0x44:
+    case 0x45:
+    case 0x46:
+    case 0x47:
       /* dec */
-    case 0x48 ... 0x4f:
+    case 0x48:
+    case 0x49:
+    case 0x4a:
+    case 0x4b:
+    case 0x4c:
+    case 0x4d:
+    case 0x4e:
+    case 0x4f:
       if (record_arch_list_add_reg (opcode & 7))
 	{
 	  return (-1);
@@ -3452,7 +3637,14 @@ reswitch:
       break;
 
       /* push */
-    case 0x50 ... 0x57:
+    case 0x50:
+    case 0x51:
+    case 0x52:
+    case 0x53:
+    case 0x54:
+    case 0x55:
+    case 0x56:
+    case 0x57:
     case 0x68:
     case 0x6a:
       /* push es */
@@ -3481,7 +3673,14 @@ reswitch:
       break;
 
       /* pop */
-    case 0x58 ... 0x5f:
+    case 0x58:
+    case 0x59:
+    case 0x5a:
+    case 0x5b:
+    case 0x5c:
+    case 0x5d:
+    case 0x5e:
+    case 0x5f:
       ot = dflag + OT_WORD;
       if (record_arch_list_add_reg (I386_ESP_REGNUM))
 	{
@@ -3854,7 +4053,7 @@ reswitch:
 	  {
 	    if (record_debug)
 	      printf_unfiltered (_
-				 ("Process record ignores the memory change of instruction in address 0x%s because it can't get the value of the segment register.\n"),
+				 ("Process record ignores the memory change of instruction at address 0x%s because it can't get the value of the segment register.\n"),
 				 paddr_nz (i386_record_pc));
 	  }
 	else
@@ -3872,9 +4071,12 @@ reswitch:
 		if (target_read_memory
 		    (i386_record_pc, (gdb_byte *) & addr, 4))
 		  {
-		    printf_unfiltered (_
-				       ("Process record: read memeory 0x%s error.\n"),
-				       paddr_nz (i386_record_pc));
+		    if (record_debug)
+		      {
+			printf_unfiltered (_
+					   ("Process record: error reading memory at addr 0x%s len = 4.\n"),
+					   paddr_nz (i386_record_pc));
+		      }
 		    return (-1);
 		  }
 		i386_record_pc += 4;
@@ -3884,9 +4086,12 @@ reswitch:
 		if (target_read_memory
 		    (i386_record_pc, (gdb_byte *) & tmpu16, 4))
 		  {
-		    printf_unfiltered (_
-				       ("Process record: read memeory 0x%s error.\n"),
-				       paddr_nz (i386_record_pc));
+		    if (record_debug)
+		      {
+			printf_unfiltered (_
+					   ("Process record: error reading memory at addr 0x%s len = 4.\n"),
+					   paddr_nz (i386_record_pc));
+		      }
 		    return (-1);
 		  }
 		i386_record_pc += 2;
@@ -3901,7 +4106,14 @@ reswitch:
       break;
 
       /* mov R, Ib */
-    case 0xb0 ... 0xb7:
+    case 0xb0:
+    case 0xb1:
+    case 0xb2:
+    case 0xb3:
+    case 0xb4:
+    case 0xb5:
+    case 0xb6:
+    case 0xb7:
       if (record_arch_list_add_reg ((opcode & 0x7) & 0x3))
 	{
 	  return (-1);
@@ -3909,7 +4121,14 @@ reswitch:
       break;
 
       /* mov R, Iv */
-    case 0xb8 ... 0xbf:
+    case 0xb8:
+    case 0xb9:
+    case 0xba:
+    case 0xbb:
+    case 0xbc:
+    case 0xbd:
+    case 0xbe:
+    case 0xbf:
       if (record_arch_list_add_reg (opcode & 0x7))
 	{
 	  return (-1);
@@ -3917,7 +4136,13 @@ reswitch:
       break;
 
       /* xchg R, EAX */
-    case 0x91 ... 0x97:
+    case 0x91:
+    case 0x92:
+    case 0x93:
+    case 0x94:
+    case 0x95:
+    case 0x96:
+    case 0x97:
       if (record_arch_list_add_reg (I386_EAX_REGNUM))
 	{
 	  return (-1);
@@ -4108,7 +4333,14 @@ reswitch:
 
       /* floats */
       /* It just record the memory change of instrcution. */
-    case 0xd8 ... 0xdf:
+    case 0xd8:
+    case 0xd9:
+    case 0xda:
+    case 0xdb:
+    case 0xdc:
+    case 0xdd:
+    case 0xde:
+    case 0xdf:
       if (i386_record_modrm ())
 	{
 	  return (-1);
@@ -4125,17 +4357,54 @@ reswitch:
 	    }
 	  switch (reg)
 	    {
-	    case 0x00 ... 0x07:
-	    case 0x10 ... 0x17:
-	    case 0x20 ... 0x27:
-	    case 0x30 ... 0x37:
+	    case 0x00:
+	    case 0x01:
+	    case 0x02:
+	    case 0x03:
+	    case 0x04:
+	    case 0x05:
+	    case 0x06:
+	    case 0x07:
+	    case 0x10:
+	    case 0x11:
+	    case 0x12:
+	    case 0x13:
+	    case 0x14:
+	    case 0x15:
+	    case 0x16:
+	    case 0x17:
+	    case 0x20:
+	    case 0x21:
+	    case 0x22:
+	    case 0x23:
+	    case 0x24:
+	    case 0x25:
+	    case 0x26:
+	    case 0x27:
+	    case 0x30:
+	    case 0x31:
+	    case 0x32:
+	    case 0x33:
+	    case 0x34:
+	    case 0x35:
+	    case 0x36:
+	    case 0x37:
 	      break;
 	    case 0x08:
 	    case 0x0a:
 	    case 0x0b:
-	    case 0x18 ... 0x1b:
-	    case 0x28 ... 0x2b:
-	    case 0x38 ... 0x3b:
+	    case 0x18:
+	    case 0x19:
+	    case 0x1a:
+	    case 0x1b:
+	    case 0x28:
+	    case 0x29:
+	    case 0x2a:
+	    case 0x2b:
+	    case 0x38:
+	    case 0x39:
+	    case 0x3a:
+	    case 0x3b:
 	      switch (reg & 7)
 		{
 		case 0:
@@ -4306,7 +4575,7 @@ reswitch:
 	    /* addr += ((uint32_t)read_register (I386_ES_REGNUM)) << 4; */
             if (record_debug)
 	      printf_unfiltered (_
-			         ("Process record ignores the memory change of instruction in address 0x%s because it can't get the value of the segment register.\n"),
+			         ("Process record ignores the memory change of instruction at address 0x%s because it can't get the value of the segment register.\n"),
 			   paddr_nz (i386_record_pc));
 	  }
 
@@ -4527,13 +4796,58 @@ reswitch:
       /* jmp Jb */
     case 0xeb:
       /* jcc Jb */
-    case 0x70 ... 0x7f:
+    case 0x70:
+    case 0x71:
+    case 0x72:
+    case 0x73:
+    case 0x74:
+    case 0x75:
+    case 0x76:
+    case 0x77:
+    case 0x78:
+    case 0x79:
+    case 0x7a:
+    case 0x7b:
+    case 0x7c:
+    case 0x7d:
+    case 0x7e:
+    case 0x7f:
       /* jcc Jv */
-    case 0x0f80 ... 0x0f8f:
+    case 0x0f80:
+    case 0x0f81:
+    case 0x0f82:
+    case 0x0f83:
+    case 0x0f84:
+    case 0x0f85:
+    case 0x0f86:
+    case 0x0f87:
+    case 0x0f88:
+    case 0x0f89:
+    case 0x0f8a:
+    case 0x0f8b:
+    case 0x0f8c:
+    case 0x0f8d:
+    case 0x0f8e:
+    case 0x0f8f:
       break;
 
       /* setcc Gv */
-    case 0x0f90 ... 0x0f9f:
+    case 0x0f90:
+    case 0x0f91:
+    case 0x0f92:
+    case 0x0f93:
+    case 0x0f94:
+    case 0x0f95:
+    case 0x0f96:
+    case 0x0f97:
+    case 0x0f98:
+    case 0x0f99:
+    case 0x0f9a:
+    case 0x0f9b:
+    case 0x0f9c:
+    case 0x0f9d:
+    case 0x0f9e:
+    case 0x0f9f:
       ot = OT_BYTE;
       if (i386_record_modrm ())
 	{
@@ -4556,7 +4870,22 @@ reswitch:
       break;
 
       /* cmov Gv, Ev */
-    case 0x0f40 ... 0x0f4f:
+    case 0x0f40:
+    case 0x0f41:
+    case 0x0f42:
+    case 0x0f43:
+    case 0x0f44:
+    case 0x0f45:
+    case 0x0f46:
+    case 0x0f47:
+    case 0x0f48:
+    case 0x0f49:
+    case 0x0f4a:
+    case 0x0f4b:
+    case 0x0f4c:
+    case 0x0f4d:
+    case 0x0f4e:
+    case 0x0f4f:
       if (i386_record_modrm ())
 	{
 	  return (-1);
@@ -4728,7 +5057,7 @@ reswitch:
       /* XXX */
     case 0x9b:
       printf_unfiltered (_
-			 ("Process record don't support instruction fwait.\n"));
+			 ("Process record doesn't support instruction fwait.\n"));
       i386_record_pc -= 1;
       goto no_support;
       break;
@@ -4749,8 +5078,12 @@ reswitch:
 	int ret;
 	if (target_read_memory (i386_record_pc, &tmpu8, 1))
 	  {
-	    printf_unfiltered (_("Process record: read memeory 0x%s error.\n"),
-			       paddr_nz (i386_record_pc));
+	    if (record_debug)
+	      {
+		printf_unfiltered (_
+				   ("Process record: error reading memory at addr 0x%s len = 1.\n"),
+				   paddr_nz (i386_record_pc));
+	      }
 	    return (-1);
 	  }
 	i386_record_pc++;
@@ -4795,7 +5128,14 @@ reswitch:
       break;
 
       /* bswap reg */
-    case 0x0fc8 ... 0x0fcf:
+    case 0x0fc8:
+    case 0x0fc9:
+    case 0x0fca:
+    case 0x0fcb:
+    case 0x0fcc:
+    case 0x0fcd:
+    case 0x0fce:
+    case 0x0fcf:
       if (record_arch_list_add_reg (opcode & 7))
 	{
 	  return (-1);
@@ -4979,7 +5319,7 @@ reswitch:
 	      {
 		if (record_debug)
 		  printf_unfiltered (_
-				     ("Process record ignores the memory change of instruction in address 0x%s because it can't get the value of the segment register.\n"),
+				     ("Process record ignores the memory change of instruction at address 0x%s because it can't get the value of the segment register.\n"),
 				     paddr_nz (i386_record_pc));
 error("3");
 	      }
@@ -5030,7 +5370,7 @@ error("3");
 		{
 		  if (record_debug)
 		    printf_unfiltered (_
-				       ("Process record ignores the memory change of instruction in address 0x%s because it can't get the value of the segment register.\n"),
+				       ("Process record ignores the memory change of instruction at address 0x%s because it can't get the value of the segment register.\n"),
 				       paddr_nz (i386_record_pc));
 		}
 	      else
@@ -5146,7 +5486,13 @@ error("3");
       break;
 
       /* nop (multi byte) */
-    case 0x0f19 ... 0x0f1f:
+    case 0x0f19:
+    case 0x0f1a:
+    case 0x0f1b:
+    case 0x0f1c:
+    case 0x0f1d:
+    case 0x0f1e:
+    case 0x0f1f:
       break;
 
       /* mov reg, crN */
@@ -5442,7 +5788,10 @@ i386_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   if (tdep->mm0_regnum == 0)
     tdep->mm0_regnum = gdbarch_num_regs (gdbarch);
 
-  set_gdbarch_record (gdbarch, i386_record);
+  set_gdbarch_skip_permanent_breakpoint (gdbarch,
+					 i386_skip_permanent_breakpoint);
+
+  set_gdbarch_process_record (gdbarch, i386_process_record);
 
   return gdbarch;
 }

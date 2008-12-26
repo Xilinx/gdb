@@ -6,7 +6,7 @@
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
+   the Free Software Foundation; either version 3 of the License, or
    (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
@@ -20,12 +20,10 @@
 #ifndef _RECORD_H_
 #define _RECORD_H_
 
-#define RECORD_IS_USED	\
+#define RECORD_IS_USED   \
      (current_target.beneath == &record_ops)
-#define RECORD_IS_REPLAY  \
+#define RECORD_IS_REPLAY \
      (record_list->next || execution_direction == EXEC_REVERSE)
-#define RECORD_TARGET_SUPPORT_RECORD_WAIT  \
-     (record_ops.beneath->to_support_record_wait)
 
 typedef struct record_reg_s
 {
@@ -52,7 +50,7 @@ enum record_type
    ("record_reg") or a part of memory ("record_mem"). And Each instruction must
    has a record_t ("record_end") that point out this is the last record_t of
    this instruction.
-   Each record_t is linked to "record_list" by "prev" and "next". 
+   Each record_t is linked to "record_list" by "prev" and "next".
  */
 typedef struct record_s
 {
@@ -77,7 +75,6 @@ extern record_t *record_arch_list_tail;
 extern struct regcache *record_regcache;
 
 extern struct target_ops record_ops;
-extern int record_resume_step;
 
 extern int record_arch_list_add_reg (int num);
 extern int record_arch_list_add_mem (CORE_ADDR addr, int len);

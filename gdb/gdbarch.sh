@@ -318,8 +318,8 @@ do
 	# An optional expression that convers MEMBER to a value
 	# suitable for formatting using %s.
 
-	# If PRINT is empty, paddr_nz (for CORE_ADDR) or paddr_d
-	# (anything else) is used.
+	# If PRINT is empty, core_addr_to_string_nz (for CORE_ADDR)
+	# or plongest (anything else) is used.
 
     garbage_at_eol ) : ;;
 
@@ -339,10 +339,11 @@ function_list ()
 i:const struct bfd_arch_info *:bfd_arch_info:::&bfd_default_arch_struct::::gdbarch_bfd_arch_info (gdbarch)->printable_name
 #
 i:int:byte_order:::BFD_ENDIAN_BIG
+i:int:byte_order_for_code:::BFD_ENDIAN_BIG
 #
 i:enum gdb_osabi:osabi:::GDB_OSABI_UNKNOWN
 #
-i:const struct target_desc *:target_desc:::::::paddr_d ((long) gdbarch->target_desc)
+i:const struct target_desc *:target_desc:::::::plongest ((long) gdbarch->target_desc)
 
 # The bit byte-order has to do just with numbering of bits in debugging symbols
 # and such.  Conceptually, it's quite separate from byte/word byte order.
@@ -528,10 +529,10 @@ m:CORE_ADDR:convert_from_func_ptr_addr:CORE_ADDR addr, struct target_ops *targ:a
 # being a few stray bits in the PC which would mislead us, not as some
 # sort of generic thing to handle alignment or segmentation (it's
 # possible it should be in TARGET_READ_PC instead).
-f:CORE_ADDR:addr_bits_remove:CORE_ADDR addr:addr::core_addr_identity::0
+m:CORE_ADDR:addr_bits_remove:CORE_ADDR addr:addr::core_addr_identity::0
 # It is not at all clear why gdbarch_smash_text_address is not folded into
 # gdbarch_addr_bits_remove.
-f:CORE_ADDR:smash_text_address:CORE_ADDR addr:addr::core_addr_identity::0
+m:CORE_ADDR:smash_text_address:CORE_ADDR addr:addr::core_addr_identity::0
 
 # FIXME/cagney/2001-01-18: This should be split in two.  A target method that
 # indicates if the target needs software single step.  An ISA method to
@@ -557,7 +558,7 @@ f:int:print_insn:bfd_vma vma, struct disassemble_info *info:vma, info::0:
 f:CORE_ADDR:skip_trampoline_code:struct frame_info *frame, CORE_ADDR pc:frame, pc::generic_skip_trampoline_code::0
 
 
-# If IN_SOLIB_DYNSYM_RESOLVE_CODE returns true, and SKIP_SOLIB_RESOLVER
+# If in_solib_dynsym_resolve_code() returns true, and SKIP_SOLIB_RESOLVER
 # evaluates non-zero, this is the address where the debugger will place
 # a step-resume breakpoint to get us past the dynamic linker.
 m:CORE_ADDR:skip_solib_resolver:CORE_ADDR pc:pc::generic_skip_solib_resolver::0
@@ -585,7 +586,6 @@ m:int:in_function_epilogue_p:CORE_ADDR addr:addr:0:generic_in_function_epilogue_
 m:char *:construct_inferior_arguments:int argc, char **argv:argc, argv::construct_inferior_arguments::0
 f:void:elf_make_msymbol_special:asymbol *sym, struct minimal_symbol *msym:sym, msym::default_elf_make_msymbol_special::0
 f:void:coff_make_msymbol_special:int val, struct minimal_symbol *msym:val, msym::default_coff_make_msymbol_special::0
-v:const char *:name_of_malloc:::"malloc":"malloc"::0:gdbarch->name_of_malloc
 v:int:cannot_step_breakpoint:::0:0::0
 v:int:have_nonsteppable_watchpoint:::0:0::0
 F:int:address_class_type_flags:int byte_size, int dwarf2_addr_class:byte_size, dwarf2_addr_class
@@ -698,6 +698,10 @@ F:char *:static_transform_name:char *name:name
 # Set if the address in N_SO or N_FUN stabs may be zero.
 v:int:sofun_address_maybe_missing:::0:0::0
 
+# For the process record and replay target
+M:int:process_record:CORE_ADDR addr:addr
+M:void:process_record_dasm:void
+
 # Signal translation: translate inferior's signal (host's) number into
 # GDB's representation.
 m:enum target_signal:target_signal_from_host:int signo:signo::default_target_signal_from_host::0
@@ -707,6 +711,13 @@ m:int:target_signal_to_host:enum target_signal ts:ts::default_target_signal_to_h
 
 # Record architecture-specific information from the symbol table.
 M:void:record_special_symbol:struct objfile *objfile, asymbol *sym:objfile, sym
+
+# True if the list of shared libraries is one and only for all
+# processes, as opposed to a list of shared libraries per inferior.
+# When this property is true, GDB assumes that since shared libraries
+# are shared across processes, so is all code.  Hence, GDB further
+# assumes an inserted breakpoint location is visible to all processes.
+v:int:has_global_solist:::0:0::0
 EOF
 }
 
@@ -821,6 +832,7 @@ struct displaced_step_closure;
 struct core_regset_section;
 
 extern struct gdbarch *current_gdbarch;
+extern struct gdbarch *target_gdbarch;
 EOF
 
 # function typedef's
@@ -961,6 +973,8 @@ struct gdbarch_info
 
   /* Use default: BFD_ENDIAN_UNKNOWN (NB: is not ZERO).  */
   int byte_order;
+
+  int byte_order_for_code;
 
   /* Use default: NULL (ZERO). */
   bfd *abfd;
@@ -1130,10 +1144,11 @@ cat <<EOF
 
 #include "gdb_assert.h"
 #include "gdb_string.h"
-#include "gdb-events.h"
 #include "reggroups.h"
 #include "osabi.h"
 #include "gdb_obstack.h"
+#include "observer.h"
+#include "regcache.h"
 
 /* Static function declarations */
 
@@ -1277,6 +1292,7 @@ cat <<EOF
 };
 
 struct gdbarch *current_gdbarch = &startup_gdbarch;
+struct gdbarch *target_gdbarch = &startup_gdbarch;
 EOF
 
 # Create a new gdbarch struct
@@ -1468,12 +1484,12 @@ do
 	# It is a variable
 	case "${print}:${returntype}" in
 	    :CORE_ADDR )
-		fmt="0x%s"
-		print="paddr_nz (gdbarch->${function})"
+		fmt="%s"
+		print="core_addr_to_string_nz (gdbarch->${function})"
 		;;
 	    :* )
 	        fmt="%s"
-		print="paddr_d (gdbarch->${function})"
+		print="plongest (gdbarch->${function})"
 		;;
 	    * )
 	        fmt="%s"
@@ -2018,8 +2034,9 @@ deprecated_current_gdbarch_select_hack (struct gdbarch *new_gdbarch)
   gdb_assert (current_gdbarch != NULL);
   gdb_assert (new_gdbarch->initialized_p);
   current_gdbarch = new_gdbarch;
-  architecture_changed_event ();
-  reinit_frame_cache ();
+  target_gdbarch = new_gdbarch;
+  observer_notify_architecture_changed (new_gdbarch);
+  registers_changed ();
 }
 
 extern void _initialize_gdbarch (void);

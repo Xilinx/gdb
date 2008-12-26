@@ -215,8 +215,11 @@ enum target_object
      See "target-descriptions.c".  ANNEX should never be empty.  */
   TARGET_OBJECT_AVAILABLE_FEATURES,
   /* Currently loaded libraries, in XML format.  */
-  TARGET_OBJECT_LIBRARIES
-  /* Possible future objects: TARGET_OBJECT_FILE, TARGET_OBJECT_PROC, ... */
+  TARGET_OBJECT_LIBRARIES,
+  /* Get OS specific data.  The ANNEX specifies the type (running
+     processes, etc.).  */
+  TARGET_OBJECT_OSDATA
+  /* Possible future objects: TARGET_OBJECT_FILE, ... */
 };
 
 /* Request that OPS transfer up to LEN 8-bit bytes of the target's
@@ -297,15 +300,6 @@ extern void get_target_memory (struct target_ops *ops, CORE_ADDR addr,
 extern ULONGEST get_target_memory_unsigned (struct target_ops *ops,
 					    CORE_ADDR addr, int len);
 
-
-/* If certain kinds of activity happen, target_wait should perform
-   callbacks.  */
-/* Right now we just call (*TARGET_ACTIVITY_FUNCTION) if I/O is possible
-   on TARGET_ACTIVITY_FD.  */
-extern int target_activity_fd;
-/* Returns zero to leave the inferior alone, one to interrupt it.  */
-extern int (*target_activity_function) (void);
-
 struct thread_info;		/* fwd decl for parameter list below: */
 
 struct target_ops
@@ -328,9 +322,9 @@ struct target_ops
        to xfree everything (including the "struct target_ops").  */
     void (*to_xclose) (struct target_ops *targ, int quitting);
     void (*to_close) (int);
-    void (*to_attach) (char *, int);
+    void (*to_attach) (struct target_ops *ops, char *, int);
     void (*to_post_attach) (int);
-    void (*to_detach) (char *, int);
+    void (*to_detach) (struct target_ops *ops, char *, int);
     void (*to_disconnect) (struct target_ops *, char *, int);
     void (*to_resume) (ptid_t, int, enum target_signal);
     ptid_t (*to_wait) (ptid_t, struct target_waitstatus *);
@@ -388,7 +382,8 @@ struct target_ops
     void (*to_kill) (void);
     void (*to_load) (char *, int);
     int (*to_lookup_symbol) (char *, CORE_ADDR *);
-    void (*to_create_inferior) (char *, char *, char **, int);
+    void (*to_create_inferior) (struct target_ops *, 
+				char *, char *, char **, int);
     void (*to_post_startup_inferior) (ptid_t);
     void (*to_acknowledge_created_inferior) (int);
     void (*to_insert_fork_catchpoint) (int);
@@ -399,7 +394,7 @@ struct target_ops
     void (*to_insert_exec_catchpoint) (int);
     int (*to_remove_exec_catchpoint) (int);
     int (*to_has_exited) (int, int, int *);
-    void (*to_mourn_inferior) (void);
+    void (*to_mourn_inferior) (struct target_ops *);
     int (*to_can_run) (void);
     void (*to_notice_signals) (ptid_t ptid);
     int (*to_thread_alive) (ptid_t ptid);
@@ -427,6 +422,7 @@ struct target_ops
     int (*to_is_async_p) (void);
     void (*to_async) (void (*) (enum inferior_event_type, void *), void *);
     int (*to_async_mask) (int);
+    int (*to_supports_non_stop) (void);
     int (*to_find_memory_regions) (int (*) (CORE_ADDR,
 					    unsigned long,
 					    int, int, int,
@@ -509,6 +505,12 @@ struct target_ops
        was available.  */
     const struct target_desc *(*to_read_description) (struct target_ops *ops);
 
+    /* Build the PTID of the thread on which a given task is running,
+       based on LWP and THREAD.  These values are extracted from the
+       task Private_Data section of the Ada Task Control Block, and
+       their interpretation depends on the target.  */
+    ptid_t (*to_get_ada_task_ptid) (long lwp, long thread);
+
     /* Read one auxv entry from *READPTR, not reading locations >= ENDPTR.
        Return 0 if *READPTR is already at the end of the buffer.
        Return -1 if there is insufficient buffer for a whole entry.
@@ -530,10 +532,9 @@ struct target_ops
     /* Can target execute in reverse?  */
     int (*to_can_execute_reverse) ();
 
-    /* Default value is 0. Mean that this target doesn't support record wait.
-       Need the help of infrun.c(handle_inferior_event). Set to 1 if this
-       target support record wait. */
-    int to_support_record_wait;
+    /* Does this target support debugging multiple processes
+       simultaneously?  */
+    int (*to_supports_multi_process) (void);
 
     int to_magic;
     /* Need sub-structure for target machine related rather than comm related?
@@ -575,8 +576,7 @@ void target_close (struct target_ops *targ, int quitting);
    should be ready to deliver the status of the process immediately
    (without waiting) to an upcoming target_wait call.  */
 
-#define	target_attach(args, from_tty)	\
-     (*current_target.to_attach) (args, from_tty)
+void target_attach (char *, int);
 
 /* Some targets don't generate traps when attaching to the inferior,
    or their target_attach implementation takes care of the waiting.
@@ -645,6 +645,12 @@ extern void target_resume (ptid_t ptid, int step, enum target_signal signal);
 
 #define	target_prepare_to_store(regcache)	\
      (*current_target.to_prepare_to_store) (regcache)
+
+/* Returns true if this target can debug multiple processes
+   simultaneously.  */
+
+#define	target_supports_multi_process()	\
+     (*current_target.to_supports_multi_process) ()
 
 extern DCACHE *target_dcache;
 
@@ -820,9 +826,8 @@ extern void target_load (char *arg, int from_tty);
    ENV is the environment vector to pass.  Errors reported with error().
    On VxWorks and various standalone systems, we ignore exec_file.  */
 
-#define	target_create_inferior(exec_file, args, env, FROM_TTY)	\
-     (*current_target.to_create_inferior) (exec_file, args, env, (FROM_TTY))
-
+void target_create_inferior (char *exec_file, char *args,
+			     char **env, int from_tty);
 
 /* Some targets (such as ttrace-based HPUX) don't allow us to request
    notification of inferior events such as fork and vork immediately
@@ -892,8 +897,7 @@ int target_follow_fork (int follow_child);
 
 /* The inferior process has died.  Do what is right.  */
 
-#define	target_mourn_inferior()	\
-     (*current_target.to_mourn_inferior) ()
+void target_mourn_inferior (void);
 
 /* Does target have enough data to do a run or attach command? */
 
@@ -969,11 +973,17 @@ int target_follow_fork (int follow_child);
 #define target_can_lock_scheduler \
      (current_target.to_has_thread_control & tc_schedlock)
 
+/* Should the target enable async mode if it is supported?  Temporary
+   cludge until async mode is a strict superset of sync mode.  */
+extern int target_async_permitted;
+
 /* Can the target support asynchronous execution? */
 #define target_can_async_p() (current_target.to_can_async_p ())
 
 /* Is the target in asynchronous execution mode? */
 #define target_is_async_p() (current_target.to_is_async_p ())
+
+int target_supports_non_stop (void);
 
 /* Put the target in async mode with the specified callback function. */
 #define target_async(CALLBACK,CONTEXT) \
@@ -1140,6 +1150,9 @@ extern int target_stopped_data_address_p (struct target_ops *);
 
 extern const struct target_desc *target_read_description (struct target_ops *);
 
+#define target_get_ada_task_ptid(lwp, tid) \
+     (*current_target.to_get_ada_task_ptid) (lwp,tid)
+
 /* Utility implementation of searching memory.  */
 extern int simple_search_memory (struct target_ops* ops,
                                  CORE_ADDR start_addr,
@@ -1190,6 +1203,17 @@ extern void target_preopen (int);
 
 extern void pop_target (void);
 
+/* Does whatever cleanup is required to get rid of all pushed targets.
+   QUITTING is propagated to target_close; it indicates that GDB is
+   exiting and should not get hung on an error (otherwise it is
+   important to perform clean termination, even if it takes a
+   while).  */
+extern void pop_all_targets (int quitting);
+
+/* Like pop_all_targets, but pops only targets whose stratum is
+   strictly above ABOVE_STRATUM.  */
+extern void pop_all_targets_above (enum strata above_stratum, int quitting);
+
 extern CORE_ADDR target_translate_tls_address (struct objfile *objfile,
 					       CORE_ADDR offset);
 
@@ -1238,9 +1262,10 @@ extern void noprocess (void);
 
 extern void target_require_runnable (void);
 
-extern void find_default_attach (char *, int);
+extern void find_default_attach (struct target_ops *, char *, int);
 
-extern void find_default_create_inferior (char *, char *, char **, int);
+extern void find_default_create_inferior (struct target_ops *,
+					  char *, char *, char **, int);
 
 extern struct target_ops *find_run_target (void);
 
@@ -1252,6 +1277,14 @@ extern int target_resize_to_sections (struct target_ops *target,
 				      int num_added);
 
 extern void remove_target_sections (bfd *abfd);
+
+/* Read OS data object of type TYPE from the target, and return it in
+   XML format.  The result is NUL-terminated and returned as a string,
+   allocated using xmalloc.  If an error occurs or the transfer is
+   unsupported, NULL is returned.  Empty objects are returned as
+   allocated but empty strings.  */
+
+extern char *target_get_osdata (const char *type);
 
 
 /* Stuff that should be shared among the various remote targets.  */
@@ -1300,9 +1333,6 @@ extern int default_target_signal_to_host (struct gdbarch *,
 
 /* Convert from a number used in a GDB command to an enum target_signal.  */
 extern enum target_signal target_signal_from_command (int);
-
-/* Any target can call this to switch to remote protocol (in remote.c). */
-extern void push_remote_target (char *name, int from_tty);
 
 /* Set the show memory breakpoints mode to show, and installs a cleanup
    to restore it back to the current value.  */
