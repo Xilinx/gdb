@@ -1,6 +1,6 @@
 /* ELF support for BFD.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
+   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008
    Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
@@ -109,12 +109,9 @@
 #define EM_MIPS		  8	/* MIPS R3000 (officially, big-endian only) */
 #define EM_S370		  9	/* IBM System/370 */
 #define EM_MIPS_RS3_LE	 10	/* MIPS R3000 little-endian (Oct 4 1999 Draft) Deprecated */
-#define EM_res011	 11	/* Reserved */
-#define EM_res012	 12	/* Reserved */
-#define EM_res013	 13	/* Reserved */
-#define EM_res014	 14	/* Reserved */
+
 #define EM_PARISC	 15	/* HPPA */
-#define EM_res016	 16	/* Reserved */
+
 #define EM_VPP550	 17	/* Fujitsu VPP500 */
 #define EM_SPARC32PLUS	 18	/* Sun's "v8plus" */
 #define EM_960		 19	/* Intel 80960 */
@@ -122,18 +119,7 @@
 #define EM_PPC64	 21	/* 64-bit PowerPC */
 #define EM_S390		 22	/* IBM S/390 */
 #define EM_SPU		 23	/* Sony/Toshiba/IBM SPU */
-#define EM_res024	 24	/* Reserved */
-#define EM_res025	 25	/* Reserved */
-#define EM_res026	 26	/* Reserved */
-#define EM_res027	 27	/* Reserved */
-#define EM_res028	 28	/* Reserved */
-#define EM_res029	 29	/* Reserved */
-#define EM_res030	 30	/* Reserved */
-#define EM_res031	 31	/* Reserved */
-#define EM_res032	 32	/* Reserved */
-#define EM_res033	 33	/* Reserved */
-#define EM_res034	 34	/* Reserved */
-#define EM_res035	 35	/* Reserved */
+
 #define EM_V800		 36	/* NEC V800 series */
 #define EM_FR20		 37	/* Fujitsu FR20 */
 #define EM_RH32		 38	/* TRW RH32 */
@@ -192,7 +178,7 @@
 #define EM_MN10200	 90	/* Matsushita MN10200 */
 #define EM_PJ		 91	/* picoJava */
 #define EM_OPENRISC	 92	/* OpenRISC 32-bit embedded processor */
-#define EM_ARC_A5	 93	/* ARC Cores Tangent-A5 */
+#define EM_ARCOMPACT	 93	/* ARC Cores */
 #define EM_XTENSA	 94	/* Tensilica Xtensa Architecture */
 #define EM_VIDEOCORE	 95	/* Alphamosaic VideoCore processor */
 #define EM_TMM_GPP	 96	/* Thompson Multimedia General Purpose Processor */
@@ -220,46 +206,17 @@
 #define EM_DSPIC30F	118	/* Microchip Technology dsPIC30F Digital Signal Controller */
 #define EM_CE		119	/* Freescale Communication Engine RISC core */
 #define EM_M32C		120	/* Renesas M32C series microprocessors */
-#define EM_res121	121	/* Reserved */
-#define EM_res122	122	/* Reserved */
-#define EM_res123	123	/* Reserved */
-#define EM_res124	124	/* Reserved */
-#define EM_res125	125	/* Reserved */
-#define EM_res126	126	/* Reserved */
-#define EM_res127	127	/* Reserved */
-#define EM_res128	128	/* Reserved */
-#define EM_res129	129	/* Reserved */
-#define EM_res130	130	/* Reserved */
+
 #define EM_TSK3000	131	/* Altium TSK3000 core */
 #define EM_RS08		132	/* Freescale RS08 embedded processor */
-#define EM_res133	133	/* Reserved */
+
 #define EM_ECOG2	134	/* Cyan Technology eCOG2 microprocessor */
 #define EM_SCORE	135	/* Sunplus Score */
-#define EM_SCORE7	135	/* Sunplus S+core7 RISC processor */
 #define EM_DSP24	136	/* New Japan Radio (NJR) 24-bit DSP Processor */
 #define EM_VIDEOCORE3	137	/* Broadcom VideoCore III processor */
 #define EM_LATTICEMICO32 138	/* RISC processor for Lattice FPGA architecture */
 #define EM_SE_C17	139	/* Seiko Epson C17 family */
-#define EM_res140	140	/* Reserved */
-#define EM_res141	141	/* Reserved */
-#define EM_res142	142	/* Reserved */
-#define EM_res143	143	/* Reserved */
-#define EM_res144	144	/* Reserved */
-#define EM_res145	145	/* Reserved */
-#define EM_res146	146	/* Reserved */
-#define EM_res147	147	/* Reserved */
-#define EM_res148	148	/* Reserved */
-#define EM_res149	149	/* Reserved */
-#define EM_res150	150	/* Reserved */
-#define EM_res151	151	/* Reserved */
-#define EM_res152	152	/* Reserved */
-#define EM_res153	153	/* Reserved */
-#define EM_res154	154	/* Reserved */
-#define EM_res155	155	/* Reserved */
-#define EM_res156	156	/* Reserved */
-#define EM_res157	157	/* Reserved */
-#define EM_res158	158	/* Reserved */
-#define EM_res159	159	/* Reserved */
+
 #define EM_MMDSP_PLUS	160	/* STMicroelectronics 64bit VLIW Data Signal Processor */
 #define EM_CYPRESS_M8C	161	/* Cypress M8C microprocessor */
 #define EM_R32C		162	/* Renesas R32C series microprocessors */
@@ -279,18 +236,6 @@
 #define EM_MCST_ELBRUS	175	/* MCST Elbrus general purpose hardware architecture */
 #define EM_ECOG16	176	/* Cyan Technology eCOG16 family */
 #define EM_CR16		177	/* National Semiconductor CompactRISC 16-bit processor */
-#define EM_ETPU		178	/* Freescale Extended Time Processing Unit */
-#define EM_SLE9X	179	/* Infineon Technologies SLE9X core */
-#define EM_L1OM		180	/* Intel L1OM */
-#define EM_INTEL181	181	/* Reserved by Intel */
-#define EM_INTEL182	182	/* Reserved by Intel */
-#define EM_res183	183	/* Reserved by ARM */
-#define EM_res184	184	/* Reserved by ARM */
-#define EM_AVR32	185	/* Atmel Corporation 32-bit microprocessor family */
-#define EM_STM8	186	/* STMicroeletronics STM8 8-bit microcontroller */
-#define EM_TILE64	187	/* Tilera TILE64 multicore architecture family */
-#define EM_TILEPRO	188	/* Tilera TILEPro multicore architecture family */
-#define EM_MICROBLAZE	189	/* Xilinx MicroBlaze 32-bit RISC soft processor core */
 
 /* If it is necessary to assign new unofficial EM_* values, please pick large
    random numbers (0x8523, 0xa7f2, etc.) to minimize the chances of collision
@@ -389,13 +334,6 @@
 
 #define EM_CYGNUS_MEP		0xF00D  /* Toshiba MeP */
 
-#define EM_MOXIE                0xFEED  /* Moxie */
-
-/* Old Sunplus S+core7 backend magic number. Written in the absence of an ABI.  */
-#define EM_SCORE_OLD            95
-
-#define EM_MICROBLAZE_OLD	0xbaab	/* Old MicroBlaze */
-
 /* See the above comment before you add a new EM_* value here.  */
 
 /* Values for e_version.  */
@@ -456,7 +394,6 @@
 #define SHT_LOOS	0x60000000	/* First of OS specific semantics */
 #define SHT_HIOS	0x6fffffff	/* Last of OS specific semantics */
 
-#define SHT_GNU_INCREMENTAL_INPUTS 0x6fff4700   /* incremental build data */
 #define SHT_GNU_ATTRIBUTES 0x6ffffff5	/* Object attributes */
 #define SHT_GNU_HASH	0x6ffffff6	/* GNU style symbol hash table */
 #define SHT_GNU_LIBLIST	0x6ffffff7	/* List of prelink dependencies */
@@ -524,18 +461,6 @@
 
 #define NT_NETBSDCORE_PROCINFO	1	/* Has a struct procinfo */
 #define NT_NETBSDCORE_FIRSTMACH	32	/* start of machdep note types */
-
-
-/* Note segments for core files on OpenBSD systems.  Note name is
-   "OpenBSD".  */
-
-#define NT_OPENBSD_PROCINFO	10
-#define NT_OPENBSD_AUXV		11
-#define NT_OPENBSD_REGS		20
-#define NT_OPENBSD_FPREGS	21
-#define NT_OPENBSD_XFPREGS	22
-#define NT_OPENBSD_WCOOKIE	23
-
 
 /* Note segments for core files on SPU systems.  Note name
    must start with "SPU/".  */
@@ -607,10 +532,9 @@
 #define STB_GLOBAL	1		/* Symbol visible outside obj */
 #define STB_WEAK	2		/* Like globals, lower precedence */
 #define STB_LOOS	10		/* OS-specific semantics */
-#define STB_GNU_UNIQUE	10		/* Symbol is unique in namespace */
 #define STB_HIOS	12		/* OS-specific semantics */
-#define STB_LOPROC	13		/* Processor-specific semantics */
-#define STB_HIPROC	15		/* Processor-specific semantics */
+#define STB_LOPROC	13		/* Application-specific semantics */
+#define STB_HIPROC	15		/* Application-specific semantics */
 
 #define STT_NOTYPE	0		/* Symbol type is unspecified */
 #define STT_OBJECT	1		/* Symbol is a data object */
@@ -622,10 +546,9 @@
 #define STT_RELC	8		/* Complex relocation expression */
 #define STT_SRELC	9		/* Signed Complex relocation expression */
 #define STT_LOOS	10		/* OS-specific semantics */
-#define STT_GNU_IFUNC	10		/* Symbol is an indirect code object */
 #define STT_HIOS	12		/* OS-specific semantics */
-#define STT_LOPROC	13		/* Processor-specific semantics */
-#define STT_HIPROC	15		/* Processor-specific semantics */
+#define STT_LOPROC	13		/* Application-specific semantics */
+#define STT_HIPROC	15		/* Application-specific semantics */
 
 /* The following constants control how a symbol may be accessed once it has
    become part of an executable or shared library.  */
@@ -693,12 +616,10 @@
 #define DT_LOPROC	0x70000000
 #define DT_HIPROC	0x7fffffff
 
-/* The next 2 dynamic tag ranges, integer value range (DT_VALRNGLO to
-   DT_VALRNGHI) and virtual address range (DT_ADDRRNGLO to DT_ADDRRNGHI),
-   are used on Solaris.  We support them everywhere.  Note these values
-   lie outside of the (new) range for OS specific values.  This is a
-   deliberate special case and we maintain it for backwards compatability.
- */
+/* The next four dynamic tags are used on Solaris.  We support them
+   everywhere.	Note these values lie outside of the (new) range for
+   OS specific values.	This is a deliberate special case and we
+   maintain it for backwards compatability.  */
 #define DT_VALRNGLO	0x6ffffd00
 #define DT_GNU_PRELINKED 0x6ffffdf5
 #define DT_GNU_CONFLICTSZ 0x6ffffdf6
@@ -877,10 +798,6 @@
 #define AT_UCACHEBSIZE	21		/* Unified cache block size.  */
 #define AT_IGNOREPPC	22		/* Entry should be ignored */
 #define	AT_SECURE	23		/* Boolean, was exec setuid-like?  */
-#define AT_BASE_PLATFORM 24		/* String identifying real platform,
-					   may differ from AT_PLATFORM.  */
-#define AT_RANDOM	25		/* Address of 16 random bytes.  */
-#define AT_EXECFN	31		/* Filename of executable.  */
 /* Pointer to the global system page used for system calls and other
    nice things.  */
 #define AT_SYSINFO	32

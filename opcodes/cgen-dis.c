@@ -1,5 +1,5 @@
 /* CGEN generic disassembler support code.
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2007
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2007
    Free Software Foundation, Inc.
 
    This file is part of libopcodes.
@@ -125,7 +125,7 @@ hash_insn_array (CGEN_CPU_DESC cd,
 		    buf,
 		    CGEN_INSN_MASK_BITSIZE (insn),
 		    big_p);
-      hash = (* cd->dis_hash) (buf, value);
+      hash = (* cd->dis_hash) (buf, value, big_p);
       add_insn_to_hash_chain (hentbuf, insn, htable, hash);
     }
 
@@ -162,7 +162,7 @@ hash_insn_list (CGEN_CPU_DESC cd,
 		   buf,
 		   CGEN_INSN_MASK_BITSIZE (ilist->insn),
 		   big_p);
-      hash = (* cd->dis_hash) (buf, value);
+      hash = (* cd->dis_hash) (buf, value, big_p);
       add_insn_to_hash_chain (hentbuf, ilist->insn, htable, hash);
     }
 
@@ -230,11 +230,12 @@ CGEN_INSN_LIST *
 cgen_dis_lookup_insn (CGEN_CPU_DESC cd, const char * buf, CGEN_INSN_INT value)
 {
   unsigned int hash;
+  int big_p = CGEN_CPU_ENDIAN (cd) == CGEN_ENDIAN_BIG;
 
   if (cd->dis_hash_table == NULL)
     build_dis_hash_table (cd);
 
-  hash = (* cd->dis_hash) (buf, value);
+  hash = (* cd->dis_hash) (buf, value, big_p);
 
   return cd->dis_hash_table[hash];
 }
