@@ -1492,4 +1492,6 @@ _initialize_amd64_linux_tdep (void)
 {
   gdbarch_register_osabi (bfd_arch_i386, bfd_mach_x86_64,
 			  GDB_OSABI_LINUX, amd64_linux_init_abi);
+  gdbarch_register_osabi (bfd_arch_i386, bfd_mach_x64_32,
+			  GDB_OSABI_LINUX, amd64_linux_init_abi);
 }

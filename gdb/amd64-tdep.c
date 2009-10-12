@@ -2095,10 +2095,22 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   tdep->st0_regnum = AMD64_ST0_REGNUM;
   tdep->num_xmm_regs = 16;
 
+  tdep->isa = ISA_AMD64;
+
   /* This is what all the fuss is about.  */
-  set_gdbarch_long_bit (gdbarch, 64);
+  if (info.abfd != NULL
+      && info.bfd_arch_info->bits_per_address == 32)
+    {
+      set_gdbarch_long_bit (gdbarch, 32);
+      set_gdbarch_ptr_bit (gdbarch, 32);
+    }
+  else
+    {
+      set_gdbarch_long_bit (gdbarch, 64);
+      set_gdbarch_ptr_bit (gdbarch, 64);
+    }
+
   set_gdbarch_long_long_bit (gdbarch, 64);
-  set_gdbarch_ptr_bit (gdbarch, 64);
 
   /* In contrast to the i386, on AMD64 a `long double' actually takes
      up 128 bits, even though it's still based on the i387 extended
@@ -2188,7 +2200,7 @@ amd64_supply_fxsave (struct regcache *regcache, int regnum,
 
   i387_supply_fxsave (regcache, regnum, fxsave);
 
-  if (fxsave && gdbarch_ptr_bit (gdbarch) == 64)
+  if (fxsave && i386_isa (gdbarch) == ISA_AMD64)
     {
       const gdb_byte *regs = fxsave;
 
@@ -2214,7 +2226,7 @@ amd64_collect_fxsave (const struct regcache *regcache, int regnum,
 
   i387_collect_fxsave (regcache, regnum, fxsave);
 
-  if (gdbarch_ptr_bit (gdbarch) == 64)
+  if (i386_isa (gdbarch) == ISA_AMD64)
     {
       if (regnum == -1 || regnum == I387_FISEG_REGNUM (tdep))
 	regcache_raw_collect (regcache, I387_FISEG_REGNUM (tdep), regs + 12);

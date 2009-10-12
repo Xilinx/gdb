@@ -341,7 +341,7 @@ ps_err_e
 ps_get_thread_area (const struct ps_prochandle *ph,
                     lwpid_t lwpid, int idx, void **base)
 {
-  if (gdbarch_ptr_bit (target_gdbarch) == 32)
+  if (i386_isa (target_gdbarch) == ISA_I386)
     {
       /* The full structure is found in <asm-i386/ldt.h>.  The second
 	 integer is the LDT's base_address and that is used to locate
@@ -630,7 +630,7 @@ amd64_linux_siginfo_fixup (struct siginfo *native, gdb_byte *inf, int direction)
 {
   /* Is the inferior 32-bit?  If so, then do fixup the siginfo
      object.  */
-  if (gdbarch_addr_bit (get_frame_arch (get_current_frame ())) == 32)
+  if (i386_isa (get_frame_arch (get_current_frame ())) == ISA_I386)
     {
       gdb_assert (sizeof (struct siginfo) == sizeof (compat_siginfo_t));
 

@@ -1,0 +1,4 @@
+2009-10-06  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (print_insn): Support bfd_mach_x64_32 and
+	bfd_mach_x64_32_intel_syntax.

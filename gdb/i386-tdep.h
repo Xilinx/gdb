@@ -53,9 +53,18 @@ enum struct_return
   reg_struct_return		/* Return "short" structures in registers.  */
 };
 
+/* ISA.  */
+enum i386_isa
+{
+  ISA_I386,			/* i386		*/
+  ISA_AMD64			/* AMD64	*/
+};
+
 /* i386 architecture specific information.  */
 struct gdbarch_tdep
 {
+  enum i386_isa isa;
+
   /* General-purpose registers.  */
   struct regset *gregset;
   int *gregset_reg_offset;
@@ -202,6 +211,9 @@ extern struct type *i386_mxcsr_type (struct gdbarch *gdbarch);
 extern struct type *i386_mmx_type (struct gdbarch *gdbarch);
 extern struct type *i386_sse_type (struct gdbarch *gdbarch);
 extern struct type *i387_ext_type (struct gdbarch *gdbarch);
+
+/* ISA.  */
+extern enum i386_isa i386_isa (struct gdbarch *gdbarch);
 
 /* Segment selectors.  */
 #define I386_SEL_RPL	0x0003  /* Requester's Privilege Level mask.  */

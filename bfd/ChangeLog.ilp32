@@ -1,0 +1,128 @@
+2009-10-08  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf64-x86-64.c (elf64_x86_64_xxx): Renamed to ...
+	(elf_x86_64_xxx): This.
+	(elf64_bed): Don't define for ILP32.
+
+2009-10-06  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf64-x86-64.c (elf64_x86_64_grok_prstatus): Remove ABI_64_P
+	check.
+	(elf64_x86_64_grok_psinfo): Likewise.
+
+2009-10-06  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* archures.c (bfd_mach_x64_32): New.
+	(bfd_mach_x64_32_intel_syntax): Likewise.
+	* bfd-in2.h: Regenerated.
+
+	* cpu-i386.c (bfd_x64_32_arch_intel_syntax): New.
+	(bfd_x64_32_arch): Likewise.
+
+	* elf64-x86-64.c (elf32_x86_64_elf_object_p): New.
+	(elf_backend_object_p): Set to elf32_x86_64_elf_object_p for
+	ILP32.
+
+2009-10-01  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elflink.c (bfd_elf_final_link): Check ELF file class on error.
+
+2009-09-30  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf64-x86-64.c (X86_64_ELF_R_TYPE): Removed.
+	(elf64_x86_64_info_to_howto): Replace X86_64_ELF_R_TYPE with
+	ELF32_R_TYPE.  Replace ELF64_ST_TYPE with ELF_ST_TYPE.
+	(elf64_x86_64_check_tls_transition):Likewise.
+	(elf64_x86_64_check_relocs): Likewise.
+	(elf64_x86_64_gc_mark_hook):Likewise.
+	(elf64_x86_64_gc_sweep_hook): Likewise.
+	(elf64_x86_64_relocate_section): Likewise.
+	(elf64_x86_64_reloc_type_class): Likewise.
+
+2009-09-29  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf64-x86-64.c (bfd_elf32_mkobject): Defined.
+
+2009-09-29  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf64-x86-64.c (elf32_x86_64_bed): Moved to the end.
+
+2009-09-29  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* config.bfd (targ64_selvecs): Add bfd_elf32_x86_64_vec for
+	i[3-7]86-*-linux-*.
+	(targ_selvecs): Add bfd_elf32_x86_64_vec for x86_64-*-linux-*.
+
+	* configure.in: Support bfd_elf32_x86_64_vec.
+	* configure: Regenerated.
+
+	* elf64-x86-64.c (elf64_x86_64_grok_prstatus): Check ABI_64_P.
+	(elf64_x86_64_grok_psinfo): Likewise.
+	(elf32_x86_64_bed): New.
+
+	* targets.c (bfd_elf32_x86_64_vec): New.
+	(_bfd_target_vector): Add bfd_elf32_x86_64_vec.
+
+2009-09-29  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf64-x86-64.c (ABI_64_P): New.
+	(elf64_x86_64_link_hash_table_create): Use it.
+
+2009-09-29  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf64-x86-64.c (ELF_DYNAMIC_INTERPRETER): Renamed to ...
+	(ELF64_DYNAMIC_INTERPRETER): This.
+	(ELF32_DYNAMIC_INTERPRETER): New.
+	(elf64_x86_64_link_hash_table): Add dynamic_interpreter and
+	dynamic_interpreter_size.
+	(elf64_x86_64_link_hash_table_create): Initialize
+	dynamic_interpreter and dynamic_interpreter_size.
+	(elf64_x86_64_size_dynamic_sections): Updated.
+
+2009-09-29  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf64-x86-64.c (elf64_x86_64_link_hash_table): Add
+	swap_reloca_out.
+	(elf64_x86_64_link_hash_table_create): Initialize swap_reloca_out.
+	(elf64_x86_64_adjust_dynamic_symbol): Replace sizeof
+	(Elf64_External_Rela) with bed->s->sizeof_rela.
+	(elf64_x86_64_allocate_dynrelocs): Likewise.
+	(elf64_x86_64_size_dynamic_sections): Likewise.
+	(elf64_x86_64_finish_dynamic_symbol): Likewise.
+
+2009-09-29  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf-bfd.h (elf_append_rela): New prototype.
+	(elf_append_rel): Likewise.
+	(elf64_r_info): Likewise.
+	(elf32_r_info): Likewise.
+	(elf64_r_sym): Likewise.
+	(elf32_r_sym): Likewise.
+
+	* elflink.c (elf_append_rela): New.
+	(elf_append_rel): Likewise.
+	(elf64_r_info): Likewise.
+	(elf32_r_info): Likewise.
+	(elf64_r_sym): Likewise.
+	(elf32_r_sym): Likewise.
+
+	* elf64-x86-64.c (X86_64_ELF_R_TYPE): New.
+	(elf64_x86_64_info_to_howto): Replace ELF64_R_TYPE with
+	X86_64_ELF_R_TYPE.
+	(elf64_x86_64_reloc_type_class): Likewise.
+	(elf64_x86_64_link_hash_table): Add r_info and r_sym.
+	(elf64_x86_64_get_local_sym_hash): Replace ELF64_R_SYM with
+	htab->r_sym.  Replace ELF64_R_INFO with htab->r_info.  Replace
+	ELF64_R_TYPE with X86_64_ELF_R_TYPE.
+	(elf64_x86_64_get_local_sym_hash): Likewise.
+	(elf64_x86_64_check_tls_transition):Likewise.
+	(elf64_x86_64_check_relocs): Likewise.
+	(elf64_x86_64_gc_mark_hook):Likewise.
+	(elf64_x86_64_gc_sweep_hook): Likewise.
+	(elf64_x86_64_relocate_section): Likewise.
+	(elf64_x86_64_finish_dynamic_symbol): Likewise.
+	(elf64_x86_64_finish_local_dynamic_symbol): Likewise.
+	(elf64_x86_64_link_hash_table_create): Initialize r_info and
+	r_sym.
+	(elf64_x86_64_tls_transition): Updated.
+	(elf64_x86_64_append_rela): Removed.
