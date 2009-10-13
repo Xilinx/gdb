@@ -1,3 +1,39 @@
+2009-10-13  Pedro Alves  <pedro@codesourcery.com>
+
+	* infcall.c (call_function_by_hand): Formatting.
+
+2009-10-13  Tristan Gingold  <gingold@adacore.com>
+
+	* solib-darwin.c: Add an empty line after comment for functions.
+	(struct gdb_dyld_all_image_infos): Improve comment.
+	(DYLD_VERSION): Removed and replaced by ...
+	(DYLD_VERSION_MAX, DYLD_VERSION_MIN): ... New macros.
+	(darwin_dyld_version_ok): New function.
+	(darwin_load_image_infos): Call darwin_dyld_version_ok.
+	(darwin_current_sos): Ditto.
+	(darwin_solib_create_inferior_hook): Ditto.
+
+2009-10-13  Tristan Gingold  <gingold@adacore.com>
+
+	* machoread.c: Add an empty line after comment for functions.
+	(oso_el_compare_name): New function.
+	(macho_add_oso_symfile): New function.
+	(macho_oso_symfile): Use macho_add_oso_symfile.  Sort the oso
+	and optimize accesses to libraries.
+
+2009-10-13  Tristan Gingold  <gingold@adacore.com>
+
+	* objfiles.c (objfile_has_symbols): New function.
+	* objfiles.h (objfile_has_symbols): Add prototype.
+	* symfile.c (symbol_file_add_with_addrs_or_offsets): Call
+	objfile_has_symbols.
+	(reread_symbols): Ditto.
+
+2009-10-12  Jiang Jilin  <freephp@gmail.com>
+
+	* i386-tdep.c (i386_process_record): Add xgetbv/xsetbv
+	instructions support.
+
 2009-10-11  Pedro Alves  <pedro@codesourcery.com>
 
 	* procfs.c (procfs_make_note_section): Go back to only outputing
