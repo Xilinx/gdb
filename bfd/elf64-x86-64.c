@@ -1269,7 +1269,7 @@ elf_x86_64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  goto create_got;
 
 	case R_X86_64_TPOFF32:
-	  if (!info->executable)
+	  if (!info->executable && ABI_64_P (abfd))
 	    {
 	      if (h)
 		name = h->root.root.string;
@@ -1438,6 +1438,7 @@ elf_x86_64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	     sections we don't care about, such as debug sections or
 	     non-constant sections.  */
 	  if (info->shared
+	      && ABI_64_P (abfd)
 	      && (sec->flags & SEC_ALLOC) != 0
 	      && (sec->flags & SEC_READONLY) != 0)
 	    {
@@ -3089,6 +3090,7 @@ elf_x86_64_relocate_section (bfd *output_bfd,
 	case R_X86_64_PC16:
 	case R_X86_64_PC32:
 	  if (info->shared
+	      && ABI_64_P (output_bfd)
 	      && (input_section->flags & SEC_ALLOC) != 0
 	      && (input_section->flags & SEC_READONLY) != 0
 	      && h != NULL)

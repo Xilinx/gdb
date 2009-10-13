@@ -1,14 +1,13 @@
+2009-10-12  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf64-x86-64.c (elf_x86_64_check_relocs): Check ABI_64_P when
+	requesting for PIC.
+	(elf_x86_64_relocate_section): Likewise.
+
 2009-10-08  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* elf64-x86-64.c (elf64_x86_64_xxx): Renamed to ...
 	(elf_x86_64_xxx): This.
-	(elf64_bed): Don't define for ILP32.
-
-2009-10-06  H.J. Lu  <hongjiu.lu@intel.com>
-
-	* elf64-x86-64.c (elf64_x86_64_grok_prstatus): Remove ABI_64_P
-	check.
-	(elf64_x86_64_grok_psinfo): Likewise.
 
 2009-10-06  H.J. Lu  <hongjiu.lu@intel.com>
 
@@ -29,9 +28,9 @@
 
 2009-09-30  H.J. Lu  <hongjiu.lu@intel.com>
 
-	* elf64-x86-64.c (X86_64_ELF_R_TYPE): Removed.
-	(elf64_x86_64_info_to_howto): Replace X86_64_ELF_R_TYPE with
-	ELF32_R_TYPE.  Replace ELF64_ST_TYPE with ELF_ST_TYPE.
+	* elf64-x86-64.c (elf64_x86_64_info_to_howto): Replace
+	ELF64_R_TYPE with ELF32_R_TYPE.  Replace ELF64_ST_TYPE with
+	ELF_ST_TYPE.
 	(elf64_x86_64_check_tls_transition):Likewise.
 	(elf64_x86_64_check_relocs): Likewise.
 	(elf64_x86_64_gc_mark_hook):Likewise.
@@ -45,10 +44,6 @@
 
 2009-09-29  H.J. Lu  <hongjiu.lu@intel.com>
 
-	* elf64-x86-64.c (elf32_x86_64_bed): Moved to the end.
-
-2009-09-29  H.J. Lu  <hongjiu.lu@intel.com>
-
 	* config.bfd (targ64_selvecs): Add bfd_elf32_x86_64_vec for
 	i[3-7]86-*-linux-*.
 	(targ_selvecs): Add bfd_elf32_x86_64_vec for x86_64-*-linux-*.
@@ -57,8 +52,6 @@
 	* configure: Regenerated.
 
 	* elf64-x86-64.c (elf64_x86_64_grok_prstatus): Check ABI_64_P.
-	(elf64_x86_64_grok_psinfo): Likewise.
-	(elf32_x86_64_bed): New.
 
 	* targets.c (bfd_elf32_x86_64_vec): New.
 	(_bfd_target_vector): Add bfd_elf32_x86_64_vec.
@@ -106,14 +99,10 @@
 	(elf64_r_sym): Likewise.
 	(elf32_r_sym): Likewise.
 
-	* elf64-x86-64.c (X86_64_ELF_R_TYPE): New.
-	(elf64_x86_64_info_to_howto): Replace ELF64_R_TYPE with
-	X86_64_ELF_R_TYPE.
-	(elf64_x86_64_reloc_type_class): Likewise.
-	(elf64_x86_64_link_hash_table): Add r_info and r_sym.
+	* elf64-x86-64.c (elf64_x86_64_link_hash_table): Add r_info and
+	r_sym.
 	(elf64_x86_64_get_local_sym_hash): Replace ELF64_R_SYM with
-	htab->r_sym.  Replace ELF64_R_INFO with htab->r_info.  Replace
-	ELF64_R_TYPE with X86_64_ELF_R_TYPE.
+	htab->r_sym.  Replace ELF64_R_INFO with htab->r_info.
 	(elf64_x86_64_get_local_sym_hash): Likewise.
 	(elf64_x86_64_check_tls_transition):Likewise.
 	(elf64_x86_64_check_relocs): Likewise.
