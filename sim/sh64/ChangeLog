@@ -1,3 +1,73 @@
+2010-10-09  Alan Modra  <amodra@gmail.com>
+
+	* sh-desc.h: Regenerate.
+
+2010-02-12  Doug Evans  <dje@sebabeach.org>
+
+	* decode-media.c, * decode-media.h: Regenerate.
+
+2010-02-11  Doug Evans  <dje@sebabeach.org>
+
+	* decode-compact.c, * decode-media.c, * defs-compact.h, * defs-media.h,
+	* sem-compact-switch.c, * sem-compact.c, * sem-media-switch.c,
+	* sem-media.c, * sh-desc.c, * sh-desc.h: Regenerate.
+
+2010-01-24  Doug Evans  <dje@sebabeach.org>
+
+	* cpu.h: Regenerate.
+
+2010-01-09  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
+
+	* configure: Regenerate.
+
+2010-01-02  Doug Evans  <dje@sebabeach.org>
+
+	* arch.c, * arch.h, * cpu.c, * cpu.h, * cpuall.h, * decode-compact.c,
+	* decode-compact.h, * decode-media.c, * decode-media.h,
+	* defs-compact.h, * defs-media.h, * sem-compact-switch.c,
+	* sem-compact.c, * sem-media-switch.c, * sem-media.c, * sh-desc.c,
+	* sh-desc.h, * sh-opc.h: Regenerate, update copyright year.
+
+2009-11-22  Doug Evans  <dje@sebabeach.org>
+
+	* cpu.h: Regenerate.
+	* cpuall.h: Regenerate.
+	* decode-compact.c: Regenerate.
+	* decode-compact.h: Regenerate.
+	* decode-media.c: Regenerate.
+	* decode-media.h: Regenerate.
+	* defs-compact.h: Regenerate.
+	* defs-media.h: Regenerate.
+
+2009-11-03  Doug Evans  <dje@sebabeach.org>
+
+	* arch.c: Regenerate.
+	* arch.h: Regenerate.
+	* cpu.c: Regenerate.
+	* cpu.h: Regenerate.
+	* cpuall.h: Regenerate.
+	* decode-compact.c: Regenerate.
+	* decode-compact.h: Regenerate.
+	* decode-media.c: Regenerate.
+	* decode-media.h: Regenerate.
+	* defs-compact.h: Regenerate.
+	* defs-media.h: Regenerate.
+	* sem-compact-switch.c: Regenerate.
+	* sem-compact.c: Regenerate.
+	* sem-media-switch.c: Regenerate.
+	* sem-media.c: Regenerate.
+	* sh-desc.c: Regenerate.
+	* sh-opc.h: Regenerate.
+
+	* Makefile.in (SIM_EXTRA_DEPS): Add sh-desc.h sh-opc.h.
+	(sh-desc.o): New rule.
+	(sh-desc.h,sh-desc.c,sh-opc.h): Replaces rule for desc.h.
+	(all generated file rules): Specify generated file with full path.
+
+2009-10-24  Doug Evans  <dje@sebabeach.org>
+
+	* sh-desc.h: Regenerate.
+
 2009-08-22  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
 
 	* config.in: Regenerate.

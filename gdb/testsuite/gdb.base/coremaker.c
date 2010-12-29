@@ -1,4 +1,4 @@
-/* Copyright 1992, 1993, 1994, 1995, 1996, 1999, 2007, 2008, 2009
+/* Copyright 1992, 1993, 1994, 1995, 1996, 1999, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -133,8 +133,14 @@ func1 ()
   func2 ();
 }
 
-int main ()
+int
+main (int argc, char **argv)
 {
+  if (argc == 2 && strcmp (argv[1], "sleep") == 0)
+    {
+      sleep (60);
+      return 0;
+    }
   mmapdata ();
   func1 ();
   return 0;

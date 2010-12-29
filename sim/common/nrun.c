@@ -1,5 +1,6 @@
 /* New version of run front end support for simulators.
-   Copyright (C) 1997, 2004, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 1997, 2004, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -218,7 +219,7 @@ main (int argc, char **argv)
 }
 
 static void
-usage ()
+usage (void)
 {
   fprintf (stderr, "Usage: %s [options] program [program args]\n", myname);
   fprintf (stderr, "Run `%s --help' for full list of options.\n", myname);

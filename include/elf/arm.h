@@ -1,12 +1,12 @@
 /* ARM ELF support for BFD.
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2009
+   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
+   the Free Software Foundation; either version 3 of the License, or
    (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
@@ -100,7 +100,8 @@
 #define TAG_CPU_ARCH_V7		10
 #define TAG_CPU_ARCH_V6_M	11
 #define TAG_CPU_ARCH_V6S_M	12
-#define MAX_TAG_CPU_ARCH	12
+#define TAG_CPU_ARCH_V7E_M	13
+#define MAX_TAG_CPU_ARCH	13
 /* Pseudo-architecture to allow objects to be compatible with the subset of
    armv4t and armv6-m.  This value should never be stored in object files.  */
 #define TAG_CPU_ARCH_V4T_PLUS_V6_M (MAX_TAG_CPU_ARCH + 1)
@@ -257,7 +258,7 @@ enum
   Tag_CPU_arch_profile,
   Tag_ARM_ISA_use,
   Tag_THUMB_ISA_use,
-  Tag_VFP_arch,
+  Tag_FP_arch,
   Tag_WMMX_arch,
   Tag_Advanced_SIMD_arch,
   Tag_PCS_config,
@@ -271,8 +272,8 @@ enum
   Tag_ABI_FP_exceptions,
   Tag_ABI_FP_user_exceptions,
   Tag_ABI_FP_number_model,
-  Tag_ABI_align8_needed,
-  Tag_ABI_align8_preserved,
+  Tag_ABI_align_needed,
+  Tag_ABI_align_preserved,
   Tag_ABI_enum_size,
   Tag_ABI_HardFP_use,
   Tag_ABI_VFP_args,
@@ -283,17 +284,28 @@ enum
   Tag_undefined33 = 33,
   Tag_CPU_unaligned_access,
   Tag_undefined35,
-  Tag_VFP_HP_extension,
+  Tag_FP_HP_extension,
   Tag_undefined37,
   Tag_ABI_FP_16bit_format,
   Tag_undefined39,
+  Tag_undefined40,
+  Tag_undefined41,
+  Tag_MPextension_use,
+  Tag_undefined_43,
+  Tag_DIV_use,
   Tag_nodefaults = 64,
   Tag_also_compatible_with,
   Tag_T2EE_use,
   Tag_conformance,
   Tag_Virtualization_use,
   Tag_undefined69,
-  Tag_MPextension_use
+  Tag_MPextension_use_legacy,
+
+  /* The following tags are legacy names for other tags.  */
+  Tag_VFP_arch = Tag_FP_arch,
+  Tag_ABI_align8_needed = Tag_ABI_align_needed,
+  Tag_ABI_align8_preserved = Tag_ABI_align_preserved,
+  Tag_VFP_HP_extension = Tag_FP_HP_extension
 };
 
 #endif

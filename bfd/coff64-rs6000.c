@@ -1,5 +1,6 @@
 /* BFD back-end for IBM RS/6000 "XCOFF64" files.
-   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
+   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+   2010
    Free Software Foundation, Inc.
    Written Clinton Popetz.
    Contributed by Cygnus Support.
@@ -255,6 +256,8 @@ extern int rs6000coff_core_file_failing_signal
   rs6000coff_core_file_failing_signal
 #define coff_core_file_matches_executable_p \
   rs6000coff_core_file_matches_executable_p
+#define coff_core_file_pid \
+  _bfd_nocore_core_file_pid
 #else
 #define CORE_FILE_P _bfd_dummy_target
 #define coff_core_file_failing_command \
@@ -263,6 +266,8 @@ extern int rs6000coff_core_file_failing_signal
   _bfd_nocore_core_file_failing_signal
 #define coff_core_file_matches_executable_p \
   _bfd_nocore_core_file_matches_executable_p
+#define coff_core_file_pid \
+  _bfd_nocore_core_file_pid
 #endif
 #define coff_SWAP_sym_in _bfd_xcoff64_swap_sym_in
 #define coff_SWAP_sym_out _bfd_xcoff64_swap_sym_out
@@ -1594,11 +1599,11 @@ reloc_howto_type xcoff64_howto_table[] =
 
   EMPTY_HOWTO (0xe),
 
-  /* Non-relocating reference.	*/
+  /* Non-relocating reference.  Bitsize is 1 so that r_rsize is 0.  */
   HOWTO (R_REF,			/* type */
 	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
+	 0,			/* size (0 = byte, 1 = short, 2 = long) */
+	 1,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
@@ -1882,6 +1887,8 @@ xcoff64_reloc_type_lookup (abfd, code)
       return &xcoff64_howto_table[0x1c];
     case BFD_RELOC_64:
       return &xcoff64_howto_table[0];
+    case BFD_RELOC_NONE:
+      return &xcoff64_howto_table[0xf];
     default:
       return NULL;
     }
@@ -2741,26 +2748,25 @@ const bfd_target rs6000coff64_vec =
 
     /* Copy */
     _bfd_xcoff_copy_private_bfd_data,
-    ((bfd_boolean (*) (bfd *, bfd *)) bfd_true),
+    _bfd_generic_bfd_merge_private_bfd_data,
     _bfd_generic_init_private_section_data,
-    ((bfd_boolean (*) (bfd *, asection *, bfd *, asection *)) bfd_true),
-    ((bfd_boolean (*) (bfd *, asymbol *, bfd *, asymbol *)) bfd_true),
-    ((bfd_boolean (*) (bfd *, bfd *)) bfd_true),
-    ((bfd_boolean (*) (bfd *, flagword)) bfd_true),
-    ((bfd_boolean (*) (bfd *, void * )) bfd_true),
+    _bfd_generic_bfd_copy_private_section_data,
+    _bfd_generic_bfd_copy_private_symbol_data,
+    _bfd_generic_bfd_copy_private_header_data,
+    _bfd_generic_bfd_set_private_flags,
+    _bfd_generic_bfd_print_private_bfd_data,
 
     /* Core */
-    coff_core_file_failing_command,
-    coff_core_file_failing_signal,
-    coff_core_file_matches_executable_p,
+    BFD_JUMP_TABLE_CORE (coff),
 
     /* Archive */
     xcoff64_slurp_armap,
-    bfd_false,
-    ((bfd_boolean (*) (bfd *, char **, bfd_size_type *, const char **)) bfd_false),
+    _bfd_noarchive_slurp_extended_name_table,
+    _bfd_noarchive_construct_extended_name_table,
     bfd_dont_truncate_arname,
     _bfd_xcoff_write_armap,
     _bfd_xcoff_read_ar_hdr,
+    _bfd_generic_write_ar_hdr,
     xcoff64_openr_next_archived_file,
     _bfd_generic_get_elt_at_index,
     _bfd_xcoff_stat_arch_elt,
@@ -2800,6 +2806,7 @@ const bfd_target rs6000coff64_vec =
     _bfd_generic_link_hash_table_free,
     _bfd_xcoff_bfd_link_add_symbols,
     _bfd_generic_link_just_syms,
+    _bfd_generic_copy_link_hash_symbol_type,
     _bfd_xcoff_bfd_final_link,
     _bfd_generic_link_split_section,
     bfd_generic_gc_sections,
@@ -2830,6 +2837,8 @@ extern char *xcoff64_core_file_failing_command
   PARAMS ((bfd *));
 extern int xcoff64_core_file_failing_signal
   PARAMS ((bfd *));
+#define xcoff64_core_file_pid \
+  _bfd_nocore_core_file_pid
 
 /* AIX 5 */
 static const struct xcoff_backend_data_rec bfd_xcoff_aix5_backend_data =
@@ -2995,26 +3004,25 @@ const bfd_target aix5coff64_vec =
 
     /* Copy */
     _bfd_xcoff_copy_private_bfd_data,
-    ((bfd_boolean (*) (bfd *, bfd *)) bfd_true),
+    _bfd_generic_bfd_merge_private_bfd_data,
     _bfd_generic_init_private_section_data,
-    ((bfd_boolean (*) (bfd *, asection *, bfd *, asection *)) bfd_true),
-    ((bfd_boolean (*) (bfd *, asymbol *, bfd *, asymbol *)) bfd_true),
-    ((bfd_boolean (*) (bfd *, bfd *)) bfd_true),
-    ((bfd_boolean (*) (bfd *, flagword)) bfd_true),
-    ((bfd_boolean (*) (bfd *, void * )) bfd_true),
+    _bfd_generic_bfd_copy_private_section_data,
+    _bfd_generic_bfd_copy_private_symbol_data,
+    _bfd_generic_bfd_copy_private_header_data,
+    _bfd_generic_bfd_set_private_flags,
+    _bfd_generic_bfd_print_private_bfd_data,
 
     /* Core */
-    xcoff64_core_file_failing_command,
-    xcoff64_core_file_failing_signal,
-    xcoff64_core_file_matches_executable_p,
+    BFD_JUMP_TABLE_CORE (xcoff64),
 
     /* Archive */
     xcoff64_slurp_armap,
-    bfd_false,
-    ((bfd_boolean (*) (bfd *, char **, bfd_size_type *, const char **)) bfd_false),
+    _bfd_noarchive_slurp_extended_name_table,
+    _bfd_noarchive_construct_extended_name_table,
     bfd_dont_truncate_arname,
     _bfd_xcoff_write_armap,
     _bfd_xcoff_read_ar_hdr,
+    _bfd_generic_write_ar_hdr,
     xcoff64_openr_next_archived_file,
     _bfd_generic_get_elt_at_index,
     _bfd_xcoff_stat_arch_elt,
@@ -3054,6 +3062,7 @@ const bfd_target aix5coff64_vec =
     _bfd_generic_link_hash_table_free,
     _bfd_xcoff_bfd_link_add_symbols,
     _bfd_generic_link_just_syms,
+    _bfd_generic_copy_link_hash_symbol_type,
     _bfd_xcoff_bfd_final_link,
     _bfd_generic_link_split_section,
     bfd_generic_gc_sections,

@@ -2,7 +2,7 @@
    of the floating point routines in libgcc1.c for targets without
    hardware floating point.  */
 
-/* Copyright 1994, 1997, 1998, 2003, 2007, 2008, 2009
+/* Copyright 1994, 1997, 1998, 2003, 2007, 2008, 2009, 2010
 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -2425,10 +2425,10 @@ sim_fpu_gt (int *is,
 
 #if EXTERN_SIM_FPU_P
 const sim_fpu sim_fpu_zero = {
-  sim_fpu_class_zero,
+  sim_fpu_class_zero, 0, 0, 0
 };
 const sim_fpu sim_fpu_qnan = {
-  sim_fpu_class_qnan,
+  sim_fpu_class_qnan, 0, 0, 0
 };
 const sim_fpu sim_fpu_one = {
   sim_fpu_class_number, 0, IMPLICIT_1, 0
@@ -2497,7 +2497,7 @@ sim_fpu_print_status (int status,
 		      void *arg)
 {
   int i = 1;
-  char *prefix = "";
+  const char *prefix = "";
   while (status >= i)
     {
       switch ((sim_fpu_status) (status & i))
@@ -2532,26 +2532,20 @@ sim_fpu_print_status (int status,
 	case sim_fpu_status_invalid_sqrt:
 	  print (arg, "%sSQRT", prefix);
 	  break;
-	  break;
 	case sim_fpu_status_inexact:
 	  print (arg, "%sX", prefix);
-	  break;
 	  break;
 	case sim_fpu_status_overflow:
 	  print (arg, "%sO", prefix);
 	  break;
-	  break;
 	case sim_fpu_status_underflow:
 	  print (arg, "%sU", prefix);
-	  break;
 	  break;
 	case sim_fpu_status_invalid_div0:
 	  print (arg, "%s/", prefix);
 	  break;
-	  break;
 	case sim_fpu_status_rounded:
 	  print (arg, "%sR", prefix);
-	  break;
 	  break;
 	}
       i <<= 1;

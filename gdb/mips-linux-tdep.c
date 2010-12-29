@@ -1,6 +1,6 @@
 /* Target-dependent code for GNU/Linux on MIPS processors.
 
-   Copyright (C) 2001, 2002, 2004, 2005, 2006, 2007, 2008, 2009
+   Copyright (C) 2001, 2002, 2004, 2005, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -36,8 +36,10 @@
 #include "solist.h"
 #include "symtab.h"
 #include "target-descriptions.h"
+#include "regset.h"
 #include "mips-linux-tdep.h"
 #include "glibc-tdep.h"
+#include "linux-tdep.h"
 
 static struct target_so_ops mips_svr4_so_ops;
 
@@ -126,6 +128,16 @@ mips_supply_gregset (struct regcache *regcache,
     regcache_raw_supply (regcache, regi, zerobuf);
 }
 
+static void
+mips_supply_gregset_wrapper (const struct regset *regset,
+                             struct regcache *regcache,
+		             int regnum, const void *gregs, size_t len)
+{
+  gdb_assert (len == sizeof (mips_elf_gregset_t));
+
+  mips_supply_gregset (regcache, (const mips_elf_gregset_t *)gregs);
+}
+
 /* Pack our registers (or one register) into an elf_gregset_t.  */
 
 void
@@ -184,6 +196,16 @@ mips_fill_gregset (const struct regcache *regcache,
     }
 }
 
+static void
+mips_fill_gregset_wrapper (const struct regset *regset,
+			   const struct regcache *regcache,
+			   int regnum, void *gregs, size_t len)
+{
+  gdb_assert (len == sizeof (mips_elf_gregset_t));
+
+  mips_fill_gregset (regcache, (mips_elf_gregset_t *)gregs, regnum);
+}
+
 /* Likewise, unpack an elf_fpregset_t.  */
 
 void
@@ -209,6 +231,16 @@ mips_supply_fpregset (struct regcache *regcache,
   regcache_raw_supply (regcache,
 		       mips_regnum (gdbarch)->fp_implementation_revision,
 		       zerobuf);
+}
+
+static void
+mips_supply_fpregset_wrapper (const struct regset *regset,
+                              struct regcache *regcache,
+		              int regnum, const void *gregs, size_t len)
+{
+  gdb_assert (len == sizeof (mips_elf_fpregset_t));
+
+  mips_supply_fpregset (regcache, (const mips_elf_fpregset_t *)gregs);
 }
 
 /* Likewise, pack one or all floating point registers into an
@@ -242,6 +274,16 @@ mips_fill_fpregset (const struct regcache *regcache,
       mips_fill_fpregset (regcache, fpregsetp,
 			  mips_regnum (gdbarch)->fp_control_status);
     }
+}
+
+static void
+mips_fill_fpregset_wrapper (const struct regset *regset,
+			    const struct regcache *regcache,
+			    int regnum, void *gregs, size_t len)
+{
+  gdb_assert (len == sizeof (mips_elf_fpregset_t));
+
+  mips_fill_fpregset (regcache, (mips_elf_fpregset_t *)gregs, regnum);
 }
 
 /* Support for 64-bit ABIs.  */
@@ -341,6 +383,16 @@ mips64_supply_gregset (struct regcache *regcache,
     regcache_raw_supply (regcache, regi, zerobuf);
 }
 
+static void
+mips64_supply_gregset_wrapper (const struct regset *regset,
+                               struct regcache *regcache,
+		               int regnum, const void *gregs, size_t len)
+{
+  gdb_assert (len == sizeof (mips64_elf_gregset_t));
+
+  mips64_supply_gregset (regcache, (const mips64_elf_gregset_t *)gregs);
+}
+
 /* Pack our registers (or one register) into a 64-bit elf_gregset_t.  */
 
 void
@@ -401,6 +453,16 @@ mips64_fill_gregset (const struct regcache *regcache,
     }
 }
 
+static void
+mips64_fill_gregset_wrapper (const struct regset *regset,
+			     const struct regcache *regcache,
+			     int regnum, void *gregs, size_t len)
+{
+  gdb_assert (len == sizeof (mips64_elf_gregset_t));
+
+  mips64_fill_gregset (regcache, (mips64_elf_gregset_t *)gregs, regnum);
+}
+
 /* Likewise, unpack an elf_fpregset_t.  */
 
 void
@@ -437,6 +499,16 @@ mips64_supply_fpregset (struct regcache *regcache,
   supply_32bit_reg (regcache,
 		    mips_regnum (gdbarch)->fp_implementation_revision,
 		    (const gdb_byte *)(*fpregsetp + 32) + 4);
+}
+
+static void
+mips64_supply_fpregset_wrapper (const struct regset *regset,
+                                struct regcache *regcache,
+		                int regnum, const void *gregs, size_t len)
+{
+  gdb_assert (len == sizeof (mips64_elf_fpregset_t));
+
+  mips64_supply_fpregset (regcache, (const mips64_elf_fpregset_t *)gregs);
 }
 
 /* Likewise, pack one or all floating point registers into an
@@ -507,72 +579,75 @@ mips64_fill_fpregset (const struct regcache *regcache,
     }
 }
 
-
-/*  Use a local version of this function to get the correct types for
-    regsets, until multi-arch core support is ready.  */
-
 static void
-fetch_core_registers (struct regcache *regcache,
-		      char *core_reg_sect, unsigned core_reg_size,
-		      int which, CORE_ADDR reg_addr)
+mips64_fill_fpregset_wrapper (const struct regset *regset,
+			      const struct regcache *regcache,
+			      int regnum, void *gregs, size_t len)
 {
+  gdb_assert (len == sizeof (mips64_elf_fpregset_t));
+
+  mips64_fill_fpregset (regcache, (mips64_elf_fpregset_t *)gregs, regnum);
+}
+
+const struct regset *
+mips_linux_regset_from_core_section (struct gdbarch *gdbarch,
+			             const char *sect_name, size_t sect_size)
+{
+  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   mips_elf_gregset_t gregset;
   mips_elf_fpregset_t fpregset;
   mips64_elf_gregset_t gregset64;
   mips64_elf_fpregset_t fpregset64;
 
-  if (which == 0)
+  if (strcmp (sect_name, ".reg") == 0)
     {
-      if (core_reg_size == sizeof (gregset))
+      if (sect_size == sizeof (gregset))
 	{
-	  memcpy ((char *) &gregset, core_reg_sect, sizeof (gregset));
-	  mips_supply_gregset (regcache,
-			       (const mips_elf_gregset_t *) &gregset);
+	  if (tdep->gregset == NULL)
+	    tdep->gregset = regset_alloc (gdbarch,
+                                          mips_supply_gregset_wrapper,
+				          mips_fill_gregset_wrapper);
+	  return tdep->gregset;
 	}
-      else if (core_reg_size == sizeof (gregset64))
+      else if (sect_size == sizeof (gregset64))
 	{
-	  memcpy ((char *) &gregset64, core_reg_sect, sizeof (gregset64));
-	  mips64_supply_gregset (regcache,
-				 (const mips64_elf_gregset_t *) &gregset64);
+	  if (tdep->gregset64 == NULL)
+	    tdep->gregset64 = regset_alloc (gdbarch,
+                                            mips64_supply_gregset_wrapper,
+				            mips64_fill_gregset_wrapper);
+	  return tdep->gregset64;
 	}
       else
 	{
 	  warning (_("wrong size gregset struct in core file"));
 	}
     }
-  else if (which == 2)
+  else if (strcmp (sect_name, ".reg2") == 0)
     {
-      if (core_reg_size == sizeof (fpregset))
+      if (sect_size == sizeof (fpregset))
 	{
-	  memcpy ((char *) &fpregset, core_reg_sect, sizeof (fpregset));
-	  mips_supply_fpregset (regcache,
-				(const mips_elf_fpregset_t *) &fpregset);
+	  if (tdep->fpregset == NULL)
+	    tdep->fpregset = regset_alloc (gdbarch,
+                                           mips_supply_fpregset_wrapper,
+				           mips_fill_fpregset_wrapper);
+	  return tdep->fpregset;
 	}
-      else if (core_reg_size == sizeof (fpregset64))
+      else if (sect_size == sizeof (fpregset64))
 	{
-	  memcpy ((char *) &fpregset64, core_reg_sect,
-		  sizeof (fpregset64));
-	  mips64_supply_fpregset (regcache,
-				  (const mips64_elf_fpregset_t *) &fpregset64);
+	  if (tdep->fpregset64 == NULL)
+	    tdep->fpregset64 = regset_alloc (gdbarch,
+                                             mips64_supply_fpregset_wrapper,
+				             mips64_fill_fpregset_wrapper);
+	  return tdep->fpregset64;
 	}
       else
 	{
 	  warning (_("wrong size fpregset struct in core file"));
 	}
     }
+
+  return NULL;
 }
-
-/* Register that we are able to handle ELF file formats using standard
-   procfs "regset" structures.  */
-
-static struct core_fns regset_core_fns =
-{
-  bfd_target_elf_flavour,		/* core_flavour */
-  default_check_format,			/* check_format */
-  default_core_sniffer,			/* core_sniffer */
-  fetch_core_registers,			/* core_read_registers */
-  NULL					/* next */
-};
 
 static const struct target_desc *
 mips_linux_core_read_description (struct gdbarch *gdbarch,
@@ -797,7 +872,7 @@ static const struct tramp_frame mips_linux_n64_rt_sigframe = {
 
    struct sigframe {
      u32 sf_ass[4];            [argument save space for o32]
-     u32 sf_code[2];           [signal trampoline]
+     u32 sf_code[2];           [signal trampoline or fill]
      struct sigcontext sf_sc;
      sigset_t sf_mask;
    };
@@ -827,7 +902,7 @@ static const struct tramp_frame mips_linux_n64_rt_sigframe = {
 
    struct rt_sigframe {
      u32 rs_ass[4];            [argument save space for o32]
-     u32 rs_code[2]            [signal trampoline]
+     u32 rs_code[2]            [signal trampoline or fill]
      struct siginfo rs_info;
      struct ucontext rs_uc;
    };
@@ -842,7 +917,6 @@ static const struct tramp_frame mips_linux_n64_rt_sigframe = {
    };  */
 /* *INDENT-ON* */
 
-#define SIGFRAME_CODE_OFFSET         (4 * 4)
 #define SIGFRAME_SIGCONTEXT_OFFSET   (6 * 4)
 
 #define RTSIGFRAME_SIGINFO_SIZE      128
@@ -871,14 +945,15 @@ mips_linux_o32_sigframe_init (const struct tramp_frame *self,
 {
   struct gdbarch *gdbarch = get_frame_arch (this_frame);
   int ireg, reg_position;
-  CORE_ADDR sigcontext_base = func - SIGFRAME_CODE_OFFSET;
+  CORE_ADDR frame_sp = get_frame_sp (this_frame);
+  CORE_ADDR sigcontext_base;
   const struct mips_regnum *regs = mips_regnum (gdbarch);
   CORE_ADDR regs_base;
 
   if (self == &mips_linux_o32_sigframe)
-    sigcontext_base += SIGFRAME_SIGCONTEXT_OFFSET;
+    sigcontext_base = frame_sp + SIGFRAME_SIGCONTEXT_OFFSET;
   else
-    sigcontext_base += RTSIGFRAME_SIGCONTEXT_OFFSET;
+    sigcontext_base = frame_sp + RTSIGFRAME_SIGCONTEXT_OFFSET;
 
   /* I'm not proud of this hack.  Eventually we will have the
      infrastructure to indicate the size of saved registers on a
@@ -947,9 +1022,7 @@ mips_linux_o32_sigframe_init (const struct tramp_frame *self,
 			   sigcontext_base + SIGCONTEXT_BADVADDR);
 
   /* Choice of the bottom of the sigframe is somewhat arbitrary.  */
-  trad_frame_set_id (this_cache,
-		     frame_id_build (func - SIGFRAME_CODE_OFFSET,
-				     func));
+  trad_frame_set_id (this_cache, frame_id_build (frame_sp, func));
 }
 
 /* *INDENT-OFF* */
@@ -957,7 +1030,7 @@ mips_linux_o32_sigframe_init (const struct tramp_frame *self,
 
   struct rt_sigframe_n32 {
     u32 rs_ass[4];                  [ argument save space for o32 ]
-    u32 rs_code[2];                 [ signal trampoline ]
+    u32 rs_code[2];                 [ signal trampoline or fill ]
     struct siginfo rs_info;
     struct ucontextn32 rs_uc;
   };
@@ -1038,13 +1111,14 @@ mips_linux_n32n64_sigframe_init (const struct tramp_frame *self,
 {
   struct gdbarch *gdbarch = get_frame_arch (this_frame);
   int ireg, reg_position;
-  CORE_ADDR sigcontext_base = func - SIGFRAME_CODE_OFFSET;
+  CORE_ADDR frame_sp = get_frame_sp (this_frame);
+  CORE_ADDR sigcontext_base;
   const struct mips_regnum *regs = mips_regnum (gdbarch);
 
   if (self == &mips_linux_n32_rt_sigframe)
-    sigcontext_base += N32_SIGFRAME_SIGCONTEXT_OFFSET;
+    sigcontext_base = frame_sp + N32_SIGFRAME_SIGCONTEXT_OFFSET;
   else
-    sigcontext_base += N64_SIGFRAME_SIGCONTEXT_OFFSET;
+    sigcontext_base = frame_sp + N64_SIGFRAME_SIGCONTEXT_OFFSET;
 
   if (mips_linux_restart_reg_p (gdbarch))
     trad_frame_set_reg_addr (this_cache,
@@ -1082,9 +1156,7 @@ mips_linux_n32n64_sigframe_init (const struct tramp_frame *self,
 			   sigcontext_base + N64_SIGCONTEXT_LO);
 
   /* Choice of the bottom of the sigframe is somewhat arbitrary.  */
-  trad_frame_set_id (this_cache,
-		     frame_id_build (func - SIGFRAME_CODE_OFFSET,
-				     func));
+  trad_frame_set_id (this_cache, frame_id_build (frame_sp, func));
 }
 
 static void
@@ -1142,6 +1214,8 @@ mips_linux_init_abi (struct gdbarch_info info,
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   enum mips_abi abi = mips_abi (gdbarch);
   struct tdesc_arch_data *tdesc_data = (void *) info.tdep_info;
+
+  linux_init_abi (info, gdbarch);
 
   switch (abi)
     {
@@ -1206,6 +1280,9 @@ mips_linux_init_abi (struct gdbarch_info info,
   set_gdbarch_core_read_description (gdbarch,
 				     mips_linux_core_read_description);
 
+  set_gdbarch_regset_from_core_section (gdbarch,
+					mips_linux_regset_from_core_section);
+
   tdep->syscall_next_pc = mips_linux_syscall_next_pc;
 
   if (tdesc_data)
@@ -1243,6 +1320,4 @@ _initialize_mips_linux_tdep (void)
 			      GDB_OSABI_LINUX,
 			      mips_linux_init_abi);
     }
-
-  deprecated_add_core_fns (&regset_core_fns);
 }

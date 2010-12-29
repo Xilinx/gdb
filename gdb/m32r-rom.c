@@ -2,7 +2,7 @@
    the GNU debugger.
 
    Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2004, 2005, 2007, 2008,
-   2009 Free Software Foundation, Inc.
+   2009, 2010 Free Software Foundation, Inc.
 
    Adapted by Michael Snyder of Cygnus Support.
 
@@ -45,7 +45,7 @@
  * All this stuff just to get my host computer's IP address!
  */
 #ifdef __MINGW32__
-#include <winsock.h>
+#include <winsock2.h>
 #else
 #include <sys/types.h>
 #include <netdb.h>		/* for hostent */
@@ -188,7 +188,7 @@ m32r_load (char *filename, int from_tty)
      the stack may not be valid, and things would get horribly
      confused... */
 
-  clear_symtab_users ();
+  clear_symtab_users (0);
 }
 
 static void
@@ -551,7 +551,7 @@ m32r_upload_command (char *args, int from_tty)
      the stack may not be valid, and things would get horribly
      confused... */
 
-  clear_symtab_users ();
+  clear_symtab_users (0);
 }
 
 /* Provide a prototype to silence -Wmissing-prototypes.  */

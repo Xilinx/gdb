@@ -1,7 +1,7 @@
 /* This testcase is part of GDB, the GNU debugger.
 
    Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2004, 2007,
-   2008, 2009 Free Software Foundation, Inc.
+   2008, 2009, 2010 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -417,6 +417,8 @@ class Foo
   int times (int y);
 };
 
+typedef Foo ByAnyOtherName;
+
 class Bar : public Base1, public Foo {
  public:
   int z;
@@ -431,7 +433,7 @@ int Foo::st = 100;
 
 Foo::operator int() { return x; }
 
-Foo foo(10, 11);
+ByAnyOtherName foo(10, 11);
 Bar bar(20, 21, 22);
 
 class ClassWithEnum {

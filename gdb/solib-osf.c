@@ -1,7 +1,7 @@
 /* Handle OSF/1, Digital UNIX, and Tru64 shared libraries
    for GDB, the GNU Debugger.
    Copyright (C) 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001, 2007, 2008,
-   2009 Free Software Foundation, Inc.
+   2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -192,6 +192,7 @@ static int
 lm_sec_cmp (const void *p1, const void *p2)
 {
   const struct lm_sec *lms1 = p1, *lms2 = p2;
+
   return strcmp (lms1->name, lms2->name);
 }
 
@@ -306,7 +307,7 @@ osf_clear_solib (void)
    Also, what if child has exit()ed?  Must exit loop somehow.  */
 
 static void
-osf_solib_create_inferior_hook (void)
+osf_solib_create_inferior_hook (int from_tty)
 {
   struct inferior *inf;
   struct thread_info *tp;
@@ -339,14 +340,14 @@ osf_solib_create_inferior_hook (void)
 
   tp = inferior_thread ();
   clear_proceed_status ();
-  inf->stop_soon = STOP_QUIETLY;
-  tp->stop_signal = TARGET_SIGNAL_0;
+  inf->control.stop_soon = STOP_QUIETLY;
+  tp->suspend.stop_signal = TARGET_SIGNAL_0;
   do
     {
-      target_resume (minus_one_ptid, 0, tp->stop_signal);
+      target_resume (minus_one_ptid, 0, tp->suspend.stop_signal);
       wait_for_inferior (0);
     }
-  while (tp->stop_signal != TARGET_SIGNAL_TRAP);
+  while (tp->suspend.stop_signal != TARGET_SIGNAL_TRAP);
 
   /*  solib_add will call reinit_frame_cache.
      But we are stopped in the runtime loader and we do not have symbols
@@ -355,7 +356,7 @@ osf_solib_create_inferior_hook (void)
      Delaying the resetting of stop_soon until after symbol loading
      suppresses the warning.  */
   solib_add ((char *) 0, 0, (struct target_ops *) 0, auto_solib_add);
-  inf->stop_soon = NO_STOP_QUIETLY;
+  inf->control.stop_soon = NO_STOP_QUIETLY;
 }
 
 /* target_so_ops callback.  Do additional symbol handling, lookup, etc. after
@@ -536,7 +537,7 @@ close_map (struct read_map_ctxt *ctxt)
 static struct so_list *
 osf_current_sos (void)
 {
-  struct so_list *head = NULL, *tail, *newtail, so;
+  struct so_list *head = NULL, *tail = NULL, *newtail, so;
   struct read_map_ctxt ctxt;
   int skipped_main;
 

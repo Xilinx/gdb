@@ -1,7 +1,8 @@
 /* Machine independent support for QNX Neutrino /proc (process file system)
    for GDB.  Written by Colin Burgess at QNX Software Systems Limited. 
 
-   Copyright (C) 2003, 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2006, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
 
    Contributed by QNX Software Systems Ltd.
 
@@ -576,14 +577,14 @@ procfs_meminfo (char *args, int from_tty)
 		       printme.text.addr);
       printf_filtered ("\t\tflags=%08x\n", printme.text.flags);
       printf_filtered ("\t\tdebug=%08x\n", printme.text.debug_vaddr);
-      printf_filtered ("\t\toffset=%016llx\n", printme.text.offset);
+      printf_filtered ("\t\toffset=%s\n", phex (printme.text.offset, 8));
       if (printme.data.size)
 	{
 	  printf_filtered ("\tdata=%08x bytes @ 0x%08x\n", printme.data.size,
 			   printme.data.addr);
 	  printf_filtered ("\t\tflags=%08x\n", printme.data.flags);
 	  printf_filtered ("\t\tdebug=%08x\n", printme.data.debug_vaddr);
-	  printf_filtered ("\t\toffset=%016llx\n", printme.data.offset);
+	  printf_filtered ("\t\toffset=%s\n", phex (printme.data.offset, 8));
 	}
       printf_filtered ("\tdev=0x%x\n", printme.dev);
       printf_filtered ("\tino=0x%x\n", (unsigned int) printme.ino);
@@ -618,10 +619,7 @@ procfs_attach (struct target_ops *ops, char *args, int from_tty)
   int pid;
   struct inferior *inf;
 
-  if (!args)
-    error_no_arg (_("process-id to attach"));
-
-  pid = atoi (args);
+  pid = parse_pid_to_attach (args);
 
   if (pid == getpid ())
     error (_("Attaching GDB to itself is not a good idea..."));
@@ -640,7 +638,8 @@ procfs_attach (struct target_ops *ops, char *args, int from_tty)
       gdb_flush (gdb_stdout);
     }
   inferior_ptid = do_attach (pid_to_ptid (pid));
-  inf = add_inferior (pid);
+  inf = current_inferior ();
+  inferior_appeared (inf, pid);
   inf->attach_flag = 1;
 
   push_target (ops);
@@ -652,7 +651,7 @@ static void
 procfs_post_attach (pid_t pid)
 {
   if (exec_bfd)
-    solib_create_inferior_hook ();
+    solib_create_inferior_hook (0);
 }
 
 static ptid_t
@@ -1196,7 +1195,8 @@ procfs_create_inferior (struct target_ops *ops, char *exec_file,
   inferior_ptid = do_attach (pid_to_ptid (pid));
   procfs_find_new_threads (ops);
 
-  inf = add_inferior (pid);
+  inf = current_inferior ();
+  inferior_appeared (inf, pid);
   inf->attach_flag = 0;
 
   flags = _DEBUG_FLAG_KLC;	/* Kill-on-Last-Close flag.  */
@@ -1212,7 +1212,7 @@ procfs_create_inferior (struct target_ops *ops, char *exec_file,
 
   if (exec_bfd != NULL
       || (symfile_objfile != NULL && symfile_objfile->obfd != NULL))
-    solib_create_inferior_hook ();
+    solib_create_inferior_hook (0);
 }
 
 static void
@@ -1506,13 +1506,15 @@ procfs_can_use_hw_breakpoint (int type, int cnt, int othertype)
 }
 
 static int
-procfs_remove_hw_watchpoint (CORE_ADDR addr, int len, int type)
+procfs_remove_hw_watchpoint (CORE_ADDR addr, int len, int type,
+			     struct expression *cond)
 {
   return procfs_hw_watchpoint (addr, -1, type);
 }
 
 static int
-procfs_insert_hw_watchpoint (CORE_ADDR addr, int len, int type)
+procfs_insert_hw_watchpoint (CORE_ADDR addr, int len, int type,
+			     struct expression *cond)
 {
   return procfs_hw_watchpoint (addr, len, type);
 }

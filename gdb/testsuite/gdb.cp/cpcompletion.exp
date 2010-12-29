@@ -1,4 +1,4 @@
-# Copyright 2009 Free Software Foundation, Inc.
+# Copyright 2009, 2010 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -76,8 +76,9 @@ gdb_load ${binfile}
 
 set bp_location [gdb_get_line_number "Set breakpoint here" ${testfile}.cc]
 
-if {![runto $bp_location]} {
+if {![runto "${testfile}.cc:$bp_location"]} {
     perror "test suppressed"
+    return
 }
 
 # This also tests inheritance -- completion should only see a single

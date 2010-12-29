@@ -1,7 +1,7 @@
 # This testcase is part of GDB, the GNU debugger.
 
 # Copyright 1992, 1994, 1995, 1996, 1997, 1999, 2000, 2002, 2003, 2004, 2007,
-# 2008, 2009 Free Software Foundation, Inc.
+# 2008, 2009, 2010 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,9 +25,6 @@ if $tracelevel then {
 	strace $tracelevel
 }
 
-set prms_id 0
-set bug_id 0
-
 set testfile "printcmds"
 set srcfile ${testfile}.c
 set binfile ${objdir}/${subdir}/${testfile}
@@ -36,21 +33,7 @@ if  { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable {deb
      return -1
 }
 
-# Set the current language to C.  This counts as a test.  If it
-# fails, then we skip the other tests.
-
-proc set_lang_c {} {
-    global gdb_prompt
-
-    if [gdb_test "set language c" "" "set language c"] {
-	return 0
-    }
-
-    if [gdb_test "show language" ".* source language is \"c\".*"] {
-	return 0
-    }
-    return 1;
-}
+get_compiler_info ${binfile}
 
 proc test_integer_literals_accepted {} {
     global gdb_prompt
@@ -78,6 +61,13 @@ proc test_integer_literals_accepted {} {
     gdb_test "p 0xabcdef" " = 11259375"
     gdb_test "p 0xAbCdEf" " = 11259375"
     gdb_test "p/x 0x123" " = 0x123"
+
+    # Test various binary values.
+
+    gdb_test "p 0b0" " = 0"
+    gdb_test "p 0b1111" " = 15"
+    gdb_test "p 0B1111" " = 15"
+    gdb_test "p -0b1111" " = -15"
 }
 
 proc test_character_literals_accepted {} {
@@ -99,7 +89,8 @@ proc test_character_literals_accepted {} {
 proc test_integer_literals_rejected {} {
     global gdb_prompt
 
-    test_print_reject "p 0x" 
+    test_print_reject "p 0x"
+    test_print_reject "p 0b"
     gdb_test "p ''" "(Empty character constant\\.|A character constant must contain at least one character\\.)"
     gdb_test "p '''" "(Empty character constant\\.|A character constant must contain at least one character\\.)"
     test_print_reject "p '\\'"
@@ -111,17 +102,6 @@ proc test_integer_literals_rejected {} {
 
     test_print_reject "p DEADBEEF"
 
-    # Gdb currently fails this test for all configurations.  The C
-    # lexer thinks that 123DEADBEEF is a floating point number, but
-    # then fails to notice that atof() only eats the 123 part.
-    # FIXME:  This should be put into PRMS.
-    # Fixed, 4/25/97, by Bob Manson.
-
-    test_print_reject "p 123DEADBEEF"
-    test_print_reject "p 123foobar.bazfoo3"
-    test_print_reject "p 123EEEEEEEEEEEEEEEEE33333k333"
-    gdb_test "p 123.4+56.7" "180.(099\[0-9]*|100\[0-9\]*)" "check for floating addition"
-
     # Test various octal values.
 
     test_print_reject "p 09" 
@@ -131,6 +111,54 @@ proc test_integer_literals_rejected {} {
 
     test_print_reject "p 0xG" 
     test_print_reject "p 0xAG" 
+
+    # Test various binary values.
+
+    test_print_reject "p 0b2" 
+    test_print_reject "p 0b12" 
+}
+
+proc test_float_accepted {} {
+    global gdb_prompt
+
+    # This test is useful to catch successful parsing of the first fp value.
+    gdb_test "p 123.4+56.7" " = 180.(099\[0-9]*|100\[0-9\]*)" "check for floating addition"
+
+    # Test all the suffixes (including no suffix).
+    gdb_test "p 1." " = 1"
+    gdb_test "p 1.5" " = 1.5"
+    gdb_test "p 1.f" " = 1"
+    gdb_test "p 1.5f" " = 1.5"
+    gdb_test "p 1.l" " = 1"
+    gdb_test "p 1.5l" " = 1.5"
+
+    # Test hexadecimal floating point.
+    set test "p 0x1.1"
+    gdb_test_multiple $test $test {
+	-re " = 1\\.0625\r\n$gdb_prompt $" {
+	    pass $test
+	}
+	-re "Invalid number \"0x1\\.1\"\\.\r\n$gdb_prompt $" {
+	    # Older glibc does not support hex float, newer does.
+	    xfail $test
+	}
+    }
+}
+
+proc test_float_rejected {} {
+    # Gdb use to fail this test for all configurations.  The C
+    # lexer thought that 123DEADBEEF was a floating point number, but
+    # then failed to notice that atof() only eats the 123 part.
+    # Fixed, 4/25/97, by Bob Manson.
+    test_print_reject "p 123DEADBEEF"
+
+    test_print_reject "p 123foobar.bazfoo3"
+    test_print_reject "p 123EEEEEEEEEEEEEEEEE33333k333"
+
+    # Test bad suffixes.
+    test_print_reject "p 1.1x"
+    test_print_reject "p 1.1ff"
+    test_print_reject "p 1.1ll"
 }
 
 proc test_print_all_chars {} {
@@ -401,7 +429,7 @@ proc test_print_repeats_10 {} {
     global gdb_prompt
 
     for { set x 1; } { $x <= 16 } { incr x; } {
-	gdb_test "set print elements $x" ""
+	gdb_test_no_output "set print elements $x"
 	for { set e 1; } { $e <= 16 } {incr e; } {
 	    set v [expr $e - 1];
 	    set command "p &ctable2\[${v}*16\]"
@@ -454,23 +482,23 @@ proc test_print_strings {} {
 
     # Test that setting print elements unlimited doesn't completely suppress
     # printing; this was a bug in older gdb's.
-    gdb_test "set print elements 0" ""
+    gdb_test_no_output "set print elements 0"
     gdb_test "p teststring" \
 	" = (.unsigned char .. )?\"teststring contents\"" "p teststring with elements set to 0"
-    gdb_test "set print elements 1" ""
+    gdb_test_no_output "set print elements 1"
     gdb_test "p teststring" \
 	" = (.unsigned char .. )?\"t\"\\.\\.\\." "p teststring with elements set to 1"
-    gdb_test "set print elements 5" ""
+    gdb_test_no_output "set print elements 5"
     gdb_test "p teststring" \
 	" = (.unsigned char .. )?\"tests\"\\.\\.\\." "p teststring with elements set to 5"
-    gdb_test "set print elements 19" ""
+    gdb_test_no_output "set print elements 19"
     gdb_test "p teststring" \
 	" = (.unsigned char .. )?\"teststring contents\"" "p teststring with elements set to 19"
-    gdb_test "set print elements 20" ""
+    gdb_test_no_output "set print elements 20"
     gdb_test "p teststring" \
 	" = (.unsigned char .. )?\"teststring contents\"" "p teststring with elements set to 20"
 
-    gdb_test "set print elements 8" ""
+    gdb_test_no_output "set print elements 8"
 
     gdb_test "p &ctable1\[0\]" \
 	" = \\(unsigned char \\*\\) \"\""
@@ -543,7 +571,7 @@ proc test_print_strings {} {
 proc test_print_int_arrays {} {
     global gdb_prompt
 
-    gdb_test "set print elements 24" ""
+    gdb_test_no_output "set print elements 24"
 
     gdb_test_escape_braces "p int1dim" \
 	" = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}"
@@ -558,7 +586,7 @@ proc test_print_int_arrays {} {
 proc test_print_typedef_arrays {} {
     global gdb_prompt
 
-    gdb_test "set print elements 24" ""
+    gdb_test_no_output "set print elements 24"
 
     gdb_test_escape_braces "p a1" \
 	" = {2, 4, 6, 8, 10, 12, 14, 16, 18, 20}"
@@ -569,6 +597,11 @@ proc test_print_typedef_arrays {} {
 	" = \"abcd\""
     gdb_test "p a2\[0\]" " = 97 'a'"
     gdb_test "p a2\[3\]" " = 100 'd'"
+
+    # Regression test of null-stop; PR 11049.
+    gdb_test_no_output "set print null-stop on"
+    gdb_test "p a2" " = \"abcd\"" "print a2 with null-stop on"
+    gdb_test_no_output "set print null-stop off"
 }
 
 proc test_artificial_arrays {} {
@@ -585,8 +618,8 @@ proc test_print_char_arrays {} {
     global gdb_prompt
     global hex
 
-    gdb_test "set print elements 24" ""
-    gdb_test "set print address on" ""
+    gdb_test_no_output "set print elements 24"
+    gdb_test_no_output "set print address on"
 
     gdb_test "p arrays" \
 	" = {array1 = \"abc\", array2 = \"d\", array3 = \"e\", array4 = \"fg\", array5 = \"hij\"}"
@@ -603,13 +636,13 @@ proc test_print_char_arrays {} {
     gdb_test "p parrays->array5"	" = \"hij\""
     gdb_test "p &parrays->array5"	" = \\(unsigned char \\(\\*\\)\\\[4\\\]\\) $hex"
 
-    gdb_test "set print address off" ""
+    gdb_test_no_output "set print address off"
 }
 
 proc test_print_string_constants {} {
     global gdb_prompt
 
-    gdb_test "set print elements 50" ""
+    gdb_test_no_output "set print elements 50"
 
     if [target_info exists gdb,cannot_call_functions] {
 	setup_xfail "*-*-*" 2416
@@ -629,7 +662,6 @@ proc test_print_string_constants {} {
     gdb_test "p *\"foo\""		" = 102 'f'"
     gdb_test "ptype *\"foo\""		" = char"
     gdb_test "p &*\"foo\""		" = \"foo\""
-    setup_kfail "gdb/538" *-*-*
     gdb_test "ptype &*\"foo\""	"type = char \\*"
     gdb_test "p (char *)\"foo\""	" = \"foo\""
 }
@@ -654,6 +686,11 @@ proc test_print_array_constants {} {
     gdb_test "print *&{4,5,6}\[1\]"	"Attempt to take address of value not located in memory."
 }
 
+proc test_print_enums {} {
+    # Regression test for PR11827.
+    gdb_test "print some_volatile_enum" "enumvolval1"
+}
+
 proc test_printf {} {
     gdb_test "printf \"x=%d,y=%d,z=%d\\n\", 5, 6, 7" "x=5,y=6,z=7"
     gdb_test "printf \"string=%.4sxx\\n\", teststring" "string=testxx"
@@ -669,6 +706,10 @@ proc test_printf {} {
 
     # Regression test for C lexer bug.
     gdb_test "printf \"%c\\n\", \"x\"\[1,0\]" "x"
+
+    # Regression test for "%% at end of format string.
+    # See http://sourceware.org/bugzilla/show_bug.cgi?id=11345
+    gdb_test "printf \"%%%d%%\\n\", 5" "%5%"
 }
 
 #Test printing DFP values with printf
@@ -747,34 +788,44 @@ gdb_test "ptype \"abc\"" " = char \\\[4\\\]"
 gdb_test "print \$cvar = \"abc\"" " = \"abc\""
 gdb_test "print sizeof (\$cvar)" " = 4"
 
-gdb_load ${binfile}
+gdb_file_cmd ${binfile}
 
 gdb_test "print \$pc" "No registers\\." "print \$pc (with file)"
 
-gdb_test "set print sevenbit-strings" ""
-gdb_test "set print address off" ""
-gdb_test "set width 0" ""
+gdb_test_no_output "set print sevenbit-strings"
+gdb_test_no_output "set print address off"
+gdb_test_no_output "set width 0"
 
-if [set_lang_c] then {
-    gdb_test "p ctable1\[120\]" "120 'x'" "p ctable1\[120\] #1"
-
-    if [runto_main] then {
-	test_integer_literals_accepted
-	test_integer_literals_rejected
-	test_character_literals_accepted
-	test_print_all_chars
-	test_print_repeats_10
-	test_print_strings
-	test_print_int_arrays
-	test_print_typedef_arrays
-	test_artificial_arrays
-	test_print_char_arrays
-# We used to do the runto main here.
-	test_print_string_constants
-	test_print_array_constants
-	test_printf
-	test_printf_with_dfp
-    }
-} else {
-    fail "C print command tests suppressed"
+if { [test_compiler_info "armcc-*"] } {
+    # ARM RealView compresses large arrays in the data segment.
+    # Before the program starts, we can not read them.  There is
+    # nothing in the file to indicate that data is compressed.
+    setup_xfail "arm*-*-eabi"
 }
+gdb_test "p ctable1\[120\]" "120 'x'" "p ctable1\[120\] #1"
+
+gdb_load ${binfile}
+
+if ![runto_main] then {
+    fail "Can't run to main"
+    return 0
+}
+
+test_integer_literals_accepted
+test_integer_literals_rejected
+test_float_accepted
+test_float_rejected
+test_character_literals_accepted
+test_print_all_chars
+test_print_repeats_10
+test_print_strings
+test_print_int_arrays
+test_print_typedef_arrays
+test_artificial_arrays
+test_print_char_arrays
+# We used to do the runto main here.
+test_print_string_constants
+test_print_array_constants
+test_print_enums
+test_printf
+test_printf_with_dfp

@@ -1,26 +1,27 @@
 /* Table of opcodes for the PA-RISC.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2009
+   2001, 2002, 2003, 2004, 2005, 2006, 2009, 2010
    Free Software Foundation, Inc.
 
    Contributed by the Center for Software Science at the
    University of Utah (pa-gdb-bugs@cs.utah.edu).
 
-This file is part of GAS, the GNU Assembler, and GDB, the GNU disassembler.
+   This file is part of GAS, the GNU Assembler, and GDB, the GNU disassembler.
 
-GAS/GDB is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
-any later version.
+   GAS/GDB is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 3, or (at your option)
+   any later version.
 
-GAS/GDB is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   GAS/GDB is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GAS or GDB; see the file COPYING.  If not, write to
-the Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with GAS or GDB; see the file COPYING3.  If not, write to
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 #if !defined(__STDC__) && !defined(const)
 #define const
@@ -633,20 +634,20 @@ static const struct pa_opcode pa_opcodes[] =
 { "addio",	0xb4000800, 0xfc000800, "?ai,b,x", pa10, 0},
 { "addit",	0xb0000000, 0xfc000800, "?ai,b,x", pa10, 0},
 { "addito",	0xb0000800, 0xfc000800, "?ai,b,x", pa10, 0},
-{ "add",	0x08000720, 0xfc0007e0, "cY?Ax,b,t", pa20, FLAG_STRICT},
+{ "add",	0x08000700, 0xfc0007e0, "cY?Ax,b,t", pa20, FLAG_STRICT},
 { "add",	0x08000700, 0xfc0007e0, "cy?ax,b,t", pa10, FLAG_STRICT},
-{ "add",	0x08000220, 0xfc0003e0, "ca?Ax,b,t", pa20, FLAG_STRICT},
+{ "add",	0x08000200, 0xfc0003e0, "ca?Ax,b,t", pa20, FLAG_STRICT},
 { "add",	0x08000200, 0xfc0003e0, "ca?ax,b,t", pa10, FLAG_STRICT},
 { "add",	0x08000600, 0xfc000fe0, "?ax,b,t", pa10, 0},
 { "addl",	0x08000a00, 0xfc000fe0, "?ax,b,t", pa10, 0},
 { "addo",	0x08000e00, 0xfc000fe0, "?ax,b,t", pa10, 0},
 { "addc",	0x08000700, 0xfc000fe0, "?ax,b,t", pa10, 0},
 { "addco",	0x08000f00, 0xfc000fe0, "?ax,b,t", pa10, 0},
-{ "sub",	0x080004e0, 0xfc0007e0, "ct?Sx,b,t", pa20, FLAG_STRICT},
+{ "sub",	0x080004c0, 0xfc0007e0, "ct?Sx,b,t", pa20, FLAG_STRICT},
 { "sub",	0x080004c0, 0xfc0007e0, "ct?sx,b,t", pa10, FLAG_STRICT},
-{ "sub",	0x08000520, 0xfc0007e0, "cB?Sx,b,t", pa20, FLAG_STRICT},
+{ "sub",	0x08000500, 0xfc0007e0, "cB?Sx,b,t", pa20, FLAG_STRICT},
 { "sub",	0x08000500, 0xfc0007e0, "cb?sx,b,t", pa10, FLAG_STRICT},
-{ "sub",	0x08000420, 0xfc0007e0, "cv?Sx,b,t", pa20, FLAG_STRICT},
+{ "sub",	0x08000400, 0xfc0007e0, "cv?Sx,b,t", pa20, FLAG_STRICT},
 { "sub",	0x08000400, 0xfc0007e0, "cv?sx,b,t", pa10, FLAG_STRICT},
 { "sub",	0x08000400, 0xfc000fe0, "?sx,b,t", pa10, 0},
 { "subo",	0x08000c00, 0xfc000fe0, "?sx,b,t", pa10, 0},

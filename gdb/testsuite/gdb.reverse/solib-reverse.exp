@@ -1,5 +1,4 @@
-# Copyright 2009
-# Free Software Foundation, Inc.
+# Copyright 2009, 2010 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -56,8 +55,7 @@ runto main
 
 if [target_info exists gdb,use_precord] {
     # Activate process record/replay
-    gdb_test "record" "" "Turn on process record"
-    # FIXME: command ought to acknowledge, so we can test if it succeeded.
+    gdb_test_no_output "record" "Turn on process record"
 }
 
 #

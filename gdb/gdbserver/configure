@@ -590,6 +590,8 @@ ac_includes_default="\
 #endif"
 
 ac_subst_vars='LTLIBOBJS
+extra_libraries
+IPA_DEPFILES
 srv_xmlfiles
 srv_xmlbuiltin
 USE_THREAD_DB
@@ -599,7 +601,12 @@ RDYNAMIC
 REPORT_BUGS_TEXI
 REPORT_BUGS_TO
 PKGVERSION
+WERROR_CFLAGS
+WARN_CFLAGS
+ustinc
+ustlibs
 LIBOBJS
+ALLOCA
 INSTALL_DATA
 INSTALL_SCRIPT
 INSTALL_PROGRAM
@@ -666,8 +673,14 @@ SHELL'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
+with_ust
+with_ust_include
+with_ust_lib
+enable_werror
 with_pkgversion
 with_bugurl
+with_libthread_db
+enable_inprocess_agent
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1292,11 +1305,26 @@ if test -n "$ac_init_help"; then
 
   cat <<\_ACEOF
 
+Optional Features:
+  --disable-option-checking  ignore unrecognized --enable/--with options
+  --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
+  --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
+  --enable-werror         treat compile warnings as errors
+  --enable-inprocess-agent
+                          inprocess agent
+
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-ust=PATH       Specify prefix directory for the installed UST package
+                          Equivalent to --with-ust-include=PATH/include
+                          plus --with-ust-lib=PATH/lib
+  --with-ust-include=PATH Specify directory for installed UST include files
+  --with-ust-lib=PATH   Specify the directory for the installed UST library
   --with-pkgversion=PKG   Use PKG in the version string in place of "GDB"
   --with-bugurl=URL       Direct users to URL to report a bug
+  --with-libthread-db=PATH
+                          use given libthread_db directly
 
 Some influential environment variables:
   CC          C compiler command
@@ -1742,8 +1770,10 @@ $as_echo "$ac_res" >&6; }
 ac_fn_c_check_decl ()
 {
   as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether $2 is declared" >&5
-$as_echo_n "checking whether $2 is declared... " >&6; }
+  as_decl_name=`echo $2|sed 's/ *(.*//'`
+  as_decl_use=`echo $2|sed -e 's/(/((/' -e 's/)/) 0&/' -e 's/,/) 0& (/g'`
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether $as_decl_name is declared" >&5
+$as_echo_n "checking whether $as_decl_name is declared... " >&6; }
 if { as_var=$3; eval "test \"\${$as_var+set}\" = set"; }; then :
   $as_echo_n "(cached) " >&6
 else
@@ -1753,8 +1783,12 @@ $4
 int
 main ()
 {
-#ifndef $2
-  (void) $2;
+#ifndef $as_decl_name
+#ifdef __cplusplus
+  (void) $as_decl_use;
+#else
+  (void) $as_decl_name;
+#endif
 #endif
 
   ;
@@ -3766,6 +3800,196 @@ $as_echo "#define STDC_HEADERS 1" >>confdefs.h
 fi
 
 
+# The Ultrix 4.2 mips builtin alloca declared by alloca.h only works
+# for constant arguments.  Useless!
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for working alloca.h" >&5
+$as_echo_n "checking for working alloca.h... " >&6; }
+if test "${ac_cv_working_alloca_h+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <alloca.h>
+int
+main ()
+{
+char *p = (char *) alloca (2 * sizeof (int));
+			  if (p) return 0;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_working_alloca_h=yes
+else
+  ac_cv_working_alloca_h=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_working_alloca_h" >&5
+$as_echo "$ac_cv_working_alloca_h" >&6; }
+if test $ac_cv_working_alloca_h = yes; then
+
+$as_echo "#define HAVE_ALLOCA_H 1" >>confdefs.h
+
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for alloca" >&5
+$as_echo_n "checking for alloca... " >&6; }
+if test "${ac_cv_func_alloca_works+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#ifdef __GNUC__
+# define alloca __builtin_alloca
+#else
+# ifdef _MSC_VER
+#  include <malloc.h>
+#  define alloca _alloca
+# else
+#  ifdef HAVE_ALLOCA_H
+#   include <alloca.h>
+#  else
+#   ifdef _AIX
+ #pragma alloca
+#   else
+#    ifndef alloca /* predefined by HP cc +Olibcalls */
+char *alloca ();
+#    endif
+#   endif
+#  endif
+# endif
+#endif
+
+int
+main ()
+{
+char *p = (char *) alloca (1);
+				    if (p) return 0;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_func_alloca_works=yes
+else
+  ac_cv_func_alloca_works=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_func_alloca_works" >&5
+$as_echo "$ac_cv_func_alloca_works" >&6; }
+
+if test $ac_cv_func_alloca_works = yes; then
+
+$as_echo "#define HAVE_ALLOCA 1" >>confdefs.h
+
+else
+  # The SVR3 libPW and SVR4 libucb both contain incompatible functions
+# that cause trouble.  Some versions do not even contain alloca or
+# contain a buggy version.  If you still want to use their alloca,
+# use ar to extract alloca.o from them instead of compiling alloca.c.
+
+ALLOCA=\${LIBOBJDIR}alloca.$ac_objext
+
+$as_echo "#define C_ALLOCA 1" >>confdefs.h
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether \`alloca.c' needs Cray hooks" >&5
+$as_echo_n "checking whether \`alloca.c' needs Cray hooks... " >&6; }
+if test "${ac_cv_os_cray+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#if defined CRAY && ! defined CRAY2
+webecray
+#else
+wenotbecray
+#endif
+
+_ACEOF
+if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
+  $EGREP "webecray" >/dev/null 2>&1; then :
+  ac_cv_os_cray=yes
+else
+  ac_cv_os_cray=no
+fi
+rm -f conftest*
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_os_cray" >&5
+$as_echo "$ac_cv_os_cray" >&6; }
+if test $ac_cv_os_cray = yes; then
+  for ac_func in _getb67 GETB67 getb67; do
+    as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+eval as_val=\$$as_ac_var
+   if test "x$as_val" = x""yes; then :
+
+cat >>confdefs.h <<_ACEOF
+#define CRAY_STACKSEG_END $ac_func
+_ACEOF
+
+    break
+fi
+
+  done
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking stack direction for C alloca" >&5
+$as_echo_n "checking stack direction for C alloca... " >&6; }
+if test "${ac_cv_c_stack_direction+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test "$cross_compiling" = yes; then :
+  ac_cv_c_stack_direction=0
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$ac_includes_default
+int
+find_stack_direction ()
+{
+  static char *addr = 0;
+  auto char dummy;
+  if (addr == 0)
+    {
+      addr = &dummy;
+      return find_stack_direction ();
+    }
+  else
+    return (&dummy > addr) ? 1 : -1;
+}
+
+int
+main ()
+{
+  return find_stack_direction () < 0;
+}
+_ACEOF
+if ac_fn_c_try_run "$LINENO"; then :
+  ac_cv_c_stack_direction=1
+else
+  ac_cv_c_stack_direction=-1
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_c_stack_direction" >&5
+$as_echo "$ac_cv_c_stack_direction" >&6; }
+cat >>confdefs.h <<_ACEOF
+#define STACK_DIRECTION $ac_cv_c_stack_direction
+_ACEOF
+
+
+fi
+
 for ac_header in sgtty.h termio.h termios.h sys/reg.h string.h 		 proc_service.h sys/procfs.h thread_db.h linux/elf.h 		 stdlib.h unistd.h 		 errno.h fcntl.h signal.h sys/file.h malloc.h 		 sys/ioctl.h netinet/in.h sys/socket.h netdb.h 		 netinet/tcp.h arpa/inet.h sys/wait.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
@@ -3793,12 +4017,14 @@ _ACEOF
 fi
 done
 
-for ac_func in memmem
+for ac_func in memmem vasprintf vsnprintf
 do :
-  ac_fn_c_check_func "$LINENO" "memmem" "ac_cv_func_memmem"
-if test "x$ac_cv_func_memmem" = x""yes; then :
+  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+eval as_val=\$$as_ac_var
+   if test "x$as_val" = x""yes; then :
   cat >>confdefs.h <<_ACEOF
-#define HAVE_MEMMEM 1
+#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
 _ACEOF
 
 else
@@ -3812,6 +4038,161 @@ fi
 done
 
 
+
+# Check for UST
+ustlibs=""
+ustinc=""
+
+
+# Check whether --with-ust was given.
+if test "${with_ust+set}" = set; then :
+  withval=$with_ust;
+fi
+
+
+# Check whether --with-ust_include was given.
+if test "${with_ust_include+set}" = set; then :
+  withval=$with_ust_include;
+fi
+
+
+# Check whether --with-ust_lib was given.
+if test "${with_ust_lib+set}" = set; then :
+  withval=$with_ust_lib;
+fi
+
+
+case $with_ust in
+  no)
+    ustlibs=
+    ustinc=
+    ;;
+  "" | yes)
+    ustlibs=" -lust "
+    ustinc=""
+    ;;
+  *)
+    ustlibs="-L$with_ust/lib -lust"
+    ustinc="-I$with_ust/include "
+    ;;
+esac
+if test "x$with_ust_include" != x; then
+  ustinc="-I$with_ust_include "
+fi
+if test "x$with_ust_lib" != x; then
+  ustlibs="-L$with_ust_lib -lust"
+fi
+
+if test "x$with_ust" != "xno"; then
+  saved_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS $ustinc"
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ust" >&5
+$as_echo_n "checking for ust... " >&6; }
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#define CONFIG_UST_GDB_INTEGRATION
+#include <ust/ust.h>
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; };
+$as_echo "#define HAVE_UST 1" >>confdefs.h
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }; ustlibs= ; ustinc=
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+  CFLAGS="$saved_CFLAGS"
+fi
+
+# Flags needed for UST
+
+
+
+# Check whether --enable-werror was given.
+if test "${enable_werror+set}" = set; then :
+  enableval=$enable_werror; case "${enableval}" in
+     yes | y) ERROR_ON_WARNING="yes" ;;
+     no | n)  ERROR_ON_WARNING="no" ;;
+     *) as_fn_error "bad value ${enableval} for --enable-werror" "$LINENO" 5 ;;
+   esac
+fi
+
+
+# Enable -Werror by default when using gcc
+if test "${GCC}" = yes -a -z "${ERROR_ON_WARNING}" ; then
+    ERROR_ON_WARNING=yes
+fi
+
+WERROR_CFLAGS=""
+if test "${ERROR_ON_WARNING}" = yes ; then
+    WERROR_CFLAGS="-Werror"
+fi
+
+build_warnings="-Wall -Wdeclaration-after-statement -Wpointer-arith \
+-Wformat-nonliteral -Wno-char-subscripts"
+
+WARN_CFLAGS=""
+if test "x$GCC" = xyes
+then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking compiler warning flags" >&5
+$as_echo_n "checking compiler warning flags... " >&6; }
+    # Separate out the -Werror flag as some files just cannot be
+    # compiled with it enabled.
+    for w in ${build_warnings}; do
+	case $w in
+	-Werr*) WERROR_CFLAGS=-Werror ;;
+	*) # Check that GCC accepts it
+	    saved_CFLAGS="$CFLAGS"
+	    CFLAGS="$CFLAGS $w"
+	    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  WARN_CFLAGS="${WARN_CFLAGS} $w"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	    CFLAGS="$saved_CFLAGS"
+	esac
+    done
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: ${WARN_CFLAGS} ${WERROR_CFLAGS}" >&5
+$as_echo "${WARN_CFLAGS} ${WERROR_CFLAGS}" >&6; }
+fi
+
+
+
+old_LIBS="$LIBS"
+LIBS="$LIBS -ldl"
+for ac_func in dladdr
+do :
+  ac_fn_c_check_func "$LINENO" "dladdr" "ac_cv_func_dladdr"
+if test "x$ac_cv_func_dladdr" = x""yes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_DLADDR 1
+_ACEOF
+
+fi
+done
+
+LIBS="$old_LIBS"
 
 have_errno=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for errno" >&5
@@ -3898,6 +4279,26 @@ fi
 cat >>confdefs.h <<_ACEOF
 #define HAVE_DECL_MEMMEM $ac_have_decl
 _ACEOF
+ac_fn_c_check_decl "$LINENO" "vasprintf" "ac_cv_have_decl_vasprintf" "$ac_includes_default"
+if test "x$ac_cv_have_decl_vasprintf" = x""yes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_VASPRINTF $ac_have_decl
+_ACEOF
+ac_fn_c_check_decl "$LINENO" "vsnprintf" "ac_cv_have_decl_vsnprintf" "$ac_includes_default"
+if test "x$ac_cv_have_decl_vsnprintf" = x""yes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_VSNPRINTF $ac_have_decl
+_ACEOF
 
 
 ac_fn_c_check_type "$LINENO" "socklen_t" "ac_cv_type_socklen_t" "#include <sys/types.h>
@@ -3970,14 +4371,79 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
+# Check for various supplementary target information (beyond the
+# triplet) which might affect the choices in configure.srv.
+case "${target}" in
+  i[34567]86-*-linux*)
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if building for x86-64" >&5
+$as_echo_n "checking if building for x86-64... " >&6; }
+if test "${gdb_cv_i386_is_x86_64+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  save_CPPFLAGS="$CPPFLAGS"
+                    CPPFLAGS="$CPPFLAGS $CFLAGS"
+                    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#if __x86_64__
+got it
+#endif
+
+_ACEOF
+if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
+  $EGREP "got it" >/dev/null 2>&1; then :
+  gdb_cv_i386_is_x86_64=yes
+else
+  gdb_cv_i386_is_x86_64=no
+fi
+rm -f conftest*
+
+                    CPPFLAGS="$save_CPPFLAGS"
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $gdb_cv_i386_is_x86_64" >&5
+$as_echo "$gdb_cv_i386_is_x86_64" >&6; }
+    ;;
+  m68k-*-*)
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if building for Coldfire" >&5
+$as_echo_n "checking if building for Coldfire... " >&6; }
+if test "${gdb_cv_m68k_is_coldfire+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  save_CPPFLAGS="$CPPFLAGS"
+                    CPPFLAGS="$CPPFLAGS $CFLAGS"
+                    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#ifdef __mcoldfire__
+got it
+#endif
+
+_ACEOF
+if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
+  $EGREP "got it" >/dev/null 2>&1; then :
+  gdb_cv_m68k_is_coldfire=yes
+else
+  gdb_cv_m68k_is_coldfire=no
+fi
+rm -f conftest*
+
+                    CPPFLAGS="$save_CPPFLAGS"
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $gdb_cv_m68k_is_coldfire" >&5
+$as_echo "$gdb_cv_m68k_is_coldfire" >&6; }
+    ;;
+esac
+
 . ${srcdir}/configure.srv
 
 if test "${srv_mingwce}" = "yes"; then
   LIBS="$LIBS -lws2"
 elif test "${srv_mingw}" = "yes"; then
-  LIBS="$LIBS -lwsock32"
+  LIBS="$LIBS -lws2_32"
 elif test "${srv_qnx}" = "yes"; then
   LIBS="$LIBS -lsocket"
+elif test "${srv_lynxos}" = "yes"; then
+  LIBS="$LIBS -lnetinet"
 fi
 
 if test "${srv_mingw}" = "yes"; then
@@ -4072,6 +4538,8 @@ else
 /* end confdefs.h.  */
 
 #define _SYSCALL32
+/* Needed for new procfs interface on sparc-solaris.  */
+#define _STRUCTURED_PROC 1
 #include <sys/procfs.h>
 int
 main ()
@@ -4107,6 +4575,8 @@ else
 /* end confdefs.h.  */
 
 #define _SYSCALL32
+/* Needed for new procfs interface on sparc-solaris.  */
+#define _STRUCTURED_PROC 1
 #include <sys/procfs.h>
 int
 main ()
@@ -4142,6 +4612,8 @@ else
 /* end confdefs.h.  */
 
 #define _SYSCALL32
+/* Needed for new procfs interface on sparc-solaris.  */
+#define _STRUCTURED_PROC 1
 #include <sys/procfs.h>
 int
 main ()
@@ -4177,6 +4649,8 @@ else
 /* end confdefs.h.  */
 
 #define _SYSCALL32
+/* Needed for new procfs interface on sparc-solaris.  */
+#define _STRUCTURED_PROC 1
 #include <sys/procfs.h>
 int
 main ()
@@ -4205,15 +4679,69 @@ $as_echo "$bfd_cv_have_sys_procfs_type_elf_fpregset_t" >&6; }
 
 fi
 
+old_LIBS="$LIBS"
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for dlopen in -ldl" >&5
+$as_echo_n "checking for dlopen in -ldl... " >&6; }
+if test "${ac_cv_lib_dl_dlopen+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-ldl  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char dlopen ();
+int
+main ()
+{
+return dlopen ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_dl_dlopen=yes
+else
+  ac_cv_lib_dl_dlopen=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_dl_dlopen" >&5
+$as_echo "$ac_cv_lib_dl_dlopen" >&6; }
+if test "x$ac_cv_lib_dl_dlopen" = x""yes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBDL 1
+_ACEOF
+
+  LIBS="-ldl $LIBS"
+
+fi
+
+LIBS="$old_LIBS"
+
 srv_thread_depfiles=
 srv_libs=
 USE_THREAD_DB=
 
 if test "$srv_linux_thread_db" = "yes"; then
-  srv_libs="-ldl"
-  old_LDFLAGS="$LDFLAGS"
-  LDFLAGS="$LDFLAGS -rdynamic"
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+  if test "$ac_cv_lib_dl_dlopen" = "yes"; then
+    srv_libs="-ldl"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for the dynamic export flag" >&5
+$as_echo_n "checking for the dynamic export flag... " >&6; }
+    old_LDFLAGS="$LDFLAGS"
+    # Older GNU ld supports --export-dynamic but --dynamic-list may not be
+    # supported there.
+    RDYNAMIC="-Wl,--dynamic-list=${srcdir}/proc-service.list"
+    LDFLAGS="$LDFLAGS $RDYNAMIC"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
 int
@@ -4225,14 +4753,40 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  RDYNAMIC=-rdynamic
+  found="-Wl,--dynamic-list"
+		 RDYNAMIC='-Wl,--dynamic-list=$(srcdir)/proc-service.list'
 else
-  RDYNAMIC=
+  RDYNAMIC="-rdynamic"
+		 LDFLAGS="$old_LDFLAGS $RDYNAMIC"
+		 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  found="-rdynamic"
+else
+  found="no"
+			      RDYNAMIC=""
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 
-  LDFLAGS="$old_LDFLAGS"
+    LDFLAGS="$old_LDFLAGS"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $found" >&5
+$as_echo "$found" >&6; }
+  else
+    srv_libs="-lthread_db"
+  fi
 
   srv_thread_depfiles="thread-db.o proc-service.o"
   USE_THREAD_DB="-DUSE_THREAD_DB"
@@ -4268,6 +4822,21 @@ $as_echo "#define HAVE_TD_VERSION 1" >>confdefs.h
   fi
 fi
 
+
+# Check whether --with-libthread-db was given.
+if test "${with_libthread_db+set}" = set; then :
+  withval=$with_libthread_db; srv_libthread_db_path="${withval}"
+  srv_libs="$srv_libthread_db_path"
+
+fi
+
+
+if test "$srv_libs" != "" -a "$srv_libs" != "-ldl"; then
+
+$as_echo "#define USE_LIBTHREAD_DB_DIRECTLY 1" >>confdefs.h
+
+fi
+
 if test "$srv_xmlfiles" != ""; then
   srv_xmlbuiltin="xml-builtin.o"
 
@@ -4283,6 +4852,96 @@ fi
 
 GDBSERVER_DEPFILES="$srv_regobj $srv_tgtobj $srv_hostio_err_objs $srv_thread_depfiles"
 GDBSERVER_LIBS="$srv_libs"
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the target supports __sync_*_compare_and_swap" >&5
+$as_echo_n "checking whether the target supports __sync_*_compare_and_swap... " >&6; }
+if test "${gdbsrv_cv_have_sync_builtins+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+int foo, bar; bar = __sync_val_compare_and_swap(&foo, 0, 1);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  gdbsrv_cv_have_sync_builtins=yes
+else
+  gdbsrv_cv_have_sync_builtins=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $gdbsrv_cv_have_sync_builtins" >&5
+$as_echo "$gdbsrv_cv_have_sync_builtins" >&6; }
+if test $gdbsrv_cv_have_sync_builtins = yes; then
+
+$as_echo "#define HAVE_SYNC_BUILTINS 1" >>confdefs.h
+
+fi
+
+saved_cflags="$CFLAGS"
+CFLAGS="$CFLAGS -fvisibility=hidden"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  gdbsrv_cv_have_visibility_hidden=yes
+else
+  gdbsrv_cv_have_visibility_hidden=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+CFLAGS="$saved_cflags"
+
+
+IPA_DEPFILES=""
+extra_libraries=""
+
+# check whether to enable the inprocess agent
+if test "$ipa_obj" != "" \
+   -a "$gdbsrv_cv_have_sync_builtins" = yes \
+   -a "$gdbsrv_cv_have_visibility_hidden" = yes; then
+   have_ipa=true
+else
+   have_ipa=false
+fi
+
+# Check whether --enable-inprocess-agent was given.
+if test "${enable_inprocess_agent+set}" = set; then :
+  enableval=$enable_inprocess_agent; case "$enableval" in
+  yes) want_ipa=true ;;
+  no) want_ipa=false ;;
+  *) as_fn_error "bad value $enableval for inprocess-agent" "$LINENO" 5 ;;
+esac
+else
+  want_ipa=$have_ipa
+fi
+
+
+if $want_ipa ; then
+   if $have_ipa ; then
+     IPA_DEPFILES="$ipa_obj"
+     extra_libraries="$extra_libraries libinproctrace.so"
+   else
+     as_fn_error "inprocess agent not supported for this target" "$LINENO" 5
+   fi
+fi
+
+
 
 
 

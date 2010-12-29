@@ -1,5 +1,5 @@
-# Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009
-# Free Software Foundation, Inc.
+# Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009,
+# 2010 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,8 +31,6 @@ if $tracelevel then {
 #
 # test running programs
 #
-set prms_id 0
-set bug_id 0
 
 set testfile "constvars"
 set srcfile ${testfile}.c
@@ -92,52 +90,26 @@ proc local_compiler_xfail_check_2 { } {
     }
 }
 
-send_gdb "break marker1\n" ; gdb_expect -re ".*$gdb_prompt $"
+gdb_test "break marker1" "Breakpoint $decimal at .*" 
 
-    send_gdb "cont\n"
-    gdb_expect {
-        -re "Break.* marker1 \\(\\) at .*:$decimal.*$gdb_prompt $" {
-            send_gdb "up\n"
-            gdb_expect {
-		-re ".*main.*$gdb_prompt $" {
-		    pass "up from marker1"
-		}
-                -re ".*$gdb_prompt $" {
-		    fail "up from marker1"
-		}
-                timeout { fail "up from marker1 (timeout)" }
-            }
-        }
-        -re "Break.* marker1__.* \\(\\) at .*:$decimal.*$gdb_prompt $" {
-	    fail "continue to marker1 (demangling)"
-            send_gdb "up\n"
-            gdb_expect {
-		-re ".*main.*$gdb_prompt $" {
-		    pass "up from marker1"
-		}
-                -re ".*$gdb_prompt $" {
-		    fail "up from marker1"
-		}
-                timeout { fail "up from marker1 (timeout)" }
-            }
-        }
-        -re "$gdb_prompt $" { fail "continue to marker1"  }
-        timeout { fail "(timeout) continue to marker1"  }
+gdb_test_multiple "cont" "up from marker1" {
+    -re "Break.* marker1 \\(\\) at .*:$decimal.*$gdb_prompt $" {
+	pass "continue to marker1"
+	gdb_test "up" " main .*" "up from marker1"
     }
+    -re "Break.* marker1__.* \\(\\) at .*:$decimal.*$gdb_prompt $" {
+	fail "continue to marker1 (demangling)"
+	gdb_test "up" " main .*" "up from marker1"
+    }
+}
 
 # test function parameters
 
 local_compiler_xfail_check
 local_compiler_xfail_check_2
 
-send_gdb "ptype qux1\n"
-gdb_expect {
-    -re "type = int \\(const char, const char, const char \\*, char \\* const\\).*$gdb_prompt $" {
-        pass "ptype qux1"
-    }
-    -re ".*$gdb_prompt $" { fail "ptype qux1" }
-    timeout           { fail "(timeout) ptype qux1" }
-}   
+gdb_test "ptype qux1" \
+    "type = int \\(const char, const char, const char \\*, char \\* const\\).*"
 
 # test vars and pointers
 
@@ -279,6 +251,23 @@ proc do_constvar_tests {} {
     gdb_test "print *locust" " = 70"
     local_compiler_xfail_check
     gdb_test "ptype locust" "type = double \\* const"
+
+    local_compiler_xfail_check
+    gdb_test "ptype logical" "type = const char \\\[2\\\]"
+    local_compiler_xfail_check
+    gdb_test "ptype lugged" "type = const unsigned char \\\[2\\\]"
+    local_compiler_xfail_check
+    gdb_test "ptype luck" "type = const short( int)? \\\[2\\\]"
+    local_compiler_xfail_check
+    gdb_test "ptype lunar" "type = const (unsigned short|short unsigned)( int)? \\\[2\\\]"
+    local_compiler_xfail_check
+    gdb_test "ptype lumen" "type = const long( int)? \\\[2\\\]"
+    local_compiler_xfail_check
+    gdb_test "ptype lurk" "type = const (unsigned long|long unsigned)( int)? \\\[2\\\]"
+    local_compiler_xfail_check
+    gdb_test "ptype lush" "type = const float \\\[2\\\]"
+    local_compiler_xfail_check
+    gdb_test "ptype lynx" "type = const double \\\[2\\\]"
 
     local_compiler_xfail_check
     local_compiler_xfail_check_2

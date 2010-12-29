@@ -1,6 +1,6 @@
 /* The common simulator framework for GDB, the GNU Debugger.
 
-   Copyright 2002, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright 2002, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    Contributed by Andrew Cagney and Red Hat.
 
@@ -344,7 +344,7 @@ DECLARE_SIM_CORE_READ_N(misaligned,7,8)
 #if (WITH_DEVICES)
 /* TODO: create sim/common/device.h */
 /* These are defined with each particular cpu.  */
-void device_error (device *me, char* message, ...);
+void device_error (device *me, const char *message, ...) __attribute__((format (printf, 2, 3)));
 int device_io_read_buffer(device *me, void *dest, int space, address_word addr, unsigned nr_bytes, SIM_DESC sd, sim_cpu *processor, sim_cia cia);
 int device_io_write_buffer(device *me, const void *source, int space, address_word addr, unsigned nr_bytes, SIM_DESC sd, sim_cpu *processor, sim_cia cia);
 #endif

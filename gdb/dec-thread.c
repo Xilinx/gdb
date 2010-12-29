@@ -1,4 +1,4 @@
-/* Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+/* Copyright (C) 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -311,6 +311,30 @@ ptid_build_from_info (struct dec_thread_info info)
   return ptid_build (pid, 0, (long) info.thread);
 }
 
+/* Return non-zero if PTID is still alive.
+
+   Assumes that DEC_THREAD_LIST is up to date.  */
+static int
+dec_thread_ptid_is_alive (ptid_t ptid)
+{
+  pthreadDebugId_t tid = ptid_get_tid (ptid);
+  int i;
+  struct dec_thread_info *info;
+
+  if (tid == 0)
+    /* This is the thread corresponding to the process.  This ptid
+       is always alive until the program exits.  */
+    return 1;
+
+  /* Search whether an entry with the same tid exists in the dec-thread
+     list of threads.  If it does, then the thread is still alive.
+     No match found means that the thread must be dead, now.  */
+  for (i = 0; VEC_iterate (dec_thread_info_s, dec_thread_list, i, info); i++)
+    if (info->thread == tid)
+      return 1;
+  return 0;
+}
+
 /* Recompute the list of user threads and store the result in
    DEC_THREAD_LIST.  */
 
@@ -352,7 +376,7 @@ dec_thread_count_gdb_threads (struct thread_info *ignored, void *context)
 {
   int *count = (int *) context;
 
-  *count++;
+  *count = *count + 1;
   return 0;
 }
 
@@ -366,34 +390,41 @@ dec_thread_add_gdb_thread (struct thread_info *info, void *context)
   struct thread_info ***listp = (struct thread_info ***) context;
   
   **listp = info;
-  *listp++;
+  *listp = *listp + 1;
   return 0;
 }
 
-/* Resynchronize the list of threads known by GDB with the actual
-   list of threads reported by libpthread_debug.  */
+/* Implement the find_new_thread target_ops method.  */
 
 static void
-resync_thread_list (void)
+dec_thread_find_new_threads (struct target_ops *ops)
 {
   int i;
   struct dec_thread_info *info;
-  int num_gdb_threads = 0;
-  struct thread_info **gdb_thread_list;
-  struct thread_info **next_thread_info;
 
   update_dec_thread_list ();
-
-  /* Add new threads.  */
-
-  for (i = 0; VEC_iterate (dec_thread_info_s, dec_thread_list, i, info);
-       i++)
+  for (i = 0; VEC_iterate (dec_thread_info_s, dec_thread_list, i, info); i++)
     {
       ptid_t ptid = ptid_build_from_info (*info);
 
       if (!in_thread_list (ptid))
         add_thread (ptid);
     }
+}
+
+/* Resynchronize the list of threads known by GDB with the actual
+   list of threads reported by libpthread_debug.  */
+
+static void
+resync_thread_list (struct target_ops *ops)
+{
+  int i;
+  int num_gdb_threads = 0;
+  struct thread_info **gdb_thread_list;
+  struct thread_info **next_thread_info;
+
+  /* Add new threads.  */
+  dec_thread_find_new_threads (ops);
 
   /* Remove threads that no longer exist.  To help with the search,
      we build an array of GDB threads, and then iterate over this
@@ -404,17 +435,10 @@ resync_thread_list (void)
   gdb_thread_list = alloca (num_gdb_threads * sizeof (struct thread_info *));
   next_thread_info = gdb_thread_list;
   iterate_over_threads (dec_thread_add_gdb_thread, (void *) &next_thread_info);
-  for (i = 0; i < num_gdb_threads; i++)
-    {
-      int j;
 
-      for (j = 0; VEC_iterate (dec_thread_info_s, dec_thread_list, j, info);
-           j++)
-        if (ptid_equal (gdb_thread_list[i]->ptid,
-                         ptid_build_from_info (*info)))
-          break;
+  for (i = 0; i < num_gdb_threads; i++)
+    if (!dec_thread_ptid_is_alive (gdb_thread_list[i]->ptid))
       delete_thread (gdb_thread_list[i]->ptid);
-    }
 }
 
 /* The "to_detach" method of the dec_thread_ops.  */
@@ -463,7 +487,7 @@ dec_thread_wait (struct target_ops *ops,
 
   /* The ptid returned by the target beneath us is the ptid of the process.
      We need to find which thread is currently active and return its ptid.  */
-  resync_thread_list ();
+  resync_thread_list (ops);
   active_ptid = get_active_ptid ();
   if (ptid_equal (active_ptid, null_ptid))
     return ptid;
@@ -692,6 +716,7 @@ init_dec_thread_ops (void)
   dec_thread_ops.to_store_registers    = dec_thread_store_registers;
   dec_thread_ops.to_mourn_inferior     = dec_thread_mourn_inferior;
   dec_thread_ops.to_thread_alive       = dec_thread_thread_alive;
+  dec_thread_ops.to_find_new_threads   = dec_thread_find_new_threads;
   dec_thread_ops.to_pid_to_str         = dec_thread_pid_to_str;
   dec_thread_ops.to_stratum            = thread_stratum;
   dec_thread_ops.to_get_ada_task_ptid  = dec_thread_get_ada_task_ptid;

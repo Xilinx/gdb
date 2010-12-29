@@ -1,6 +1,6 @@
 /* MI Command Set for GDB, the GNU debugger.
 
-   Copyright (C) 2000, 2003, 2004, 2005, 2007, 2008, 2009
+   Copyright (C) 2000, 2003, 2004, 2005, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    Contributed by Cygnus Solutions (a Red Hat company).
@@ -36,8 +36,10 @@ extern const char mi_all_values[];
 typedef void (mi_cmd_argv_ftype) (char *command, char **argv, int argc);
 
 /* Function implementing each command */
+extern mi_cmd_argv_ftype mi_cmd_add_inferior;
 extern mi_cmd_argv_ftype mi_cmd_break_insert;
 extern mi_cmd_argv_ftype mi_cmd_break_commands;
+extern mi_cmd_argv_ftype mi_cmd_break_passcount;
 extern mi_cmd_argv_ftype mi_cmd_break_watch;
 extern mi_cmd_argv_ftype mi_cmd_disassemble;
 extern mi_cmd_argv_ftype mi_cmd_data_evaluate_expression;
@@ -45,7 +47,9 @@ extern mi_cmd_argv_ftype mi_cmd_data_list_register_names;
 extern mi_cmd_argv_ftype mi_cmd_data_list_register_values;
 extern mi_cmd_argv_ftype mi_cmd_data_list_changed_registers;
 extern mi_cmd_argv_ftype mi_cmd_data_read_memory;
+extern mi_cmd_argv_ftype mi_cmd_data_read_memory_bytes;
 extern mi_cmd_argv_ftype mi_cmd_data_write_memory;
+extern mi_cmd_argv_ftype mi_cmd_data_write_memory_bytes;
 extern mi_cmd_argv_ftype mi_cmd_data_write_register_values;
 extern mi_cmd_argv_ftype mi_cmd_enable_timings;
 extern mi_cmd_argv_ftype mi_cmd_env_cd;
@@ -54,13 +58,14 @@ extern mi_cmd_argv_ftype mi_cmd_env_path;
 extern mi_cmd_argv_ftype mi_cmd_env_pwd;
 extern mi_cmd_argv_ftype mi_cmd_exec_continue;
 extern mi_cmd_argv_ftype mi_cmd_exec_finish;
+extern mi_cmd_argv_ftype mi_cmd_exec_interrupt;
 extern mi_cmd_argv_ftype mi_cmd_exec_jump;
 extern mi_cmd_argv_ftype mi_cmd_exec_next;
 extern mi_cmd_argv_ftype mi_cmd_exec_next_instruction;
 extern mi_cmd_argv_ftype mi_cmd_exec_return;
+extern mi_cmd_argv_ftype mi_cmd_exec_run;
 extern mi_cmd_argv_ftype mi_cmd_exec_step;
 extern mi_cmd_argv_ftype mi_cmd_exec_step_instruction;
-extern mi_cmd_argv_ftype mi_cmd_exec_interrupt;
 extern mi_cmd_argv_ftype mi_cmd_file_list_exec_source_file;
 extern mi_cmd_argv_ftype mi_cmd_file_list_exec_source_files;
 extern mi_cmd_argv_ftype mi_cmd_gdb_exit;
@@ -70,6 +75,7 @@ extern mi_cmd_argv_ftype mi_cmd_interpreter_exec;
 extern mi_cmd_argv_ftype mi_cmd_list_features;
 extern mi_cmd_argv_ftype mi_cmd_list_target_features;
 extern mi_cmd_argv_ftype mi_cmd_list_thread_groups;
+extern mi_cmd_argv_ftype mi_cmd_remove_inferior;
 extern mi_cmd_argv_ftype mi_cmd_stack_info_depth;
 extern mi_cmd_argv_ftype mi_cmd_stack_info_frame;
 extern mi_cmd_argv_ftype mi_cmd_stack_list_args;
@@ -85,6 +91,13 @@ extern mi_cmd_argv_ftype mi_cmd_target_file_delete;
 extern mi_cmd_argv_ftype mi_cmd_thread_info;
 extern mi_cmd_argv_ftype mi_cmd_thread_list_ids;
 extern mi_cmd_argv_ftype mi_cmd_thread_select;
+extern mi_cmd_argv_ftype mi_cmd_trace_define_variable;
+extern mi_cmd_argv_ftype mi_cmd_trace_find;
+extern mi_cmd_argv_ftype mi_cmd_trace_list_variables;
+extern mi_cmd_argv_ftype mi_cmd_trace_save;
+extern mi_cmd_argv_ftype mi_cmd_trace_start;
+extern mi_cmd_argv_ftype mi_cmd_trace_status;
+extern mi_cmd_argv_ftype mi_cmd_trace_stop;
 extern mi_cmd_argv_ftype mi_cmd_var_assign;
 extern mi_cmd_argv_ftype mi_cmd_var_create;
 extern mi_cmd_argv_ftype mi_cmd_var_delete;

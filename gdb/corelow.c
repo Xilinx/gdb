@@ -1,7 +1,7 @@
 /* Core dump and executable file functions below target vector, for GDB.
 
    Copyright (C) 1986, 1987, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2001, 2003, 2004, 2005, 2006, 2007, 2008, 2009
+   1998, 1999, 2000, 2001, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -45,6 +45,8 @@
 #include "exceptions.h"
 #include "solib.h"
 #include "filenames.h"
+#include "progspace.h"
+#include "objfiles.h"
 
 
 #ifndef O_LARGEFILE
@@ -98,7 +100,7 @@ static void init_core_ops (void);
 
 void _initialize_corelow (void);
 
-struct target_ops core_ops;
+static struct target_ops core_ops;
 
 /* An arbitrary identifier for the core inferior.  */
 #define CORELOW_PID 1
@@ -208,7 +210,7 @@ core_close (int quitting)
     {
       int pid = ptid_get_pid (inferior_ptid);
       inferior_ptid = null_ptid;	/* Avoid confusion from thread stuff */
-      delete_inferior_silent (pid);
+      exit_inferior_silent (pid);
 
       /* Clear out solib state while the bfd is still open. See
          comments in clear_solib in solib.c. */
@@ -220,9 +222,7 @@ core_close (int quitting)
       core_has_fake_pid = 0;
 
       name = bfd_get_filename (core_bfd);
-      if (!bfd_close (core_bfd))
-	warning (_("cannot close \"%s\": %s"),
-		 name, bfd_errmsg (bfd_get_error ()));
+      gdb_bfd_close_or_warn (core_bfd);
       xfree (name);
       core_bfd = NULL;
     }
@@ -252,31 +252,17 @@ add_to_thread_list (bfd *abfd, asection *asect, void *reg_sect_arg)
 
   core_tid = atoi (bfd_section_name (abfd, asect) + 5);
 
-  if (core_gdbarch
-      && gdbarch_core_reg_section_encodes_pid (core_gdbarch))
-    {
-      uint32_t merged_pid = core_tid;
-      pid = merged_pid & 0xffff;
-      lwpid = merged_pid >> 16;
-
-      /* This can happen on solaris core, for example, if we don't
-	 find a NT_PSTATUS note in the core, but do find NT_LWPSTATUS
-	 notes.  */
-      if (pid == 0)
-	{
-	  core_has_fake_pid = 1;
-	  pid = CORELOW_PID;
-	}
-    }
-  else
+  pid = bfd_core_file_pid (core_bfd);
+  if (pid == 0)
     {
       core_has_fake_pid = 1;
       pid = CORELOW_PID;
-      lwpid = core_tid;
     }
 
-  if (!in_inferior_list (pid))
-    add_inferior_silent (pid);
+  lwpid = core_tid;
+
+  if (current_inferior ()->pid == 0)
+    inferior_appeared (current_inferior (), pid);
 
   ptid = ptid_build (pid, lwpid, 0);
 
@@ -301,7 +287,6 @@ core_open (char *filename, int from_tty)
   bfd *temp_bfd;
   int scratch_chan;
   int flags;
-  int corelow_pid = CORELOW_PID;
 
   target_preopen (from_tty);
   if (!filename)
@@ -419,9 +404,10 @@ core_open (char *filename, int from_tty)
 	 usually happen, but we're dealing with input here, which can
 	 always be broken in different ways.  */
       struct thread_info *thread = first_thread_of_process (-1);
+
       if (thread == NULL)
 	{
-	  add_inferior_silent (CORELOW_PID);
+	  inferior_appeared (current_inferior (), CORELOW_PID);
 	  inferior_ptid = pid_to_ptid (CORELOW_PID);
 	  add_thread_silent (inferior_ptid);
 	}
@@ -443,15 +429,18 @@ core_open (char *filename, int from_tty)
 
   siggy = bfd_core_file_failing_signal (core_bfd);
   if (siggy > 0)
-    /* NOTE: target_signal_from_host() converts a target signal value
-       into gdb's internal signal value.  Unfortunately gdb's internal
-       value is called ``target_signal'' and this function got the
-       name ..._from_host(). */
-    printf_filtered (_("Program terminated with signal %d, %s.\n"), siggy,
-		     target_signal_to_string (
-		       (core_gdbarch != NULL) ?
-			gdbarch_target_signal_from_host (core_gdbarch, siggy)
-			: siggy));
+    {
+      /* NOTE: target_signal_from_host() converts a target signal value
+	 into gdb's internal signal value.  Unfortunately gdb's internal
+	 value is called ``target_signal'' and this function got the
+	 name ..._from_host(). */
+      enum target_signal sig = (core_gdbarch != NULL
+		       ? gdbarch_target_signal_from_host (core_gdbarch, siggy)
+		       : target_signal_from_host (siggy));
+
+      printf_filtered (_("Program terminated with signal %d, %s.\n"), siggy,
+		       target_signal_to_string (sig));
+    }
 
   /* Fetch all registers from core file.  */
   target_fetch_registers (get_current_regcache (), -1);
@@ -508,9 +497,9 @@ deprecated_core_resize_section_table (int num_added)
 
 static void
 get_core_register_section (struct regcache *regcache,
-			   char *name,
+			   const char *name,
 			   int which,
-			   char *human_name,
+			   const char *human_name,
 			   int required)
 {
   static char *section_name = NULL;
@@ -520,21 +509,7 @@ get_core_register_section (struct regcache *regcache,
 
   xfree (section_name);
 
-  if (core_gdbarch
-      && gdbarch_core_reg_section_encodes_pid (core_gdbarch))
-    {
-      uint32_t merged_pid;
-      int pid = ptid_get_pid (inferior_ptid);
-
-      if (core_has_fake_pid)
-	pid = 0;
-
-      merged_pid = ptid_get_lwp (inferior_ptid);
-      merged_pid = merged_pid << 16 | pid;
-
-      section_name = xstrprintf ("%s/%s", name, plongest (merged_pid));
-    }
-  else if (ptid_get_lwp (inferior_ptid))
+  if (ptid_get_lwp (inferior_ptid))
     section_name = xstrprintf ("%s/%ld", name, ptid_get_lwp (inferior_ptid));
   else
     section_name = xstrdup (name);
@@ -591,6 +566,7 @@ static void
 get_core_registers (struct target_ops *ops,
 		    struct regcache *regcache, int regno)
 {
+  struct core_regset_section *sect_list;
   int i;
 
   if (!(core_gdbarch && gdbarch_regset_from_core_section_p (core_gdbarch))
@@ -601,16 +577,30 @@ get_core_registers (struct target_ops *ops,
       return;
     }
 
-  get_core_register_section (regcache,
-			     ".reg", 0, "general-purpose", 1);
-  get_core_register_section (regcache,
-			     ".reg2", 2, "floating-point", 0);
-  get_core_register_section (regcache,
-			     ".reg-xfp", 3, "extended floating-point", 0);
-  get_core_register_section (regcache,
-  			     ".reg-ppc-vmx", 3, "ppc Altivec", 0);
-  get_core_register_section (regcache,
-			     ".reg-ppc-vsx", 4, "POWER7 VSX", 0);
+  sect_list = gdbarch_core_regset_sections (get_regcache_arch (regcache));
+  if (sect_list)
+    while (sect_list->sect_name != NULL)
+      {
+        if (strcmp (sect_list->sect_name, ".reg") == 0)
+	  get_core_register_section (regcache, sect_list->sect_name,
+				     0, sect_list->human_name, 1);
+        else if (strcmp (sect_list->sect_name, ".reg2") == 0)
+	  get_core_register_section (regcache, sect_list->sect_name,
+				     2, sect_list->human_name, 0);
+	else
+	  get_core_register_section (regcache, sect_list->sect_name,
+				     3, sect_list->human_name, 0);
+
+	sect_list++;
+      }
+
+  else
+    {
+      get_core_register_section (regcache,
+				 ".reg", 0, "general-purpose", 1);
+      get_core_register_section (regcache,
+				 ".reg2", 2, "floating-point", 0);
+    }
 
   /* Supply dummy value for all registers not found in the core.  */
   for (i = 0; i < gdbarch_num_regs (get_regcache_arch (regcache)); i++)
@@ -676,7 +666,6 @@ core_xfer_partial (struct target_ops *ops, enum target_object object,
 
 	  struct bfd_section *section;
 	  bfd_size_type size;
-	  char *contents;
 
 	  section = bfd_get_section_by_name (core_bfd, ".auxv");
 	  if (section == NULL)
@@ -708,7 +697,6 @@ core_xfer_partial (struct target_ops *ops, enum target_object object,
 
 	  struct bfd_section *section;
 	  bfd_size_type size;
-	  char *contents;
 
 	  section = bfd_get_section_by_name (core_bfd, ".wcookie");
 	  if (section == NULL)
@@ -752,9 +740,8 @@ core_xfer_partial (struct target_ops *ops, enum target_object object,
 
 	  struct bfd_section *section;
 	  bfd_size_type size;
-	  char *contents;
-
 	  char sectionstr[100];
+
 	  xsnprintf (sectionstr, sizeof sectionstr, "SPU/%s", annex);
 
 	  section = bfd_get_section_by_name (core_bfd, sectionstr);
@@ -781,6 +768,7 @@ core_xfer_partial (struct target_ops *ops, enum target_object object,
 	{
 	  /* NULL annex requests list of all present spuids.  */
 	  struct spuid_list list;
+
 	  list.buf = readbuf;
 	  list.offset = offset;
 	  list.len = len;
@@ -840,20 +828,29 @@ static char *
 core_pid_to_str (struct target_ops *ops, ptid_t ptid)
 {
   static char buf[64];
+  int pid;
 
+  /* The preferred way is to have a gdbarch/OS specific
+     implementation.  */
   if (core_gdbarch
       && gdbarch_core_pid_to_str_p (core_gdbarch))
-    {
-      char *ret = gdbarch_core_pid_to_str (core_gdbarch, ptid);
-      if (ret != NULL)
-	return ret;
-    }
+    return gdbarch_core_pid_to_str (core_gdbarch, ptid);
 
-  if (ptid_get_lwp (ptid) == 0)
-    xsnprintf (buf, sizeof buf, "<main task>");
-  else
-    xsnprintf (buf, sizeof buf, "Thread %ld", ptid_get_lwp (ptid));
+  /* Otherwise, if we don't have one, we'll just fallback to
+     "process", with normal_pid_to_str.  */
 
+  /* Try the LWPID field first.  */
+  pid = ptid_get_lwp (ptid);
+  if (pid != 0)
+    return normal_pid_to_str (pid_to_ptid (pid));
+
+  /* Otherwise, this isn't a "threaded" core -- use the PID field, but
+     only if it isn't a fake PID.  */
+  if (!core_has_fake_pid)
+    return normal_pid_to_str (ptid);
+
+  /* No luck.  We simply don't have a valid PID to print.  */
+  xsnprintf (buf, sizeof buf, "<main task>");
   return buf;
 }
 
@@ -897,11 +894,17 @@ init_core_ops (void)
   core_ops.to_thread_alive = core_thread_alive;
   core_ops.to_read_description = core_read_description;
   core_ops.to_pid_to_str = core_pid_to_str;
-  core_ops.to_stratum = core_stratum;
+  core_ops.to_stratum = process_stratum;
   core_ops.to_has_memory = core_has_memory;
   core_ops.to_has_stack = core_has_stack;
   core_ops.to_has_registers = core_has_registers;
   core_ops.to_magic = OPS_MAGIC;
+
+  if (core_target)
+    internal_error (__FILE__, __LINE__, 
+		    _("init_core_ops: core target already exists (\"%s\")."),
+		    core_target->to_longname);
+  core_target = &core_ops;
 }
 
 void

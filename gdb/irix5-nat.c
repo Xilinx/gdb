@@ -1,7 +1,7 @@
 /* Native support for the SGI Iris running IRIX version 5, for GDB.
 
    Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998,
-   1999, 2000, 2001, 2002, 2004, 2006, 2007, 2008, 2009
+   1999, 2000, 2001, 2002, 2004, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    Contributed by Alessandro Forin(af@cs.cmu.edu) at CMU
@@ -98,7 +98,7 @@ fill_gregset (const struct regcache *regcache, gregset_t *gregsetp, int regno)
 	*(regp + regi) = extract_signed_integer (buf, size, byte_order);
       }
 
-  if ((regno == -1) || (regno == gdbarch_pc_regnum (gdbarch)))
+  if ((regno == -1) || (regno == mips_regnum (gdbarch)->pc))
     {
       regi = mips_regnum (gdbarch)->pc;
       size = register_size (gdbarch, regi);
@@ -151,7 +151,7 @@ supply_fpregset (struct regcache *regcache, const fpregset_t *fpregsetp)
 
   for (regi = 0; regi < 32; regi++)
     regcache_raw_supply (regcache, gdbarch_fp0_regnum (gdbarch) + regi,
-			 (const char *) &fpregsetp->fp_r.fp_regs[regi]);
+			 (const char *) &fpregsetp->__fp_r.__fp_regs[regi]);
 
   /* We can't supply the FSR register directly to the regcache,
      because there is a size issue: On one hand, fpregsetp->fp_csr
@@ -159,7 +159,7 @@ supply_fpregset (struct regcache *regcache, const fpregset_t *fpregsetp)
      So we use a buffer of the correct size and copy into it the register
      value at the proper location.  */
   memset (fsrbuf, 0, 4);
-  memcpy (fsrbuf + 4, &fpregsetp->fp_csr, 4);
+  memcpy (fsrbuf + 4, &fpregsetp->__fp_csr, 4);
 
   regcache_raw_supply (regcache,
 		       mips_regnum (gdbarch)->fp_control_status, fsrbuf);
@@ -184,8 +184,9 @@ fill_fpregset (const struct regcache *regcache, fpregset_t *fpregsetp, int regno
     {
       if ((regno == -1) || (regno == regi))
 	{
-	  to = (char *) &(fpregsetp->fp_r.fp_regs[regi - gdbarch_fp0_regnum
-							 (gdbarch)]);
+	  const int fp0_regnum = gdbarch_fp0_regnum (gdbarch);
+
+	  to = (char *) &(fpregsetp->__fp_r.__fp_regs[regi - fp0_regnum]);
           regcache_raw_collect (regcache, regi, to);
 	}
     }
@@ -203,7 +204,7 @@ fill_fpregset (const struct regcache *regcache, fpregset_t *fpregsetp, int regno
       regcache_raw_collect (regcache,
 			    mips_regnum (gdbarch)->fp_control_status, fsrbuf);
 
-      memcpy (&fpregsetp->fp_csr, fsrbuf + 4, 4);
+      memcpy (&fpregsetp->__fp_csr, fsrbuf + 4, 4);
     }
 }
 

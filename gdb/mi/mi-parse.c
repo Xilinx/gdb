@@ -1,6 +1,6 @@
 /* MI Command Set - MI parser.
 
-   Copyright (C) 2000, 2001, 2002, 2007, 2008, 2009
+   Copyright (C) 2000, 2001, 2002, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    Contributed by Cygnus Solutions (a Red Hat company).
@@ -23,9 +23,84 @@
 #include "defs.h"
 #include "mi-cmds.h"
 #include "mi-parse.h"
+#include "charset.h"
 
 #include <ctype.h>
 #include "gdb_string.h"
+
+/* Like parse_escape, but leave the results as a host char, not a
+   target char.  */
+
+static int
+mi_parse_escape (char **string_ptr)
+{
+  int c = *(*string_ptr)++;
+
+  switch (c)
+    {
+      case '\n':
+	return -2;
+      case 0:
+	(*string_ptr)--;
+	return 0;
+
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+	{
+	  int i = host_hex_value (c);
+	  int count = 0;
+
+	  while (++count < 3)
+	    {
+	      c = (**string_ptr);
+	      if (isdigit (c) && c != '8' && c != '9')
+		{
+		  (*string_ptr)++;
+		  i *= 8;
+		  i += host_hex_value (c);
+		}
+	      else
+		{
+		  break;
+		}
+	    }
+	  return i;
+	}
+
+    case 'a':
+      c = '\a';
+      break;
+    case 'b':
+      c = '\b';
+      break;
+    case 'f':
+      c = '\f';
+      break;
+    case 'n':
+      c = '\n';
+      break;
+    case 'r':
+      c = '\r';
+      break;
+    case 't':
+      c = '\t';
+      break;
+    case 'v':
+      c = '\v';
+      break;
+
+    default:
+      break;
+    }
+
+  return c;
+}
 
 static void
 mi_parse_argv (char *args, struct mi_parse *parse)
@@ -33,10 +108,12 @@ mi_parse_argv (char *args, struct mi_parse *parse)
   char *chp = args;
   int argc = 0;
   char **argv = xmalloc ((argc + 1) * sizeof (char *));
+
   argv[argc] = NULL;
   while (1)
     {
       char *arg;
+
       /* skip leading white space */
       while (isspace (*chp))
 	chp++;
@@ -52,6 +129,7 @@ mi_parse_argv (char *args, struct mi_parse *parse)
 	    /* A quoted string. */
 	    int len;
 	    char *start = chp + 1;
+
 	    /* Determine the buffer size. */
 	    chp = start;
 	    len = 0;
@@ -60,7 +138,7 @@ mi_parse_argv (char *args, struct mi_parse *parse)
 		if (*chp == '\\')
 		  {
 		    chp++;
-		    if (parse_escape (&chp) <= 0)
+		    if (mi_parse_escape (&chp) <= 0)
 		      {
 			/* Do not allow split lines or "\000" */
 			freeargv (argv);
@@ -93,7 +171,7 @@ mi_parse_argv (char *args, struct mi_parse *parse)
 		if (*chp == '\\')
 		  {
 		    chp++;
-		    arg[len] = parse_escape (&chp);
+		    arg[len] = mi_parse_escape (&chp);
 		  }
 		else
 		  arg[len] = *chp++;
@@ -109,6 +187,7 @@ mi_parse_argv (char *args, struct mi_parse *parse)
 	       characters into a buffer. */
 	    int len;
 	    char *start = chp;
+
 	    while (*chp != '\0' && !isspace (*chp))
 	      {
 		chp++;
@@ -144,15 +223,28 @@ mi_parse_free (struct mi_parse *parse)
   xfree (parse);
 }
 
+/* A cleanup that calls mi_parse_free.  */
+
+static void
+mi_parse_cleanup (void *arg)
+{
+  mi_parse_free (arg);
+}
 
 struct mi_parse *
-mi_parse (char *cmd)
+mi_parse (char *cmd, char **token)
 {
   char *chp;
   struct mi_parse *parse = XMALLOC (struct mi_parse);
+  struct cleanup *cleanup;
+
   memset (parse, 0, sizeof (*parse));
+  parse->all = 0;
+  parse->thread_group = -1;
   parse->thread = -1;
   parse->frame = -1;
+
+  cleanup = make_cleanup (mi_parse_cleanup, parse);
 
   /* Before starting, skip leading white space. */
   while (isspace (*cmd))
@@ -161,9 +253,9 @@ mi_parse (char *cmd)
   /* Find/skip any token and then extract it. */
   for (chp = cmd; *chp >= '0' && *chp <= '9'; chp++)
     ;
-  parse->token = xmalloc ((chp - cmd + 1) * sizeof (char *));
-  memcpy (parse->token, cmd, (chp - cmd));
-  parse->token[chp - cmd] = '\0';
+  *token = xmalloc ((chp - cmd + 1) * sizeof (char *));
+  memcpy (*token, cmd, (chp - cmd));
+  (*token)[chp - cmd] = '\0';
 
   /* This wasn't a real MI command.  Return it as a CLI_COMMAND. */
   if (*chp != '-')
@@ -172,12 +264,16 @@ mi_parse (char *cmd)
 	chp++;
       parse->command = xstrdup (chp);
       parse->op = CLI_COMMAND;
+
+      discard_cleanups (cleanup);
+
       return parse;
     }
 
   /* Extract the command. */
   {
     char *tmp = chp + 1;	/* discard ``-'' */
+
     for (; *chp && !isspace (*chp); chp++)
       ;
     parse->command = xmalloc ((chp - tmp + 1) * sizeof (char *));
@@ -188,15 +284,7 @@ mi_parse (char *cmd)
   /* Find the command in the MI table. */
   parse->cmd = mi_lookup (parse->command);
   if (parse->cmd == NULL)
-    {
-      /* FIXME: This should be a function call. */
-      fprintf_unfiltered
-	(raw_stdout,
-	 "%s^error,msg=\"Undefined MI command: %s\"\n",
-	 parse->token, parse->command);
-      mi_parse_free (parse);
-      return NULL;
-    }
+    error (_("Undefined MI command: %s"), parse->command);
 
   /* Skip white space following the command. */
   while (isspace (*chp))
@@ -209,20 +297,47 @@ mi_parse (char *cmd)
      to CLI.  */
   for (;;)
     {
-      char *start = chp;
+      const char *option;
+      size_t as = sizeof ("--all ") - 1;
+      size_t tgs = sizeof ("--thread-group ") - 1;
       size_t ts = sizeof ("--thread ") - 1;
       size_t fs = sizeof ("--frame ") - 1;
-      if (strncmp (chp, "--thread ", ts) == 0)
+
+      if (strncmp (chp, "--all ", as) == 0)
 	{
+	  parse->all = 1;
+	  chp += as;
+	}
+      /* See if --all is the last token in the input.  */
+      if (strcmp (chp, "--all") == 0)
+	{
+          parse->all = 1;
+          chp += strlen (chp);
+        }
+      if (strncmp (chp, "--thread-group ", tgs) == 0)
+	{
+	  option = "--thread-group";
+	  if (parse->thread_group != -1)
+	    error (_("Duplicate '--thread-group' option"));
+	  chp += tgs;
+	  if (*chp != 'i')
+	    error (_("Invalid thread group id"));
+	  chp += 1;
+	  parse->thread_group = strtol (chp, &chp, 10);
+	}
+      else if (strncmp (chp, "--thread ", ts) == 0)
+	{
+	  option = "--thread";
 	  if (parse->thread != -1)
-	    error ("Duplicate '--thread' option");
+	    error (_("Duplicate '--thread' option"));
 	  chp += ts;
 	  parse->thread = strtol (chp, &chp, 10);
 	}
       else if (strncmp (chp, "--frame ", fs) == 0)
 	{
+	  option = "--frame";
 	  if (parse->frame != -1)
-	    error ("Duplicate '--frame' option");
+	    error (_("Duplicate '--frame' option"));
 	  chp += fs;
 	  parse->frame = strtol (chp, &chp, 10);
 	}
@@ -230,8 +345,7 @@ mi_parse (char *cmd)
 	break;
 
       if (*chp != '\0' && !isspace (*chp))
-	error ("Invalid value for the '%s' option",
-	       start[2] == 't' ? "--thread" : "--frame");
+	error (_("Invalid value for the '%s' option"), option);
       while (isspace (*chp))
 	chp++;
     }
@@ -242,15 +356,7 @@ mi_parse (char *cmd)
     {
       mi_parse_argv (chp, parse);
       if (parse->argv == NULL)
-	{
-	  /* FIXME: This should be a function call. */
-	  fprintf_unfiltered
-	    (raw_stdout,
-	     "%s^error,msg=\"Problem parsing arguments: %s %s\"\n",
-	     parse->token, parse->command, chp);
-	  mi_parse_free (parse);
-	  return NULL;
-	}
+	error (_("Problem parsing arguments: %s %s"), parse->command, chp);
     }
 
   /* FIXME: DELETE THIS */
@@ -258,6 +364,8 @@ mi_parse (char *cmd)
      command line as a single string. */
   if (parse->cmd->cli.cmd != NULL)
     parse->args = xstrdup (chp);
+
+  discard_cleanups (cleanup);
 
   /* Fully parsed. */
   parse->op = MI_COMMAND;

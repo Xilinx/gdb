@@ -1,6 +1,7 @@
 /* DWARF 2 location expression support for GDB.
 
-   Copyright (C) 2003, 2005, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2005, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -23,15 +24,48 @@
 struct symbol_computed_ops;
 struct objfile;
 struct dwarf2_per_cu_data;
+struct dwarf2_loclist_baton;
 
 /* This header is private to the DWARF-2 reader.  It is shared between
    dwarf2read.c and dwarf2loc.c.  */
 
-/* Return the OBJFILE associated with the compilation unit CU.  */
+/* Return the OBJFILE associated with the compilation unit CU.  If CU
+   came from a separate debuginfo file, then the master objfile is
+   returned.  */
 struct objfile *dwarf2_per_cu_objfile (struct dwarf2_per_cu_data *cu);
 
 /* Return the address size given in the compilation unit header for CU.  */
 CORE_ADDR dwarf2_per_cu_addr_size (struct dwarf2_per_cu_data *cu);
+
+/* Return the offset size given in the compilation unit header for CU.  */
+int dwarf2_per_cu_offset_size (struct dwarf2_per_cu_data *cu);
+
+/* Return the text offset of the CU.  The returned offset comes from
+   this CU's objfile.  If this objfile came from a separate debuginfo
+   file, then the offset may be different from the corresponding
+   offset in the parent objfile.  */
+CORE_ADDR dwarf2_per_cu_text_offset (struct dwarf2_per_cu_data *cu);
+
+/* Find a particular location expression from a location list.  */
+const gdb_byte *dwarf2_find_location_expression
+  (struct dwarf2_loclist_baton *baton,
+   size_t *locexpr_length,
+   CORE_ADDR pc);
+
+struct dwarf2_locexpr_baton dwarf2_fetch_die_location_block
+  (unsigned int offset, struct dwarf2_per_cu_data *per_cu,
+   CORE_ADDR (*get_frame_pc) (void *baton),
+   void *baton);
+
+/* Evaluate a location description, starting at DATA and with length
+   SIZE, to find the current location of variable of TYPE in the context
+   of FRAME.  */
+
+struct value *dwarf2_evaluate_loc_desc (struct type *type,
+					struct frame_info *frame,
+					const gdb_byte *data,
+					unsigned short size,
+					struct dwarf2_per_cu_data *per_cu);
 
 /* The symbol location baton types used by the DWARF-2 reader (i.e.
    SYMBOL_LOCATION_BATON for a LOC_COMPUTED symbol).  "struct
@@ -42,7 +76,7 @@ CORE_ADDR dwarf2_per_cu_addr_size (struct dwarf2_per_cu_data *cu);
 struct dwarf2_locexpr_baton
 {
   /* Pointer to the start of the location expression.  */
-  gdb_byte *data;
+  const gdb_byte *data;
 
   /* Length of the location expression.  */
   unsigned long size;
@@ -59,7 +93,7 @@ struct dwarf2_loclist_baton
   CORE_ADDR base_address;
 
   /* Pointer to the start of the location list.  */
-  gdb_byte *data;
+  const gdb_byte *data;
 
   /* Length of the location list.  */
   unsigned long size;

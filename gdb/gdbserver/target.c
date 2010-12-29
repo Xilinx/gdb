@@ -1,5 +1,5 @@
 /* Target operations for the remote server for GDB.
-   Copyright (C) 2002, 2004, 2005, 2007, 2008, 2009
+   Copyright (C) 2002, 2004, 2005, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    Contributed by MontaVista Software.
@@ -98,7 +98,7 @@ mywait (ptid_t ptid, struct target_waitstatus *ourstatus, int options,
 
   if (ourstatus->kind == TARGET_WAITKIND_EXITED)
     fprintf (stderr,
-	     "\nChild exited with status %d\n", ourstatus->value.sig);
+	     "\nChild exited with status %d\n", ourstatus->value.integer);
   else if (ourstatus->kind == TARGET_WAITKIND_SIGNALLED)
     fprintf (stderr, "\nChild terminated with signal = 0x%x (%s)\n",
 	     target_signal_to_host (ourstatus->value.sig),
@@ -139,18 +139,60 @@ target_pid_to_str (ptid_t ptid)
   static char buf[80];
 
   if (ptid_equal (ptid, minus_one_ptid))
-    snprintf (buf, sizeof (buf), "<all threads>");
+    xsnprintf (buf, sizeof (buf), "<all threads>");
   else if (ptid_equal (ptid, null_ptid))
-    snprintf (buf, sizeof (buf), "<null thread>");
+    xsnprintf (buf, sizeof (buf), "<null thread>");
   else if (ptid_get_tid (ptid) != 0)
-    snprintf (buf, sizeof (buf), "Thread %d.0x%lx",
-	      ptid_get_pid (ptid), ptid_get_tid (ptid));
+    xsnprintf (buf, sizeof (buf), "Thread %d.0x%lx",
+	       ptid_get_pid (ptid), ptid_get_tid (ptid));
   else if (ptid_get_lwp (ptid) != 0)
-    snprintf (buf, sizeof (buf), "LWP %d.%ld",
-	      ptid_get_pid (ptid), ptid_get_lwp (ptid));
+    xsnprintf (buf, sizeof (buf), "LWP %d.%ld",
+	       ptid_get_pid (ptid), ptid_get_lwp (ptid));
   else
-    snprintf (buf, sizeof (buf), "Process %d",
-	      ptid_get_pid (ptid));
+    xsnprintf (buf, sizeof (buf), "Process %d",
+	       ptid_get_pid (ptid));
+
+  return buf;
+}
+
+/* Return a pretty printed form of target_waitstatus.  */
+
+const char *
+target_waitstatus_to_string (const struct target_waitstatus *ws)
+{
+  static char buf[200];
+  const char *kind_str = "status->kind = ";
+
+  switch (ws->kind)
+    {
+    case TARGET_WAITKIND_EXITED:
+      sprintf (buf, "%sexited, status = %d",
+	       kind_str, ws->value.integer);
+      break;
+    case TARGET_WAITKIND_STOPPED:
+      sprintf (buf, "%sstopped, signal = %s",
+	       kind_str, target_signal_to_name (ws->value.sig));
+      break;
+    case TARGET_WAITKIND_SIGNALLED:
+      sprintf (buf, "%ssignalled, signal = %s",
+	       kind_str, target_signal_to_name (ws->value.sig));
+      break;
+    case TARGET_WAITKIND_LOADED:
+      sprintf (buf, "%sloaded", kind_str);
+      break;
+    case TARGET_WAITKIND_EXECD:
+      sprintf (buf, "%sexecd", kind_str);
+      break;
+    case TARGET_WAITKIND_SPURIOUS:
+      sprintf (buf, "%sspurious", kind_str);
+      break;
+    case TARGET_WAITKIND_IGNORE:
+      sprintf (buf, "%signore", kind_str);
+      break;
+    default:
+      sprintf (buf, "%sunknown???", kind_str);
+      break;
+    }
 
   return buf;
 }

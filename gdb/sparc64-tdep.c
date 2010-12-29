@@ -1,6 +1,6 @@
 /* Target-dependent code for UltraSPARC.
 
-   Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+   Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -103,7 +103,11 @@ sparc64_floating_p (const struct type *type)
   return 0;
 }
 
-/* Check whether TYPE is "Structure or Union".  */
+/* Check whether TYPE is "Structure or Union".
+
+   In terms of Ada subprogram calls, arrays are treated the same as
+   struct and union types.  So this function also returns non-zero
+   for array types.  */
 
 static int
 sparc64_structure_or_union_p (const struct type *type)
@@ -112,6 +116,7 @@ sparc64_structure_or_union_p (const struct type *type)
     {
     case TYPE_CODE_STRUCT:
     case TYPE_CODE_UNION:
+    case TYPE_CODE_ARRAY:
       return 1;
     default:
       break;
@@ -933,6 +938,13 @@ sparc64_store_arguments (struct regcache *regcache, int nargs,
 }
 
 static CORE_ADDR
+sparc64_frame_align (struct gdbarch *gdbarch, CORE_ADDR address)
+{
+  /* The ABI requires 16-byte alignment.  */
+  return address & ~0xf;
+}
+
+static CORE_ADDR
 sparc64_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 			 struct regcache *regcache, CORE_ADDR bp_addr,
 			 int nargs, struct value **args, CORE_ADDR sp,
@@ -1131,6 +1143,7 @@ sparc64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   set_gdbarch_pc_regnum (gdbarch, SPARC64_PC_REGNUM); /* %pc */
 
   /* Call dummy code.  */
+  set_gdbarch_frame_align (gdbarch, sparc64_frame_align);
   set_gdbarch_call_dummy_location (gdbarch, AT_ENTRY_POINT);
   set_gdbarch_push_dummy_code (gdbarch, NULL);
   set_gdbarch_push_dummy_call (gdbarch, sparc64_push_dummy_call);

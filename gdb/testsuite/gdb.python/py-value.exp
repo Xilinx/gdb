@@ -1,4 +1,4 @@
-# Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+# Copyright (C) 2008, 2009, 2010 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,41 +20,14 @@ if $tracelevel then {
     strace $tracelevel
 }
 
+load_lib gdb-python.exp
+
 set testfile "py-value"
 set srcfile ${testfile}.c
 set binfile ${objdir}/${subdir}/${testfile}
 if { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable {debug}] != "" } {
     untested "Couldn't compile ${srcfile}"
     return -1
-}
-
-# Usage: gdb_py_test_multiple NAME INPUT RESULT {INPUT RESULT}...
-# Run a test named NAME, consisting of multiple lines of input.
-# After each input line INPUT, search for result line RESULT.
-# Succeed if all results are seen; fail otherwise.
-proc gdb_py_test_multiple {name args} {
-    global gdb_prompt
-    foreach {input result} $args {
-	if {[gdb_test_multiple $input "$name - $input" {
-	    -re "\[\r\n\]*($result)\[\r\n\]+($gdb_prompt | *>)$" {
-		pass "$name - $input"
-	    }
-	}]} {
-	    return 1
-	}
-    }
-    return 0
-}
-
-# Run a command in GDB, and report a failure if a Python exception is thrown.
-# If report_pass is true, report a pass if no exception is thrown.
-proc gdb_py_test_silent_cmd {cmd name report_pass} {
-  global gdb_prompt
-
-  gdb_test_multiple $cmd $name {
-      -re "Traceback.*$gdb_prompt $"  { fail $name }
-      -re "$gdb_prompt $"	      { if $report_pass { pass $name } }
-  }
 }
 
 proc test_value_creation {} {
@@ -116,16 +89,16 @@ proc test_value_numeric_ops {} {
 
   # Conversion test.
   gdb_test "print evalue" " = TWO"
-  gdb_test "python evalue = gdb.history (0)" ""
+  gdb_test_no_output "python evalue = gdb.history (0)"
   gdb_test "python print int (evalue)" "2"
 
   # Test pointer arithmethic
 
   # First, obtain the pointers
-  gdb_test "print (void *) 2" "" ""
-  gdb_test "python a = gdb.history (0)" "" ""
-  gdb_test "print (void *) 5" "" ""
-  gdb_test "python b = gdb.history (0)" "" ""
+  gdb_test "print (void *) 2" ".*" ""
+  gdb_test_no_output "python a = gdb.history (0)" ""
+  gdb_test "print (void *) 5" ".*" ""
+  gdb_test_no_output "python b = gdb.history (0)" ""
 
   gdb_test "python print 'result = ' + str(a+5)" " = 0x7" "add pointer value with python integer"
   gdb_test "python print 'result = ' + str(b-2)" " = 0x3" "subtract python integer from pointer value"
@@ -227,13 +200,18 @@ proc test_value_in_inferior {} {
   gdb_py_test_silent_cmd "python arg0 = argv.dereference ()" "dereference value" 1
 
   # Check that the dereferenced value is sane
-  gdb_test "python print arg0" "0x.*$testfile\"" "verify dereferenced value"
+  if { ! [target_info exists noargs] } {
+    gdb_test "python print arg0" "0x.*$testfile\"" "verify dereferenced value"
+  }
 
   # Smoke-test is_optimized_out attribute
   gdb_test "python print 'result =', arg0.is_optimized_out" "= False" "Test is_optimized_out attribute"
 
   # Test address attribute
   gdb_test "python print 'result =', arg0.address" "= 0x\[\[:xdigit:\]\]+" "Test address attribute"
+
+  # Test memory error.
+  gdb_test "python print gdb.parse_and_eval('*(int*)0')" "gdb.MemoryError: Cannot access memory at address 0x0.*"
 
   # Test string fetches,  both partial and whole.
   gdb_test "print st" "\"divide et impera\""
@@ -253,6 +231,54 @@ proc test_value_in_inferior {} {
   # For the purposes of this test, use repr()
   gdb_py_test_silent_cmd "python nullst = nullst.string (length = 9)" "get string beyond null" 1
   gdb_test "python print repr(nullst)" "u'divide\\\\x00et'"
+}
+
+proc test_lazy_strings {} {
+
+  global hex
+
+  gdb_test "print sptr" "\"pointer\""
+  gdb_py_test_silent_cmd "python sptr = gdb.history (0)" "Get value from history" 1
+
+  gdb_py_test_silent_cmd "python lstr = sptr.lazy_string()" "Aquire lazy string" 1
+  gdb_test "python print lstr.type" "const char \*." "Test type name equality"
+  gdb_test "python print sptr.type" "const char \*." "Test type name equality"
+  gdb_test "print sn" "0x0"
+  gdb_py_test_silent_cmd "python snptr = gdb.history (0)" "Get value from history" 1
+  gdb_test "python snstr = snptr.lazy_string(length=5)" ".*Cannot create a lazy string with address.*" "Test lazy string"
+  gdb_py_test_silent_cmd "python snstr = snptr.lazy_string(length=0)" "Succesfully create a lazy string" 1
+  gdb_test "python print snstr.length" "0" "Test lazy string length"
+  gdb_test "python print snstr.address" "0" "Test lazy string address"
+}
+
+
+proc test_inferior_function_call {} {
+    global gdb_prompt hex decimal
+
+    # Correct inferior call without arguments.
+    gdb_test "p/x fp1" " = $hex.*"
+    gdb_py_test_silent_cmd "python fp1 = gdb.history (0)" "get value from history" 1
+    gdb_test "python fp1 = fp1.dereference()" ""
+    gdb_test "python result = fp1()" ""
+    gdb_test "python print result" "void"
+
+    # Correct inferior call with arguments.
+    gdb_test "p/x fp2" " = $hex.*"
+    gdb_py_test_silent_cmd "python fp2 = gdb.history (0)" "get value from history" 1
+    gdb_test "python fp2 = fp2.dereference()" ""
+    gdb_test "python result2 = fp2(10,20)" ""
+    gdb_test "python print result2" "30"
+
+    # Incorrect to call an int value.
+    gdb_test "p i" " = $decimal.*"
+    gdb_py_test_silent_cmd "python i = gdb.history (0)" "get value from history" 1
+    gdb_test "python result3 = i()" ".*Value is not callable.*"
+
+    # Incorrect number of arguments.
+    gdb_test "p/x fp2" " = $hex.*"
+    gdb_py_test_silent_cmd "python fp3 = gdb.history (0)" "get value from history" 1
+    gdb_test "python fp3 = fp3.dereference()" ""
+    gdb_test "python result2 = fp3(10)" ".*Too few arguments in function call.*"
 }
 
 # A few objfile tests.
@@ -324,6 +350,18 @@ proc test_subscript_regression {lang} {
      gdb_py_test_silent_cmd "python rptr = gdb.history(0)" \
 	 "Obtains value from GDB" 1
      gdb_test "python print rptr\[0\]" "2" "Check pointer passed as reference"
+
+     # Just the most basic test of dynamic_cast -- it is checked in
+     # the C++ tests.
+     gdb_test "python print bool(gdb.parse_and_eval('base').dynamic_cast(gdb.lookup_type('Derived').pointer()))" \
+	 True
+
+     # Likewise.
+     gdb_test "python print gdb.parse_and_eval('base').dynamic_type" \
+	 "Derived \[*\]"
+     # A static type case.
+     gdb_test "python print gdb.parse_and_eval('5').dynamic_type" \
+	 "int"
  }
 
  gdb_breakpoint [gdb_get_line_number "break to inspect struct and union"]
@@ -336,7 +374,7 @@ proc test_subscript_regression {lang} {
 
  # Try to access an int with a subscript.  This should fail.
  gdb_test "python print intv" "1" "Baseline print of a Python value"
- gdb_test "python print intv\[0\]" "RuntimeError: Cannot subscript requested type.*" \
+ gdb_test "python print intv\[0\]" "gdb.error: Cannot subscript requested type.*" \
      "Attempt to access an integer with a subscript"
 
  # Try to access a string with a subscript.  This should pass.
@@ -351,7 +389,7 @@ proc test_subscript_regression {lang} {
 
  # Try to access a single dimension array with a subscript to the
  # result.  This should fail.
- gdb_test "python print pointer\[intv\]\[0\]" "RuntimeError: Cannot subscript requested type.*" \
+ gdb_test "python print pointer\[intv\]\[0\]" "gdb.error: Cannot subscript requested type.*" \
      "Attempt to access an integer with a subscript"
 
  # Lastly, test subscript access to an array with multiple
@@ -361,6 +399,33 @@ proc test_subscript_regression {lang} {
  gdb_test "python print marray\[1\]\[2\]" "o." "Test multiple subscript"
 }
 
+# A few tests of gdb.parse_and_eval.
+proc test_parse_and_eval {} {
+  gdb_test "python print gdb.parse_and_eval ('23')" "23" \
+    "parse_and_eval constant test"
+  gdb_test "python print gdb.parse_and_eval ('5 + 7')" "12" \
+    "parse_and_eval simple expression test"
+  gdb_test "python print type(gdb.parse_and_eval ('5 + 7'))" \
+    ".type 'gdb.Value'."\
+    "parse_and_eval type test"
+}
+
+# Test that values are hashable.
+proc test_value_hash {} {
+  gdb_py_test_multiple "Simple Python value dictionary" \
+    "python" "" \
+    "one = gdb.Value(1)" "" \
+    "two = gdb.Value(2)" "" \
+    "three = gdb.Value(3)" "" \
+    "vdict = {one:\"one str\",two:\"two str\",three:\"three str\"}" "" \
+    "end"
+    gdb_test "python print vdict\[one\]" "one str" "Test dictionary hash"
+    gdb_test "python print vdict\[two\]" "two str" "Test dictionary hash"
+    gdb_test "python print vdict\[three\]" "three str" "Test dictionary hash"
+    gdb_test "python print one.__hash__() == hash(one)" "True" "Test inbuilt hash"
+}
+
+
 # Start with a fresh gdb.
 
 gdb_exit
@@ -368,19 +433,16 @@ gdb_start
 gdb_reinitialize_dir $srcdir/$subdir
 gdb_load ${binfile}
 
-gdb_test_multiple "python print 'hello, world!'" "verify python support" {
-    -re "not supported.*$gdb_prompt $"	{
-      unsupported "python support is disabled"
-      return -1
-    }
-    -re "$gdb_prompt $"	{}
-}
+# Skip all tests if Python scripting is not enabled.
+if { [skip_python_tests] } { continue }
 
 test_value_creation
 test_value_numeric_ops
 test_value_boolean
 test_value_compare
 test_objfiles
+test_parse_and_eval
+test_value_hash
 
 # The following tests require execution.
 
@@ -390,6 +452,8 @@ if ![runto_main] then {
 }
 
 test_value_in_inferior
+test_inferior_function_call
+test_lazy_strings
 test_value_after_death
 
 # The following test recompiles the binary to test either C or C++

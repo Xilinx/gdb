@@ -192,7 +192,8 @@ coff_amd64_reloc (bfd *abfd,
 static bfd_boolean
 in_reloc_p (bfd *abfd ATTRIBUTE_UNUSED, reloc_howto_type *howto)
 {
-  return ! howto->pc_relative && howto->type != R_AMD64_IMAGEBASE;
+  return ! howto->pc_relative && howto->type != R_AMD64_IMAGEBASE
+	 && howto->type != R_AMD64_SECREL;
 }
 #endif /* COFF_WITH_PE */
 
@@ -550,16 +551,16 @@ coff_amd64_rtype_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
       bfd_set_error (bfd_error_bad_value);
       return NULL;
     }
-  if (rel->r_type >= R_AMD64_PCRLONG_1 && rel->r_type <= R_AMD64_PCRLONG_5)
-    {
-      rel->r_vaddr += (bfd_vma)(rel->r_type-R_AMD64_PCRLONG);
-      rel->r_type = R_AMD64_PCRLONG;
-    }
   howto = howto_table + rel->r_type;
 
 #if defined(COFF_WITH_PE)
   /* Cancel out code in _bfd_coff_generic_relocate_section.  */
   *addendp = 0;
+  if (rel->r_type >= R_AMD64_PCRLONG_1 && rel->r_type <= R_AMD64_PCRLONG_5)
+    {
+      *addendp -= (bfd_vma)(rel->r_type - R_AMD64_PCRLONG);
+      rel->r_type = R_AMD64_PCRLONG;
+    }
 #endif
 
   if (howto->pc_relative)
@@ -621,15 +622,15 @@ coff_amd64_rtype_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
 	osect_vma = h->root.u.def.section->output_section->vma;
       else
 	{
-	  asection *sec;
+	  asection *s;
 	  int i;
 
 	  /* Sigh, the only way to get the section to offset against
 	     is to find it the hard way.  */
-	  for (sec = abfd->sections, i = 1; i < sym->n_scnum; i++)
-	    sec = sec->next;
+	  for (s = abfd->sections, i = 1; i < sym->n_scnum; i++)
+	    s = s->next;
 
-	  osect_vma = sec->output_section->vma;
+	  osect_vma = s->output_section->vma;
 	}
 
       *addendp -= osect_vma;

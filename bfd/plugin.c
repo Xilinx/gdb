@@ -20,6 +20,10 @@
    MA 02110-1301, USA.  */
 
 #include "config.h"
+#include "bfd.h"
+
+#if BFD_SUPPORTS_PLUGINS
+
 #include <assert.h>
 #include <dlfcn.h>
 #include <stdarg.h>
@@ -64,6 +68,7 @@
 #define bfd_plugin_bfd_discard_group                  bfd_generic_discard_group
 #define bfd_plugin_section_already_linked             _bfd_generic_section_already_linked
 #define bfd_plugin_bfd_define_common_symbol           bfd_generic_define_common_symbol
+#define bfd_plugin_bfd_copy_link_hash_symbol_type     _bfd_generic_copy_link_hash_symbol_type
 
 static enum ld_plugin_status
 message (int level ATTRIBUTE_UNUSED,
@@ -73,6 +78,7 @@ message (int level ATTRIBUTE_UNUSED,
   va_start (args, format);
   printf ("bfd plugin: ");
   vprintf (format, args);
+  putchar ('\n');
   va_end (args);
   return LDPS_OK;
 }
@@ -228,26 +234,31 @@ bfd_plugin_object_p (bfd *abfd)
   int claimed = 0;
   int t = load_plugin ();
   struct ld_plugin_input_file file;
+  bfd *iobfd;
+
   if (!t)
     return NULL;
 
   file.name = abfd->filename;
 
-  if (abfd->iostream)
+  if (abfd->my_archive)
     {
-      file.fd = fileno (abfd->iostream);
-      file.offset = 0;
-      file.filesize = 0; /*FIXME*/
+      iobfd = abfd->my_archive;
+      file.offset = abfd->origin;
+      file.filesize = arelt_size (abfd);
     }
   else
     {
-      bfd *archive = abfd->my_archive;
-      BFD_ASSERT (archive);
-      file.fd = fileno (archive->iostream);
-      file.offset = abfd->origin;
-      file.filesize = arelt_size (abfd);
-
+      iobfd = abfd;
+      file.offset = 0;
+      file.filesize = 0; /*FIXME*/
     }
+
+  if (!iobfd->iostream && !bfd_open_file (iobfd))
+    return NULL;
+
+  file.fd = fileno ((FILE *) iobfd->iostream);
+
   file.handle = abfd;
   claim_file (&file, &claimed);
   if (!claimed)
@@ -309,6 +320,13 @@ bfd_plugin_core_file_failing_command (bfd *abfd ATTRIBUTE_UNUSED)
 
 static int
 bfd_plugin_core_file_failing_signal (bfd *abfd ATTRIBUTE_UNUSED)
+{
+  BFD_ASSERT (0);
+  return 0;
+}
+
+static int
+bfd_plugin_core_file_pid (bfd *abfd ATTRIBUTE_UNUSED)
 {
   BFD_ASSERT (0);
   return 0;
@@ -430,13 +448,6 @@ bfd_plugin_sizeof_headers (bfd *a ATTRIBUTE_UNUSED,
   return 0;
 }
 
-static bfd_boolean
-bfd_plugin_mkobject (bfd *abfd ATTRIBUTE_UNUSED)
-{
-  BFD_ASSERT (0);
-  return 0;
-}
-
 const bfd_target plugin_vec =
 {
   "plugin",			/* Name.  */
@@ -467,7 +478,7 @@ const bfd_target plugin_vec =
   },
   {				/* bfd_set_format.  */
     bfd_false,
-    bfd_plugin_mkobject,
+    bfd_false,
     _bfd_generic_mkarchive,
     bfd_false,
   },
@@ -492,3 +503,4 @@ const bfd_target plugin_vec =
 
   NULL  			/* backend_data.  */
 };
+#endif /* BFD_SUPPORTS_PLUGIN */

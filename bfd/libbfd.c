@@ -1,6 +1,6 @@
 /* Assorted BFD support routines, only used internally.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008
+   2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -145,6 +145,16 @@ _bfd_nocore_core_file_failing_command (bfd *ignore_abfd ATTRIBUTE_UNUSED)
 
 int
 _bfd_nocore_core_file_failing_signal (bfd *ignore_abfd ATTRIBUTE_UNUSED)
+{
+  bfd_set_error (bfd_error_invalid_operation);
+  return 0;
+}
+
+/* Routine to handle the core_file_pid entry point for targets without
+   core file support.  */
+
+int
+_bfd_nocore_core_file_pid (bfd *ignore_abfd ATTRIBUTE_UNUSED)
 {
   bfd_set_error (bfd_error_invalid_operation);
   return 0;
@@ -804,9 +814,9 @@ bfd_put_bits (bfd_uint64_t data, void *p, int bits, bfd_boolean big_p)
   bytes = bits / 8;
   for (i = 0; i < bytes; i++)
     {
-      int index = big_p ? bytes - i - 1 : i;
+      int addr_index = big_p ? bytes - i - 1 : i;
 
-      addr[index] = data & 0xff;
+      addr[addr_index] = data & 0xff;
       data >>= 8;
     }
 }
@@ -826,9 +836,9 @@ bfd_get_bits (const void *p, int bits, bfd_boolean big_p)
   bytes = bits / 8;
   for (i = 0; i < bytes; i++)
     {
-      int index = big_p ? i : bytes - i - 1;
+      int addr_index = big_p ? i : bytes - i - 1;
 
-      data = (data << 8) | addr[index];
+      data = (data << 8) | addr[addr_index];
     }
 
   return data;
@@ -846,6 +856,15 @@ _bfd_generic_get_section_contents (bfd *abfd,
   bfd_size_type sz;
   if (count == 0)
     return TRUE;
+
+  if (section->compress_status != COMPRESS_SECTION_NONE)
+    {
+      (*_bfd_error_handler)
+	(_("%B: unable to get decompressed section %A"),
+	 abfd, section);
+      bfd_set_error (bfd_error_invalid_operation);
+      return FALSE;
+    }
 
   sz = section->rawsize ? section->rawsize : section->size;
   if (offset + count < count

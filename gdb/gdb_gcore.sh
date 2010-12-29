@@ -1,6 +1,7 @@
 #!/bin/sh
 
-#   Copyright (C) 2003, 2005, 2007, 2008, 2009 Free Software Foundation, Inc.
+#   Copyright (C) 2003, 2005, 2007, 2008, 2009, 2010
+#   Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -44,32 +45,17 @@ then
     shift; shift
 fi
 
-# Create a temporary file.  Use mktemp if available, but cope if it is not.
-tmpfile=`mktemp ${name}.XXXXXX 2>/dev/null` || {
-  tmpfile=${name}.$$
-  if test -e $tmpfile; then
-    echo "Could not create temporary file $tmpfile"
-    exit 1
-  fi
-  touch $tmpfile
-}
-trap "rm -f $tmpfile" EXIT
-
 # Initialise return code.
 rc=0
 
 # Loop through pids
 for pid in $*
 do
-	# Write gdb script for pid $pid.  
-	cat >>$tmpfile <<EOF
-attach $pid
-gcore $name.$pid
-detach
-quit
-EOF
-
-	gdb -x $tmpfile -batch
+	# `</dev/null' to avoid touching interactive terminal if it is
+	# available but not accessible as GDB would get stopped on SIGTTIN.
+	gdb </dev/null --nx --batch \
+	    -ex "set pagination off" -ex "set height 0" -ex "set width 0" \
+	    -ex "attach $pid" -ex "gcore $name.$pid" -ex detach -ex quit
 
 	if [ -r $name.$pid ] ; then 
 	    rc=0

@@ -1,5 +1,6 @@
 /* Definitions used by the GDB event loop.
-   Copyright (C) 1999, 2000, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
    Written by Elena Zannoni <ezannoni@cygnus.com> of Cygnus Solutions.
 
    This file is part of GDB.
@@ -17,18 +18,18 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-/* An event loop listens for events from multiple event sources. When
+/* An event loop listens for events from multiple event sources.  When
    an event arrives, it is queued and processed by calling the
-   appropriate event handler. The event loop then continues to listen
-   for more events. An event loop completes when there are no event
+   appropriate event handler.  The event loop then continues to listen
+   for more events.  An event loop completes when there are no event
    sources to listen on.  External event sources can be plugged into
    the loop.
 
    There are 4 main components:
-   - a list of file descriptors to be monitored, GDB_NOTIFIER.  
+   - a list of file descriptors to be monitored, GDB_NOTIFIER.
    - a list of asynchronous event sources to be monitored,
      ASYNC_EVENT_HANDLER_LIST.
-   - a list of events that have occurred, EVENT_QUEUE.  
+   - a list of events that have occurred, EVENT_QUEUE.
    - a list of signal handling functions, SIGHANDLER_LIST.
 
    GDB_NOTIFIER keeps track of the file descriptor based event
@@ -63,9 +64,9 @@
    functions that are invoked through traditional signal handlers.
    The actions to be taken is response to such events will be executed
    when the SIGHANDLER_LIST is scanned, the next time through the
-   infinite loop.  
+   infinite loop.
 
-   Corollary tasks are the creation and deletion of event sources. */
+   Corollary tasks are the creation and deletion of event sources.  */
 
 typedef void *gdb_client_data;
 struct async_signal_handler;
@@ -75,35 +76,32 @@ typedef void (sig_handler_func) (gdb_client_data);
 typedef void (async_event_handler_func) (gdb_client_data);
 typedef void (timer_handler_func) (gdb_client_data);
 
-/* Where to add an event onto the event queue, by queue_event. */
+/* Where to add an event onto the event queue, by queue_event.  */
 typedef enum
   {
-    /* Add at tail of queue. It will be processed in first in first
-       out order. */
+    /* Add at tail of queue.  It will be processed in first in first
+       out order.  */
     TAIL,
-    /* Add at head of queue. It will be processed in last in first out
-       order. */
+    /* Add at head of queue.  It will be processed in last in first
+       out order.  */
     HEAD
   }
 queue_position;
-
-/* Tell create_file_handler what events we are interested in. 
-   This is used by the select version of the event loop. */
-
-#define GDB_READABLE	(1<<1)
-#define GDB_WRITABLE	(1<<2)
-#define GDB_EXCEPTION	(1<<3)
 
 /* Exported functions from event-loop.c */
 
 extern void start_event_loop (void);
 extern int gdb_do_one_event (void *data);
 extern void delete_file_handler (int fd);
-extern void add_file_handler (int fd, handler_func * proc, gdb_client_data client_data);
+extern void add_file_handler (int fd, handler_func *proc, 
+			      gdb_client_data client_data);
 extern struct async_signal_handler *
-  create_async_signal_handler (sig_handler_func * proc, gdb_client_data client_data);
+  create_async_signal_handler (sig_handler_func *proc, 
+			       gdb_client_data client_data);
 extern void delete_async_signal_handler (struct async_signal_handler **async_handler_ptr);
-extern int create_timer (int milliseconds, timer_handler_func * proc, gdb_client_data client_data);
+extern int create_timer (int milliseconds, 
+			 timer_handler_func *proc, 
+			 gdb_client_data client_data);
 extern void delete_timer (int id);
 
 /* Call the handler from HANDLER immediately.  This function

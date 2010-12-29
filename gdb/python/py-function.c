@@ -1,6 +1,6 @@
 /* Convenience functions implemented in Python.
 
-   Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -38,6 +38,7 @@ convert_values_to_python (int argc, struct value **argv)
 {
   int i;
   PyObject *result = PyTuple_New (argc);
+
   for (i = 0; i < argc; ++i)
     {
       PyObject *elt = value_to_value_object (argv[i]);
@@ -57,7 +58,6 @@ static struct value *
 fnpy_call (struct gdbarch *gdbarch, const struct language_defn *language,
 	   void *cookie, int argc, struct value **argv)
 {
-  int i;
   struct value *value = NULL;
   PyObject *result, *callable, *args;
   struct cleanup *cleanup;
@@ -104,6 +104,7 @@ static int
 fnpy_init (PyObject *self, PyObject *args, PyObject *kwds)
 {
   char *name, *docstring = NULL;
+
   if (! PyArg_ParseTuple (args, "s", &name))
     return -1;
   Py_INCREF (self);
@@ -112,7 +113,14 @@ fnpy_init (PyObject *self, PyObject *args, PyObject *kwds)
     {
       PyObject *ds_obj = PyObject_GetAttrString (self, "__doc__");
       if (ds_obj && gdbpy_is_string (ds_obj))
-	docstring = python_string_to_host_string (ds_obj);
+	{
+	  docstring = python_string_to_host_string (ds_obj);
+	  if (docstring == NULL)
+	    {
+	      Py_DECREF (self);
+	      return -1;
+	    }
+	}
     }
   if (! docstring)
     docstring = xstrdup (_("This function is not documented."));

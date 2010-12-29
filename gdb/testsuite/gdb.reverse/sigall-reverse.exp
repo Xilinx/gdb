@@ -1,5 +1,4 @@
-#   Copyright 2009
-#   Free Software Foundation, Inc.
+#   Copyright 2009, 2010 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,8 +26,6 @@ if $tracelevel then {
 	strace $tracelevel
 }
 
-set prms_id 0
-set bug_id 0
 
 gdb_exit
 gdb_start
@@ -177,8 +174,7 @@ runto gen_ABRT
 
 if [target_info exists gdb,use_precord] {
     # Activate process record/replay
-    gdb_test "record" "" "Turn on process record"
-    # FIXME: command ought to acknowledge, so we can test if it succeeded.
+    gdb_test_no_output "record" "Turn on process record"
 }
 
 test_one_sig HUP
@@ -262,16 +258,9 @@ gdb_test "continue" \
     "get signal TERM"
 gdb_test "continue" "Breakpoint.*handle_TERM.*" "send signal TERM"
 
-set testmsg "continue to sigall exit"
-gdb_test_multiple "continue" $testmsg {
-    -re ".*Do you want to stop the program.*$" {
-	send_gdb "yes\n"
-	exp_continue
-    }
-    -re "$gdb_prompt " {
-	pass $testmsg
-    }
-}
+gdb_test "continue" "\[process \[0-9\]+ .*" "continue to sigal exit" \
+    "The next instruction is syscall exit_group.* program...y. or n. " \
+    "yes"
 
 test_one_sig_reverse TERM
 test_one_sig_reverse 63

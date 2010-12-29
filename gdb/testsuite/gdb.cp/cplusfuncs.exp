@@ -1,4 +1,4 @@
-# Copyright 1992, 1997, 1999, 2001, 2002, 2003, 2004, 2007, 2008, 2009
+# Copyright 1992, 1997, 1999, 2001, 2002, 2003, 2004, 2007, 2008, 2009, 2010
 # Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
@@ -63,12 +63,28 @@ set dm_type_foo_ref 		"foo&"
 set dm_type_int_star		"int*"
 set dm_type_long_star		"long*"
 set dm_type_unsigned_int	"unsigned"
-set dm_type_void		""
+set dm_type_void		"void"
 set dm_type_void_star		"void*"
+
+# Some other vagaries of GDB's type printing machinery.  The integer types
+# may have unsigned before or after their length, and may have "int"
+# appended.  The char* conversion operator may have name "char*" even if
+# the type is "char *", because the name comes from the debug information
+# and the type from GDB.  Function types may not see through typedefs.
+
+set dm_type_short		"short"
+set dm_type_long		"long"
+set dm_type_unsigned_short	"unsigned short"
+set dm_type_unsigned_long	"unsigned long"
+set dm_operator_char_star	"char*"
+set dm_operator_char_star_quoted	"char\\*"
+set dm_type_typedef		0
 
 proc probe_demangler { } {
     global gdb_prompt
     global dm_operator_comma
+    global dm_operator_char_star
+    global dm_operator_char_star_quoted
     global dm_type_char_star
     global dm_type_char_star_quoted
     global dm_type_foo_ref
@@ -77,159 +93,200 @@ proc probe_demangler { } {
     global dm_type_unsigned_int
     global dm_type_void
     global dm_type_void_star
+    global dm_type_short
+    global dm_type_unsigned_short
+    global dm_type_long
+    global dm_type_unsigned_long
+    global dm_type_typedef
 
-    send_gdb "print &'foo::operator,(foo&)'\n"
-    gdb_expect {
-	-re ".*foo::operator, \\(.*foo.*&.*\\).*\r\n$gdb_prompt $" {
-	    # v2 demangler
-	    set dm_operator_comma ", "
-	    pass "detect dm_operator_comma"
+    gdb_test_multiple "print &foo::operator,(foo&)" \
+	"detect dm_operator_comma" {
+	    -re ".*foo::operator, \\(.*foo.*&.*\\).*\r\n$gdb_prompt $" {
+		# v2 demangler
+		set dm_operator_comma ", "
+		pass "detect dm_operator_comma"
+	    }
+	    -re ".*foo::operator,\\(.*foo.*&.*\\).*\r\n$gdb_prompt $" {
+		# v3 demangler
+		pass "detect dm_operator_comma"
+	    }
 	}
-	-re ".*foo::operator,\\(.*foo.*&.*\\).*\r\n$gdb_prompt $" {
-	    # v3 demangler
-	    pass "detect dm_operator_comma"
-	}
-	-re ".*$gdb_prompt $" {
-	    fail "detect dm_operator_comma"
-	}
-	timeout {
-	    fail "detect dm_operator_comma"
-	}
-    }
 
-    send_gdb "print &'dm_type_char_star'\n"
-    gdb_expect {
-	-re ".*dm_type_char_star\\(char \\*\\).*\r\n$gdb_prompt $" {
-	    # v2 demangler
-	    set dm_type_char_star "char *"
-	    set dm_type_char_star_quoted "char \\*"
-	    pass "detect dm_type_char_star"
+    gdb_test_multiple "print &foo::operator char*($dm_type_void)" \
+	"detect dm_operator_char_star" {
+	    -re ".*foo::operator char \\*\\(void\\).*\r\n$gdb_prompt $" {
+		# v2 demangler or GDB type printer
+		set dm_operator_char_star "char *"
+		set dm_operator_char_star_quoted "char \\*"
+		pass "detect dm_operator_char_star"
+	    }
+	    -re ".*foo::operator char\\*\\(\\).*\r\n$gdb_prompt $" {
+		# v3 demangler
+		pass "detect dm_operator_char_star"
+	    }
 	}
-	-re ".*dm_type_char_star\\(char\\*\\).*\r\n$gdb_prompt $" {
-	    # v3 demangler
-	    pass "detect dm_type_char_star"
-	}
-	-re ".*$gdb_prompt $" {
-	    fail "detect dm_type_char_star"
-	}
-	timeout {
-	    fail "detect dm_type_char_star (timeout)"
-	}
-    }
 
-    send_gdb "print &'dm_type_foo_ref'\n"
-    gdb_expect {
-	-re ".*dm_type_foo_ref\\(foo &\\).*\r\n$gdb_prompt $" {
-	    # v2 demangler
-	    set dm_type_foo_ref "foo &"
-	    pass "detect dm_type_foo_ref"
+    gdb_test_multiple "print &dm_type_char_star" \
+	"detect dm_type_char_star" {
+	    -re ".*dm_type_char_star\\(char \\*\\).*\r\n$gdb_prompt $" {
+		# v2 demangler
+		set dm_type_char_star "char *"
+		set dm_type_char_star_quoted "char \\*"
+		pass "detect dm_type_char_star"
+	    }
+	    -re ".*dm_type_char_star\\(char\\*\\).*\r\n$gdb_prompt $" {
+		# v3 demangler
+		pass "detect dm_type_char_star"
+	    }
 	}
-	-re ".*dm_type_foo_ref\\(foo&\\).*\r\n$gdb_prompt $" {
-	    # v3 demangler
-	    pass "detect dm_type_foo_ref"
-	}
-	-re ".*$gdb_prompt $" {
-	    fail "detect dm_type_foo_ref"
-	}
-	timeout {
-	    fail "detect dm_type_foo_ref (timeout)"
-	}
-    }
 
-    send_gdb "print &'dm_type_int_star'\n"
-    gdb_expect {
-	-re ".*dm_type_int_star\\(int \\*\\).*\r\n$gdb_prompt $" {
-	    # v2 demangler
-	    set dm_type_int_star "int *"
-	    pass "detect dm_type_int_star"
+    gdb_test_multiple "print &dm_type_foo_ref" \
+	"detect dm_type_foo_ref" {
+	    -re ".*dm_type_foo_ref\\(foo &\\).*\r\n$gdb_prompt $" {
+		# v2 demangler
+		set dm_type_foo_ref "foo &"
+		pass "detect dm_type_foo_ref"
+	    }
+	    -re ".*dm_type_foo_ref\\(foo&\\).*\r\n$gdb_prompt $" {
+		# v3 demangler
+		pass "detect dm_type_foo_ref"
+	    }
 	}
-	-re ".*dm_type_int_star\\(int\\*\\).*\r\n$gdb_prompt $" {
-	    # v3 demangler
-	    pass "detect dm_type_int_star"
-	}
-	-re ".*$gdb_prompt $" {
-	    fail "detect dm_type_int_star"
-	}
-	timeout {
-	    fail "detect dm_type_int_star (timeout)"
-	}
-    }
 
-    send_gdb "print &'dm_type_long_star'\n"
-    gdb_expect {
-	-re ".*dm_type_long_star\\(long \\*\\).*\r\n$gdb_prompt $" {
-	    # v2 demangler
-	    set dm_type_long_star "long *"
-	    pass "detect dm_type_long_star"
+    gdb_test_multiple "print &dm_type_int_star" \
+	"detect dm_type_int_star" {
+	    -re ".*dm_type_int_star\\(int \\*\\).*\r\n$gdb_prompt $" {
+		# v2 demangler
+		set dm_type_int_star "int *"
+		pass "detect dm_type_int_star"
+	    }
+	    -re ".*dm_type_int_star\\(int\\*\\).*\r\n$gdb_prompt $" {
+		# v3 demangler
+		pass "detect dm_type_int_star"
+	    }
 	}
-	-re ".*dm_type_long_star\\(long\\*\\).*\r\n$gdb_prompt $" {
-	    # v3 demangler
-	    pass "detect dm_type_long_star"
-	}
-	-re ".*$gdb_prompt $" {
-	    fail "detect dm_type_long_star"
-	}
-	timeout {
-	    fail "detect dm_type_long_star (timeout)"
-	}
-    }
 
-    send_gdb "print &'dm_type_unsigned_int'\n"
-    gdb_expect {
-	-re ".*dm_type_unsigned_int\\(unsigned int\\).*\r\n$gdb_prompt $" {
-	    # v2 demangler
-	    set dm_type_unsigned_int "unsigned int"
-	    pass "detect dm_type_unsigned_int"
+    gdb_test_multiple "print &dm_type_long_star" \
+	"detect dm_type_long_star" {
+	    -re ".*dm_type_long_star\\(long \\*\\).*\r\n$gdb_prompt $" {
+		# v2 demangler
+		set dm_type_long_star "long *"
+		pass "detect dm_type_long_star"
+	    }
+	    -re ".*dm_type_long_star\\(long\\*\\).*\r\n$gdb_prompt $" {
+		# v3 demangler
+		pass "detect dm_type_long_star"
+	    }
+	    -re ".*dm_type_long_star\\(long int \\*\\).*\r\n$gdb_prompt $" {
+		# GCC v3 and GDB's type printer
+		set dm_type_long_star "long int *"
+		pass "detect dm_type_long_star"
+	    }
 	}
-	-re ".*dm_type_unsigned_int\\(unsigned\\).*\r\n$gdb_prompt $" {
-	    # v3 demangler
-	    pass "detect dm_type_unsigned_int"
-	}
-	-re ".*$gdb_prompt $" {
-	    fail "detect dm_type_unsigned_int"
-	}
-	timeout {
-	    fail "detect dm_unsigned int (timeout)"
-	}
-    }
 
-    send_gdb "print &'dm_type_void'\n"
-    gdb_expect {
-	-re ".*dm_type_void\\(void\\).*\r\n$gdb_prompt $" {
-	    # v2 demangler
-	    set dm_type_void "void"
-	    pass "detect dm_type_void"
+    gdb_test_multiple "print &dm_type_unsigned_int" \
+	"detect dm_type_unsigned_int" {
+	    -re ".*dm_type_unsigned_int\\(unsigned int\\).*\r\n$gdb_prompt $" {
+		# v2 demangler
+		set dm_type_unsigned_int "unsigned int"
+		pass "detect dm_type_unsigned_int"
+	    }
+	    -re ".*dm_type_unsigned_int\\(unsigned\\).*\r\n$gdb_prompt $" {
+		# v3 demangler
+		pass "detect dm_type_unsigned_int"
+	    }
 	}
-	-re ".*dm_type_void\\(\\).*\r\n$gdb_prompt $" {
-	    # v3 demangler
-	    pass "detect dm_type_void"
-	}
-	-re ".*$gdb_prompt $" {
-	    fail "detect dm_type_void"
-	}
-	timeout {
-	    fail "detect dm_type_void (timeout)"
-	}
-    }
 
-    send_gdb "print &'dm_type_void_star'\n"
-    gdb_expect {
-	-re ".*dm_type_void_star\\(void \\*\\).*\r\n$gdb_prompt $" {
-	    # v2 demangler
-	    set dm_type_void_star "void *"
-	    pass "detect dm_type_void_star"
+    gdb_test_multiple "print &dm_type_void" \
+	"detect dm_type_void" {
+	    -re ".*dm_type_void\\(void\\).*\r\n$gdb_prompt $" {
+		# v2 demangler
+		set dm_type_void "void"
+		pass "detect dm_type_void"
+	    }
+	    -re ".*dm_type_void\\(\\).*\r\n$gdb_prompt $" {
+		# v3 demangler
+		pass "detect dm_type_void"
+	    }
 	}
-	-re ".*dm_type_void_star\\(void\\*\\).*\r\n$gdb_prompt $" {
-	    # v3 demangler
-	    pass "detect dm_type_void_star"
+
+    gdb_test_multiple "print &dm_type_void_star" \
+	"detect dm_type_void_star" {
+	    -re ".*dm_type_void_star\\(void \\*\\).*\r\n$gdb_prompt $" {
+		# v2 demangler
+		set dm_type_void_star "void *"
+		pass "detect dm_type_void_star"
+	    }
+	    -re ".*dm_type_void_star\\(void\\*\\).*\r\n$gdb_prompt $" {
+		# v3 demangler
+		pass "detect dm_type_void_star"
+	    }
 	}
-	-re ".*$gdb_prompt $" {
-	    fail "detect dm_type_void_star"
+
+    gdb_test_multiple "print &dm_type_short" \
+	"detect dm_type_short" {
+	    -re ".*dm_type_short\\(short\\).*\r\n$gdb_prompt $" {
+		# v2 and v3 demanglers
+		pass "detect dm_type_short"
+	    }
+	    -re ".*dm_type_short\\(short int\\).*\r\n$gdb_prompt $" {
+		# GDB type printer
+		set dm_type_short "short int"
+		pass "detect dm_type_short"
+	    }
 	}
-	timeout {
-	    fail "detect dm_type_void_star (timeout)"
+
+    gdb_test_multiple "print &dm_type_unsigned_short" \
+	"detect dm_type_unsigned_short" {
+	    -re ".*dm_type_unsigned_short\\(unsigned short\\).*\r\n$gdb_prompt $" {
+		# v2 and v3 demanglers
+		pass "detect dm_type_unsigned_short"
+	    }
+	    -re ".*dm_type_unsigned_short\\(short unsigned int\\).*\r\n$gdb_prompt $" {
+		# GDB type printer
+		set dm_type_unsigned_short "short unsigned int"
+		pass "detect dm_type_unsigned_short"
+	    }
 	}
-    }
+
+    gdb_test_multiple "print &dm_type_long" \
+	"detect dm_type_long" {
+	    -re ".*dm_type_long\\(long\\).*\r\n$gdb_prompt $" {
+		# v2 and v3 demanglers
+		pass "detect dm_type_long"
+	    }
+	    -re ".*dm_type_long\\(long int\\).*\r\n$gdb_prompt $" {
+		# GDB type printer
+		set dm_type_long "long int"
+		pass "detect dm_type_long"
+	    }
+	}
+
+    gdb_test_multiple "print &dm_type_unsigned_long" \
+	"detect dm_type_unsigned_long" {
+	    -re ".*dm_type_unsigned_long\\(unsigned long\\).*\r\n$gdb_prompt $" {
+		# v2 and v3 demanglers
+		pass "detect dm_type_unsigned_long"
+	    }
+	    -re ".*dm_type_unsigned_long\\(long unsigned int\\).*\r\n$gdb_prompt $" {
+		# GDB type printer
+		set dm_type_unsigned_long "long unsigned int"
+		pass "detect dm_type_unsigned_long"
+	    }
+	}
+
+    gdb_test_multiple "print &dm_type_typedef" \
+	"detect dm_type_typedef" {
+	    -re ".*dm_type_typedef\\(int\\).*\r\n$gdb_prompt $" {
+		# v2 and v3 demanglers
+		pass "detect dm_type_typedef"
+	    }
+	    -re ".*dm_type_typedef\\(myint\\).*\r\n$gdb_prompt $" {
+		# GDB type printer
+		set dm_type_typedef 1
+		pass "detect dm_type_typedef"
+	    }
+	}
 }
 
 #
@@ -240,18 +297,11 @@ proc probe_demangler { } {
 proc info_func_regexp { name demangled } {
     global gdb_prompt
 
-    send_gdb "info function $name\n"
-    gdb_expect {
-	-re ".*File .*:\r\n(class |)$demangled\r\n.*$gdb_prompt $" {
-	    pass "info function for \"$name\""
-	}
-	-re ".*$gdb_prompt $" {
-	    fail "info function for \"$name\""
-	}
-	timeout {
-	    fail "info function for \"$name\" (timeout)"
-	}
-    }
+    regsub {\\\(void\\\)} $demangled {\(\)} demangled
+
+    gdb_test "info function $name" \
+	"File .*:\r\n(class|)${demangled}.*" \
+	"info function for \"$name\""
 }
 
 #
@@ -277,18 +327,8 @@ proc print_addr_2 { name good } {
 
     set good_pattern [string_to_regexp $good]
 
-    send_gdb "print &'$name'\n"
-    gdb_expect {
-	-re ".* = .* $hex <$good_pattern>\r\n$gdb_prompt $" {
-	    pass "print &'$name'"
-	}
-	-re ".*$gdb_prompt $" {
-	    fail "print &'$name'"
-	}
-	timeout {
-	    fail "print &'$name' (timeout)"
-	}
-    }
+    gdb_test "print &$name" \
+	".* = .* $hex <$good_pattern>"
 }
 
 # NOTE: carlton/2003-01-16: hairyfunc5-6 fail on GCC 3.x (for at least
@@ -305,19 +345,12 @@ proc print_addr_2_kfail { name good bad bugid } {
     set good_pattern [string_to_regexp $good]
     set bad_pattern [string_to_regexp $bad]
 
-    send_gdb "print &'$name'\n"
-    gdb_expect {
+    gdb_test_multiple "print &$name" "print &$name" {
 	-re ".* = .* $hex <$good_pattern>\r\n$gdb_prompt $" {
-	    pass "print &'$name'"
+	    pass "print &$name"
 	}
 	-re ".* = .* $hex <$bad_pattern>\r\n$gdb_prompt $" {
-	    kfail $bugid "print &'$name'"
-	}
-	-re ".*$gdb_prompt $" {
-	    fail "print &'$name'"
-	}
-	timeout {
-	    fail "print &'$name' (timeout)"
+	    kfail $bugid "print &$name"
 	}
     }
 }
@@ -327,7 +360,12 @@ proc print_addr_2_kfail { name good bad bugid } {
 #
 
 proc print_addr { name } {
-    print_addr_2 "$name" "$name"
+    regsub {\(void\)} $name {()} expected
+    if {[string first "::" $name] == -1} {
+	# C function -- must be qutoed
+	set name "'$name'"
+    }
+    print_addr_2 "$name" $expected
 }
 
 #
@@ -345,8 +383,9 @@ proc print_addr { name } {
 
 proc test_lookup_operator_functions {} {
     global dm_operator_comma
+    global dm_operator_char_star
     global dm_type_char_star
-    global dm_type_char_star_quoted
+    global dm_operator_char_star_quoted
     global dm_type_foo_ref
     global dm_type_void
     global dm_type_void_star
@@ -404,8 +443,8 @@ proc test_lookup_operator_functions {} {
 
     info_func "operator int("	"int foo::operator int($dm_type_void);"
     info_func "operator()("	"void foo::operator()($dm_type_foo_ref);"
-    info_func "operator $dm_type_char_star_quoted\(" \
-				"char *foo::operator $dm_type_char_star\($dm_type_void);"
+    info_func "operator $dm_operator_char_star_quoted\(" \
+				"char *foo::operator $dm_operator_char_star\($dm_type_void);"
 
 }
 
@@ -420,6 +459,7 @@ proc test_paddr_operator_functions {} {
     global dm_type_unsigned_int
     global dm_type_void
     global dm_type_void_star
+    global dm_operator_char_star
 
     print_addr "foo::operator*($dm_type_foo_ref)"
     print_addr "foo::operator%($dm_type_foo_ref)"
@@ -460,17 +500,20 @@ proc test_paddr_operator_functions {} {
     print_addr "foo::operator\[\]($dm_type_foo_ref)"
     print_addr "foo::operator()($dm_type_foo_ref)"
 
-    gdb_test "print &'foo::operator new'" \
+    gdb_test "print &foo::operator new" \
 	" = .* $hex <foo::operator new\\(.*\\)(| static)>"
+    gdb_test "print &foo::operator new\[\]" \
+	" = .* $hex <foo::operator new\\\[\\\]\\(.*\\)(| static)>"    
     if { !$hp_aCC_compiler } {
 	print_addr "foo::operator delete($dm_type_void_star)"
+	print_addr "foo::operator delete[]($dm_type_void_star)"
     } else {
 	gdb_test "print &'foo::operator delete($dm_type_void_star) static'" \
 	    " = .*(0x\[0-9a-f\]+|) <foo::operator delete.*>"
     }
 
     print_addr "foo::operator int($dm_type_void)"
-    print_addr "foo::operator $dm_type_char_star\($dm_type_void)"
+    print_addr "foo::operator $dm_operator_char_star\($dm_type_void)"
 }
 
 #
@@ -480,17 +523,21 @@ proc test_paddr_operator_functions {} {
 proc test_paddr_overloaded_functions {} {
     global dm_type_unsigned_int
     global dm_type_void
+    global dm_type_short
+    global dm_type_unsigned_short
+    global dm_type_long
+    global dm_type_unsigned_long
 
     print_addr "overload1arg($dm_type_void)"
     print_addr "overload1arg(char)"
     print_addr "overload1arg(signed char)"
     print_addr "overload1arg(unsigned char)"
-    print_addr "overload1arg(short)"
-    print_addr "overload1arg(unsigned short)"
+    print_addr "overload1arg($dm_type_short)"
+    print_addr "overload1arg($dm_type_unsigned_short)"
     print_addr "overload1arg(int)"
     print_addr "overload1arg($dm_type_unsigned_int)"
-    print_addr "overload1arg(long)"
-    print_addr "overload1arg(unsigned long)"
+    print_addr "overload1arg($dm_type_long)"
+    print_addr "overload1arg($dm_type_unsigned_long)"
     print_addr "overload1arg(float)"
     print_addr "overload1arg(double)"
 
@@ -513,22 +560,34 @@ proc test_paddr_hairy_functions {} {
     global dm_type_char_star
     global dm_type_int_star
     global dm_type_long_star
+    global dm_type_typedef
 
     print_addr_2 "hairyfunc1" "hairyfunc1(int)"
-    print_addr_2 "hairyfunc2" "hairyfunc2(int (*)($dm_type_char_star))"
-    print_addr_2 "hairyfunc3" "hairyfunc3(int (*)(short (*)($dm_type_long_star)))"
-    print_addr_2 "hairyfunc4" "hairyfunc4(int (*)(short (*)($dm_type_char_star)))"
 
-    # gdb-gnats bug gdb/19:
-    # "gdb v3 demangler fails on hairyfunc5 hairyfunc6 hairyfunc7"
-    print_addr_2_kfail "hairyfunc5" "hairyfunc5(int (*(*)($dm_type_char_star))(long))" "hairyfunc5(int (*)(long) (*)(char*))" "gdb/19"
-    print_addr_2_kfail "hairyfunc6" "hairyfunc6(int (*(*)($dm_type_int_star))(long))" "hairyfunc6(int (*)(long) (*)(int*))" "gdb/19"
-    print_addr_2_kfail "hairyfunc7" "hairyfunc7(int (*(*)(int (*)($dm_type_char_star)))(long))" "hairyfunc7(int (*)(long) (*)(int (*)(char*)))" "gdb/19"
+    if {$dm_type_typedef == 0} {
+	print_addr_2 "hairyfunc2" "hairyfunc2(int (*)($dm_type_char_star))"
+	print_addr_2 "hairyfunc3" "hairyfunc3(int (*)(short (*)($dm_type_long_star)))"
+	print_addr_2 "hairyfunc4" "hairyfunc4(int (*)(short (*)($dm_type_char_star)))"
+
+	# gdb-gnats bug gdb/19:
+	# "gdb v3 demangler fails on hairyfunc5 hairyfunc6 hairyfunc7"
+	print_addr_2_kfail "hairyfunc5" "hairyfunc5(int (*(*)($dm_type_char_star))(long))" "hairyfunc5(int (*)(long) (*)(char*))" "gdb/19"
+	print_addr_2_kfail "hairyfunc6" "hairyfunc6(int (*(*)($dm_type_int_star))(long))" "hairyfunc6(int (*)(long) (*)(int*))" "gdb/19"
+	print_addr_2_kfail "hairyfunc7" "hairyfunc7(int (*(*)(int (*)($dm_type_char_star)))(long))" "hairyfunc7(int (*)(long) (*)(int (*)(char*)))" "gdb/19"
+    } else {
+	print_addr_2 "hairyfunc2" "hairyfunc2(PFPc_i)"
+	print_addr_2 "hairyfunc3" "hairyfunc3(PFPFPl_s_i)"
+	print_addr_2 "hairyfunc4" "hairyfunc4(PFPFPc_s_i)"
+
+	# gdb-gnats bug gdb/19:
+	# "gdb v3 demangler fails on hairyfunc5 hairyfunc6 hairyfunc7"
+	print_addr_2 "hairyfunc5" "hairyfunc5(PFPc_PFl_i)"
+	print_addr_2 "hairyfunc6" "hairyfunc6(PFPi_PFl_i)"
+	print_addr_2 "hairyfunc7" "hairyfunc7(PFPFPc_i_PFl_i)"
+    }
 }
 
 proc do_tests {} {
-    global prms_id
-    global bug_id
     global subdir
     global objdir
     global srcdir
@@ -536,8 +595,6 @@ proc do_tests {} {
     global gdb_prompt
     global dm_type_int_star
 
-    set prms_id 0
-    set bug_id 0
 
     # Start with a fresh gdb.
 
@@ -546,10 +603,8 @@ proc do_tests {} {
     gdb_reinitialize_dir $srcdir/$subdir
     gdb_load $binfile
 
-    send_gdb "set language c++\n"
-    gdb_expect -re "$gdb_prompt $"
-    send_gdb "set width 0\n"
-    gdb_expect -re "$gdb_prompt $"
+    gdb_test_no_output "set language c++"
+    gdb_test_no_output "set width 0"
 
     runto_main
 

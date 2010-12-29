@@ -1,6 +1,6 @@
 /* Shared library support for IRIX.
    Copyright (C) 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001, 2002, 2004,
-   2007, 2008, 2009 Free Software Foundation, Inc.
+   2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This file was created using portions of irix5-nat.c originally
    contributed to GDB by Ian Lance Taylor.
@@ -163,6 +163,7 @@ fetch_lm_info (CORE_ADDR addr)
       CORE_ADDR obj_addr = extract_mips_address (&buf.ol32.data,
 						 sizeof (buf.ol32.data),
 						 byte_order);
+
       li.next = extract_mips_address (&buf.ol32.next,
 				      sizeof (buf.ol32.next), byte_order);
 
@@ -326,7 +327,6 @@ disable_break (void)
 {
   int status = 1;
 
-
   /* Note that breakpoint address and original contents are in our address
      space, so we just need to write the original contents back. */
 
@@ -365,11 +365,17 @@ disable_break (void)
 static int
 enable_break (void)
 {
-  if (symfile_objfile != NULL)
+  if (symfile_objfile != NULL && has_stack_frames ())
     {
-      base_breakpoint
-	= deprecated_insert_raw_breakpoint (target_gdbarch,
-					    entry_point_address ());
+      struct frame_info *frame = get_current_frame ();
+      struct address_space *aspace = get_frame_address_space (frame);
+      CORE_ADDR entry_point;
+
+      if (!entry_point_address_query (&entry_point))
+	return 0;
+
+      base_breakpoint = deprecated_insert_raw_breakpoint (target_gdbarch,
+							  aspace, entry_point);
 
       if (base_breakpoint != NULL)
 	return 1;
@@ -386,7 +392,7 @@ enable_break (void)
 
    SYNOPSIS
 
-   void solib_create_inferior_hook ()
+   void solib_create_inferior_hook (int from_tty)
 
    DESCRIPTION
 
@@ -431,10 +437,22 @@ enable_break (void)
  */
 
 static void
-irix_solib_create_inferior_hook (void)
+irix_solib_create_inferior_hook (int from_tty)
 {
   struct inferior *inf;
   struct thread_info *tp;
+
+  inf = current_inferior ();
+
+  /* If we are attaching to the inferior, the shared libraries
+     have already been mapped, so nothing more to do.  */
+  if (inf->attach_flag)
+    return;
+
+  /* Likewise when debugging from a core file, the shared libraries
+     have already been mapped, so nothing more to do.  */
+  if (!target_can_run (&current_target))
+    return;
 
   if (!enable_break ())
     {
@@ -447,20 +465,19 @@ irix_solib_create_inferior_hook (void)
      can go groveling around in the dynamic linker structures to find
      out what we need to know about them. */
 
-  inf = current_inferior ();
   tp = inferior_thread ();
 
   clear_proceed_status ();
 
-  inf->stop_soon = STOP_QUIETLY;
-  tp->stop_signal = TARGET_SIGNAL_0;
+  inf->control.stop_soon = STOP_QUIETLY;
+  tp->suspend.stop_signal = TARGET_SIGNAL_0;
 
   do
     {
-      target_resume (pid_to_ptid (-1), 0, tp->stop_signal);
+      target_resume (pid_to_ptid (-1), 0, tp->suspend.stop_signal);
       wait_for_inferior (0);
     }
-  while (tp->stop_signal != TARGET_SIGNAL_TRAP);
+  while (tp->suspend.stop_signal != TARGET_SIGNAL_TRAP);
 
   /* We are now either at the "mapping complete" breakpoint (or somewhere
      else, a condition we aren't prepared to deal with anyway), so adjust
@@ -479,7 +496,7 @@ irix_solib_create_inferior_hook (void)
      Delaying the resetting of stop_soon until after symbol loading
      suppresses the warning.  */
   solib_add ((char *) 0, 0, (struct target_ops *) 0, auto_solib_add);
-  inf->stop_soon = NO_STOP_QUIETLY;
+  inf->control.stop_soon = NO_STOP_QUIETLY;
 }
 
 /* LOCAL FUNCTION

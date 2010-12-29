@@ -1,6 +1,6 @@
 /* Target-dependent code for Solaris SPARC.
 
-   Copyright (C) 2003, 2004, 2006, 2007, 2008, 2009
+   Copyright (C) 2003, 2004, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -231,10 +231,6 @@ sparc32_sol2_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   set_gdbarch_software_single_step (gdbarch, NULL);
 
   frame_unwind_append_unwinder (gdbarch, &sparc32_sol2_sigtramp_frame_unwind);
-
-  /* Solaris encodes the pid of the inferior in regset section
-     names.  */
-  set_gdbarch_core_reg_section_encodes_pid (gdbarch, 1);
 
   /* How to print LWP PTIDs from core files.  */
   set_gdbarch_core_pid_to_str (gdbarch, sol2_core_pid_to_str);

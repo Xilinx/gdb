@@ -1,5 +1,6 @@
 /* Inferior process information for the remote server for GDB.
-   Copyright (C) 2002, 2005, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2005, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
 
    Contributed by MontaVista Software.
 
@@ -21,14 +22,6 @@
 #include <stdlib.h>
 
 #include "server.h"
-
-struct thread_info
-{
-  struct inferior_list_entry entry;
-  void *target_data;
-  void *regcache_data;
-  unsigned int gdb_id;
-};
 
 struct inferior_list all_processes;
 struct inferior_list all_threads;
@@ -178,6 +171,8 @@ add_thread (ptid_t thread_id, void *target_data)
   memset (new_thread, 0, sizeof (*new_thread));
 
   new_thread->entry.id = thread_id;
+  new_thread->last_resume_kind = resume_continue;
+  new_thread->last_status.kind = TARGET_WAITKIND_IGNORE;
 
   add_inferior_to_list (&all_threads, & new_thread->entry);
 
@@ -247,6 +242,9 @@ remove_thread (struct thread_info *thread)
   remove_inferior (&all_threads, (struct inferior_list_entry *) thread);
   free_one_thread (&thread->entry);
 }
+
+/* Find the first inferior_list_entry E in LIST for which FUNC (E, ARG)
+   returns non-zero.  If no entry is found then return NULL.  */
 
 struct inferior_list_entry *
 find_inferior (struct inferior_list *list,
@@ -365,9 +363,25 @@ unloaded_dll (const char *name, CORE_ADDR base_addr)
   key_dll.base_addr = base_addr;
 
   dll = (void *) find_inferior (&all_dlls, match_dll, &key_dll);
-  remove_inferior (&all_dlls, &dll->entry);
-  free_one_dll (&dll->entry);
-  dlls_changed = 1;
+
+  if (dll == NULL)
+    /* For some inferiors we might get unloaded_dll events without having
+       a corresponding loaded_dll.  In that case, the dll cannot be found
+       in ALL_DLL, and there is nothing further for us to do.
+
+       This has been observed when running 32bit executables on Windows64
+       (i.e. through WOW64, the interface between the 32bits and 64bits
+       worlds).  In that case, the inferior always does some strange
+       unloading of unnamed dll.  */
+    return;
+  else
+    {
+      /* DLL has been found so remove the entry and free associated
+         resources.  */
+      remove_inferior (&all_dlls, &dll->entry);
+      free_one_dll (&dll->entry);
+      dlls_changed = 1;
+    }
 }
 
 #define clear_list(LIST) \

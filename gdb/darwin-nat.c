@@ -1,5 +1,5 @@
 /* Darwin support for GDB, the GNU debugger.
-   Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2008, 2009, 2010 Free Software Foundation, Inc.
 
    Contributed by AdaCore.
 
@@ -98,8 +98,6 @@ static ptid_t darwin_wait_to (struct target_ops *ops, ptid_t ptid,
 static ptid_t darwin_wait (ptid_t ptid, struct target_waitstatus *status);
 
 static void darwin_mourn_inferior (struct target_ops *ops);
-
-static int darwin_lookup_task (char *args, task_t * ptask, int *ppid);
 
 static void darwin_kill_inferior (struct target_ops *ops);
 
@@ -365,7 +363,7 @@ darwin_check_new_threads (struct inferior *inf)
 	  old_ix++;
 	  continue;
 	}
-      gdb_assert (0);
+      gdb_assert_not_reached ("unexpected thread case");
     }
 
   if (darwin_inf->threads)
@@ -995,7 +993,7 @@ cancel_breakpoint (ptid_t ptid)
   CORE_ADDR pc;
 
   pc = regcache_read_pc (regcache) - gdbarch_decr_pc_after_break (gdbarch);
-  if (breakpoint_inserted_here_p (pc))
+  if (breakpoint_inserted_here_p (get_regcache_aspace (regcache), pc))
     {
       inferior_debug (4, "cancel_breakpoint for thread %x\n",
 		      ptid_get_tid (ptid));
@@ -1516,12 +1514,9 @@ darwin_attach (struct target_ops *ops, char *args, int from_tty)
   struct inferior *inf;
   kern_return_t kret;
 
-  if (!args)
-    error_no_arg (_("process-id to attach"));
+  pid = parse_pid_to_attach (args);
 
-  pid = atoi (args);
-
-  if (pid == getpid ())		/* Trying to masturbate? */
+  if (pid == getpid ())		/* Trying to masturbate?  */
     error (_("I refuse to debug myself!"));
 
   if (from_tty)
@@ -1543,8 +1538,10 @@ darwin_attach (struct target_ops *ops, char *args, int from_tty)
            pid, safe_strerror (errno), errno);
 
   inferior_ptid = pid_to_ptid (pid);
-  inf = add_inferior (pid);
+  inf = current_inferior ();
+  inferior_appeared (inf, pid);
   inf->attach_flag = 1;
+
   /* Always add a main thread.  */
   add_thread_silent (inferior_ptid);
 

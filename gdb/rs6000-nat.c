@@ -1,7 +1,7 @@
 /* IBM RS/6000 native-dependent code for GDB, the GNU debugger.
 
    Copyright (C) 1986, 1987, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009
+   1998, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -200,8 +200,8 @@ rs6000_ptrace64 (int req, int id, long long addr, int data, void *buf)
   int ret = 0;
 #endif
 #if 0
-  printf ("rs6000_ptrace64 (%d, %d, 0x%llx, %08x, 0x%x) = 0x%x\n",
-	  req, id, addr, data, (unsigned int)buf, ret);
+  printf ("rs6000_ptrace64 (%d, %d, %s, %08x, 0x%x) = 0x%x\n",
+	  req, id, hex_string (addr), data, (unsigned int)buf, ret);
 #endif
   return ret;
 }
@@ -590,7 +590,7 @@ exec_one_dummy_insn (struct regcache *regcache)
      assume that this address will never be executed again by the real
      code. */
 
-  bp = deprecated_insert_raw_breakpoint (gdbarch, DUMMY_INSN_ADDR);
+  bp = deprecated_insert_raw_breakpoint (gdbarch, NULL, DUMMY_INSN_ADDR);
 
   /* You might think this could be done with a single ptrace call, and
      you'd be correct for just about every platform I've ever worked

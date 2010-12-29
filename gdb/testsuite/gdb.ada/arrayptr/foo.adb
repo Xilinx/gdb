@@ -1,4 +1,4 @@
---  Copyright 2008, 2009 Free Software Foundation, Inc.
+--  Copyright 2008, 2009, 2010 Free Software Foundation, Inc.
 --
 --  This program is free software; you can redistribute it and/or modify
 --  it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@ procedure Foo is
    type String_Access is access String;
 
    String_P : String_Access := new String'("Hello");
+   Null_String : String_Access := null;
 begin
    Do_Nothing (String_P'Address);  -- STOP
+   Do_Nothing (Null_String'Address);
 end Foo;

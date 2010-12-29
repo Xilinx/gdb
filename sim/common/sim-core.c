@@ -1,6 +1,6 @@
 /* The common simulator framework for GDB, the GNU Debugger.
 
-   Copyright 2002, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright 2002, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    Contributed by Andrew Cagney and Red Hat.
 
@@ -28,6 +28,9 @@
 
 #if (WITH_HW)
 #include "sim-hw.h"
+#define device_error(client, ...) device_error ((device *)(client), __VA_ARGS__)
+#define device_io_read_buffer(client, ...) device_io_read_buffer ((device *)(client), __VA_ARGS__)
+#define device_io_write_buffer(client, ...) device_io_write_buffer ((device *)(client), __VA_ARGS__)
 #endif
 
 /* "core" module install handler.
@@ -516,7 +519,7 @@ sim_core_read_buffer (SIM_DESC sd,
   unsigned count = 0;
   while (count < len)
  {
-    unsigned_word raddr = addr + count;
+    address_word raddr = addr + count;
     sim_core_mapping *mapping =
       sim_core_find_mapping (core, map,
 			    raddr, /*nr-bytes*/1,
@@ -582,7 +585,7 @@ sim_core_write_buffer (SIM_DESC sd,
   unsigned count = 0;
   while (count < len)
     {
-      unsigned_word raddr = addr + count;
+      address_word raddr = addr + count;
       sim_core_mapping *mapping =
 	sim_core_find_mapping (core, map,
 			       raddr, /*nr-bytes*/1,

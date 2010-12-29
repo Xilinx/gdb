@@ -1,6 +1,6 @@
 /* MI Command Set for GDB, the GNU debugger.
 
-   Copyright (C) 2000, 2001, 2003, 2007, 2008, 2009
+   Copyright (C) 2000, 2001, 2003, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    Contributed by Cygnus Solutions (a Red Hat company).
@@ -33,6 +33,7 @@ static void build_table (struct mi_cmd *commands);
 
 struct mi_cmd mi_cmds[] =
 {
+  { "add-inferior", { NULL, 0 }, mi_cmd_add_inferior },
   { "break-after", { "ignore", 1 }, NULL },
   { "break-condition", { "cond", 1 }, NULL },
   { "break-commands", { NULL, 0 }, mi_cmd_break_commands },
@@ -42,6 +43,7 @@ struct mi_cmd mi_cmds[] =
   { "break-info", { "info break", 1 }, NULL },
   { "break-insert", { NULL, 0 }, mi_cmd_break_insert},
   { "break-list", { "info break", }, NULL },
+  { "break-passcount", { NULL, 0 }, mi_cmd_break_passcount},
   { "break-watch", { NULL, 0 }, mi_cmd_break_watch},
   { "data-disassemble", { NULL, 0 }, mi_cmd_disassemble},
   { "data-evaluate-expression", { NULL, 0 }, mi_cmd_data_evaluate_expression},
@@ -49,7 +51,9 @@ struct mi_cmd mi_cmds[] =
   { "data-list-register-names", { NULL, 0 }, mi_cmd_data_list_register_names},
   { "data-list-register-values", { NULL, 0 }, mi_cmd_data_list_register_values},
   { "data-read-memory", { NULL, 0 }, mi_cmd_data_read_memory},
+  { "data-read-memory-bytes", { NULL, 0 }, mi_cmd_data_read_memory_bytes},
   { "data-write-memory", { NULL, 0 }, mi_cmd_data_write_memory},
+  { "data-write-memory-bytes", {NULL, 0}, mi_cmd_data_write_memory_bytes},
   { "data-write-register-values", { NULL, 0 }, mi_cmd_data_write_register_values},
   { "enable-timings", { NULL, 0 }, mi_cmd_enable_timings},
   { "enable-pretty-printing", { NULL, 0 }, mi_cmd_enable_pretty_printing},
@@ -65,7 +69,7 @@ struct mi_cmd mi_cmds[] =
   { "exec-next", { NULL, 0 }, mi_cmd_exec_next},
   { "exec-next-instruction", { NULL, 0 }, mi_cmd_exec_next_instruction},
   { "exec-return", { NULL, 0 }, mi_cmd_exec_return},
-  { "exec-run", { "run", 1 }, NULL},
+  { "exec-run", { NULL, 0}, mi_cmd_exec_run},
   { "exec-step", { NULL, 0 }, mi_cmd_exec_step},
   { "exec-step-instruction", { NULL, 0 }, mi_cmd_exec_step_instruction},
   { "exec-until", { "until", 1 }, NULL},
@@ -84,6 +88,7 @@ struct mi_cmd mi_cmds[] =
   { "list-features", { NULL, 0 }, mi_cmd_list_features},
   { "list-target-features", { NULL, 0 }, mi_cmd_list_target_features},
   { "list-thread-groups", { NULL, 0 }, mi_cmd_list_thread_groups },  
+  { "remove-inferior", { NULL, 0 }, mi_cmd_remove_inferior },
   { "stack-info-depth", { NULL, 0 }, mi_cmd_stack_info_depth},
   { "stack-info-frame", { NULL, 0 }, mi_cmd_stack_info_frame},
   { "stack-list-arguments", { NULL, 0 }, mi_cmd_stack_list_args},
@@ -103,6 +108,13 @@ struct mi_cmd mi_cmds[] =
   { "thread-info", { NULL, 0 }, mi_cmd_thread_info },
   { "thread-list-ids", { NULL, 0 }, mi_cmd_thread_list_ids},
   { "thread-select", { NULL, 0 }, mi_cmd_thread_select},
+  { "trace-define-variable", { NULL, 0 }, mi_cmd_trace_define_variable },
+  { "trace-find", { NULL, 0 }, mi_cmd_trace_find },
+  { "trace-list-variables", { NULL, 0 }, mi_cmd_trace_list_variables },
+  { "trace-save", { NULL, 0 }, mi_cmd_trace_save },
+  { "trace-start", { NULL, 0 }, mi_cmd_trace_start },
+  { "trace-status", { NULL, 0 }, mi_cmd_trace_status },
+  { "trace-stop", { NULL, 0 }, mi_cmd_trace_stop },
   { "var-assign", { NULL, 0 }, mi_cmd_var_assign},
   { "var-create", { NULL, 0 }, mi_cmd_var_create},
   { "var-delete", { NULL, 0 }, mi_cmd_var_delete},
@@ -154,6 +166,7 @@ lookup_table (const char *command)
 {
   const char *chp;
   unsigned int index = 0;
+
   /* compute our hash */
   for (chp = command; *chp; chp++)
     {
@@ -193,6 +206,7 @@ build_table (struct mi_cmd *commands)
   for (command = commands; command->name != 0; command++)
     {
       struct mi_cmd **entry = lookup_table (command->name);
+
       if (*entry)
 	internal_error (__FILE__, __LINE__,
 			_("command `%s' appears to be duplicated"),

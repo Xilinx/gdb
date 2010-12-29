@@ -1,3 +1,33 @@
+2010-04-14  Mike Frysinger  <vapier@gentoo.org>
+
+	* sim_calls.c (sim_write): Add const to buf arg.
+
+2010-02-14  Andreas Schwab  <schwab@linux-m68k.org>
+
+	* ppc-instructions: Fix missing assignment in last change.
+
+2010-02-05  Andreas Schwab  <schwab@linux-m68k.org>
+
+	* ppc-instructions: Fix aliasing bugs when calling
+	invalid_arithemetic_operation.
+
+2009-11-13  Nathan Froyd  <froydnj@codesourcery.com>
+
+	* configure.ac: If build != host, create a separate build-config.h
+	file desecribing the build machine.
+	* configure: Regenerate.
+	* lf.c: Include build-config.h instead of config.h.
+	* dgen.c: Likewise.
+	* igen.c: Likewise.
+	* misc.c: Likewise.
+	* misc.h: Likewise.
+	* filter.c: Likewise.
+	* table.c: Likewise.
+
+2009-10-15  Joel Sherrill <joel.sherrill@oarcorp.com>
+
+	* std-config.h: Fix spelling error.
+
 2009-09-22  Joel Sherrill  <joel.sherrill@oarcorp.com>
 
 	* main.c: Fix spelling error.

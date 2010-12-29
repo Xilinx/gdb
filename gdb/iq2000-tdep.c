@@ -1,7 +1,7 @@
 /* Target-dependent code for the IQ2000 architecture, for GDB, the GNU
    Debugger.
 
-   Copyright (C) 2000, 2004, 2005, 2007, 2008, 2009
+   Copyright (C) 2000, 2004, 2005, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    Contributed by Red Hat.
@@ -224,6 +224,8 @@ iq2000_scan_prologue (struct gdbarch *gdbarch,
       loop_end = scan_end;
       if (fi)
 	sal = find_last_line_symbol (scan_start, scan_end, 0);
+      else
+	sal.end = 0;	/* Avoid GCC false warning.  */
     }
 
   /* Saved registers:

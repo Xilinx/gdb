@@ -1,6 +1,6 @@
 /* This testcase is part of GDB, the GNU debugger.
 
-   Copyright 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,14 +36,14 @@ int main()
   handle = dlopen (SHLIB_NAME, RTLD_LAZY);
   if (!handle)
     {
-      fprintf (stderr, dlerror ());
+      fprintf (stderr, "%s\n", dlerror ());
       exit (1);
     }
 
   func = (void (*)(void)) dlsym (handle, "shrfunc");
   if (!func)
     {
-      fprintf (stderr, dlerror ());
+      fprintf (stderr, "%s\n", dlerror ());
       exit (1);
     }
 

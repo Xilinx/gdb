@@ -1,6 +1,6 @@
 /* GNU/Linux/m68k specific low level interface, for the remote server for GDB.
    Copyright (C) 1995, 1996, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-   2007, 2008, 2009 Free Software Foundation, Inc.
+   2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -71,40 +71,40 @@ m68k_cannot_fetch_register (int regno)
 #include <sys/ptrace.h>
 
 static void
-m68k_fill_gregset (void *buf)
+m68k_fill_gregset (struct regcache *regcache, void *buf)
 {
   int i;
 
   for (i = 0; i < m68k_num_gregs; i++)
-    collect_register (i, (char *) buf + m68k_regmap[i]);
+    collect_register (regcache, i, (char *) buf + m68k_regmap[i]);
 }
 
 static void
-m68k_store_gregset (const void *buf)
+m68k_store_gregset (struct regcache *regcache, const void *buf)
 {
   int i;
 
   for (i = 0; i < m68k_num_gregs; i++)
-    supply_register (i, (const char *) buf + m68k_regmap[i]);
+    supply_register (regcache, i, (const char *) buf + m68k_regmap[i]);
 }
 
 static void
-m68k_fill_fpregset (void *buf)
+m68k_fill_fpregset (struct regcache *regcache, void *buf)
 {
   int i;
 
   for (i = m68k_num_gregs; i < m68k_num_regs; i++)
-    collect_register (i, ((char *) buf
-			  + (m68k_regmap[i] - m68k_regmap[m68k_num_gregs])));
+    collect_register (regcache, i, ((char *) buf
+			 + (m68k_regmap[i] - m68k_regmap[m68k_num_gregs])));
 }
 
 static void
-m68k_store_fpregset (const void *buf)
+m68k_store_fpregset (struct regcache *regcache, const void *buf)
 {
   int i;
 
   for (i = m68k_num_gregs; i < m68k_num_regs; i++)
-    supply_register (i, ((const char *) buf
+    supply_register (regcache, i, ((const char *) buf
 			 + (m68k_regmap[i] - m68k_regmap[m68k_num_gregs])));
 }
 
@@ -112,34 +112,34 @@ m68k_store_fpregset (const void *buf)
 
 struct regset_info target_regsets[] = {
 #ifdef HAVE_PTRACE_GETREGS
-  { PTRACE_GETREGS, PTRACE_SETREGS, sizeof (elf_gregset_t),
+  { PTRACE_GETREGS, PTRACE_SETREGS, 0, sizeof (elf_gregset_t),
     GENERAL_REGS,
     m68k_fill_gregset, m68k_store_gregset },
-  { PTRACE_GETFPREGS, PTRACE_SETFPREGS, sizeof (elf_fpregset_t),
+  { PTRACE_GETFPREGS, PTRACE_SETFPREGS, 0, sizeof (elf_fpregset_t),
     FP_REGS,
     m68k_fill_fpregset, m68k_store_fpregset },
 #endif /* HAVE_PTRACE_GETREGS */
-  { 0, 0, -1, -1, NULL, NULL }
+  { 0, 0, 0, -1, -1, NULL, NULL }
 };
 
 static const unsigned char m68k_breakpoint[] = { 0x4E, 0x4F };
 #define m68k_breakpoint_len 2
 
 static CORE_ADDR
-m68k_get_pc ()
+m68k_get_pc (struct regcache *regcache)
 {
   unsigned long pc;
 
-  collect_register_by_name ("pc", &pc);
+  collect_register_by_name (regcache, "pc", &pc);
   return pc;
 }
 
 static void
-m68k_set_pc (CORE_ADDR value)
+m68k_set_pc (struct regcache *regcache, CORE_ADDR value)
 {
   unsigned long newpc = value;
 
-  supply_register_by_name ("pc", &newpc);
+  supply_register_by_name (regcache, "pc", &newpc);
 }
 
 static int
@@ -153,6 +153,27 @@ m68k_breakpoint_at (CORE_ADDR pc)
 
   return 0;
 }
+
+#include <asm/ptrace.h>
+
+#ifdef PTRACE_GET_THREAD_AREA
+/* Fetch the thread-local storage pointer for libthread_db.  */
+
+ps_err_e
+ps_get_thread_area (const struct ps_prochandle *ph,
+		    lwpid_t lwpid, int idx, void **base)
+{
+  if (ptrace (PTRACE_GET_THREAD_AREA, lwpid, NULL, base) != 0)
+    return PS_ERR;
+
+  /* IDX is the bias from the thread pointer to the beginning of the
+     thread descriptor.  It has to be subtracted due to implementation
+     quirks in libthread_db.  */
+  *base = (void *) ((char *)*base - idx);
+
+  return PS_OK;
+}
+#endif /* PTRACE_GET_THREAD_AREA */
 
 struct linux_target_ops the_low_target = {
   init_registers_m68k,

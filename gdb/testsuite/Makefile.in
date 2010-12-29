@@ -1,27 +1,27 @@
 # Makefile for regression testing the GNU debugger.
 # Copyright 1992, 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2002, 2003, 2004,
-# 2005, 2007, 2008, 2009 Free Software Foundation, Inc.
+# 2005, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
 # This file is part of GDB.
 
-# GDB is free software; you can redistribute it and/or modify
+# This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2, or (at your option)
-# any later version.
-
-# GDB is distributed in the hope that it will be useful,
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-
+#
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 VPATH = @srcdir@
 srcdir = @srcdir@
 prefix = @prefix@
 exec_prefix = @exec_prefix@
+abs_builddir = @abs_builddir@
 
 target_alias = @target_noncanonical@
 program_transform_name = @program_transform_name@
@@ -35,9 +35,9 @@ SUBDIRS = @subdirs@
 RPATH_ENVVAR = @RPATH_ENVVAR@
 ALL_SUBDIRS = gdb.ada gdb.arch gdb.asm gdb.base gdb.cp gdb.disasm \
 	gdb.dwarf2 \
-	gdb.fortran gdb.server gdb.java gdb.mi \
-	gdb.objc gdb.opt gdb.pascal gdb.python gdb.threads gdb.trace \
-	gdb.xml \
+	gdb.fortran gdb.server gdb.java gdb.mi gdb.multi \
+	gdb.objc gdb.opencl gdb.opt gdb.pascal gdb.python gdb.threads \
+	gdb.trace gdb.xml \
 	$(SUBDIRS)
 
 EXPECT = `if [ -f $${rootme}/../../expect/expect ] ; then \
@@ -102,7 +102,11 @@ install:
 
 uninstall: force
 
-site.exp: ./config.status Makefile
+# Use absolute `site.exp' path everywhere to suppress VPATH lookups for it.
+# Bare `site.exp' is used as a target here if user requests it explicitly.
+# $(RUNTEST) is looking up `site.exp' only in the current directory.
+
+$(abs_builddir)/site.exp site.exp: ./config.status Makefile
 	@echo "Making a new config file..."
 	-@rm -f ./tmp?
 	@touch site.exp
@@ -147,7 +151,7 @@ DO_RUNTEST = \
 	  export TCL_LIBRARY ; fi ; \
 	$(RUNTEST)
 
-check-single: all site.exp
+check-single: all $(abs_builddir)/site.exp
 	$(DO_RUNTEST) $(RUNTESTFLAGS)
 
 # A list of all directories named "gdb.*" which also hold a .exp file.
@@ -170,16 +174,16 @@ check-parallel:
 	$(SHELL) $(srcdir)/dg-extract-results.sh -L \
 	  $(addsuffix /gdb.log,$(TEST_DIRS)) > gdb.log
 
-$(filter-out check-gdb.base%,$(TEST_TARGETS)): check-gdb.%: all site.exp
-	@if test ! -d gdb.$*; then mkdir gdb.$*; fi
-	$(DO_RUNTEST) --directory=gdb.$* --outdir=gdb.$* $(RUNTESTFLAGS)
+@GMAKE_TRUE@$(filter-out check-gdb.base%,$(TEST_TARGETS)): check-gdb.%: all $(abs_builddir)/site.exp
+@GMAKE_TRUE@	@if test ! -d gdb.$*; then mkdir gdb.$*; fi
+@GMAKE_TRUE@	$(DO_RUNTEST) --directory=gdb.$* --outdir=gdb.$* $(RUNTESTFLAGS)
 
 # Each half (roughly) of the .exp files from gdb.base.
 BASE1_FILES = $(patsubst $(srcdir)/%,%,$(wildcard $(srcdir)/gdb.base/[a-m]*.exp))
 BASE2_FILES = $(patsubst $(srcdir)/%,%,$(wildcard $(srcdir)/gdb.base/[n-z]*.exp))
 
 # Handle each half of gdb.base.
-check-gdb.base%: all site.exp
+check-gdb.base%: all $(abs_builddir)/site.exp
 	@if test ! -d gdb.base$*; then mkdir gdb.base$*; fi
 	$(DO_RUNTEST) $(BASE$*_FILES) --outdir gdb.base$* $(RUNTESTFLAGS)
 

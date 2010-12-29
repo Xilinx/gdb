@@ -1,5 +1,5 @@
 /* Hardware ports.
-   Copyright (C) 1998, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 1998, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
    Contributed by Andrew Cagney and Cygnus Solutions.
 
 This file is part of GDB, the GNU debugger.
@@ -35,8 +35,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include <ctype.h>
 
-#define TRACE(x,y)
-
 
 struct hw_port_edge {
   int my_port;
@@ -53,7 +51,7 @@ struct hw_port_data {
 };
 
 const struct hw_port_descriptor empty_hw_ports[] = {
-  { NULL, },
+  { NULL, 0, 0, 0 },
 };
 
 static void

@@ -1,5 +1,5 @@
 /* Target operations for the remote server for GDB.
-   Copyright (C) 2002, 2003, 2004, 2005, 2007, 2008, 2009
+   Copyright (C) 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    Contributed by MontaVista Software.
@@ -21,6 +21,8 @@
 
 #ifndef TARGET_H
 #define TARGET_H
+
+struct emit_ops;
 
 /* Ways to "resume" a thread.  */
 
@@ -51,7 +53,8 @@ struct thread_resume
   /* If non-zero, send this signal when we resume, or to stop the
      thread.  If stopping a thread, and this is 0, the target should
      stop the thread however it best decides to (e.g., SIGSTOP on
-     linux; SuspendThread on win32).  */
+     linux; SuspendThread on win32).  This is a host signal value (not
+     enum target_signal).  */
   int sig;
 };
 
@@ -138,6 +141,10 @@ struct target_ops
 
   int (*detach) (int pid);
 
+  /* The inferior process has died.  Do what is right.  */
+
+  void (*mourn) (struct process_info *proc);
+
   /* Wait for inferior PID to exit.  */
   void (*join) (int pid);
 
@@ -166,13 +173,30 @@ struct target_ops
 
      If REGNO is -1, fetch all registers; otherwise, fetch at least REGNO.  */
 
-  void (*fetch_registers) (int regno);
+  void (*fetch_registers) (struct regcache *regcache, int regno);
 
   /* Store registers to the inferior process.
 
      If REGNO is -1, store all registers; otherwise, store at least REGNO.  */
 
-  void (*store_registers) (int regno);
+  void (*store_registers) (struct regcache *regcache, int regno);
+
+  /* Prepare to read or write memory from the inferior process.
+     Targets use this to do what is necessary to get the state of the
+     inferior such that it is possible to access memory.
+
+     This should generally only be called from client facing routines,
+     such as gdb_read_memory/gdb_write_memory, or the insert_point
+     callbacks.
+
+     Like `read_memory' and `write_memory' below, returns 0 on success
+     and errno on failure.  */
+
+  int (*prepare_to_access_memory) (void);
+
+  /* Undo the effects of prepare_to_access_memory.  */
+
+  void (*done_accessing_memory) (void);
 
   /* Read memory from the inferior process.  This should generally be
      called through read_inferior_memory, which handles breakpoint shadowing.
@@ -283,6 +307,72 @@ struct target_ops
   /* If not NULL, target-specific routine to process monitor command.
      Returns 1 if handled, or 0 to perform default processing.  */
   int (*handle_monitor_command) (char *);
+
+  /* Returns the core given a thread, or -1 if not known.  */
+  int (*core_of_thread) (ptid_t);
+
+  /* Target specific qSupported support.  */
+  void (*process_qsupported) (const char *);
+
+  /* Return 1 if the target supports tracepoints, 0 (or leave the
+     callback NULL) otherwise.  */
+  int (*supports_tracepoints) (void);
+
+  /* Read PC from REGCACHE.  */
+  CORE_ADDR (*read_pc) (struct regcache *regcache);
+
+  /* Write PC to REGCACHE.  */
+  void (*write_pc) (struct regcache *regcache, CORE_ADDR pc);
+
+  /* Return true if THREAD is known to be stopped now.  */
+  int (*thread_stopped) (struct thread_info *thread);
+
+  /* Read Thread Information Block address.  */
+  int (*get_tib_address) (ptid_t ptid, CORE_ADDR *address);
+
+  /* Pause all threads.  If FREEZE, arrange for any resume attempt be
+     be ignored until an unpause_all call unfreezes threads again.
+     There can be nested calls to pause_all, so a freeze counter
+     should be maintained.  */
+  void (*pause_all) (int freeze);
+
+  /* Unpause all threads.  Threads that hadn't been resumed by the
+     client should be left stopped.  Basically a pause/unpause call
+     pair should not end up resuming threads that were stopped before
+     the pause call.  */
+  void (*unpause_all) (int unfreeze);
+
+  /* Cancel all pending breakpoints hits in all threads.  */
+  void (*cancel_breakpoints) (void);
+
+  /* Stabilize all threads.  That is, force them out of jump pads.  */
+  void (*stabilize_threads) (void);
+
+  /* Install a fast tracepoint jump pad.  TPOINT is the address of the
+     tracepoint internal object as used by the IPA agent.  TPADDR is
+     the address of tracepoint.  COLLECTOR is address of the function
+     the jump pad redirects to.  LOCKADDR is the address of the jump
+     pad lock object.  ORIG_SIZE is the size in bytes of the
+     instruction at TPADDR.  JUMP_ENTRY points to the address of the
+     jump pad entry, and on return holds the address past the end of
+     the created jump pad. JJUMP_PAD_INSN is a buffer containing a
+     copy of the instruction at TPADDR.  ADJUST_INSN_ADDR and
+     ADJUST_INSN_ADDR_END are output parameters that return the
+     address range where the instruction at TPADDR was relocated
+     to.  */
+  int (*install_fast_tracepoint_jump_pad) (CORE_ADDR tpoint, CORE_ADDR tpaddr,
+					   CORE_ADDR collector,
+					   CORE_ADDR lockaddr,
+					   ULONGEST orig_size,
+					   CORE_ADDR *jump_entry,
+					   unsigned char *jjump_pad_insn,
+					   ULONGEST *jjump_pad_insn_size,
+					   CORE_ADDR *adjusted_insn_addr,
+					   CORE_ADDR *adjusted_insn_addr_end);
+
+  /* Return the bytecode operations vector for the current inferior.
+     Returns NULL if bytecode compilation is not supported.  */
+  struct emit_ops *(*emit_ops) (void);
 };
 
 extern struct target_ops *the_target;
@@ -301,14 +391,17 @@ void set_target_ops (struct target_ops *);
 #define detach_inferior(pid) \
   (*the_target->detach) (pid)
 
+#define mourn_inferior(PROC) \
+  (*the_target->mourn) (PROC)
+
 #define mythread_alive(pid) \
   (*the_target->thread_alive) (pid)
 
-#define fetch_inferior_registers(regno) \
-  (*the_target->fetch_registers) (regno)
+#define fetch_inferior_registers(regcache, regno)	\
+  (*the_target->fetch_registers) (regcache, regno)
 
-#define store_inferior_registers(regno) \
-  (*the_target->store_registers) (regno)
+#define store_inferior_registers(regcache, regno) \
+  (*the_target->store_registers) (regcache, regno)
 
 #define join_inferior(pid) \
   (*the_target->join) (pid)
@@ -323,12 +416,87 @@ void set_target_ops (struct target_ops *);
   (the_target->supports_multi_process ? \
    (*the_target->supports_multi_process) () : 0)
 
+#define target_process_qsupported(query)		\
+  do							\
+    {							\
+      if (the_target->process_qsupported)		\
+	the_target->process_qsupported (query);		\
+    } while (0)
+
+#define target_supports_tracepoints()			\
+  (the_target->supports_tracepoints			\
+   ? (*the_target->supports_tracepoints) () : 0)
+
+#define target_supports_fast_tracepoints()		\
+  (the_target->install_fast_tracepoint_jump_pad != NULL)
+
+#define thread_stopped(thread) \
+  (*the_target->thread_stopped) (thread)
+
+#define pause_all(freeze)			\
+  do						\
+    {						\
+      if (the_target->pause_all)		\
+	(*the_target->pause_all) (freeze);	\
+    } while (0)
+
+#define unpause_all(unfreeze)			\
+  do						\
+    {						\
+      if (the_target->unpause_all)		\
+	(*the_target->unpause_all) (unfreeze);	\
+    } while (0)
+
+#define cancel_breakpoints()			\
+  do						\
+    {						\
+      if (the_target->cancel_breakpoints)     	\
+	(*the_target->cancel_breakpoints) ();  	\
+    } while (0)
+
+#define stabilize_threads()			\
+  do						\
+    {						\
+      if (the_target->stabilize_threads)     	\
+	(*the_target->stabilize_threads) ();  	\
+    } while (0)
+
+#define install_fast_tracepoint_jump_pad(tpoint, tpaddr,		\
+					 collector, lockaddr,		\
+					 orig_size,			\
+					 jump_entry, jjump_pad_insn,	\
+					 jjump_pad_insn_size,		\
+					 adjusted_insn_addr,		\
+					 adjusted_insn_addr_end)	\
+  (*the_target->install_fast_tracepoint_jump_pad) (tpoint, tpaddr,	\
+						   collector,lockaddr,	\
+						   orig_size, jump_entry, \
+						   jjump_pad_insn,	\
+						   jjump_pad_insn_size, \
+						   adjusted_insn_addr,	\
+						   adjusted_insn_addr_end)
+
+#define target_emit_ops() \
+  (the_target->emit_ops ? (*the_target->emit_ops) () : NULL)
+
 /* Start non-stop mode, returns 0 on success, -1 on failure.   */
 
 int start_non_stop (int nonstop);
 
 ptid_t mywait (ptid_t ptid, struct target_waitstatus *ourstatus, int options,
 	       int connected_wait);
+
+#define prepare_to_access_memory()		\
+  (the_target->prepare_to_access_memory		\
+   ? (*the_target->prepare_to_access_memory) () \
+   : 0)
+
+#define done_accessing_memory()				\
+  do							\
+    {							\
+      if (the_target->done_accessing_memory)     	\
+	(*the_target->done_accessing_memory) ();  	\
+    } while (0)
 
 int read_inferior_memory (CORE_ADDR memaddr, unsigned char *myaddr, int len);
 
@@ -338,5 +506,7 @@ int write_inferior_memory (CORE_ADDR memaddr, const unsigned char *myaddr,
 void set_desired_inferior (int id);
 
 const char *target_pid_to_str (ptid_t);
+
+const char *target_waitstatus_to_string (const struct target_waitstatus *);
 
 #endif /* TARGET_H */

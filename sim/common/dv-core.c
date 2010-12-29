@@ -1,6 +1,6 @@
 /* The common simulator framework for GDB, the GNU Debugger.
 
-   Copyright 2002, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright 2002, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    Contributed by Andrew Cagney and Red Hat.
 
@@ -113,5 +113,5 @@ dv_core_finish (struct hw *me)
 
 const struct hw_descriptor dv_core_descriptor[] = {
   { "core", dv_core_finish, },
-  { NULL },
+  { NULL, NULL },
 };

@@ -1,6 +1,7 @@
 /* Definitions for frame unwinder, for GDB, the GNU debugger.
 
-   Copyright (C) 2003, 2004, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -48,12 +49,13 @@ frame_unwind_init (struct obstack *obstack)
 {
   struct frame_unwind_table *table
     = OBSTACK_ZALLOC (obstack, struct frame_unwind_table);
+
   /* Start the table out with a few default sniffers.  OSABI code
      can't override this.  */
   table->list = OBSTACK_ZALLOC (obstack, struct frame_unwind_table_entry);
-  table->list->unwinder = dummy_frame_unwind;
+  table->list->unwinder = &dummy_frame_unwind;
   table->list->next = OBSTACK_ZALLOC (obstack, struct frame_unwind_table_entry);
-  table->list->next->unwinder = inline_frame_unwind;
+  table->list->next->unwinder = &inline_frame_unwind;
   /* The insertion point for OSABI sniffers.  */
   table->osabi_head = &table->list->next->next;
   return table;
@@ -86,14 +88,17 @@ frame_unwind_append_unwinder (struct gdbarch *gdbarch,
   (*ip)->unwinder = unwinder;
 }
 
-const struct frame_unwind *
+/* Iterate through sniffers for THIS_FRAME frame until one returns with an
+   unwinder implementation.  THIS_FRAME->UNWIND must be NULL, it will get set
+   by this function.  Possibly initialize THIS_CACHE.  */
+
+void
 frame_unwind_find_by_frame (struct frame_info *this_frame, void **this_cache)
 {
-  int i;
   struct gdbarch *gdbarch = get_frame_arch (this_frame);
   struct frame_unwind_table *table = gdbarch_data (gdbarch, frame_unwind_data);
   struct frame_unwind_table_entry *entry;
-  struct cleanup *old_cleanup;
+
   for (entry = table->list; entry != NULL; entry = entry->next)
     {
       struct cleanup *old_cleanup;
@@ -103,7 +108,7 @@ frame_unwind_find_by_frame (struct frame_info *this_frame, void **this_cache)
 				    this_cache))
 	{
 	  discard_cleanups (old_cleanup);
-	  return entry->unwinder;
+	  return;
 	}
       do_cleanups (old_cleanup);
     }

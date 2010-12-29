@@ -1,7 +1,7 @@
 /* Target-dependent code for GDB, the GNU debugger.
 
    Copyright (C) 1986, 1987, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -48,6 +48,7 @@
 #include "arch-utils.h"
 #include "spu-tdep.h"
 #include "xml-syscall.h"
+#include "linux-tdep.h"
 
 #include "features/rs6000/powerpc-32l.c"
 #include "features/rs6000/powerpc-altivec32l.c"
@@ -516,25 +517,49 @@ ppc64_standard_linkage1_target (struct frame_info *frame,
 
 static struct core_regset_section ppc_linux_vsx_regset_sections[] =
 {
-  { ".reg", 268 },
-  { ".reg2", 264 },
-  { ".reg-ppc-vmx", 544 },
-  { ".reg-ppc-vsx", 256 },
+  { ".reg", 48 * 4, "general-purpose" },
+  { ".reg2", 264, "floating-point" },
+  { ".reg-ppc-vmx", 544, "ppc Altivec" },
+  { ".reg-ppc-vsx", 256, "POWER7 VSX" },
   { NULL, 0}
 };
 
 static struct core_regset_section ppc_linux_vmx_regset_sections[] =
 {
-  { ".reg", 268 },
-  { ".reg2", 264 },
-  { ".reg-ppc-vmx", 544 },
+  { ".reg", 48 * 4, "general-purpose" },
+  { ".reg2", 264, "floating-point" },
+  { ".reg-ppc-vmx", 544, "ppc Altivec" },
   { NULL, 0}
 };
 
 static struct core_regset_section ppc_linux_fp_regset_sections[] =
 {
-  { ".reg", 268 },
-  { ".reg2", 264 },
+  { ".reg", 48 * 4, "general-purpose" },
+  { ".reg2", 264, "floating-point" },
+  { NULL, 0}
+};
+
+static struct core_regset_section ppc64_linux_vsx_regset_sections[] =
+{
+  { ".reg", 48 * 8, "general-purpose" },
+  { ".reg2", 264, "floating-point" },
+  { ".reg-ppc-vmx", 544, "ppc Altivec" },
+  { ".reg-ppc-vsx", 256, "POWER7 VSX" },
+  { NULL, 0}
+};
+
+static struct core_regset_section ppc64_linux_vmx_regset_sections[] =
+{
+  { ".reg", 48 * 8, "general-purpose" },
+  { ".reg2", 264, "floating-point" },
+  { ".reg-ppc-vmx", 544, "ppc Altivec" },
+  { NULL, 0}
+};
+
+static struct core_regset_section ppc64_linux_fp_regset_sections[] =
+{
+  { ".reg", 48 * 8, "general-purpose" },
+  { ".reg2", 264, "floating-point" },
   { NULL, 0}
 };
 
@@ -1222,7 +1247,7 @@ ppc_linux_spe_context_solib_loaded (struct so_list *so)
 {
   if (strstr (so->so_original_name, "/libspe") != NULL)
     {
-      solib_read_symbols (so, so->from_tty ? SYMFILE_VERBOSE : 0);
+      solib_read_symbols (so, 0);
       ppc_linux_spe_context_lookup (so->objfile);
     }
 }
@@ -1421,7 +1446,8 @@ ppu2spu_sniffer (const struct frame_unwind *self,
 	  struct ppu2spu_cache *cache
 	    = FRAME_OBSTACK_CALLOC (1, struct ppu2spu_cache);
 
-	  struct regcache *regcache = regcache_xmalloc (data.gdbarch);
+	  struct address_space *aspace = get_frame_address_space (this_frame);
+	  struct regcache *regcache = regcache_xmalloc (data.gdbarch, aspace);
 	  struct cleanup *cleanups = make_cleanup_regcache_xfree (regcache);
 	  regcache_save (regcache, ppu2spu_unwind_register, &data);
 	  discard_cleanups (cleanups);
@@ -1460,6 +1486,8 @@ ppc_linux_init_abi (struct gdbarch_info info,
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   struct tdesc_arch_data *tdesc_data = (void *) info.tdep_info;
+
+  linux_init_abi (info, gdbarch);
 
   /* PPC GNU/Linux uses either 64-bit or 128-bit long doubles; where
      128-bit, they are IBM long double, not IEEE quad long double as
@@ -1506,6 +1534,19 @@ ppc_linux_init_abi (struct gdbarch_info info,
 	set_gdbarch_gcore_bfd_target (gdbarch, "elf32-powerpcle");
       else
 	set_gdbarch_gcore_bfd_target (gdbarch, "elf32-powerpc");
+
+      /* Supported register sections.  */
+      if (tdesc_find_feature (info.target_desc,
+			      "org.gnu.gdb.power.vsx"))
+	set_gdbarch_core_regset_sections (gdbarch,
+					  ppc_linux_vsx_regset_sections);
+      else if (tdesc_find_feature (info.target_desc,
+			       "org.gnu.gdb.power.altivec"))
+	set_gdbarch_core_regset_sections (gdbarch,
+					  ppc_linux_vmx_regset_sections);
+      else
+	set_gdbarch_core_regset_sections (gdbarch,
+					  ppc_linux_fp_regset_sections);
     }
   
   if (tdep->wordsize == 8)
@@ -1532,19 +1573,22 @@ ppc_linux_init_abi (struct gdbarch_info info,
 	set_gdbarch_gcore_bfd_target (gdbarch, "elf64-powerpcle");
       else
 	set_gdbarch_gcore_bfd_target (gdbarch, "elf64-powerpc");
+
+      /* Supported register sections.  */
+      if (tdesc_find_feature (info.target_desc,
+			      "org.gnu.gdb.power.vsx"))
+	set_gdbarch_core_regset_sections (gdbarch,
+					  ppc64_linux_vsx_regset_sections);
+      else if (tdesc_find_feature (info.target_desc,
+			       "org.gnu.gdb.power.altivec"))
+	set_gdbarch_core_regset_sections (gdbarch,
+					  ppc64_linux_vmx_regset_sections);
+      else
+	set_gdbarch_core_regset_sections (gdbarch,
+					  ppc64_linux_fp_regset_sections);
     }
   set_gdbarch_regset_from_core_section (gdbarch, ppc_linux_regset_from_core_section);
   set_gdbarch_core_read_description (gdbarch, ppc_linux_core_read_description);
-
-  /* Supported register sections.  */
-  if (tdesc_find_feature (info.target_desc,
-			  "org.gnu.gdb.power.vsx"))
-    set_gdbarch_core_regset_sections (gdbarch, ppc_linux_vsx_regset_sections);
-  else if (tdesc_find_feature (info.target_desc,
-			       "org.gnu.gdb.power.altivec"))
-    set_gdbarch_core_regset_sections (gdbarch, ppc_linux_vmx_regset_sections);
-  else
-    set_gdbarch_core_regset_sections (gdbarch, ppc_linux_fp_regset_sections);
 
   /* Enable TLS support.  */
   set_gdbarch_fetch_tls_load_module_address (gdbarch,

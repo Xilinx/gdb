@@ -1,4 +1,4 @@
-# Copyright 1999, 2001, 2004, 2006, 2007, 2008, 2009
+# Copyright 1999, 2001, 2004, 2006, 2007, 2008, 2009, 2010
 # Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
@@ -56,6 +56,8 @@ set line_callee1_head  [gdb_get_line_number "callee1 ("]
 set line_callee1_body  [expr $line_callee1_head + 2]
 set line_main_head     [gdb_get_line_number "main ("]
 set line_main_body     [expr $line_main_head + 2]
+set line_callme_head   [gdb_get_line_number "callme ("]
+set line_callme_body   [expr $line_callme_head + 2]
 
 set fullname "fullname=\"${fullname_syntax}${srcfile}\""
 
@@ -152,6 +154,7 @@ proc test_rbreak_creation_and_listing {} {
 
 proc test_ignore_count {} {
     global mi_gdb_prompt
+    global line_callme_body
 
     mi_gdb_test "-break-insert -i 1 callme" \
         "\\^done.*ignore=\"1\".*" \
@@ -159,7 +162,7 @@ proc test_ignore_count {} {
 
     mi_run_cmd
 
-    mi_expect_stop "breakpoint-hit" "callme" "\{name=\"i\",value=\"2\"\}" ".*basics.c" "52" \
+    mi_expect_stop "breakpoint-hit" "callme" "\{name=\"i\",value=\"2\"\}" ".*basics.c" $line_callme_body \
         {"" "disp=\"keep\"" } "run to breakpoint with ignore count"
 }
 
@@ -219,6 +222,20 @@ proc test_breakpoint_commands {} {
 
     mi_list_breakpoints [list [list 7 "keep" "callee2" "basics.c" "$line_callee2_body" $hex]] \
         "breakpoint commands: check that commands are cleared"
+
+    mi_run_to_main
+
+    mi_create_breakpoint "basics.c:callee2" 9 keep callee2 ".*basics.c" $line_callee2_body $hex \
+             "breakpoint commands: insert breakpoint at basics.c:callee2, again"
+
+    mi_gdb_test "-break-commands 9 \"set \$i=0\" \"while \$i<10\" \"print \$i\" \"set \$i=\$i+1\" \"end\" \"continue\" " \
+        "\\^done" \
+        "breakpoint commands: set commands"
+
+    mi_send_resuming_command "exec-continue" "test hitting breakpoint with commands"
+    mi_gdb_test "" \
+        ".*\\\$1 = 0.*\\\$10 = 9.*\\*running.*\\*stopped,reason=\"exited-normally\".*" \
+        "test hitting breakpoint with commands"
 }
 
 test_tbreak_creation_and_listing

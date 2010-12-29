@@ -1,4 +1,4 @@
-# Copyright 2008, 2009 Free Software Foundation, Inc.
+# Copyright 2008, 2009, 2010 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,10 +24,8 @@ if $tracelevel {
 # a lwarx/ldarx instruction and ending with a stwcx/stdcx
 # instruction.
 
-set prms_id 0
-set bug_id 0
 
-if ![istarget "powerpc64-*"] then {
+if {![istarget "powerpc*"] || ![is_lp64_target]} {
     verbose "Skipping testing of powerpc64 single stepping over atomic sequences."
     return
 }
@@ -35,9 +33,9 @@ if ![istarget "powerpc64-*"] then {
 set testfile "ppc64-atomic-inst"
 set srcfile ${testfile}.c
 set binfile ${objdir}/${subdir}/${testfile}
-set compile_flags "debug quiet"
+set compile_flags {debug quiet}
 
-if { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable [concat $compile_flags additional_flags=-m64]] != "" } {
+if { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable $compile_flags] != "" } {
     unsupported "Testcase compile failed."
     return -1
 }

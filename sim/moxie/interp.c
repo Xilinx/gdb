@@ -1,5 +1,5 @@
 /* Simulator for the moxie processor
-   Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2008, 2009, 2010 Free Software Foundation, Inc.
    Contributed by Anthony Green
 
 This file is part of GDB, the GNU debugger.
@@ -414,7 +414,10 @@ sim_resume (sd, step, siggnal)
 	  int opcode = inst >> 8;
 	  switch (opcode)
 	    {
-	    case 0x00: /* nop */
+	    case 0x00: /* bad */
+	      opc = opcode;
+	      TRACE("SIGILL0");
+	      cpu.asregs.exception = SIGILL;
 	      break;
 	    case 0x01: /* ldi.l (immediate) */
 	      {
@@ -587,16 +590,17 @@ sim_resume (sd, step, siggnal)
 		cpu.asregs.cc = cc;
 	      }
 	      break;
-	    case 0x0f:
-	    case 0x10:
-	    case 0x11:
-	    case 0x12:
-	    case 0x13:
-	    case 0x14:
-	    case 0x15:
-	    case 0x16:
-	    case 0x17:
-	    case 0x18:
+	    case 0x0f: /* nop */
+	      break;
+	    case 0x10: /* bad */
+	    case 0x11: /* bad */
+	    case 0x12: /* bad */
+	    case 0x13: /* bad */
+	    case 0x14: /* bad */
+	    case 0x15: /* bad */
+	    case 0x16: /* bad */
+	    case 0x17: /* bad */
+	    case 0x18: /* bad */
 	      {
 		opc = opcode;
 		TRACE("SIGILL0");
@@ -1024,7 +1028,7 @@ int
 sim_write (sd, addr, buffer, size)
      SIM_DESC sd;
      SIM_ADDR addr;
-     unsigned char * buffer;
+     const unsigned char * buffer;
      int size;
 {
   sim_cpu *scpu = STATE_CPU (sd, 0); /* FIXME */
@@ -1176,6 +1180,22 @@ sim_open (kind, cb, abfd, argv)
   
   set_initial_gprs ();	/* Reset the GPR registers.  */
   
+  /* Configure/verify the target byte order and other runtime
+     configuration options.  */
+  if (sim_config (sd) != SIM_RC_OK)
+    {
+      sim_module_uninstall (sd);
+      return 0;
+    }
+
+  if (sim_post_argv_init (sd) != SIM_RC_OK)
+    {
+      /* Uninstall the modules to avoid memory leaks,
+	 file descriptor leaks, etc.  */
+      sim_module_uninstall (sd);
+      return 0;
+    }
+
   return sd;
 }
 
@@ -1287,11 +1307,12 @@ sim_create_inferior (sd, prog_bfd, argv, env)
   set_initial_gprs ();
   issue_messages = l;
   
-  cpu.asregs.regs[PC_REGNO] = bfd_get_start_address (prog_bfd);
+  if (prog_bfd != NULL)
+    cpu.asregs.regs[PC_REGNO] = bfd_get_start_address (prog_bfd);
 
   /* Copy args into target memory.  */
   avp = argv;
-  for (argc = 0; *avp; avp++)
+  for (argc = 0; avp && *avp; avp++)
     argc++;
 
   /* Target memory looks like this:

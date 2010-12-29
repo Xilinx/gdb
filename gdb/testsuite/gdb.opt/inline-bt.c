@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 Free Software Foundation, Inc.
+/* Copyright (C) 2008, 2010 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,18 +13,27 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+/* This is only ever run if it is compiled with a new-enough GCC, but
+   we don't want the compilation to fail if compiled by some other
+   compiler.  */
+#ifdef __GNUC__
+#define ATTR __attribute__((always_inline))
+#else
+#define ATTR
+#endif
+
 int x, y;
 volatile int result;
 
 void bar(void);
 
-inline int func1(void)
+inline ATTR int func1(void)
 {
   bar ();
   return x * y;
 }
 
-inline int func2(void)
+inline ATTR int func2(void)
 {
   return x * func1 ();
 }

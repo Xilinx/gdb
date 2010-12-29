@@ -1,5 +1,5 @@
 # Copyright 1992, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-# 2004, 2007, 2008, 2009 Free Software Foundation, Inc.
+# 2004, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,9 +20,6 @@
 if $tracelevel then {
 	strace $tracelevel
 }
-
-set prms_id 0
-set bug_id 0
 
 set testfile "callfuncs"
 set srcfile ${testfile}.c
@@ -52,35 +49,6 @@ if [target_info exists gdb,cannot_call_functions] {
     setup_xfail "*-*-*" 2416
     fail "This target can not call functions"
     continue
-}
-
-# Set the current language to C.  This counts as a test.  If it
-# fails, then we skip the other tests.
-
-proc set_lang_c {} {
-    global gdb_prompt
-
-    send_gdb "set language c\n"
-    gdb_expect {
-	-re ".*$gdb_prompt $" {}
-	timeout { fail "set language c (timeout)" ; return 0; }
-    }
-
-    send_gdb "show language\n"
-    gdb_expect {
-	-re ".* source language is \"c\".*$gdb_prompt $" {
-	    pass "set language to \"c\""
-	    return 1
-	}
-	-re ".*$gdb_prompt $" {
-	    fail "setting language to \"c\""
-	    return 0
-	}
-	timeout {
-	    fail "can't show language (timeout)"
-	    return 0
-	}
-    }
 }
 
 # FIXME:  Before calling this proc, we should probably verify that
@@ -129,13 +97,19 @@ proc do_function_calls {} {
 	# Gcc emits different stabs for the two parameters; the first is
 	# claimed to be a float, the second a double.
 	# dbxout.c in gcc claims this is the desired behavior.
+	# These tests also fail for RealView, because GDB can not tell that
+	# the function is unprototyped.
 	setup_xfail "mn10300-*-*"
+	if { [test_compiler_info "armcc-*"] } { setup_xfail "*-*-*" }
 	gdb_test "p t_float_values(3.14159,-2.3765)" " = 1"
 	setup_xfail "mn10300-*-*"
+	if { [test_compiler_info "armcc-*"] } { setup_xfail "*-*-*" }
 	gdb_test "p t_float_values(float_val1,float_val2)" " = 1"
 	setup_xfail "mn10300-*-*"
+	if { [test_compiler_info "armcc-*"] } { setup_xfail "*-*-*" }
 	gdb_test "p t_float_values(3.14159,float_val2)" " = 1"
 	setup_xfail "mn10300-*-*"
+	if { [test_compiler_info "armcc-*"] } { setup_xfail "*-*-*" }
 	gdb_test "p t_float_values(float_val1,-2.3765)" " = 1"
 
 	# Test passing of arguments which might not be widened.
@@ -196,17 +170,17 @@ proc do_function_calls {} {
     # function body.  This results in the called function treating the
     # first few instructions of the function proper as a descriptor
     # and attempting a jump through that (a totally random address).
-    setup_kfail "rs6000*-*-aix*" gdb/1457
-    setup_kfail "powerpc*-*-aix*" gdb/1457
-    setup_kfail hppa*-*-hpux* gdb/1457
+    setup_kfail gdb/1457 "rs6000*-*-aix*"
+    setup_kfail gdb/1457 "powerpc*-*-aix*"
+    setup_kfail gdb/1457 hppa*-*-hpux*
     gdb_test "p t_func_values(add,func_val2)" " = 1"
-    setup_kfail "rs6000*-*-aix*" gdb/1457
-    setup_kfail "powerpc*-*-aix*" gdb/1457
-    setup_kfail hppa*-*-hpux* gdb/1457
+    setup_kfail gdb/1457 "rs6000*-*-aix*"
+    setup_kfail gdb/1457 "powerpc*-*-aix*"
+    setup_kfail gdb/1457 hppa*-*-hpux*
     gdb_test "p t_func_values(func_val1,doubleit)" " = 1"
-    setup_kfail "rs6000*-*-aix*" gdb/1457
-    setup_kfail "powerpc*-*-aix*" gdb/1457
-    setup_kfail hppa*-*-hpux* gdb/1457
+    setup_kfail gdb/1457 "rs6000*-*-aix*"
+    setup_kfail gdb/1457 "powerpc*-*-aix*"
+    setup_kfail gdb/1457 hppa*-*-hpux*
     gdb_test "p t_call_add(add,3,4)" " = 7"
     gdb_test "p t_call_add(func_val1,3,4)" " = 7"
 
@@ -235,10 +209,14 @@ proc do_function_calls {} {
 	"call inferior func with struct - returns int"
     gdb_test "p t_structs_l(struct_val1)" "= 51" \
 	"call inferior func with struct - returns long"
-    gdb_test "p t_structs_f(struct_val1)" "= 2.12.*" \
-       	"call inferior func with struct - returns float"
-    gdb_test "p t_structs_d(struct_val1)" "= 9.87.*" \
-    	"call inferior func with struct - returns double"
+
+    if ![target_info exists gdb,skip_float_tests] {
+	gdb_test "p t_structs_f(struct_val1)" "= 2.12.*" \
+	    "call inferior func with struct - returns float"
+	gdb_test "p t_structs_d(struct_val1)" "= 9.87.*" \
+	    "call inferior func with struct - returns double"
+    }
+
     gdb_test "p t_structs_a(struct_val1)" "= (.unsigned char .. )?\"foo\"" \
     	"call inferior func with struct - returns char *"
 }
@@ -303,9 +281,9 @@ gdb_start
 gdb_reinitialize_dir $srcdir/$subdir
 gdb_load ${binfile}
 
-gdb_test "set print sevenbit-strings" ""
-gdb_test "set print address off" ""
-gdb_test "set width 0" ""
+gdb_test_no_output "set print sevenbit-strings"
+gdb_test_no_output "set print address off"
+gdb_test_no_output "set width 0"
 
 if { $hp_aCC_compiler } {
     # Do not set language explicitly to 'C'.  This will cause aCC
@@ -319,14 +297,11 @@ if { $hp_aCC_compiler } {
     # However, turn off overload-resolution for aCC.  Having it on causes
     # a lot of failures.
 
-    gdb_test "set overload-resolution 0" ".*"
+    gdb_test_no_output "set overload-resolution 0"
 } else {
-    if { ![set_lang_c] } {
+    gdb_test_no_output "set language c"
+    if { ![runto_main] } {
 	gdb_suppress_tests;
-    } else {
-	if { ![runto_main] } {
-	    gdb_suppress_tests;
-	}
     }
 }
 
@@ -469,5 +444,17 @@ if {$old_reg_content == $new_reg_content} then {
     fail "nested call dummies preserve register contents"
 }
 
-return 0
+# GDB should not crash by internal error on $sp underflow during the inferior
+# call.  It is OK it will stop on some: Cannot access memory at address 0x$hex.
 
+if {![target_info exists gdb,nosignals] && ![istarget "*-*-uclinux*"]} {
+    gdb_test {set $old_sp = $sp}
+
+    gdb_test {set $sp = 0}
+    gdb_test "call doubleit (1)" ".*" "sp == 0: call doubleit (1)"
+
+    gdb_test {set $sp = -1}
+    gdb_test "call doubleit (1)" ".*" "sp == -1: call doubleit (1)"
+
+    gdb_test {set $sp = $old_sp}
+}

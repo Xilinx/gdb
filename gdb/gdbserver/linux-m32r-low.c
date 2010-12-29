@@ -1,5 +1,5 @@
 /* GNU/Linux/m32r specific low level interface, for the remote server for GDB.
-   Copyright (C) 2005, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2005, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -53,18 +53,20 @@ m32r_cannot_fetch_register (int regno)
 }
 
 static CORE_ADDR
-m32r_get_pc ()
+m32r_get_pc (struct regcache *regcache)
 {
   unsigned long pc;
-  collect_register_by_name ("pc", &pc);
+  collect_register_by_name (regcache, "pc", &pc);
+  if (debug_threads)
+    fprintf (stderr, "stop pc is %08lx\n", pc);
   return pc;
 }
 
 static void
-m32r_set_pc (CORE_ADDR pc)
+m32r_set_pc (struct regcache *regcache, CORE_ADDR pc)
 {
   unsigned long newpc = pc;
-  supply_register_by_name ("pc", &newpc);
+  supply_register_by_name (regcache, "pc", &newpc);
 }
 
 static const unsigned short m32r_breakpoint = 0x10f1;

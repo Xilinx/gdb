@@ -1,6 +1,6 @@
 /* Replay a remote debug session logfile for GDB.
    Copyright (C) 1996, 1998, 1999, 2000, 2002, 2003, 2005, 2006, 2007, 2008,
-   2009 Free Software Foundation, Inc.
+   2009, 2010 Free Software Foundation, Inc.
    Written by Fred Fish (fnf@cygnus.com) from pieces of gdbserver.
 
    This file is part of GDB.
@@ -54,12 +54,14 @@
 #if HAVE_NETINET_TCP_H
 #include <netinet/tcp.h>
 #endif
+#if HAVE_ALLOCA_H
+#include <alloca.h>
+#endif
 #if HAVE_MALLOC_H
 #include <malloc.h>
 #endif
-
 #if USE_WIN32API
-#include <winsock.h>
+#include <winsock2.h>
 #endif
 
 #ifndef HAVE_SOCKLEN_T
@@ -163,6 +165,14 @@ sync_error (FILE *fp, char *desc, int expect, int got)
 }
 
 static void
+remote_error (const char *desc)
+{
+  fprintf (stderr, "\n%s\n", desc);
+  fflush (stderr);
+  exit (1);
+}
+
+static void
 remote_close (void)
 {
 #ifdef USE_WIN32API
@@ -210,7 +220,7 @@ remote_open (char *name)
 #endif
 
       tmp_desc = socket (PF_INET, SOCK_STREAM, 0);
-      if (tmp_desc < 0)
+      if (tmp_desc == -1)
 	perror_with_name ("Can't open socket");
 
       /* Allow rapid reuse of this port. */
@@ -339,6 +349,17 @@ logchar (FILE *fp)
   return (ch);
 }
 
+static int
+gdbchar (int desc)
+{
+  unsigned char fromgdb;
+
+  if (read (desc, &fromgdb, 1) != 1)
+    return -1;
+  else
+    return fromgdb;
+}
+
 /* Accept input from gdb and match with chars from fp (after skipping one
    blank) up until a \n is read from fp (which is not matched) */
 
@@ -346,7 +367,7 @@ static void
 expect (FILE *fp)
 {
   int fromlog;
-  unsigned char fromgdb;
+  int fromgdb;
 
   if ((fromlog = logchar (fp)) != ' ')
     {
@@ -357,15 +378,16 @@ expect (FILE *fp)
     {
       fromlog = logchar (fp);
       if (fromlog == EOL)
-	{
-	  break;
-	}
-      read (remote_desc, &fromgdb, 1);
+	break;
+      fromgdb = gdbchar (remote_desc);
+      if (fromgdb < 0)
+	remote_error ("Error during read from gdb");
     }
   while (fromlog == fromgdb);
+
   if (fromlog != EOL)
     {
-      sync_error (fp, "Sync error during read of gdb packet", fromlog,
+      sync_error (fp, "Sync error during read of gdb packet from log", fromlog,
 		  fromgdb);
     }
 }
@@ -387,7 +409,8 @@ play (FILE *fp)
   while ((fromlog = logchar (fp)) != EOL)
     {
       ch = fromlog;
-      write (remote_desc, &ch, 1);
+      if (write (remote_desc, &ch, 1) != 1)
+	remote_error ("Error during write to gdb");
     }
 }
 
@@ -395,7 +418,7 @@ static void
 gdbreplay_version (void)
 {
   printf ("GNU gdbreplay %s%s\n"
-	  "Copyright (C) 2009 Free Software Foundation, Inc.\n"
+	  "Copyright (C) 2010 Free Software Foundation, Inc.\n"
 	  "gdbreplay is free software, covered by the GNU General Public License.\n"
 	  "This gdbreplay was configured as \"%s\"\n",
 	  PKGVERSION, version, host_name);

@@ -1,5 +1,6 @@
 /* Header file for GDB CLI set and show commands implementation.
-   Copyright (c) 2000, 2001, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (c) 2000, 2001, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,10 +22,10 @@ struct cmd_list_element;
 
 /* Exported to cli/cli-cmds.c and gdb/top.c */
 
-/* Do a "set" or "show" command.  ARG is NULL if no argument, or the text
-   of the argument, and FROM_TTY is nonzero if this command is being entered
-   directly by the user (i.e. these are just like any other
-   command).  C is the command list element for the command.  */
+/* Do a "set" or "show" command.  ARG is NULL if no argument, or the
+   text of the argument, and FROM_TTY is nonzero if this command is
+   being entered directly by the user (i.e. these are just like any
+   other command).  C is the command list element for the command.  */
 extern void do_setshow_command (char *arg, int from_tty,
 				struct cmd_list_element *c);
 

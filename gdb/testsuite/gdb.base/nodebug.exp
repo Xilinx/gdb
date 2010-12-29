@@ -1,4 +1,4 @@
-# Copyright 1997, 1999, 2004, 2005, 2007, 2008, 2009
+# Copyright 1997, 1999, 2004, 2005, 2007, 2008, 2009, 2010
 # Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
@@ -20,8 +20,6 @@ if $tracelevel then {
 	strace $tracelevel
 }
 
-set prms_id 0
-set bug_id 0
 
 set testfile nodebug
 set srcfile $srcdir/$subdir/$testfile.c
@@ -77,7 +75,7 @@ if [runto inner] then {
     
     if {![test_compiler_info "gcc-*"]} then { setup_xfail "mips-sgi-irix5*" "mips-sgi-irix6*" }
     gdb_test "p top" \
-	"\{(<(text variable|function), no debug info>|short \\(int\\)|short \\(\\))\} \[0-9a-fx]* <top(\\(int\\)|)>"
+	"\{(<(text variable|function), no debug info>|short \\(int\\)|short \\(\\))\} \[0-9a-fx]* <\\.?top(\\(int\\)|)>"
     if {![test_compiler_info "gcc-*"]} then { setup_xfail "mips-sgi-irix5*" "mips-sgi-irix6*" }
     gdb_test "whatis top" \
 	"(<(text variable|function), no debug info>|short \\(int\\)|short \\(\\))"
@@ -87,7 +85,7 @@ if [runto inner] then {
     if {![test_compiler_info "gcc-*"]} then { setup_xfail "mips-sgi-irix5*" }
     setup_xfail "mips-sgi-irix6*"
     gdb_test "p middle" \
-	"\{(<(text variable|function), no debug info>|short \\(int\\)|short \\(\\))\} \[0-9a-fx]* <middle(\\(int\\)|)>"
+	"\{(<(text variable|function), no debug info>|short \\(int\\)|short \\(\\))\} \[0-9a-fx]* <\\.?middle(\\(int\\)|)>"
     if {![test_compiler_info "gcc-*"]} then { setup_xfail "mips-sgi-irix5*" }
     setup_xfail "mips-sgi-irix6*"
     gdb_test "whatis middle" \
@@ -192,18 +190,25 @@ if [runto inner] then {
 	# the inferior was compiled with -g.  Thus, we expect this
 	# testpoint to fail on HP-UX.
 	if { [istarget "hppa*-hpux*"] } {
-	    send_gdb "p/c array_index(\"abcdef\",2)\n"
-	    gdb_expect {
-		-re ".*Suggest linking executable with -g.*$gdb_prompt $" { pass "p/c array_index(\"abcdef\",2)" }
-		-re ".*Cannot find __wdb_call_dummy in.*end.o.*" { pass "p/c array_index(\"abcdef\",2)" }
-		-re ".*99 'c'.*" { pass "p/c array_index(\"abcdef\",2)" }
-		timeout { fail "(timeout) p/c array_index" }
+	    gdb_test_multiple "p/c array_index(\"abcdef\",2)" \
+		"p/c array_index(\"abcdef\",2)" {
+		    -re ".*Suggest linking executable with -g.*$gdb_prompt $" {
+			pass "p/c array_index(\"abcdef\",2)" 
+		    }
+		    -re ".*Cannot find __wdb_call_dummy in.*end.o.*" {
+			pass "p/c array_index(\"abcdef\",2)" 
+		    }
+		-re ".*99 'c'.*" {
+		    pass "p/c array_index(\"abcdef\",2)"
+		}
 	    }
 	} else {
 	    # We need to up this because this can be really slow on some boards.
 	    # (malloc() is called as part of the test).
-	    set timeout 60;    
+	    set prev_timeout $timeout
+	    set timeout 60
 	    gdb_test {p/c array_index("abcdef",2)} " = 99 'c'"
+	    set timeout $prev_timeout
 	}
     }
     

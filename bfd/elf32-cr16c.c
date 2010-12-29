@@ -1,5 +1,6 @@
 /* BFD back-end for National Semiconductor's CR16C ELF
-   Copyright 2004, 2005, 2006, 2007, 2009 Free Software Foundation, Inc.
+   Copyright 2004, 2005, 2006, 2007, 2009, 2010
+   Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -204,7 +205,6 @@ cr16c_elf_final_link_relocate (reloc_howto_type *howto,
   unsigned long format, addr_type, code_factor;
   unsigned short size;
   unsigned short r_type;
-  asymbol *symbol = NULL;
 
   unsigned long disp20_opcod;
   char neg = 0;
@@ -223,9 +223,6 @@ cr16c_elf_final_link_relocate (reloc_howto_type *howto,
   size = r_type & R_SIZESP;
   addr_type = r_type & R_ADDRTYPE;
   code_factor = ((addr_type == R_CODE_ADDR) ? 1 : 0);
-
-  if (sym_sec)
-    symbol = sym_sec->symbol;
 
   switch (format)
     {
@@ -727,15 +724,8 @@ elf32_cr16c_relocate_section (bfd *output_bfd,
 	}
 
       if (sec != NULL && elf_discarded_section (sec))
-	{
-	  /* For relocs against symbols from removed linkonce sections,
-	     or sections discarded by a linker script, we just want the
-	     section contents zeroed.  Avoid any special processing.  */
-	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
-	  rel->r_info = 0;
-	  rel->r_addend = 0;
-	  continue;
-	}
+	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
+					 rel, relend, howto, contents);
 
       if (info->relocatable)
 	{

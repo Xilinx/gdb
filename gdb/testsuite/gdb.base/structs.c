@@ -1,6 +1,7 @@
 /* This testcase is part of GDB, the GNU debugger.
 
-   Copyright 1996, 1999, 2003, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright 1996, 1999, 2003, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -396,6 +397,8 @@ zed ()
   L18.r = 'Z';
 }
 
+static struct { char c; } chartest[256];
+
 int main()
 {
 #ifdef usestubs
@@ -403,6 +406,10 @@ int main()
   breakpoint();
 #endif
   int i;
+
+  for (i = 0; i < 256; i++)
+    chartest[i].c = i;
+  chartest[0].c = 0;  /* chartest-done */
 
   Fun1(foo1);	
   Fun2(foo2);	

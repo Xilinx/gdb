@@ -1,5 +1,6 @@
 /* Target-dependent code for GNU/Linux on Alpha.
-   Copyright (C) 2002, 2003, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2003, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -25,7 +26,7 @@
 #include "symtab.h"
 #include "regset.h"
 #include "regcache.h"
-
+#include "linux-tdep.h"
 #include "alpha-tdep.h"
 
 /* Under GNU/Linux, signal handler invocations can be identified by
@@ -210,6 +211,8 @@ static void
 alpha_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 {
   struct gdbarch_tdep *tdep;
+
+  linux_init_abi (info, gdbarch);
 
   /* Hook into the DWARF CFI frame unwinder.  */
   alpha_dwarf2_init_abi (info, gdbarch);

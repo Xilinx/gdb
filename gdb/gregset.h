@@ -1,5 +1,6 @@
 /* Interface for functions using gregset and fpregset types.
-   Copyright (C) 2000, 2002, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2002, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -55,21 +56,5 @@ extern void fill_gregset (const struct regcache *regcache,
 			  gdb_gregset_t *gregs, int regno);
 extern void fill_fpregset (const struct regcache *regcache,
 			   gdb_fpregset_t *fpregs, int regno);
-
-#ifdef FILL_FPXREGSET
-/* GNU/Linux i386: Copy register values between GDB's internal register cache
-   and the i386 extended floating point registers.  */
-
-#ifndef GDB_FPXREGSET_T
-#define GDB_FPXREGSET_T elf_fpxregset_t
-#endif
-
-typedef GDB_FPXREGSET_T gdb_fpxregset_t;
-
-extern void supply_fpxregset (struct regcache *regcache,
-			      const gdb_fpxregset_t *fpxregs);
-extern void fill_fpxregset (const struct regcache *regcache,
-			    gdb_fpxregset_t *fpxregs, int regno);
-#endif
 
 #endif

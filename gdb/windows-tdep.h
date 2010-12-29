@@ -1,4 +1,4 @@
-/* Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+/* Copyright (C) 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -20,6 +20,10 @@
 
 struct obstack;
 struct gdbarch;
+
+extern struct cmd_list_element *info_w32_cmdlist;
+
+extern void init_w32_command_list (void);
 
 extern void windows_xfer_shared_library (const char* so_name,
 					 CORE_ADDR load_addr,

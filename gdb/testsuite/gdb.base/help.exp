@@ -1,5 +1,5 @@
 #   Copyright 1988, 1990, 1991, 1992, 1994, 1995, 1996, 1997, 1998, 1999,
-#   2000, 2002, 2003, 2005, 2006, 2007, 2008, 2009
+#   2000, 2002, 2003, 2005, 2006, 2007, 2008, 2009, 2010
 #   Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
@@ -21,13 +21,11 @@
 # test gdb help commands
 #
 
-set prms_id 0
-set bug_id 0
 
 gdb_start
 
-# force the height of the debugger to be pretty large so no pagers getused
-gdb_test "set height 400" "" "test set height"
+# force the height of the debugger to be pretty large so no pagers get used
+gdb_test_no_output "set height 400" "test set height"
 
 # use a larger expect input buffer for long help outputs.
 # test help add-symbol-file
@@ -47,15 +45,15 @@ gdb_test "help append binary value" "Append the value of an expression to a raw 
 # test help attach
 gdb_test "help attach" "Attach to a process or file outside of GDB\.\[\r\n\]+This command attaches to another target, of the same type as your last\[\r\n\]+\"target\" command \\(\"info files\" will show your target stack\\)\.\[\r\n\]+The command may take as argument a process id or a device file\.\[\r\n\]+For a process id, you must have permission to send the process a signal,\[\r\n\]+and it must have the same effective uid as the debugger\.\[\r\n\]+When using \"attach\" with a process id, the debugger finds the\[\r\n\]+program running in the process, looking first in the current working\[\r\n\]+directory, or \\(if not found there\\) using the source file search path\[\r\n\]+\\(see the \"directory\" command\\)\.  You can also use the \"file\" command\[\r\n\]+to specify the program, and to load its symbol table\." "help attach"
 # test help breakpoint "b" abbreviation
-gdb_test "help b" "Set breakpoint at specified line or function\.\[\r\n\]+break \\\[LOCATION\] \\\[thread THREADNUM\] \\\[if CONDITION\]\[\r\n\]+LOCATION may be a line number, function name, or \"\[*\]\" and an address\.\[\r\n\]+If a line number is specified, break at start of code for that line\.\[\r\n\]+If a function is specified, break at start of code for that function\.\[\r\n\]+If an address is specified, break at that exact address\.\[\r\n\]+With no LOCATION, uses current execution address of selected stack frame\.\[\r\n\]+This is useful for breaking on return to a stack frame\.\[\r\n\]+THREADNUM is the number from \"info threads\"\.\[\r\n\]+CONDITION is a boolean expression\.\[\r\n\]+Multiple breakpoints at one place are permitted, and useful if conditional\.\[\r\n\]+Do \"help breakpoints\" for info on other commands dealing with breakpoints\." "help breakpoint \"b\" abbreviation"
+gdb_test "help b" "Set breakpoint at specified line or function\.\[\r\n\]+break \\\[LOCATION\] \\\[thread THREADNUM\] \\\[if CONDITION\]\[\r\n\]+LOCATION may be a line number, function name, or \"\[*\]\" and an address\.\[\r\n\]+If a line number is specified, break at start of code for that line\.\[\r\n\]+If a function is specified, break at start of code for that function\.\[\r\n\]+If an address is specified, break at that exact address\.\[\r\n\]+With no LOCATION, uses current execution address of the selected\[\r\n\]+stack frame\.  This is useful for breaking on return to a stack frame\.\[\r\n\]+THREADNUM is the number from \"info threads\"\.\[\r\n\]+CONDITION is a boolean expression\.\[\r\n\]+Multiple breakpoints at one place are permitted, and useful if their\[\r\n\]+conditions are different\.\[\r\n\]+Do \"help breakpoints\" for info on other commands dealing with breakpoints\." "help breakpoint \"b\" abbreviation"
 # test help breakpoint "br" abbreviation
-gdb_test "help br" "Set breakpoint at specified line or function\.\[\r\n\]+break \\\[LOCATION\] \\\[thread THREADNUM\] \\\[if CONDITION\]\[\r\n\]+LOCATION may be a line number, function name, or \"\[*\]\" and an address\.\[\r\n\]+If a line number is specified, break at start of code for that line\.\[\r\n\]+If a function is specified, break at start of code for that function\.\[\r\n\]+If an address is specified, break at that exact address\.\[\r\n\]+With no LOCATION, uses current execution address of selected stack frame\.\[\r\n\]+This is useful for breaking on return to a stack frame\.\[\r\n\]+THREADNUM is the number from \"info threads\"\.\[\r\n\]+CONDITION is a boolean expression\.\[\r\n\]+Multiple breakpoints at one place are permitted, and useful if conditional\.\[\r\n\]+Do \"help breakpoints\" for info on other commands dealing with breakpoints\." "help breakpoint \"br\" abbreviation"
+gdb_test "help br" "Set breakpoint at specified line or function\.\[\r\n\]+break \\\[LOCATION\] \\\[thread THREADNUM\] \\\[if CONDITION\]\[\r\n\]+LOCATION may be a line number, function name, or \"\[*\]\" and an address\.\[\r\n\]+If a line number is specified, break at start of code for that line\.\[\r\n\]+If a function is specified, break at start of code for that function\.\[\r\n\]+If an address is specified, break at that exact address\.\[\r\n\]+With no LOCATION, uses current execution address of the selected\[\r\n\]+stack frame\.  This is useful for breaking on return to a stack frame\.\[\r\n\]+THREADNUM is the number from \"info threads\"\.\[\r\n\]+CONDITION is a boolean expression\.\[\r\n\]+Multiple breakpoints at one place are permitted, and useful if their\[\r\n\]+conditions are different\.\[\r\n\]+Do \"help breakpoints\" for info on other commands dealing with breakpoints\." "help breakpoint \"br\" abbreviation"
 # test help breakpoint "bre" abbreviation
-gdb_test "help bre" "Set breakpoint at specified line or function\.\[\r\n\]+break \\\[LOCATION\] \\\[thread THREADNUM\] \\\[if CONDITION\]\[\r\n\]+LOCATION may be a line number, function name, or \"\[*\]\" and an address\.\[\r\n\]+If a line number is specified, break at start of code for that line\.\[\r\n\]+If a function is specified, break at start of code for that function\.\[\r\n\]+If an address is specified, break at that exact address\.\[\r\n\]+With no LOCATION, uses current execution address of selected stack frame\.\[\r\n\]+This is useful for breaking on return to a stack frame\.\[\r\n\]+THREADNUM is the number from \"info threads\"\.\[\r\n\]+CONDITION is a boolean expression\.\[\r\n\]+Multiple breakpoints at one place are permitted, and useful if conditional\.\[\r\n\]+Do \"help breakpoints\" for info on other commands dealing with breakpoints\." "help breakpoint \"bre\" abbreviation"
+gdb_test "help bre" "Set breakpoint at specified line or function\.\[\r\n\]+break \\\[LOCATION\] \\\[thread THREADNUM\] \\\[if CONDITION\]\[\r\n\]+LOCATION may be a line number, function name, or \"\[*\]\" and an address\.\[\r\n\]+If a line number is specified, break at start of code for that line\.\[\r\n\]+If a function is specified, break at start of code for that function\.\[\r\n\]+If an address is specified, break at that exact address\.\[\r\n\]+With no LOCATION, uses current execution address of the selected\[\r\n\]+stack frame\.  This is useful for breaking on return to a stack frame\.\[\r\n\]+THREADNUM is the number from \"info threads\"\.\[\r\n\]+CONDITION is a boolean expression\.\[\r\n\]+Multiple breakpoints at one place are permitted, and useful if their\[\r\n\]+conditions are different\.\[\r\n\]+Do \"help breakpoints\" for info on other commands dealing with breakpoints\." "help breakpoint \"bre\" abbreviation"
 # test help breakpoint "brea" abbreviation
-gdb_test "help brea" "Set breakpoint at specified line or function\.\[\r\n\]+break \\\[LOCATION\] \\\[thread THREADNUM\] \\\[if CONDITION\]\[\r\n\]+LOCATION may be a line number, function name, or \"\[*\]\" and an address\.\[\r\n\]+If a line number is specified, break at start of code for that line\.\[\r\n\]+If a function is specified, break at start of code for that function\.\[\r\n\]+If an address is specified, break at that exact address\.\[\r\n\]+With no LOCATION, uses current execution address of selected stack frame\.\[\r\n\]+This is useful for breaking on return to a stack frame\.\[\r\n\]+THREADNUM is the number from \"info threads\"\.\[\r\n\]+CONDITION is a boolean expression\.\[\r\n\]+Multiple breakpoints at one place are permitted, and useful if conditional\.\[\r\n\]+Do \"help breakpoints\" for info on other commands dealing with breakpoints\." "help breakpoint \"brea\" abbreviation"
+gdb_test "help brea" "Set breakpoint at specified line or function\.\[\r\n\]+break \\\[LOCATION\] \\\[thread THREADNUM\] \\\[if CONDITION\]\[\r\n\]+LOCATION may be a line number, function name, or \"\[*\]\" and an address\.\[\r\n\]+If a line number is specified, break at start of code for that line\.\[\r\n\]+If a function is specified, break at start of code for that function\.\[\r\n\]+If an address is specified, break at that exact address\.\[\r\n\]+With no LOCATION, uses current execution address of the selected\[\r\n\]+stack frame\.  This is useful for breaking on return to a stack frame\.\[\r\n\]+THREADNUM is the number from \"info threads\"\.\[\r\n\]+CONDITION is a boolean expression\.\[\r\n\]+Multiple breakpoints at one place are permitted, and useful if their\[\r\n\]+conditions are different\.\[\r\n\]+Do \"help breakpoints\" for info on other commands dealing with breakpoints\." "help breakpoint \"brea\" abbreviation"
 # test help breakpoint "break" abbreviation
-gdb_test "help break" "Set breakpoint at specified line or function\.\[\r\n\]+break \\\[LOCATION\] \\\[thread THREADNUM\] \\\[if CONDITION\]\[\r\n\]+LOCATION may be a line number, function name, or \"\[*\]\" and an address\.\[\r\n\]+If a line number is specified, break at start of code for that line\.\[\r\n\]+If a function is specified, break at start of code for that function\.\[\r\n\]+If an address is specified, break at that exact address\.\[\r\n\]+With no LOCATION, uses current execution address of selected stack frame\.\[\r\n\]+This is useful for breaking on return to a stack frame\.\[\r\n\]+THREADNUM is the number from \"info threads\"\.\[\r\n\]+CONDITION is a boolean expression\.\[\r\n\]+Multiple breakpoints at one place are permitted, and useful if conditional\.\[\r\n\]+Do \"help breakpoints\" for info on other commands dealing with breakpoints\." "help breakpoint \"break\" abbreviation"
+gdb_test "help break" "Set breakpoint at specified line or function\.\[\r\n\]+break \\\[LOCATION\] \\\[thread THREADNUM\] \\\[if CONDITION\]\[\r\n\]+LOCATION may be a line number, function name, or \"\[*\]\" and an address\.\[\r\n\]+If a line number is specified, break at start of code for that line\.\[\r\n\]+If a function is specified, break at start of code for that function\.\[\r\n\]+If an address is specified, break at that exact address\.\[\r\n\]+With no LOCATION, uses current execution address of the selected\[\r\n\]+stack frame\.  This is useful for breaking on return to a stack frame\.\[\r\n\]+THREADNUM is the number from \"info threads\"\.\[\r\n\]+CONDITION is a boolean expression\.\[\r\n\]+Multiple breakpoints at one place are permitted, and useful if their\[\r\n\]+conditions are different\.\[\r\n\]+Do \"help breakpoints\" for info on other commands dealing with breakpoints\." "help breakpoint \"break\" abbreviation"
 # test help breakpoints
 test_class_help "breakpoints" {"Making program stop at certain points\.\[\r\n\]+"}
 # test help backtrace "bt" abbreviation
@@ -124,7 +122,7 @@ gdb_test "help disable breakpoints" "Disable some breakpoints\.\[\r\n\]+Argument
 # test help disable display
 gdb_test "help disable display" "Disable some expressions to be displayed when program stops\.\[\r\n\]+Arguments are the code numbers of the expressions to stop displaying\.\[\r\n\]+No argument means disable all automatic-display expressions\.\[\r\n\]+Do \"info display\" to see current list of code numbers\." "help disable display"
 # test help disassemble
-gdb_test "help disassemble" "Disassemble a specified section of memory\.\[\r\n\]+Default is the function surrounding the pc of the selected frame\.\[\r\n\]+With a /m modifier, source lines are included \\(if available\\)\.\[\r\n\]+With a /r modifier, raw instructions in hex are included\.\[\r\n\]+With a single argument, the function surrounding that address is dumped\.\[\r\n\]+Two arguments are taken as a range of memory to dump\." "help disassemble"
+gdb_test "help disassemble" "Disassemble a specified section of memory\.\[\r\n\]+Default is the function surrounding the pc of the selected frame\.\[\r\n\]+With a /m modifier, source lines are included \\(if available\\)\.\[\r\n\]+With a /r modifier, raw instructions in hex are included\.\[\r\n\]+With a single argument, the function surrounding that address is dumped\.\[\r\n\]+Two arguments \\(separated by a comma\\) are taken as a range of memory to dump,\[\r\n\]+  in the form of \"start,end\", or \"start,\\+length\"\." "help disassemble"
 # test help display
 gdb_test "help display" "Print value of expression EXP each time the program stops\.\[\r\n\]+/FMT may be used before EXP as in the \"print\" command\.\[\r\n\]+/FMT \"i\" or \"s\" or including a size-letter is allowed,\[\r\n\]+as in the \"x\" command, and then EXP is used to get the address to examine\[\r\n\]+and examining is done as in the \"x\" command\.\[\r\n\]+With no argument, display all currently requested auto-display expressions\.\[\r\n\]+Use \"undisplay\" to cancel display requests previously made\." "help display"
 # test help do
@@ -201,25 +199,21 @@ gdb_test "help finish" "Execute until selected stack frame returns\.\[\r\n\]+Upo
 # test help forward-search
 gdb_test "help forward-search" "Search for regular expression \\(see regex\\(3\\)\\) from last line listed.*" "help forward-search"
 # test help gcore
-send_gdb "help gcore\n"
-gdb_expect {
+gdb_test_multiple "help gcore" "help gcore" {
     -re "Undefined command: \"gcore\"\.  Try \"help\".*$gdb_prompt $" {
 	pass "help gcore"
     }
     -re "Save a core file with the current state of the debugged process\.\[\r\n\]+Argument is optional filename\.  Default filename is 'core\.<process_id>'.*$gdb_prompt $" {
 	pass "help gcore"
     }
-    default { fail "help gcore" }
 }
-send_gdb "help generate-core-file\n"
-gdb_expect {
+gdb_test_multiple "help generate-core-file" "help generate-core-file" {
     -re "Undefined command: \"generate-core-file\"\.  Try \"help\".*$gdb_prompt $" {
 	pass "help gcore"
     }
     -re "Save a core file with the current state of the debugged process\.\[\r\n\]+Argument is optional filename\.  Default filename is 'core\.<process_id>'.*$gdb_prompt $" {
 	pass "help gcore"
     }
-    default { fail "help gcore" }
 }
 # test help help "h" abbreviation 
 gdb_test "help h" "Print list of commands\." "help help \"h\" abbreviation"
@@ -294,7 +288,7 @@ gdb_test "help info variables" "All global and static variable names, or those m
 # test help info warranty
 gdb_test "help info warranty" "Various kinds of warranty you do not have\." "help info warranty"
 # test help info watchpoints
-gdb_test "help info watchpoints" "Synonym for ``info breakpoints''\." "help info watchpoints"
+gdb_test "help info watchpoints" "Status of watchpoints, or watchpoint number NUMBER\." "help info watchpoints"
 # test help inspect
 gdb_test "help inspect" "Same as \"print\" command, except that if you are running in the epoch\[\r\n\]+environment, the value is printed in its own window\." "help inspect"
 # test help jump
@@ -513,7 +507,7 @@ gdb_test "help show confirm" "Show whether to confirm potentially dangerous oper
 # test help show convenience
 gdb_test "help show convenience" "Debugger convenience \\(\"\\\$foo\"\\) variables\.\[\r\n\]+These variables are created when you assign them values;\[\r\n\]+thus, \"print \\\$foo=1\" gives \"\\\$foo\" the value 1\.  Values may be any type\.\[\r\n\]+A few convenience variables are given values automatically:\[\r\n\]+\"\\\$_\"holds the last address examined with \"x\" or \"info lines\",\[\r\n\]+\"\\\$__\" holds the contents of the last address examined with \"x\"\." "help show convenience"
 # test help show directories
-gdb_test "help show directories" "Current search path for finding source files\.\[\r\n\]+\\\$cwd in the path means the current working directory\.\[\r\n\]+\\\$cdir in the path means the compilation directory of the source file\." "help show directories"
+gdb_test "help show directories" "Show the search path for finding source files\.\[\r\n\]+\\\$cwd in the path means the current working directory\.\[\r\n\]+\\\$cdir in the path means the compilation directory of the source file\..*" "help show directories"
 # test help show editing
 gdb_test "help show editing" "Show editing of command lines as they are typed\.\[\r\n\]+Use \"on\" to enable the editing, and \"off\" to disable it\.\[\r\n\]+Without an argument, command line editing is enabled\.  To edit, use\[\r\n\]+EMACS-like or VI-like commands like control-P or ESC\." "help show editing"
 # test help show environment
@@ -606,7 +600,9 @@ gdb_test "help stepi" "Step one instruction exactly\.\[\r\n\]+Argument N means d
 gdb_test "help signal" "Continue program giving it signal.*" "help signal"
 # test help source
 # vxgdb reads .vxgdbinit
-gdb_test "help source" "Read commands from a file named FILE\.\[\r\n\]+Optional -v switch \\(before the filename\\) causes each command in\[\r\n\]+FILE to be echoed as it is executed\.\[\r\n\]+Note that the file \"\[^\"\]*\" is read automatically in this way\[\r\n\]+when GDB is started\." "help source"
+# ".-s. .-v." is written that way to avoid the complications of trying
+# to get "[-s] [-v]" through expect and tcl.
+gdb_test "help source" "Read commands from a file named FILE\.\[\r\n\]+Usage: source .-s. .-v. FILE\[\r\n\]+-s: search for the script in the source search path,\[\r\n\]+\[ \]+even if FILE contains directories\.\[\r\n\]+-v: each command in FILE is echoed as it is executed\.\[\r\n\]+Note that the file \"\[^\"\]*\" is read automatically in this way\[\r\n\]+when GDB is started\." "help source"
 # test help stack
 test_class_help "stack" {
     "Examining the stack\..*\[\r\n\]+"
@@ -673,7 +669,7 @@ test_class_help "user-defined" {
     "Use the \"define\" command to define a command\.\[\r\n\]+"
 }
 # test help watch
-gdb_test "help watch" "Set a watchpoint for an expression\.\[\r\n\]+A watchpoint stops execution of your program whenever the value of\[\r\n\]+an expression changes\." "help watch"
+gdb_test "help watch" "Set a watchpoint for an expression\.\[\r\n\]+Usage: watch .-l.-location. EXPRESSION\[\r\n\]+A watchpoint stops execution of your program whenever the value of\[\r\n\]+an expression changes\.\[\r\n\]+If -l or -location is given, this evaluates EXPRESSION and watches\[\r\n\]+the memory to which it refers\." "help watch"
 # test help whatis
 gdb_test "help whatis" "Print data type of expression EXP\." "help whatis"
 # test help where

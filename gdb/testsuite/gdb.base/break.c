@@ -1,6 +1,6 @@
 /* This testcase is part of GDB, the GNU debugger.
 
-   Copyright 1992, 1993, 1994, 1995, 1999, 2002, 2003, 2007, 2008, 2009
+   Copyright 1992, 1993, 1994, 1995, 1999, 2002, 2003, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -61,6 +61,13 @@ extern int marker2 ();
 extern void marker3 ();
 extern void marker4 ();
 #endif
+
+/* We're used by a test that requires malloc, so make sure it is in
+   the executable.  */
+void *need_malloc ()
+{
+  return malloc (1);
+}
 
 /*
  *	This simple classical example of recursion is useful for

@@ -1,6 +1,6 @@
 /* The common simulator framework for GDB, the GNU Debugger.
 
-   Copyright 2002, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright 2002, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    Contributed by Andrew Cagney and Red Hat.
 
@@ -186,7 +186,7 @@ struct hw_glue {
 static hw_io_read_buffer_method hw_glue_io_read_buffer;
 static hw_io_write_buffer_method hw_glue_io_write_buffer;
 static hw_port_event_method hw_glue_port_event;
-const static struct hw_port_descriptor hw_glue_ports[];
+static const struct hw_port_descriptor hw_glue_ports[];
 
 static void
 hw_glue_finish (struct hw *me)
@@ -357,8 +357,8 @@ hw_glue_port_event (struct hw *me,
 
 
 static const struct hw_port_descriptor hw_glue_ports[] = {
-  { "int", 0, max_nr_ports },
-  { NULL }
+  { "int", 0, max_nr_ports, 0 },
+  { NULL, 0, 0, 0 }
 };
 
 
@@ -370,5 +370,5 @@ const struct hw_descriptor dv_glue_descriptor[] = {
   { "glue-xor", hw_glue_finish, },
   { "glue-nor", hw_glue_finish, },
   { "glue-not", hw_glue_finish, },
-  { NULL },
+  { NULL, NULL },
 };

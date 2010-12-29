@@ -1,7 +1,8 @@
 /* Generic serial interface routines
 
    Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2004, 2005, 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+   2002, 2004, 2005, 2006, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -48,7 +49,7 @@ static struct serial *scb_base;
 static char *serial_logfile = NULL;
 static struct ui_file *serial_logfp = NULL;
 
-static struct serial_ops *serial_interface_lookup (char *);
+static struct serial_ops *serial_interface_lookup (const char *);
 static void serial_logchar (struct ui_file *stream, int ch_type, int ch, int timeout);
 static const char logbase_hex[] = "hex";
 static const char logbase_octal[] = "octal";
@@ -146,7 +147,7 @@ serial_log_command (const char *cmd)
 
 
 static struct serial_ops *
-serial_interface_lookup (char *name)
+serial_interface_lookup (const char *name)
 {
   struct serial_ops *ops;
 
@@ -246,7 +247,6 @@ struct serial *
 serial_for_fd (int fd)
 {
   struct serial *scb;
-  struct serial_ops *ops;
 
   for (scb = scb_base; scb; scb = scb->next)
     if (scb->fd == fd)
@@ -255,22 +255,27 @@ serial_for_fd (int fd)
   return NULL;
 }
 
-struct serial *
-serial_fdopen (const int fd)
+/* Open a new serial stream using a file handle, using serial
+   interface ops OPS.  */
+
+static struct serial *
+serial_fdopen_ops (const int fd, struct serial_ops *ops)
 {
   struct serial *scb;
-  struct serial_ops *ops;
 
-  for (scb = scb_base; scb; scb = scb->next)
-    if (scb->fd == fd)
-      {
-	scb->refcnt++;
-	return scb;
-      }
+  scb = serial_for_fd (fd);
+  if (scb)
+    {
+      scb->refcnt++;
+      return scb;
+    }
 
-  ops = serial_interface_lookup ("terminal");
   if (!ops)
-    ops = serial_interface_lookup ("hardwire");
+    {
+      ops = serial_interface_lookup ("terminal");
+      if (!ops)
+ 	ops = serial_interface_lookup ("hardwire");
+    }
 
   if (!ops)
     return NULL;
@@ -281,8 +286,7 @@ serial_fdopen (const int fd)
 
   scb->bufcnt = 0;
   scb->bufp = scb->buf;
-
-  scb->fd = fd;
+  scb->error_fd = -1;
 
   scb->name = NULL;
   scb->next = scb_base;
@@ -293,9 +297,20 @@ serial_fdopen (const int fd)
   scb->async_context = NULL;
   scb_base = scb;
 
+  if ((ops->fdopen) != NULL)
+    (*ops->fdopen) (scb, fd);
+  else
+    scb->fd = fd;
+
   last_serial_opened = scb;
 
   return scb;
+}
+
+struct serial *
+serial_fdopen (const int fd)
+{
+  return serial_fdopen_ops (fd, NULL);
 }
 
 static void
@@ -407,6 +422,18 @@ serial_write (struct serial *scb, const char *str, int len)
          in case we are getting ready to dump core or something. */
       gdb_flush (serial_logfp);
     }
+  if (serial_debug_p (scb))
+    {
+      int count;
+
+      for (count = 0; count < len; count++)
+	{
+	  fprintf_unfiltered (gdb_stdlog, "[");
+	  serial_logchar (gdb_stdlog, 'w', str[count] & 0xff, 0);
+	  fprintf_unfiltered (gdb_stdlog, "]");
+	}
+      gdb_flush (gdb_stdlog);
+    }
 
   return (scb->ops->write (scb, str, len));
 }
@@ -516,6 +543,7 @@ serial_async (struct serial *scb,
 	      void *context)
 {
   int changed = ((scb->async_handler == NULL) != (handler == NULL));
+
   scb->async_handler = handler;
   scb->async_context = context;
   /* Only change mode if there is a need.  */
@@ -568,6 +596,27 @@ serial_done_wait_handle (struct serial *scb)
     scb->ops->done_wait_handle (scb);
 }
 #endif
+
+int
+serial_pipe (struct serial *scbs[2])
+{
+  struct serial_ops *ops;
+  int fildes[2];
+
+  ops = serial_interface_lookup ("pipe");
+  if (!ops)
+    {
+      errno = ENOSYS;
+      return -1;
+    }
+
+  if (gdb_pipe (fildes) == -1)
+    return -1;
+
+  scbs[0] = serial_fdopen_ops (fildes[0], ops);
+  scbs[1] = serial_fdopen_ops (fildes[1], ops);
+  return 0;
+}
 
 #if 0
 /* The connect command is #if 0 because I hadn't thought of an elegant

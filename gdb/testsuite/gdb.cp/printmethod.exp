@@ -1,4 +1,4 @@
-# Copyright 2002, 2003, 2005, 2006, 2007, 2008, 2009
+# Copyright 2002, 2003, 2005, 2006, 2007, 2008, 2009, 2010
 # Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
@@ -29,8 +29,6 @@ if { [skip_cplus_tests] } { continue }
 #
 # test running programs
 #
-set prms_id 0
-set bug_id 0
 
 set testfile "printmethod"
 set srcfile ${testfile}.cc
@@ -64,10 +62,10 @@ gdb_continue_to_breakpoint "end of constructors"
 # The first of these is for PR gdb/653.
 
 gdb_test "print theA->virt" \
-    "\\$\[0-9\]* = {void \\(A \\*\\)} $hex <A::virt\\((void|)\\)>" \
+    "\\$\[0-9\]* = {void \\(A \\* const\\)} $hex <A::virt\\((void|)\\)>" \
     "print virtual method."
 gdb_test "print theA->nonvirt" \
-    "\\$\[0-9\]* = {void \\(A \\*\\)} $hex <A::nonvirt\\((void|)\\)>" \
+    "\\$\[0-9\]* = {void \\(A \\* const\\)} $hex <A::nonvirt\\((void|)\\)>" \
     "print nonvirtual method."
 
 gdb_exit

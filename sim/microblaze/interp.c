@@ -1,5 +1,5 @@
 /* Simulator for Xilinx MicroBlaze processor
-   Copyright 2009 Free Software Foundation, Inc.
+   Copyright 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB, the GNU debugger.
 
@@ -704,7 +704,7 @@ sim_resume (SIM_DESC sd, int step, int siggnal)
 
 
 int
-sim_write (SIM_DESC sd, SIM_ADDR addr, unsigned char *buffer, int size)
+sim_write (SIM_DESC sd, SIM_ADDR addr, const unsigned char *buffer, int size)
 {
   int i;
   init_pointers ();

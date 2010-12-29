@@ -1,7 +1,7 @@
 /* Support routines for building symbol tables in GDB's internal format.
    Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009,
+   2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -387,6 +387,7 @@ finish_block (struct symbol *symbol, struct pending **listhead,
     }
 
   block_set_using (block, using_directives, &objfile->objfile_obstack);
+  using_directives = NULL;
 
   record_pending_block (objfile, block, opblock);
 
@@ -522,7 +523,7 @@ make_blockvector (struct objfile *objfile)
    the directory in which the file was compiled (or NULL if not known).  */
 
 void
-start_subfile (char *name, char *dirname)
+start_subfile (const char *name, const char *dirname)
 {
   struct subfile *subfile;
 
@@ -673,7 +674,7 @@ void
 push_subfile (void)
 {
   struct subfile_stack *tem
-  = (struct subfile_stack *) xmalloc (sizeof (struct subfile_stack));
+    = (struct subfile_stack *) xmalloc (sizeof (struct subfile_stack));
 
   tem->next = subfile_stack;
   subfile_stack = tem;
@@ -707,8 +708,8 @@ void
 record_line (struct subfile *subfile, int line, CORE_ADDR pc)
 {
   struct linetable_entry *e;
-  /* Ignore the dummy line number in libg.o */
 
+  /* Ignore the dummy line number in libg.o */
   if (line == 0xffff)
     {
       return;

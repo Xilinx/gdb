@@ -1,5 +1,5 @@
 /* moxie-specific support for 32-bit ELF.
-   Copyright 2009 Free Software Foundation, Inc.
+   Copyright 2009, 2010 Free Software Foundation, Inc.
 
    Copied from elf32-fr30.c which is..
    Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
@@ -222,10 +222,8 @@ moxie_elf_relocate_section (bfd *output_bfd,
       int r_type;
 
       r_type = ELF32_R_TYPE (rel->r_info);
-
       r_symndx = ELF32_R_SYM (rel->r_info);
-
-      howto  = moxie_elf_howto_table + ELF32_R_TYPE (rel->r_info);
+      howto  = moxie_elf_howto_table + r_type;
       h      = NULL;
       sym    = NULL;
       sec    = NULL;
@@ -253,15 +251,8 @@ moxie_elf_relocate_section (bfd *output_bfd,
 	}
 
       if (sec != NULL && elf_discarded_section (sec))
-	{
-	  /* For relocs against symbols from removed linkonce sections,
-	     or sections discarded by a linker script, we just want the
-	     section contents zeroed.  Avoid any special processing.  */
-	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
-	  rel->r_info = 0;
-	  rel->r_addend = 0;
-	  continue;
-	}
+	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
+					 rel, relend, howto, contents);
 
       if (info->relocatable)
 	continue;

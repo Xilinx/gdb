@@ -1,5 +1,6 @@
 /* Output generating routines for GDB CLI.
-   Copyright (C) 1999, 2000, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
    Contributed by Cygnus Solutions.
 
    This file is part of GDB.
@@ -20,9 +21,30 @@
 #ifndef CLI_OUT_H
 #define CLI_OUT_H
 
-struct ui_file;
+#include "ui-out.h"
+#include "vec.h"
+
+/* Used for cli_ui_out_data->streams.  */
+
+typedef struct ui_file *ui_filep;
+DEF_VEC_P (ui_filep);
+
+/* These are exported so that they can be extended by other `ui_out'
+   implementations, like TUI's.  */
+
+struct cli_ui_out_data
+  {
+    VEC (ui_filep) *streams;
+    int suppress_output;
+  };
+
+extern struct ui_out_impl cli_ui_out_impl;
+
 
 extern struct ui_out *cli_out_new (struct ui_file *stream);
+
+extern void cli_out_data_ctor (struct cli_ui_out_data *data,
+			       struct ui_file *stream);
 
 extern struct ui_file *cli_out_set_stream (struct ui_out *uiout,
 					   struct ui_file *stream);

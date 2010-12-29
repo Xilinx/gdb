@@ -1,4 +1,4 @@
-# Copyright (C) 2009 Free Software Foundation, Inc.
+# Copyright (C) 2009, 2010 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -44,13 +44,8 @@ gdb_exit
 gdb_start
 gdb_reinitialize_dir $srcdir/$subdir
 
-gdb_test_multiple "python print 'hello, world!'" "verify python support" {
-    -re "not supported.*$gdb_prompt $"	{
-      unsupported "python support is disabled"
-      return -1
-    }
-    -re "$gdb_prompt $"	{}
-}
+# Skip all tests if Python scripting is not enabled.
+if { [skip_python_tests] } { continue }
 
 # Test a simple command.
 
@@ -131,3 +126,35 @@ gdb_py_test_multiple "input new subcommand" \
   "end" ""
 
 gdb_test "info newsubcmd ugh" "newsubcmd output, arg = ugh" "call newsubcmd"
+
+# Test a command that throws gdb.GdbError.
+
+gdb_py_test_multiple "input command to throw error" \
+  "python" "" \
+  "class test_error_cmd (gdb.Command):" "" \
+  "  def __init__ (self):" "" \
+  "    super (test_error_cmd, self).__init__ (\"test_error_cmd\", gdb.COMMAND_OBSCURE)" "" \
+  "  def invoke (self, arg, from_tty):" "" \
+  "    raise gdb.GdbError ('you lose!')" "" \
+  "test_error_cmd ()" "" \
+  "end" ""
+
+gdb_test "test_error_cmd ugh" "you lose!" "call error command"
+
+# Test gdb.string_to_argv.
+
+gdb_test "python print gdb.string_to_argv (\"1 2 3\")" \
+  {\['1', '2', '3'\]} \
+  "string_to_argv (\"1 2 3\")"
+
+gdb_test "python print gdb.string_to_argv (\"'1 2' 3\")" \
+  {\['1 2', '3'\]} \
+  "string_to_argv (\"'1 2' 3\")"
+
+gdb_test "python print gdb.string_to_argv ('\"1 2\" 3')" \
+  {\['1 2', '3'\]} \
+  "string_to_argv ('\"1 2\" 3')"
+
+gdb_test "python print gdb.string_to_argv ('1\\ 2 3')" \
+  {\['1 2', '3'\]} \
+    "string_to_argv ('1\\ 2 3')"

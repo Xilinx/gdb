@@ -1,6 +1,6 @@
 /* Build symbol tables in GDB's internal format.
    Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1995, 1996,
-   1997, 1998, 1999, 2000, 2002, 2003, 2007, 2008, 2009
+   1997, 1998, 1999, 2000, 2002, 2003, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -253,7 +253,7 @@ extern void record_block_range (struct block *,
 
 extern void really_free_pendings (void *dummy);
 
-extern void start_subfile (char *name, char *dirname);
+extern void start_subfile (const char *name, const char *dirname);
 
 extern void patch_subfile_names (struct subfile *subfile, char *name);
 

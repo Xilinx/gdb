@@ -1,3 +1,248 @@
+2010-11-11  Mingming Sun  <mingm.sun@gmail.com>
+
+	* mips.h (E_MIPS_MACH_LS3A): Defined.
+
+2010-11-02  Joseph Myers  <joseph@codesourcery.com>
+
+	* tic6x-attrs.h (Tag_ABI_wchar_t, Tag_ABI_stack_align_needed,
+	Tag_ABI_stack_align_preserved, Tag_ABI_PID, Tag_ABI_PIC,
+	Tag_ABI_array_object_alignment,
+	Tag_ABI_array_object_align_expected, Tag_ABI_conformance): Define.
+
+2010-10-29  Joseph Myers  <joseph@codesourcery.com>
+
+	* tic6x-attrs.h (Tag_ABI_compatibility): Define.
+
+2010-10-29  Bernd Schmidt  <bernds@codesourcery.com>
+            Joseph Myers  <joseph@codesourcery.com>
+
+	* tic6x-attrs.h (Tag_ABI_DSBT): New.
+
+2010-10-21  Joseph Myers  <joseph@codesourcery.com>
+
+	* tic6x-attrs.h (Tag_C6XABI_Tag_CPU_arch): Change to Tag_ISA,
+	value 4.
+	* tic6x.h (Values for Tag_C6XABI_Tag_CPU_arch): Rename for
+	attribute renaming.
+
+2010-07-23  Naveen.H.S  <naveen.S@kpitcummins.com>
+	    Ina Pandit  <ina.pandit@kpitcummins.com>
+
+	* v850.h: Add support for V850E2 and V850E2V3.
+	(v850_reloc_type): Update the newly added relocations
+
+2010-07-20  Alan Modra  <amodra@gmail.com>
+
+	* internal.h (ELF_TBSS_SPECIAL): New macro, extracted from..
+	(ELF_SECTION_SIZE): ..here.
+	(ELF_SECTION_IN_SEGMENT_1): Add "strict" arg.
+	(ELF_SECTION_IN_SEGMENT_STRICT): New macro.
+
+2010-06-25  Alan Modra  <amodra@gmail.com>
+
+	* ppc64.h (R_PPC64_LO_DS_OPT): Define.
+
+2010-06-15  Joseph Myers  <joseph@codesourcery.com>
+
+	* tic6x-attrs.h: New.
+	* tic6x.h: Include elf/tic6x-attrs.h for attribute table.
+	(C6XABI_Tag_CPU_arch_none, C6XABI_Tag_CPU_arch_C62X,
+	C6XABI_Tag_CPU_arch_C67X, C6XABI_Tag_CPU_arch_C67XP,
+	C6XABI_Tag_CPU_arch_C64X, C6XABI_Tag_CPU_arch_C64XP,
+	C6XABI_Tag_CPU_arch_C674X): Define.
+
+2010-06-11  Tristan Gingold  <gingold@adacore.com>
+
+	* ia64.h (EF_IA_64_VMS_COMCOD, EF_IA_64_VMS_COMCOD_SUCCESS)
+	(EF_IA_64_VMS_COMCOD_WARNING, EF_IA_64_VMS_COMCOD_ERROR)
+	(EF_IA_64_VMS_COMCOD_ABORT, EF_IA_64_VMS_LINKAGES): Define.
+	(VMS_LF_CALL_DEBUG, VMS_LF_NOP0BUFS, VMS_LF_P0IMAGE)
+	(VMS_LF_MKTHREADS, VMS_LF_UPCALLS, VMS_LF_IMGSTA)
+	(VMS_LF_INITIALIZE, VMS_LF_MAIN, VMS_LF_EXE_INIT)
+	(VMS_LF_TBK_IN_IMG, VMS_LF_DBG_IN_IMG, VMS_LF_TBK_IN_DSF)
+	(VMS_LF_DBG_IN_DSF, VMS_LF_SIGNATURES, VMS_LF_REL_SEG_OFF): Define.
+	(VMS_STO_VISIBILITY, VMS_ST_VISIBILITY, VMS_STO_FUNC_TYPE)
+	(VMS_ST_FUNC_TYPE, VMS_SFT_CODE_ADDR, VMS_SFT_SYMV_IDX)
+	(VMS_SFT_FD, VMS_SFT_RESERVE, VMS_STO_LINKAGE, VMS_ST_LINKAGE)
+	(VMS_STL_IGNORE, VMS_STL_RESERVE, VMS_STL_STD, VMS_STL_LNK): Define.
+	(Elf64_External_VMS_IMAGE_FIXUP): New declaration.
+	(Elf64_External_VMS_IMAGE_RELA): Ditto.
+	(R_IA64_VMS_DIR8, R_IA64_VMS_DIR16LSB, R_IA64_VMS_CALL_SIGNATURE)
+	(R_IA64_VMS_EXECLET_FUNC, R_IA64_VMS_EXECLET_DATA, R_IA64_VMS_FIX8)
+	(R_IA64_VMS_FIX16, R_IA64_VMS_FIX32, R_IA64_VMS_FIX64)
+	(R_IA64_VMS_FIXFD, R_IA64_VMS_ACC_LOAD, R_IA64_VMS_ACC_ADD)
+	(R_IA64_VMS_ACC_SUB, R_IA64_VMS_ACC_MUL, R_IA64_VMS_ACC_DIV)
+	(R_IA64_VMS_ACC_AND, R_IA64_VMS_ACC_IOR, R_IA64_VMS_ACC_EOR)
+	(R_IA64_VMS_ACC_ASH, R_IA64_VMS_ACC_STO8, R_IA64_VMS_ACC_STO16LSH)
+	(R_IA64_VMS_ACC_STO32LSH, R_IA64_VMS_ACC_STO64LSH): New.
+
+2010-05-25  Daniel Jacobowitz  <dan@codesourcery.com>
+	    Joseph Myers  <joseph@codesourcery.com>
+	    Andrew Stubbs  <ams@codesourcery.com>
+
+	* sh.h (EF_SH_PIC, EF_SH_FDPIC): Define.
+	(R_SH_FIRST_INVALID_RELOC_6, R_SH_LAST_INVALID_RELOC_6): New.  Adjust
+	other invalid ranges.
+	(R_SH_GOT20, R_SH_GOTOFF20, R_SH_GOTFUNCDESC, R_SH_GOTFUNCDESC20)
+	(R_SH_GOTOFFFUNCDESC, R_SH_GOTOFFFUNCDESC20, R_SH_FUNCDESC)
+	(R_SH_FUNCDESC_VALUE): New.
+
+2010-05-18  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR gas/11600
+	* common.h (SHF_EXCLUDE): New.
+
+	* i370.h (SHF_EXCLUDE): Removed.
+	* or32.h (SHF_EXCLUDE): Likewise.
+	* ppc.h (SHF_EXCLUDE): Likewise.
+	* sparc.h (SHF_EXCLUDE): Likewise.
+
+2010-04-23  Alan Modra  <amodra@gmail.com>
+
+	* internal.h (ELF_SECTION_SIZE): Protect macro args with parentheses.
+	Invert logic to clarify test for .tbss.
+	(ELF_IS_SECTION_IN_SEGMENT): Rename to..
+	(ELF_SECTION_IN_SEGMENT_1): ..this.  Add check_vma param.  Protect
+	macro args with parentheses.
+	(ELF_SECTION_IN_SEGMENT): Define.
+	(ELF_IS_SECTION_IN_SEGMENT_FILE): Delete.
+	(ELF_IS_SECTION_IN_SEGMENT_MEMORY): Delete.
+
+2010-04-15  Matthew Gretton-Dann  <matthew.gretton-dann@arm.com>
+
+	* arm.h (Tag_FP_arch, Tag_ABI_align_needed, Tag_ABI_align_preserved,
+	Tag_FP_HP_extension): Add new ABI attribute tags.
+
+2010-04-15  Nick Clifton  <nickc@redhat.com>
+
+	* alpha.h: Update copyright notice to use GPLv3.
+	* arc.h: Likewise.
+	* arm.h: Likewise.
+	* avr.h: Likewise.
+	* bfin.h: Likewise.
+	* common.h: Likewise.
+	* cr16.h: Likewise.
+	* cr16c.h: Likewise.
+	* cris.h: Likewise.
+	* crx.h: Likewise.
+	* d10v.h: Likewise.
+	* d30v.h: Likewise.
+	* dlx.h: Likewise.
+	* dwarf.h: Likewise.
+	* external.h: Likewise.
+	* fr30.h: Likewise.
+	* frv.h: Likewise.
+	* h8.h: Likewise.
+	* hppa.h: Likewise.
+	* i370.h: Likewise.
+	* i386.h: Likewise.
+	* i860.h: Likewise.
+	* i960.h: Likewise.
+	* ia64.h: Likewise.
+	* internal.h: Likewise.
+	* ip2k.h: Likewise.
+	* iq2000.h: Likewise.
+	* lm32.h: Likewise.
+	* m32c.h: Likewise.
+	* m32r.h: Likewise.
+	* m68hc11.h: Likewise.
+	* m68k.h: Likewise.
+	* mcore.h: Likewise.
+	* mep.h: Likewise.
+	* microblaze.h: Likewise.
+	* mips.h: Likewise.
+	* mmix.h: Likewise.
+	* mn10200.h: Likewise.
+	* moxie.h: Likewise.
+	* msp430.h: Likewise.
+	* mt.h: Likewise.
+	* openrisc.h: Likewise.
+	* or32.h: Likewise.
+	* pj.h: Likewise.
+	* ppc.h: Likewise.
+	* ppc64.h: Likewise.
+	* reloc-macros.h: Likewise.
+	* rx.h: Likewise.
+	* s390.h: Likewise.
+	* sh.h: Likewise.
+	* sparc.h: Likewise.
+	* spu.h: Likewise.
+	* v850.h: Likewise.
+	* vax.h: Likewise.
+	* vxworks.h: Likewise.
+	* x86-64.h: Likewise.
+	* xc16x.h: Likewise.
+	* xstormy16.h: Likewise.
+	* xtensa.h: Likewise.
+
+2010-04-08  David Stubbs  <stubbs@icerasemi.com>
+
+	* internal.h (ELF_IS_SECTION_IN_SEGMENT): PT_PHDR program headers
+	cannot contain any sections.
+
+2010-03-25  Joseph Myers  <joseph@codesourcery.com>
+
+	* common.h (ELFOSABI_C6000_ELFABI, ELFOSABI_C6000_LINUX): Define.
+	* tic6x.h: New.
+
+2010-03-05  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* common.h (VER_FLG_*): Document.
+	(VER_FLG_INFO): Define.
+
+2010-02-23  Andrew Zabolotny  <anpaza@mail.ru>
+
+	PR binutils/11297
+	* avr.h: (R_AVR_8): New relocation number.
+
+2010-02-18  Matthew Gretton-Dann  <matthew.gretton-dann@arm.com>
+
+	* arm.h (Tag_MPextension_use): Renumber.
+	(Tag_DIV_use): Add.
+	(Tag_MPextension_use_legacy): Likewise.
+
+2010-02-09  Michael Holzheu  <holzheu@de.ibm.com>
+
+	* common.h (NT_S390_TIMER, NT_S390_TODCMP, NT_S390_TODPREG,
+	NT_S390_CTRS and NT_S390_PREFIX): Define.
+
+2010-02-08  David S. Miller  <davem@davemloft.net>
+
+	* sparc.h (R_SPARC_JMP_IREL, R_SPARC_IRELATIVE): Define.
+
+2010-02-02  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* common.h (NT_386_XSTATE): New.
+
+2010-01-21  Andreas Krebbel  <Andreas.Krebbel@de.ibm.com>
+
+	* s390.h (EF_S390_HIGH_GPRS): Added macro definition.
+
+2010-01-19  Daisuke Hatayama  <d.hatayama@jp.fujitsu.com>
+
+	* common.h (PN_XNUM): Define.
+
+2009-12-18  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* common.h (NT_S390_HIGH_GPRS): Define.
+
+2009-12-17  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc.h (R_PPC_RELAX32, R_PPC_RELAX32PC, R_PPC_RELAX32_PLT,
+	R_PPC_RELAX32PC_PLT): Delete.
+	(R_PPC_RELAX, R_PPC_RELAX_PLT, R_PPC_RELAX_PLTREL24): Define.
+
+2009-11-28  Joseph Myers  <joseph@codesourcery.com>
+
+	* common.h (ELFOSABI_FENIXOS, EM_TI_C6000, EM_TI_C2000,
+	EM_TI_C5500, EM_CUDA): Define.
+	(EM_res140, EM_res141, EM_res142): Remove.
+
+2009-11-17  Paul Brook  <paul@codesourcery.com>
+	Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* arm.h (TAG_CPU_ARCH_V7E_M): Define.
+
 2009-09-29  DJ Delorie  <dj@redhat.com>
 
 	* rx.h: New file.
@@ -34,11 +279,11 @@
 	R_push, R_const, R_add, R_sub, R_mult, R_div, R_mod, R_lshift,
 	R_rshift, R_and, R_or, R_xor, R_land, R_lor, R_len, R_neg, R_comp,
 	R_page, R_hwpage, R_addr, R_pltpc, R_got.
-	
+
 2009-08-09  Michael Eager <eager@eagercon.com>
 
 	* elf/common.h: Define EM_resnnn reserved values. Add EM_AVR32,
-	EM_STM8, EM_TILE64, EM_TILEPRO.  Change EM_MICROBLAZE. 
+	EM_STM8, EM_TILE64, EM_TILEPRO.  Change EM_MICROBLAZE.
 
 2009-08-06  Michael Eager <eager@eagercon.com>
 
@@ -144,8 +389,8 @@
 
 2009-03-14  Mark Kettenis  <kettenis@gnu.org>
 
-	* common.h (NT_OPENBSD_PROCINFO, NT_OPENBSD_AUXV) 
-	(NT_OPENBSD_REGS, NT_OPENBSD_FPREGS, NT_OPENBSD_XFPREGS) 
+	* common.h (NT_OPENBSD_PROCINFO, NT_OPENBSD_AUXV)
+	(NT_OPENBSD_REGS, NT_OPENBSD_FPREGS, NT_OPENBSD_XFPREGS)
 	(NT_OPENBSD_WCOOKIE): New defines.
 
 2009-03-16  Jan Kratochvil  <jan.kratochvil@redhat.com>
@@ -228,7 +473,7 @@
 2008-11-14  Nathan Sidwell  <nathan@codesourcery.com>
 
 	* internal.h (struct elf_segment_map): Add header_size field.
- 
+
 2008-10-13  Ulrich Weigand  <uweigand@de.ibm.com>
 
 	* common.h (AT_BASE_PLATFORM, AT_EXECFN): Define.
@@ -302,7 +547,7 @@
 	END_RELOC_NUMBERS symbol as a sentinel value.
 
 2008-05-15  Christophe Lyon  <christophe.lyon@st.com>
-	
+
 	* arm.h (END_RELOC_NUMBERS): Provide a maximum value.
 
 2008-04-16  David S. Miller  <davem@davemloft.net>

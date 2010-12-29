@@ -1,5 +1,5 @@
 /* Tracing support for CGEN-based simulators.
-   Copyright (C) 1996, 1997, 1998, 1999, 2007, 2008, 2009
+   Copyright (C) 1996, 1997, 1998, 1999, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
@@ -192,7 +192,7 @@ trace_extract (SIM_CPU *cpu, IADDR pc, char *name, ...)
   va_start (args, name);
 
   trace_printf (CPU_STATE (cpu), cpu, "Extract: 0x%.*lx: %s ",
-		SIZE_PC, pc, name);
+		SIZE_PC, (unsigned long) pc, name);
 
   do {
     int type,ival;

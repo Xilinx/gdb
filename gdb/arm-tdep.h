@@ -1,5 +1,6 @@
 /* Common target dependent code for GDB on ARM systems.
-   Copyright (C) 2002, 2003, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2003, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -49,6 +50,7 @@ enum gdb_regnum {
   ARM_WCGR7_REGNUM = ARM_WCGR0_REGNUM + 7,
   ARM_D0_REGNUM,		/* VFP double-precision registers.  */
   ARM_D31_REGNUM = ARM_D0_REGNUM + 31,
+  ARM_FPSCR_REGNUM,
 
   ARM_NUM_REGS,
 
@@ -106,6 +108,8 @@ enum gdb_regnum {
 
 #define CPSR_T		0x20
 
+#define XPSR_T		0x01000000
+
 /* Type of floating-point code in use by inferior.  There are really 3 models
    that are traditionally supported (plus the endianness issue), but gcc can
    only generate 2 of those.  The third is APCS_FLOAT, where arguments to
@@ -161,13 +165,21 @@ struct gdbarch_tdep
 				   have_vfp_pseudos.  */
   int have_neon;		/* Do we have a NEON unit?  */
 
+  int is_m;			/* Does the target follow the "M" profile.  */
   CORE_ADDR lowest_pc;		/* Lowest address at which instructions 
 				   will appear.  */
 
   const char *arm_breakpoint;	/* Breakpoint pattern for an ARM insn.  */
   int arm_breakpoint_size;	/* And its size.  */
-  const char *thumb_breakpoint;	/* Breakpoint pattern for an ARM insn.  */
+  const char *thumb_breakpoint;	/* Breakpoint pattern for a Thumb insn.  */
   int thumb_breakpoint_size;	/* And its size.  */
+
+  /* If the Thumb breakpoint is an undefined instruction (which is
+     affected by IT blocks) rather than a BKPT instruction (which is
+     not), then we need a 32-bit Thumb breakpoint to preserve the
+     instruction count in IT blocks.  */
+  const char *thumb2_breakpoint;
+  int thumb2_breakpoint_size;
 
   int jb_pc;			/* Offset to PC value in jump buffer. 
 				   If this is negative, longjmp support
@@ -184,6 +196,10 @@ struct gdbarch_tdep
   struct type *arm_ext_type;
   struct type *neon_double_type;
   struct type *neon_quad_type;
+
+  /* Return the expected next PC if FRAME is stopped at a syscall
+     instruction.  */
+  CORE_ADDR (*syscall_next_pc) (struct frame_info *frame);
 };
 
 /* Structures used for displaced stepping.  */
@@ -285,6 +301,7 @@ extern void
 CORE_ADDR arm_skip_stub (struct frame_info *, CORE_ADDR);
 CORE_ADDR arm_get_next_pc (struct frame_info *, CORE_ADDR);
 int arm_software_single_step (struct frame_info *);
+int arm_frame_is_thumb (struct frame_info *frame);
 
 extern struct displaced_step_closure *
   arm_displaced_step_copy_insn (struct gdbarch *, CORE_ADDR, CORE_ADDR,

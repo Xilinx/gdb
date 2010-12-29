@@ -1,6 +1,6 @@
 /* ELF executable support for BFD.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
+   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
@@ -87,6 +87,7 @@
 #define elf_core_file_failing_signal	NAME(bfd_elf,core_file_failing_signal)
 #define elf_core_file_matches_executable_p \
   NAME(bfd_elf,core_file_matches_executable_p)
+#define elf_core_file_pid		NAME(bfd_elf,core_file_pid)
 #define elf_object_p			NAME(bfd_elf,object_p)
 #define elf_core_file_p			NAME(bfd_elf,core_file_p)
 #define elf_get_symtab_upper_bound	NAME(bfd_elf,get_symtab_upper_bound)
@@ -279,7 +280,10 @@ elf_swap_ehdr_out (bfd *abfd,
   H_PUT_32 (abfd, src->e_flags, dst->e_flags);
   H_PUT_16 (abfd, src->e_ehsize, dst->e_ehsize);
   H_PUT_16 (abfd, src->e_phentsize, dst->e_phentsize);
-  H_PUT_16 (abfd, src->e_phnum, dst->e_phnum);
+  tmp = src->e_phnum;
+  if (tmp > PN_XNUM)
+    tmp = PN_XNUM;
+  H_PUT_16 (abfd, tmp, dst->e_phnum);
   H_PUT_16 (abfd, src->e_shentsize, dst->e_shentsize);
   tmp = src->e_shnum;
   if (tmp >= (SHN_LORESERVE & 0xffff))
@@ -701,6 +705,14 @@ elf_object_p (bfd *abfd)
 	    goto got_wrong_format_error;
 	}
 
+      /* And program headers.  */
+      if (i_ehdrp->e_phnum == PN_XNUM && i_shdr.sh_info != 0)
+	{
+	  i_ehdrp->e_phnum = i_shdr.sh_info;
+	  if (i_ehdrp->e_phnum != i_shdr.sh_info)
+	    goto got_wrong_format_error;
+	}
+
       /* Sanity check that we can read all of the section headers.
 	 It ought to be good enough to just read the last one.  */
       if (i_ehdrp->e_shnum != 1)
@@ -947,7 +959,9 @@ elf_write_relocs (bfd *abfd, asection *sec, void *data)
   if (sec->orelocation == NULL)
     return;
 
-  rela_hdr = &elf_section_data (sec)->rel_hdr;
+  rela_hdr = elf_section_data (sec)->rela.hdr;
+  if (rela_hdr == NULL)
+    rela_hdr = elf_section_data (sec)->rel.hdr;
 
   rela_hdr->sh_size = rela_hdr->sh_entsize * sec->reloc_count;
   rela_hdr->contents = (unsigned char *) bfd_alloc (abfd, rela_hdr->sh_size);
@@ -1072,6 +1086,8 @@ elf_write_shdrs_and_ehdr (bfd *abfd)
 
   /* Some fields in the first section header handle overflow of ehdr
      fields.  */
+  if (i_ehdrp->e_phnum >= PN_XNUM)
+    i_shdrp[0]->sh_info = i_ehdrp->e_phnum;
   if (i_ehdrp->e_shnum >= (SHN_LORESERVE & 0xffff))
     i_shdrp[0]->sh_size = i_ehdrp->e_shnum;
   if (i_ehdrp->e_shstrndx >= (SHN_LORESERVE & 0xffff))
@@ -1452,7 +1468,7 @@ elf_slurp_reloc_table_from_section (bfd *abfd,
       else
 	relent->address = rela.r_offset - asect->vma;
 
-      if (ELF_R_SYM (rela.r_info) == 0)
+      if (ELF_R_SYM (rela.r_info) == STN_UNDEF)
 	relent->sym_ptr_ptr = bfd_abs_section_ptr->symbol_ptr_ptr;
       else if (ELF_R_SYM (rela.r_info) > symcount)
 	{
@@ -1516,13 +1532,13 @@ elf_slurp_reloc_table (bfd *abfd,
 	  || asect->reloc_count == 0)
 	return TRUE;
 
-      rel_hdr = &d->rel_hdr;
-      reloc_count = NUM_SHDR_ENTRIES (rel_hdr);
-      rel_hdr2 = d->rel_hdr2;
-      reloc_count2 = (rel_hdr2 ? NUM_SHDR_ENTRIES (rel_hdr2) : 0);
+      rel_hdr = d->rel.hdr;
+      reloc_count = rel_hdr ? NUM_SHDR_ENTRIES (rel_hdr) : 0;
+      rel_hdr2 = d->rela.hdr;
+      reloc_count2 = rel_hdr2 ? NUM_SHDR_ENTRIES (rel_hdr2) : 0;
 
       BFD_ASSERT (asect->reloc_count == reloc_count + reloc_count2);
-      BFD_ASSERT (asect->rel_filepos == rel_hdr->sh_offset
+      BFD_ASSERT ((rel_hdr && asect->rel_filepos == rel_hdr->sh_offset)
 		  || (rel_hdr2 && asect->rel_filepos == rel_hdr2->sh_offset));
 
     }
@@ -1546,10 +1562,11 @@ elf_slurp_reloc_table (bfd *abfd,
   if (relents == NULL)
     return FALSE;
 
-  if (!elf_slurp_reloc_table_from_section (abfd, asect,
-					   rel_hdr, reloc_count,
-					   relents,
-					   symbols, dynamic))
+  if (rel_hdr
+      && !elf_slurp_reloc_table_from_section (abfd, asect,
+					      rel_hdr, reloc_count,
+					      relents,
+					      symbols, dynamic))
     return FALSE;
 
   if (rel_hdr2
@@ -1828,6 +1845,8 @@ NAME(_bfd_elf,bfd_from_remote_memory)
   bim->buffer = contents;
   nbfd->iostream = bim;
   nbfd->flags = BFD_IN_MEMORY;
+  nbfd->iovec = &_bfd_memory_iovec;
+  nbfd->origin = 0;
   nbfd->direction = read_direction;
   nbfd->mtime = time (NULL);
   nbfd->mtime_set = TRUE;

@@ -1,6 +1,6 @@
 /* Native-dependent code for GNU/Linux on MIPS processors.
 
-   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
+   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -926,7 +926,8 @@ populate_regs_from_watches (struct pt_watch_regs *regs)
    watch.  Return zero on success.  */
 
 static int
-mips_linux_insert_watchpoint (CORE_ADDR addr, int len, int type)
+mips_linux_insert_watchpoint (CORE_ADDR addr, int len, int type,
+			      struct expression *cond)
 {
   struct pt_watch_regs regs;
   struct mips_watchpoint *new_watch;
@@ -975,7 +976,8 @@ mips_linux_insert_watchpoint (CORE_ADDR addr, int len, int type)
    Return zero on success.  */
 
 static int
-mips_linux_remove_watchpoint (CORE_ADDR addr, int len, int type)
+mips_linux_remove_watchpoint (CORE_ADDR addr, int len, int type,
+			      struct expression *cond)
 {
   int retval;
   int deleted_one;

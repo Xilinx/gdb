@@ -23,6 +23,7 @@ else !INSTALL_LIBBFD
 # Empty these so that the respective installation directories will not be created.
 bfdlibdir =
 bfdincludedir =
+bfdinclude_HEADERS =
 rpath_bfdlibdir = @bfdlibdir@
 noinst_LTLIBRARIES = libbfd.la
 libbfd_la_LDFLAGS += -rpath $(rpath_bfdlibdir)
@@ -33,6 +34,7 @@ NO_WERROR = @NO_WERROR@
 AM_CFLAGS = $(WARN_CFLAGS)
 AM_CPPFLAGS = -DBINDIR='"$(bindir)"'
 if PLUGINS
+bfdinclude_HEADERS += $(INCDIR)/plugin-api.h
 LIBDL = -ldl
 endif
 
@@ -103,7 +105,6 @@ ALL_MACHINES = \
 	cpu-m68hc12.lo \
 	cpu-m68k.lo \
 	cpu-m88k.lo \
-	cpu-maxq.lo \
 	cpu-mcore.lo \
 	cpu-mep.lo \
 	cpu-microblaze.lo \
@@ -129,6 +130,7 @@ ALL_MACHINES = \
 	cpu-tic30.lo \
 	cpu-tic4x.lo \
 	cpu-tic54x.lo \
+	cpu-tic6x.lo \
 	cpu-tic80.lo \
 	cpu-v850.lo \
 	cpu-vax.lo \
@@ -175,7 +177,6 @@ ALL_MACHINES_CFILES = \
 	cpu-m68hc12.c \
 	cpu-m68k.c \
 	cpu-m88k.c \
-	cpu-maxq.c \
 	cpu-mcore.c \
 	cpu-mep.c \
 	cpu-microblaze.c \
@@ -201,6 +202,7 @@ ALL_MACHINES_CFILES = \
 	cpu-tic30.c \
 	cpu-tic4x.c \
 	cpu-tic54x.c \
+	cpu-tic6x.c \
 	cpu-tic80.c \
 	cpu-v850.c \
 	cpu-vax.c \
@@ -238,7 +240,6 @@ BFD32_BACKENDS = \
 	coff-i960.lo \
 	coff-m68k.lo \
 	coff-m88k.lo \
-	coff-maxq.lo \
 	coff-mips.lo \
 	coff-or32.lo \
 	coff-rs6000.lo \
@@ -317,6 +318,7 @@ BFD32_BACKENDS = \
 	elf32-sh64.lo \
 	elf32-sparc.lo \
 	elf32-spu.lo \
+	elf32-tic6x.lo \
 	elf32-v850.lo \
 	elf32-vax.lo \
 	elf32-xc16x.lo \
@@ -388,11 +390,8 @@ BFD32_BACKENDS = \
 	vaxbsd.lo \
 	vaxnetbsd.lo \
 	versados.lo \
-	vms-gsd.lo \
-	vms-hdr.lo \
+	vms-lib.lo \
 	vms-misc.lo \
-	vms-tir.lo \
-	vms.lo \
 	xcofflink.lo \
 	xsym.lo \
 	xtensa-isa.lo \
@@ -422,7 +421,6 @@ BFD32_BACKENDS_CFILES = \
 	coff-i960.c \
 	coff-m68k.c \
 	coff-m88k.c \
-	coff-maxq.c \
 	coff-mips.c \
 	coff-or32.c \
 	coff-rs6000.c \
@@ -501,6 +499,7 @@ BFD32_BACKENDS_CFILES = \
 	elf32-sh64.c \
 	elf32-sparc.c \
 	elf32-spu.c \
+	elf32-tic6x.c \
 	elf32-v850.c \
 	elf32-vax.c \
 	elf32-xc16x.c \
@@ -571,11 +570,8 @@ BFD32_BACKENDS_CFILES = \
 	vaxbsd.c \
 	vaxnetbsd.c \
 	versados.c \
-	vms-gsd.c \
-	vms-hdr.c \
+	vms-lib.c \
 	vms-misc.c \
-	vms-tir.c \
-	vms.c \
 	xcofflink.c \
 	xsym.c \
 	xtensa-isa.c \
@@ -609,6 +605,7 @@ BFD64_BACKENDS = \
 	elf64-x86-64.lo \
 	elf64.lo \
 	elfn32-mips.lo \
+	mach-o-x86-64.lo \
 	mmo.lo \
 	nlm32-alpha.lo \
 	nlm64.lo \
@@ -616,7 +613,8 @@ BFD64_BACKENDS = \
 	pei-ia64.lo \
 	pei-x86_64.lo \
 	pepigen.lo \
-	pex64igen.lo
+	pex64igen.lo \
+	vms-alpha.lo
 
 BFD64_BACKENDS_CFILES = \
 	aix5ppc-core.c \
@@ -639,12 +637,14 @@ BFD64_BACKENDS_CFILES = \
 	elf64-x86-64.c \
 	elf64.c \
 	elfn32-mips.c \
+	mach-o-x86-64.c \
 	mmo.c \
 	nlm32-alpha.c \
 	nlm64.c \
 	pe-x86_64.c \
 	pei-ia64.c \
-	pei-x86_64.c
+	pei-x86_64.c \
+	vms-alpha.c
 
 OPTIONAL_BACKENDS = \
 	aix386-core.lo \
@@ -653,6 +653,7 @@ OPTIONAL_BACKENDS = \
 	irix-core.lo \
 	lynx-core.lo \
 	osf-core.lo \
+	rs6000-core.lo \
 	sco5-core.lo \
 	trad-core.lo
 
@@ -663,6 +664,7 @@ OPTIONAL_BACKENDS_CFILES = \
 	irix-core.c \
 	lynx-core.c \
 	osf-core.c \
+	rs6000-core.c \
 	sco5-core.c \
 	trad-core.c
 
@@ -680,8 +682,10 @@ ALL_BACKENDS = @all_backends@
 BFD_BACKENDS = @bfd_backends@
 BFD_MACHINES = @bfd_machines@
 TDEFAULTS = @tdefaults@
+HAVEVECS = @havevecs@
 
-INCLUDES = @HDEFINES@ @COREFLAG@ @TDEFINES@ $(CSEARCH) $(CSWITCHES) @INCINTL@
+INCLUDES = @HDEFINES@ @COREFLAG@ @TDEFINES@ $(CSEARCH) $(CSWITCHES) \
+	$(HAVEVECS) @INCINTL@
 
 # C source files that correspond to .o's.
 SOURCE_CFILES = \
@@ -960,3 +964,19 @@ bfdver.h: $(srcdir)/version.h $(srcdir)/Makefile.in
 	    -e "s,@report_bugs_to@,$$report_bugs_to," \
 	    < $(srcdir)/version.h > $@; \
 	echo "$${bfd_soversion}" > libtool-soversion
+
+# Disable -Werror, if it has been enabled, since coffswap.h won't
+# compile with gcc 4.5 and above.
+coff-tic4x.lo: coff-tic4x.c
+@am__fastdepCC_TRUE@	$(LTCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $< $(NO_WERROR)
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $< $(NO_WERROR)
+
+coff-tic54x.lo: coff-tic54x.c
+@am__fastdepCC_TRUE@	$(LTCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $< $(NO_WERROR)
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $< $(NO_WERROR)

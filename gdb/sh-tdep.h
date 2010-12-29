@@ -1,6 +1,6 @@
 /* Target-specific definition for a Renesas Super-H.
    Copyright (C) 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2007, 2008, 2009 Free Software Foundation, Inc.
+   2003, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -30,6 +30,7 @@ enum
     ARG0_REGNUM = 4,
     ARGLAST_REGNUM = 7,
     FP_REGNUM = 14,
+    PC_REGNUM = 16,
     PR_REGNUM = 17,
     GBR_REGNUM = 18,
     VBR_REGNUM = 19,
@@ -85,4 +86,31 @@ enum
 extern gdbarch_init_ftype sh64_gdbarch_init;
 extern void sh64_show_regs (struct frame_info *);
 
+/* This structure describes a register in a core-file.  */
+struct sh_corefile_regmap
+{
+  int regnum;
+  unsigned int offset;
+};
+
+struct gdbarch_tdep
+{
+  /* Non-NULL when debugging from a core file.  Provides the offset
+     where each general-purpose register is stored inside the associated
+     core file section.  */
+  struct sh_corefile_regmap *core_gregmap;
+  /* Non-NULL when debugging from a core file and when FP registers are
+     available.  Provides the offset where each FP register is stored
+     inside the associated core file section.  */
+  struct sh_corefile_regmap *core_fpregmap;
+};
+
+extern struct regset sh_corefile_gregset;
+
+void sh_corefile_supply_regset (const struct regset *regset,
+				struct regcache *regcache,
+				int regnum, const void *regs, size_t len);
+void sh_corefile_collect_regset (const struct regset *regset,
+				 const struct regcache *regcache,
+				 int regnum, void *regs, size_t len);
 #endif /* SH_TDEP_H */

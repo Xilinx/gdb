@@ -1,4 +1,4 @@
-# Copyright 2008, 2009 Free Software Foundation, Inc.
+# Copyright 2008, 2009, 2010 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -150,7 +150,7 @@ if  { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable {deb
 gdb_start
 gdb_reinitialize_dir $srcdir/$subdir
 gdb_load ${binfile}
-gdb_test "set debug lin-lwp 1" "" ""
+gdb_test_no_output "set debug lin-lwp 1" ""
 
 corefunc nonthreaded
 
@@ -164,6 +164,6 @@ if  { [gdb_compile_pthreads "${srcdir}/${subdir}/${srcfile}" "${binfile}" execut
 gdb_start
 gdb_reinitialize_dir $srcdir/$subdir
 gdb_load ${binfile}
-gdb_test "set debug lin-lwp 1" "" ""
+gdb_test_no_output "set debug lin-lwp 1" ""
 
 corefunc threaded

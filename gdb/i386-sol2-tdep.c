@@ -1,6 +1,6 @@
 /* Target-dependent code for Solaris x86.
 
-   Copyright (C) 2002, 2003, 2004, 2006, 2007, 2008, 2009
+   Copyright (C) 2002, 2003, 2004, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -135,10 +135,6 @@ i386_sol2_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   set_gdbarch_skip_solib_resolver (gdbarch, sol2_skip_solib_resolver);
   set_solib_svr4_fetch_link_map_offsets
     (gdbarch, svr4_ilp32_fetch_link_map_offsets);
-
-  /* Solaris encodes the pid of the inferior in regset section
-     names.  */
-  set_gdbarch_core_reg_section_encodes_pid (gdbarch, 1);
 
   /* How to print LWP PTIDs from core files.  */
   set_gdbarch_core_pid_to_str (gdbarch, sol2_core_pid_to_str);

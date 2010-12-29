@@ -1,5 +1,5 @@
 /* BFD back-end for National Semiconductor's CR16 ELF
-   Copyright 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
    Written by M R Swami Reddy.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -32,7 +32,8 @@
    linking with -Bsymbolic.  We store the information in a field
    extending the regular ELF linker hash table.  */
 
-struct elf32_cr16_link_hash_entry {
+struct elf32_cr16_link_hash_entry
+{
   /* The basic elf link hash table entry.  */
   struct elf_link_hash_entry root;
 
@@ -65,35 +66,6 @@ struct elf32_cr16_link_hash_entry {
   /* Calculated value.  */
   bfd_vma value;
 };
-
-/* We derive a hash table from the main elf linker hash table so
-   we can store state variables and a secondary hash table without
-   resorting to global variables.  */
-struct elf32_cr16_link_hash_table {
-  /* The main hash table.  */
-  struct elf_link_hash_table root;
-
-  /* A hash table for static functions.  We could derive a new hash table
-     instead of using the full elf32_cr16_link_hash_table if we wanted
-     to save some memory.  */
-  struct elf32_cr16_link_hash_table *static_hash_table;
-
-  /* Random linker state flags.  */
-#define CR16_HASH_ENTRIES_INITIALIZED 0x1
-  char flags;
-};
-
-/* For CR16 linker hash table.  */
-
-/* Get the CR16 ELF linker hash table from a link_info structure.  */
-
-#define elf32_cr16_hash_table(p) \
-  ((struct elf32_cr16_link_hash_table *) ((p)->hash))
-
-#define elf32_cr16_link_hash_traverse(table, func, info)                    \
- (elf_link_hash_traverse                                                    \
-  (&(table)->root,                                                          \
-   (bfd_boolean (*) ((struct elf_link_hash_entry *, void *))) (func), (info)))
 
 /* cr16_reloc_map array maps BFD relocation enum into a CRGAS relocation type.  */
 
@@ -889,16 +861,9 @@ cr16_elf_final_link_relocate (reloc_howto_type *howto,
   unsigned short r_type = howto->type;
   bfd_byte *hit_data = contents + offset;
   bfd_vma reloc_bits, check, Rvalue1;
-
   bfd *      dynobj;
-  bfd_vma *  local_got_offsets;
-  asection * sgot;
 
   dynobj = elf_hash_table (info)->dynobj;
-  local_got_offsets = elf_local_got_offsets (input_bfd);
-
-  sgot   = NULL;
-
 
   switch (r_type)
     {
@@ -1295,7 +1260,6 @@ elf32_cr16_relax_delete_bytes (struct bfd_link_info *link_info, bfd *abfd,
   unsigned int sec_shndx;
   bfd_byte *contents;
   Elf_Internal_Rela *irel, *irelend;
-  Elf_Internal_Rela *irelalign;
   bfd_vma toaddr;
   Elf_Internal_Sym *isym;
   Elf_Internal_Sym *isymend;
@@ -1308,9 +1272,6 @@ elf32_cr16_relax_delete_bytes (struct bfd_link_info *link_info, bfd *abfd,
 
   contents = elf_section_data (sec)->this_hdr.contents;
 
-  /* The deletion must stop at the next ALIGN reloc for an aligment
-     power larger than the number of bytes we are deleting.  */
-  irelalign = NULL;
   toaddr = sec->size;
 
   irel = elf_section_data (sec)->relocs;
@@ -1471,15 +1432,8 @@ elf32_cr16_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
         }
 
       if (sec != NULL && elf_discarded_section (sec))
-       {
-         /* For relocs against symbols from removed linkonce sections,
-            or sections discarded by a linker script, we just want the
-            section contents zeroed.  Avoid any special processing.  */
-         _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
-         rel->r_info = 0;
-         rel->r_addend = 0;
-         continue;
-       }
+	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
+					 rel, relend, howto, contents);
 
       if (info->relocatable)
         continue;
@@ -1705,40 +1659,23 @@ elf32_cr16_link_hash_newfunc (struct bfd_hash_entry *entry,
 static struct bfd_link_hash_table *
 elf32_cr16_link_hash_table_create (bfd *abfd)
 {
-  struct elf32_cr16_link_hash_table *ret;
-  bfd_size_type amt = sizeof (struct elf32_cr16_link_hash_table);
+  struct elf_link_hash_table *ret;
+  bfd_size_type amt = sizeof (struct elf_link_hash_table);
 
-  ret = (struct elf32_cr16_link_hash_table *) bfd_malloc (amt);
-  if (ret == (struct elf32_cr16_link_hash_table *) NULL)
+  ret = (struct elf_link_hash_table *) bfd_malloc (amt);
+  if (ret == (struct elf_link_hash_table *) NULL)
     return NULL;
 
-  if (!_bfd_elf_link_hash_table_init (&ret->root, abfd,
+  if (!_bfd_elf_link_hash_table_init (ret, abfd,
                                       elf32_cr16_link_hash_newfunc,
-                                      sizeof (struct elf32_cr16_link_hash_entry)))
+                                      sizeof (struct elf32_cr16_link_hash_entry),
+				      GENERIC_ELF_DATA))
     {
       free (ret);
       return NULL;
     }
 
-  ret->flags = 0;
-  amt = sizeof (struct elf_link_hash_table);
-  ret->static_hash_table
-    = (struct elf32_cr16_link_hash_table *) bfd_malloc (amt);
-  if (ret->static_hash_table == NULL)
-    {
-      free (ret);
-      return NULL;
-    }
-
-  if (!_bfd_elf_link_hash_table_init (&ret->static_hash_table->root, abfd,
-                                      elf32_cr16_link_hash_newfunc,
-                                      sizeof (struct elf32_cr16_link_hash_entry)))
-    {
-      free (ret->static_hash_table);
-      free (ret);
-      return NULL;
-    }
-  return &ret->root.root;
+  return &ret->root;
 }
 
 /* Free an cr16 ELF linker hash table.  */
@@ -1746,11 +1683,9 @@ elf32_cr16_link_hash_table_create (bfd *abfd)
 static void
 elf32_cr16_link_hash_table_free (struct bfd_link_hash_table *hash)
 {
-  struct elf32_cr16_link_hash_table *ret
-    = (struct elf32_cr16_link_hash_table *) hash;
+  struct elf_link_hash_table *ret
+    = (struct elf_link_hash_table *) hash;
 
-  _bfd_generic_link_hash_table_free
-    ((struct bfd_link_hash_table *) ret->static_hash_table);
   _bfd_generic_link_hash_table_free
     ((struct bfd_link_hash_table *) ret);
 }
@@ -2292,26 +2227,12 @@ elf32_cr16_relax_section (bfd *abfd, asection *sec,
 
 static asection *
 elf32_cr16_gc_mark_hook (asection *sec,
-                         struct bfd_link_info *info ATTRIBUTE_UNUSED,
-                         Elf_Internal_Rela *rel ATTRIBUTE_UNUSED,
+                         struct bfd_link_info *info,
+                         Elf_Internal_Rela *rel,
                          struct elf_link_hash_entry *h,
                          Elf_Internal_Sym *sym)
 {
-  if (h == NULL)
-    return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
-
-  switch (h->root.type)
-    {
-      case bfd_link_hash_defined:
-      case bfd_link_hash_defweak:
-        return h->root.u.def.section;
-
-      case bfd_link_hash_common:
-        return h->root.u.c.p->section;
-
-      default:
-        return NULL;
-    }
+  return _bfd_elf_gc_mark_hook (sec, info, rel, h, sym);
 }
 
 /* Update the got entry reference counts for the section being removed.  */

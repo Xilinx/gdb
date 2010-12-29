@@ -116,6 +116,17 @@ extern char *basename (const char *);
 
 extern const char *lbasename (const char *);
 
+/* Same, but assumes DOS semantics (drive name, backslash is also a
+   dir separator) regardless of host.  */
+
+extern const char *dos_lbasename (const char *);
+
+/* Same, but assumes Unix semantics (absolute paths always start with
+   a slash, only forward slash is accepted as dir separator)
+   regardless of host.  */
+
+extern const char *unix_lbasename (const char *);
+
 /* A well-defined realpath () that is always compiled in.  */
 
 extern char *lrealpath (const char *);
@@ -622,6 +633,9 @@ extern int vsnprintf (char *, size_t, const char *, va_list) ATTRIBUTE_PRINTF(3,
 /* Compare version strings.  */
 extern int strverscmp (const char *, const char *);
 #endif
+
+/* Set the title of a process */
+extern void setproctitle (const char *name, ...);
 
 #define ARRAY_SIZE(a) (sizeof (a) / sizeof ((a)[0]))
 

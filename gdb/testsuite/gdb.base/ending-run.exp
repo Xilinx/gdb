@@ -1,7 +1,7 @@
 # This testcase is part of GDB, the GNU debugger.
 
-# Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009
-# Free Software Foundation, Inc.
+# Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009,
+# 2010 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -51,16 +51,12 @@ gdb_run_cmd
 gdb_test "" ".*Breakpoint.*1.*callee.*14.*" "run"
 
 gdb_test "cle" ".*Deleted breakpoints 1 2.*" "clear worked"
-send_gdb "i b\n"
-gdb_expect {
+gdb_test_multiple "i b" "cleared bp at line before routine" {
     -re ".* breakpoint .* breakpoint .*$gdb_prompt $" { 
 	fail "cleared bp at line before routine" 
     }
     -re ".*3.*main.*31.*$gdb_prompt $" { 
 	pass "cleared bp at line before routine" 
-    }
-    -re ".*$gdb_prompt $" { 
-	fail "cleared bp at line before routine (info b)" 
     }
 }
 
@@ -71,8 +67,7 @@ gdb_test "b ending-run.c:14" ".*Note.*also.*Breakpoint.*5.*" "b ending-run.c:14,
 gdb_test "cle ending-run.c:14" \
 	".*Deleted breakpoint 5.*" "Cleared 2 by line"
 
-send_gdb "info line ending-run.c:14\n"
-gdb_expect {
+gdb_test_multiple "info line ending-run.c:14" "" {
     -re ".*address (0x\[0-9a-fA-F]*).*$gdb_prompt $" {
         set line_nine $expect_out(1,string)
         gdb_test "b ending-run.c:14" ".*Breakpoint 6.*ending-run.c, line 14.*"
@@ -84,8 +79,7 @@ gdb_expect {
     }
 }
 
-send_gdb "i b\n"
-gdb_expect {
+gdb_test_multiple "i b" "all set to continue" {
     -re ".* breakpoint .* breakpoint .*$gdb_prompt $" {
         fail "all set to continue (didn't clear bps)" 
     }
@@ -111,15 +105,15 @@ if ![gdb_skip_stdio_test "Step to return"] {
     gdb_test "next" ".*Goodbye!.*32.*" \
 	    "Step to return"
 } else {
-    gdb_test "next" "" ""
+    gdb_test "next" ".*" ""
 }
 
 set old_timeout $timeout
 set timeout 50
 set program_exited 0
-send_gdb "next\n"
 set nexted 0
-gdb_expect {
+
+gdb_test_multiple "next" "step out of main" {
     -re "33\[ \t\]+\}.*$gdb_prompt $" {
 	# sometimes we stop at the closing brace, if so, do another next
 	if { $nexted } {
@@ -173,7 +167,7 @@ gdb_expect {
 	# This is what happens on ARM in thumb mode -fn 2000-02-01
 	pass "step out of main"
     }
-    -re ".*__rt_entry ().*$gdb_prompt $" {
+    -re ".*__rt_entry.* ().*$gdb_prompt $" {
 	# This is what happens on the ARM RVDS runtime
 	pass "step out of main"
     }
@@ -188,6 +182,10 @@ gdb_expect {
 	# another `next' is necessary.
 	gdb_test "next" ".*in start_l ().*" "step out of main"
     }
+    -re "E32Main (.*).*$gdb_prompt $" {
+	# On SymbianOS there's a different function which calls main.
+	pass "step out of main"
+    }
     -re ".*in.*currently asm.*$gdb_prompt $" { 
         pass "step out of main"
     }
@@ -197,8 +195,6 @@ gdb_expect {
     -re ".*Program received signal SIGTRAP.*$gdb_prompt $" {
         pass "step out of main"
     }
-    -re ".*$gdb_prompt $" { fail "step out of main" }
-    timeout { fail "step out of main" }
 }
 
 # When we're talking to a program running on a real stand-alone board,
@@ -212,8 +208,7 @@ if {! [target_info exists use_gdb_stub]
     && (! [target_info exists use_cygmon] || ! [target_info use_cygmon])} {
     global program_exited;
     if {[eval expr $program_exited == 0]} {
-	send_gdb "n\n"
-	gdb_expect {
+	gdb_test_multiple "n" "step to end of run" {
 	    -re "Program exited normally.*$gdb_prompt $" {
 		# If we actually have debug info for the start function,
 		# then we won't get the "Single-stepping until function
@@ -242,14 +237,6 @@ if {! [target_info exists use_gdb_stub]
 		    set program_exited_normally 1
 		}
 	    }
-	    -re ".*$gdb_prompt $" {
-		fail "step to end of run"
-		set program_not_exited 1
-	    }
-	    timeout { 
-		fail "(timeout) step to end of run" 
-		set program_not_exited 1
-	    }
 	}   
     }
 
@@ -260,8 +247,6 @@ if {! [target_info exists use_gdb_stub]
     } else {
 	unsupported "continue after exit"
     }
-
-    set timeout $old_timeout
 
     if {$program_exited_normally} {
         gdb_test "n" ".*The program is not being run.*" "don't step after run"
@@ -284,6 +269,8 @@ if {! [target_info exists use_gdb_stub]
 	}
     }
 }
+
+set timeout $old_timeout
 
 #remote_exec build "rm -f ${binfile}"
 return 0

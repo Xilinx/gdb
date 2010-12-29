@@ -1,7 +1,7 @@
 /* Motorola m68k target-dependent support for GNU/Linux.
 
-   Copyright (C) 1996, 1998, 2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1996, 1998, 2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009,
+   2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -38,6 +38,7 @@
 #include "auxv.h"
 #include "observer.h"
 #include "elf/common.h"
+#include "linux-tdep.h"
 
 /* Offsets (in target ints) into jmp_buf.  */
 
@@ -337,6 +338,8 @@ static void
 m68k_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+
+  linux_init_abi (info, gdbarch);
 
   tdep->jb_pc = M68K_LINUX_JB_PC;
   tdep->jb_elt_size = M68K_LINUX_JB_ELEMENT_SIZE;

@@ -32,6 +32,8 @@ sinclude([../config/lcmessage.m4])
 dnl For AM_LANGINFO_CODESET.
 sinclude([../config/codeset.m4])
 
+sinclude([../config/zlib.m4])
+
 #
 # Sometimes the native compiler is a bogus stub for gcc or /usr/ucb/cc. This
 # makes configure think it's cross compiling. If --target wasn't used, then
@@ -167,7 +169,8 @@ case "x$am_cv_prog_cc_stdc" in
 esac
 ])
 
-dnl From Bruno Haible.
+dnl Originally from Bruno Haible, but with some modifications
+dnl for the GDB project.
 
 AC_DEFUN([AM_ICONV],
 [
@@ -182,31 +185,38 @@ AC_DEFUN([AM_ICONV],
     done
    ])
 
-  BUILD_LIBICONV_LIBDIR="-L../libiconv/lib/.libs -L../libiconv/lib/_libs"
+  BUILD_LIBICONV_LIBDIRS="../libiconv/lib/.libs ../libiconv/lib/_libs"
   BUILD_LIBICONV_INCLUDE="-I../libiconv/include"
 
   AC_CACHE_CHECK(for iconv, am_cv_func_iconv, [
     am_cv_func_iconv="no, consider installing GNU libiconv"
     am_cv_lib_iconv=no
     am_cv_use_build_libiconv=no
+    am_cv_build_libiconv_path=
 
     # If libiconv is part of the build tree, then try using it over
     # any system iconv.
     if test -d ../libiconv; then
-      am_save_LIBS="$LIBS"
-      am_save_CPPFLAGS="$CPPFLAGS"
-      LIBS="$LIBS $BUILD_LIBICONV_LIBDIR -liconv"
-      CPPFLAGS="$CPPFLAGS $BUILD_LIBICONV_INCLUDE"
-      AC_TRY_LINK([#include <stdlib.h>
+      for lib_dir in $BUILD_LIBICONV_LIBDIRS; do
+        am_save_LIBS="$LIBS"
+        am_save_CPPFLAGS="$CPPFLAGS"
+        LIBS="$LIBS $lib_dir/libiconv.a"
+        CPPFLAGS="$CPPFLAGS $BUILD_LIBICONV_INCLUDE"
+        AC_TRY_LINK([#include <stdlib.h>
 #include <iconv.h>],
-        [iconv_t cd = iconv_open("","");
-         iconv(cd,NULL,NULL,NULL,NULL);
-         iconv_close(cd);],
-	am_cv_use_build_libiconv=yes
-        am_cv_lib_iconv=yes
-        am_cv_func_iconv=yes)
-      LIBS="$am_save_LIBS"
-      CPPFLAGS="$am_save_CPPFLAGS"
+          [iconv_t cd = iconv_open("","");
+           iconv(cd,NULL,NULL,NULL,NULL);
+           iconv_close(cd);],
+          am_cv_use_build_libiconv=yes
+          am_cv_build_libiconv_path=$lib_dir/libiconv.a
+          am_cv_lib_iconv=yes
+          am_cv_func_iconv=yes)
+        LIBS="$am_save_LIBS"
+        CPPFLAGS="$am_save_CPPFLAGS"
+        if test "$am_cv_use_build_libiconv" = "yes"; then
+          break
+        fi
+      done
     fi
 
     # Next, try to find iconv in libc.
@@ -251,7 +261,8 @@ AC_DEFUN([AM_ICONV],
     LIBICONV_INCLUDE=
   fi
   if test "$am_cv_use_build_libiconv" = yes; then
-    LIBICONV_LIBDIR="$BUILD_LIBICONV_LIBDIR"
+    LIBICONV="$am_cv_build_libiconv_path"
+    LIBICONV_LIBDIR=""
     LIBICONV_INCLUDE="$BUILD_LIBICONV_INCLUDE"
   fi
   CPPFLAGS="$CPPFLAGS $LIBICONV_INCLUDE"
@@ -392,6 +403,31 @@ AC_DEFUN([CY_AC_TK_PRIVATE_HEADERS], [
   fi
 ])
 
+dnl GDB_AC_DEFINE_RELOCATABLE([VARIABLE], [ARG-NAME], [SHELL-VARIABLE])
+dnl For use in processing directory values for --with-foo.
+dnl If the path in SHELL_VARIABLE is relative to the prefix, then the
+dnl result is relocatable, then this will define the C macro
+dnl VARIABLE_RELOCATABLE to 1; otherwise it is defined as 0.
+AC_DEFUN([GDB_AC_DEFINE_RELOCATABLE], [
+  if test "x$exec_prefix" = xNONE || test "x$exec_prefix" = 'x${prefix}'; then
+     if test "x$prefix" = xNONE; then
+     	test_prefix=/usr/local
+     else
+	test_prefix=$prefix
+     fi
+  else
+     test_prefix=$exec_prefix
+  fi
+  value=0
+  case [$3] in
+     "${test_prefix}"|"${test_prefix}/"*|\
+	'${exec_prefix}'|'${exec_prefix}/'*)
+     value=1
+     ;;
+  esac
+  AC_DEFINE_UNQUOTED([$1]_RELOCATABLE, $value, [Define if the $2 directory should be relocated when GDB is moved.])
+])
+
 dnl GDB_AC_WITH_DIR([VARIABLE], [ARG-NAME], [HELP], [DEFAULT])
 dnl Add a new --with option that defines a directory.
 dnl The result is stored in VARIABLE.  AC_DEFINE_DIR is called
@@ -408,21 +444,5 @@ AC_DEFUN([GDB_AC_WITH_DIR], [
     [$1]=$withval], [[$1]=[$4]])
   AC_DEFINE_DIR([$1], [$1], [$3])
   AC_SUBST([$1])
-  if test "x$exec_prefix" = xNONE || test "x$exec_prefix" = 'x${prefix}'; then
-     if test "x$prefix" = xNONE; then
-     	test_prefix=/usr/local
-     else
-	test_prefix=$prefix
-     fi
-  else
-     test_prefix=$exec_prefix
-  fi
-  value=0
-  case ${ac_define_dir} in
-     "${test_prefix}"|"${test_prefix}/"*|\
-	'${exec_prefix}'|'${exec_prefix}/'*)
-     value=1
-     ;;
-  esac
-  AC_DEFINE_UNQUOTED([$1]_RELOCATABLE, $value, [Define if the $2 directory should be relocated when GDB is moved.])
+  GDB_AC_DEFINE_RELOCATABLE([$1], [$2], ${ac_define_dir})
   ])

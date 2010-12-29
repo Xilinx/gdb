@@ -1,7 +1,6 @@
 /* QNX Neutrino specific low level interface, for the remote server
    for GDB.
-   Copyright (C) 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -18,7 +17,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-
+#include "server.h"
 #include "nto-low.h"
 #include "regdef.h"
 #include "regcache.h"

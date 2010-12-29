@@ -1,6 +1,6 @@
 /* Target-dependent code for SPARC.
 
-   Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+   Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -63,7 +63,7 @@ struct regset;
    sparc64-tdep.c; don't add any here.  */
 
 /* The SPARC Floating-Point Quad-Precision format is similar to
-   big-endian IA-64 Quad-recision format.  */
+   big-endian IA-64 Quad-Precision format.  */
 #define floatformats_sparc_quad floatformats_ia64_quad
 
 /* The stack pointer is offset from the stack frame by a BIAS of 2047
@@ -221,7 +221,11 @@ sparc_floating_p (const struct type *type)
   return 0;
 }
 
-/* Check whether TYPE is "Structure or Union".  */
+/* Check whether TYPE is "Structure or Union".
+
+   In terms of Ada subprogram calls, arrays are treated the same as
+   struct and union types.  So this function also returns non-zero
+   for array types.  */
 
 static int
 sparc_structure_or_union_p (const struct type *type)
@@ -230,6 +234,7 @@ sparc_structure_or_union_p (const struct type *type)
     {
     case TYPE_CODE_STRUCT:
     case TYPE_CODE_UNION:
+    case TYPE_CODE_ARRAY:
       return 1;
     default:
       break;
@@ -392,6 +397,13 @@ sparc32_pseudo_register_write (struct gdbarch *gdbarch,
   regcache_raw_write (regcache, regnum + 1, buf + 4);
 }
 
+
+static CORE_ADDR
+sparc32_frame_align (struct gdbarch *gdbarch, CORE_ADDR address)
+{
+  /* The ABI requires double-word alignment.  */
+  return address & ~0x7;
+}
 
 static CORE_ADDR
 sparc32_push_dummy_code (struct gdbarch *gdbarch, CORE_ADDR sp,
@@ -1105,6 +1117,7 @@ sparc32_store_return_value (struct type *type, struct regcache *regcache,
 
   gdb_assert (!sparc_structure_or_union_p (type));
   gdb_assert (!(sparc_floating_p (type) && len == 16));
+  gdb_assert (len <= 8);
 
   if (sparc_floating_p (type))
     {
@@ -1312,6 +1325,7 @@ sparc_software_single_step (struct frame_info *frame)
 {
   struct gdbarch *arch = get_frame_arch (frame);
   struct gdbarch_tdep *tdep = gdbarch_tdep (arch);
+  struct address_space *aspace = get_frame_address_space (frame);
   CORE_ADDR npc, nnpc;
 
   CORE_ADDR pc, orig_npc;
@@ -1322,10 +1336,10 @@ sparc_software_single_step (struct frame_info *frame)
   /* Analyze the instruction at PC.  */
   nnpc = sparc_analyze_control_transfer (frame, pc, &npc);
   if (npc != 0)
-    insert_single_step_breakpoint (arch, npc);
+    insert_single_step_breakpoint (arch, aspace, npc);
 
   if (nnpc != 0)
-    insert_single_step_breakpoint (arch, nnpc);
+    insert_single_step_breakpoint (arch, aspace, nnpc);
 
   /* Assert that we have set at least one breakpoint, and that
      they're not set at the same spot - unless we're going
@@ -1400,6 +1414,7 @@ sparc32_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_fp0_regnum (gdbarch, SPARC_F0_REGNUM); /* %f0 */
 
   /* Call dummy code.  */
+  set_gdbarch_frame_align (gdbarch, sparc32_frame_align);
   set_gdbarch_call_dummy_location (gdbarch, ON_STACK);
   set_gdbarch_push_dummy_code (gdbarch, sparc32_push_dummy_code);
   set_gdbarch_push_dummy_call (gdbarch, sparc32_push_dummy_call);

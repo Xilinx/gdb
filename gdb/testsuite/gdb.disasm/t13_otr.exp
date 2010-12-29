@@ -1,4 +1,4 @@
-# Copyright (C) 2003, 2007, 2008, 2009 Free Software Foundation, Inc.
+# Copyright (C) 2003, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,8 +24,6 @@ if ![istarget "h8300*-*-*"] {
     return
 }
 
-set prms_id 0
-set bug_id 0
 
 set testfile "t13_otr"
 set srcfile ${srcdir}/${subdir}/${testfile}.s
@@ -52,7 +50,7 @@ gdb_load $binfile
 
 global hex
 
-gdb_test "x /i _start" "bra\t.\\+18 \\($hex\\)" \
+gdb_test "x /i start" "bra\t.\\+18 \\($hex\\)" \
 	"bra .+18"
 gdb_test "x" "brn\t.\\+18 \\($hex\\)" \
 	"brn .+18"

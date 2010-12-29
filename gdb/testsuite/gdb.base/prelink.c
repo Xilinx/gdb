@@ -1,6 +1,6 @@
 /* This testcase is part of GDB, the GNU debugger.
 
-   Copyright 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,11 @@
 
 #include <stdio.h>
 
+extern int copyreloc;
+
+/* Test GDB itself finds `&bssvar' right.   */
+static int bssvar, *bssvarp = &bssvar;
+
 extern void (*h (void)) (void (*)(void));
 
 int
@@ -25,5 +30,6 @@ main (void)
 {
   void (*f) (void (*)(void)) = h ();
   printf ("%p\n", f);
+  printf ("%d\n", copyreloc);
   f (0);
 }

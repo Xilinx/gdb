@@ -1,4 +1,4 @@
-# Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+# Copyright (C) 2008, 2009, 2010 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -53,6 +53,33 @@ class ContainerPrinter:
     def children(self):
         return self._iterator(self.val['elements'], self.val['len'])
 
+# Test a printer where to_string is None
+class NoStringContainerPrinter:
+    class _iterator:
+        def __init__ (self, pointer, len):
+            self.start = pointer
+            self.pointer = pointer
+            self.end = pointer + len
+
+        def __iter__(self):
+            return self
+
+        def next(self):
+            if self.pointer == self.end:
+                raise StopIteration
+            result = self.pointer
+            self.pointer = self.pointer + 1
+            return ('[%d]' % int (result - self.start), result.dereference())
+
+    def __init__(self, val):
+        self.val = val
+
+    def to_string(self):
+        return None
+
+    def children(self):
+        return self._iterator(self.val['elements'], self.val['len'])
+
 class pp_s:
     def __init__(self, val):
         self.val = val
@@ -97,7 +124,7 @@ class pp_nullstr:
         self.val = val
 
     def to_string(self):
-        return self.val['s'].string(gdb.parameter('target-charset'))
+        return self.val['s'].string(gdb.target_charset())
 
 class pp_ns:
     "Print a std::basic_string of some kind"
@@ -107,7 +134,24 @@ class pp_ns:
 
     def to_string(self):
         len = self.val['length']
-        return self.val['null_str'].string (gdb.parameter ('target-charset'), length = len)
+        return self.val['null_str'].string (gdb.target_charset(), length = len)
+
+    def display_hint (self):
+        return 'string'
+
+pp_ls_encoding = None
+
+class pp_ls:
+    "Print a std::basic_string of some kind"
+
+    def __init__(self, val):
+        self.val = val
+
+    def to_string(self):
+        if pp_ls_encoding is not None:
+            return self.val['lazy_str'].lazy_string(encoding = pp_ls_encoding)
+        else:
+            return self.val['lazy_str'].lazy_string()
 
     def display_hint (self):
         return 'string'
@@ -155,6 +199,11 @@ def lookup_function (val):
 
     return None
 
+def disable_lookup_function ():
+    lookup_function.enabled = False
+
+def enable_lookup_function ():
+    lookup_function.enabled = True
 
 def register_pretty_printers ():
     pretty_printers_dict[re.compile ('^struct s$')]   = pp_s
@@ -178,11 +227,16 @@ def register_pretty_printers ():
     # both the C and C++ cases.
     pretty_printers_dict[re.compile ('^struct string_repr$')] = string_print
     pretty_printers_dict[re.compile ('^struct container$')] = ContainerPrinter
+    pretty_printers_dict[re.compile ('^struct justchildren$')] = NoStringContainerPrinter
     pretty_printers_dict[re.compile ('^string_repr$')] = string_print
     pretty_printers_dict[re.compile ('^container$')] = ContainerPrinter
+    pretty_printers_dict[re.compile ('^justchildren$')] = NoStringContainerPrinter
     
     pretty_printers_dict[re.compile ('^struct ns$')]  = pp_ns
     pretty_printers_dict[re.compile ('^ns$')]  = pp_ns
+
+    pretty_printers_dict[re.compile ('^struct lazystring$')]  = pp_ls
+    pretty_printers_dict[re.compile ('^lazystring$')]  = pp_ls
 
     pretty_printers_dict[re.compile ('^struct outerstruct$')]  = pp_outer
     pretty_printers_dict[re.compile ('^outerstruct$')]  = pp_outer

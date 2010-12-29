@@ -1,4 +1,4 @@
-/* Copyright 2003, 2004, 2007, 2008, 2009 Free Software Foundation, Inc.
+/* Copyright 2003, 2004, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,12 +21,16 @@ namespace C
   class OtherFileClass {
   public:
     int z;
-  };
 
-  void ensureOtherRefs () {
-    // NOTE (2004-04-23, carlton): This function is here only to make
-    // sure that GCC 3.4 outputs debug info for this class.
-    static OtherFileClass *c = new OtherFileClass();
+    typedef short cOtherFileClassType;
+    typedef long cOtherFileClassType2;
+    static const cOtherFileClassType cOtherFileClassVar = 318;
+    static const cOtherFileClassType2 cOtherFileClassVar2 = 320;
+    cOtherFileClassType cOtherFileClassVar_use ();
+  };
+  OtherFileClass::cOtherFileClassType OtherFileClass::cOtherFileClassVar_use ()
+  {
+    return cOtherFileClassVar + cOtherFileClassVar2;
   }
 
   namespace {
@@ -34,8 +38,30 @@ namespace C
   };
 
   int cOtherFile = 316;
+
+  void ensureOtherRefs () {
+    // NOTE (2004-04-23, carlton): This function is here only to make
+    // sure that GCC 3.4 outputs debug info for this class.
+    static OtherFileClass *c = new OtherFileClass();
+    c->z = cOtherFile + cXOtherFile;
+  }
+
+  typedef short cOtherFileType;
+  typedef long cOtherFileType2;
+  static const cOtherFileType cOtherFileVar = 319;
+  static const cOtherFileType2 cOtherFileVar2 = 321;
+  cOtherFileType cOtherFileVar_use ()
+  {
+    return cOtherFileVar + cOtherFileVar2;
+  }
 }
 
 namespace {
   int XOtherFile = 317;
+}
+
+int ensureOtherRefs ()
+{
+  C::ensureOtherRefs ();
+  return XOtherFile;
 }

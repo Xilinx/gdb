@@ -1,7 +1,7 @@
 /* GNU/Linux on ARM target support.
 
    Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009 Free Software Foundation, Inc.
+   2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -74,9 +74,28 @@ static const char arm_linux_thumb_be_breakpoint[] = {0xde, 0x01};
 
 static const char arm_linux_thumb_le_breakpoint[] = {0x01, 0xde};
 
-/* Description of the longjmp buffer.  */
+/* Because the 16-bit Thumb breakpoint is affected by Thumb-2 IT blocks,
+   we must use a length-appropriate breakpoint for 32-bit Thumb
+   instructions.  See also thumb_get_next_pc.  */
+
+static const char arm_linux_thumb2_be_breakpoint[] = { 0xf7, 0xf0, 0xa0, 0x00 };
+
+static const char arm_linux_thumb2_le_breakpoint[] = { 0xf0, 0xf7, 0x00, 0xa0 };
+
+/* Description of the longjmp buffer.  The buffer is treated as an array of 
+   elements of size ARM_LINUX_JB_ELEMENT_SIZE.
+
+   The location of saved registers in this buffer (in particular the PC
+   to use after longjmp is called) varies depending on the ABI (in 
+   particular the FP model) and also (possibly) the C Library.
+
+   For glibc, eglibc, and uclibc the following holds:  If the FP model is 
+   SoftVFP or VFP (which implies EABI) then the PC is at offset 9 in the 
+   buffer.  This is also true for the SoftFPA model.  However, for the FPA 
+   model the PC is at offset 21 in the buffer.  */
 #define ARM_LINUX_JB_ELEMENT_SIZE	INT_REGISTER_SIZE
-#define ARM_LINUX_JB_PC			21
+#define ARM_LINUX_JB_PC_FPA		21
+#define ARM_LINUX_JB_PC_EABI		9
 
 /*
    Dynamic Linking on ARM GNU/Linux
@@ -216,6 +235,11 @@ static const char arm_linux_thumb_le_breakpoint[] = {0x01, 0xde};
 #define ARM_SET_R7_RT_SIGRETURN		0xe3a070ad
 #define ARM_EABI_SYSCALL		0xef000000
 
+/* OABI syscall restart trampoline, used for EABI executables too
+   whenever OABI support has been enabled in the kernel.  */
+#define ARM_OABI_SYSCALL_RESTART_SYSCALL 0xef900000
+#define ARM_LDR_PC_SP_12		0xe49df00c
+
 static void
 arm_linux_sigtramp_cache (struct frame_info *this_frame,
 			  struct trad_frame_cache *this_cache,
@@ -325,6 +349,21 @@ arm_linux_rt_sigreturn_init (const struct tramp_frame *self,
 			      + ARM_SIGCONTEXT_R0);
 }
 
+static void
+arm_linux_restart_syscall_init (const struct tramp_frame *self,
+				struct frame_info *this_frame,
+				struct trad_frame_cache *this_cache,
+				CORE_ADDR func)
+{
+  CORE_ADDR sp = get_frame_register_unsigned (this_frame, ARM_SP_REGNUM);
+
+  trad_frame_set_reg_addr (this_cache, ARM_PC_REGNUM, sp);
+  trad_frame_set_reg_value (this_cache, ARM_SP_REGNUM, sp + 12);
+
+  /* Save a frame ID.  */
+  trad_frame_set_id (this_cache, frame_id_build (sp, func));
+}
+
 static struct tramp_frame arm_linux_sigreturn_tramp_frame = {
   SIGTRAMP_FRAME,
   4,
@@ -365,6 +404,17 @@ static struct tramp_frame arm_eabi_linux_rt_sigreturn_tramp_frame = {
     { TRAMP_SENTINEL_INSN }
   },
   arm_linux_rt_sigreturn_init
+};
+
+static struct tramp_frame arm_linux_restart_syscall_tramp_frame = {
+  NORMAL_FRAME,
+  4,
+  {
+    { ARM_OABI_SYSCALL_RESTART_SYSCALL, -1 },
+    { ARM_LDR_PC_SP_12, -1 },
+    { TRAMP_SENTINEL_INSN }
+  },
+  arm_linux_restart_syscall_init
 };
 
 /* Core file and register set support.  */
@@ -580,12 +630,89 @@ arm_linux_regset_from_core_section (struct gdbarch *gdbarch,
   return NULL;
 }
 
+/* Copy the value of next pc of sigreturn and rt_sigrturn into PC,
+   and return 1.  Return 0 if it is not a rt_sigreturn/sigreturn
+   syscall.  */
+static int
+arm_linux_sigreturn_return_addr (struct frame_info *frame,
+				 unsigned long svc_number,
+				 CORE_ADDR *pc)
+{
+  /* Is this a sigreturn or rt_sigreturn syscall?  */
+  if (svc_number == 119 || svc_number == 173)
+    {
+      if (get_frame_type (frame) == SIGTRAMP_FRAME)
+	{
+	  *pc = frame_unwind_caller_pc (frame);
+	  return 1;
+	}
+    }
+  return 0;
+}
+
+/* When FRAME is at a syscall instruction, return the PC of the next
+   instruction to be executed.  */
+
+static CORE_ADDR
+arm_linux_syscall_next_pc (struct frame_info *frame)
+{
+  CORE_ADDR pc = get_frame_pc (frame);
+  CORE_ADDR return_addr = 0;
+  int is_thumb = arm_frame_is_thumb (frame);
+  ULONGEST svc_number = 0;
+  int is_sigreturn = 0;
+
+  if (is_thumb)
+    {
+      svc_number = get_frame_register_unsigned (frame, 7);
+    }
+  else
+    {
+      struct gdbarch *gdbarch = get_frame_arch (frame);
+      enum bfd_endian byte_order_for_code = 
+	gdbarch_byte_order_for_code (gdbarch);
+      unsigned long this_instr = 
+	read_memory_unsigned_integer (pc, 4, byte_order_for_code);
+
+      unsigned long svc_operand = (0x00ffffff & this_instr);
+      if (svc_operand)  /* OABI.  */
+	{
+	  svc_number = svc_operand - 0x900000;
+	}
+      else /* EABI.  */
+	{
+	  svc_number = get_frame_register_unsigned (frame, 7);
+	}
+    }
+
+  is_sigreturn = arm_linux_sigreturn_return_addr (frame, svc_number, 
+						  &return_addr);
+
+  if (is_sigreturn)
+    return return_addr;
+  
+  if (is_thumb)
+    {
+      return_addr = pc + 2;
+      /* Addresses for calling Thumb functions have the bit 0 set.  */
+      return_addr |= 1;
+    }
+  else
+    {
+      return_addr = pc + 4;
+    }
+
+  return return_addr;
+}
+
+
 /* Insert a single step breakpoint at the next executed instruction.  */
 
 static int
 arm_linux_software_single_step (struct frame_info *frame)
 {
   struct gdbarch *gdbarch = get_frame_arch (frame);
+  struct address_space *aspace = get_frame_address_space (frame);
   CORE_ADDR next_pc = arm_get_next_pc (frame, get_frame_pc (frame));
 
   /* The Linux kernel offers some user-mode helpers in a high page.  We can
@@ -596,7 +723,7 @@ arm_linux_software_single_step (struct frame_info *frame)
   if (next_pc > 0xffff0000)
     next_pc = get_frame_register_unsigned (frame, ARM_LR_REGNUM);
 
-  insert_single_step_breakpoint (gdbarch, next_pc);
+  insert_single_step_breakpoint (gdbarch, aspace, next_pc);
 
   return 1;
 }
@@ -604,7 +731,7 @@ arm_linux_software_single_step (struct frame_info *frame)
 /* Support for displaced stepping of Linux SVC instructions.  */
 
 static void
-arm_linux_cleanup_svc (struct gdbarch *gdbarch ATTRIBUTE_UNUSED,
+arm_linux_cleanup_svc (struct gdbarch *gdbarch,
 		       struct regcache *regs,
 		       struct displaced_step_closure *dsc)
 {
@@ -637,8 +764,11 @@ arm_linux_copy_svc (struct gdbarch *gdbarch, uint32_t insn, CORE_ADDR to,
 		    struct regcache *regs, struct displaced_step_closure *dsc)
 {
   CORE_ADDR from = dsc->insn_addr;
+  CORE_ADDR return_to = 0;
+
   struct frame_info *frame;
   unsigned int svc_number = displaced_read_reg (regs, from, 7);
+  int is_sigreturn = 0;
 
   if (debug_displaced)
     fprintf_unfiltered (gdb_stdlog, "displaced: copying Linux svc insn %.8lx\n",
@@ -646,13 +776,10 @@ arm_linux_copy_svc (struct gdbarch *gdbarch, uint32_t insn, CORE_ADDR to,
 
   frame = get_current_frame ();
 
-  /* Is this a sigreturn or rt_sigreturn syscall?  Note: these are only useful
-     for EABI.  */
-  if (svc_number == 119 || svc_number == 173)
+  is_sigreturn = arm_linux_sigreturn_return_addr(frame, svc_number,
+						 &return_to);
+  if (is_sigreturn)
     {
-      if (get_frame_type (frame) == SIGTRAMP_FRAME)
-	{
-	  CORE_ADDR return_to;
 	  struct symtab_and_line sal;
 
 	  if (debug_displaced)
@@ -660,12 +787,12 @@ arm_linux_copy_svc (struct gdbarch *gdbarch, uint32_t insn, CORE_ADDR to,
 	      "sigreturn/rt_sigreturn SVC call. PC in frame = %lx\n",
 	      (unsigned long) get_frame_pc (frame));
 
-	  return_to = frame_unwind_caller_pc (frame);
 	  if (debug_displaced)
 	    fprintf_unfiltered (gdb_stdlog, "displaced: unwind pc = %lx. "
 	      "Setting momentary breakpoint.\n", (unsigned long) return_to);
 
-	  gdb_assert (inferior_thread ()->step_resume_breakpoint == NULL);
+	  gdb_assert (inferior_thread ()->control.step_resume_breakpoint
+		      == NULL);
 
 	  sal = find_pc_line (return_to, 0);
 	  sal.pc = return_to;
@@ -676,7 +803,7 @@ arm_linux_copy_svc (struct gdbarch *gdbarch, uint32_t insn, CORE_ADDR to,
 
 	  if (frame)
 	    {
-	      inferior_thread ()->step_resume_breakpoint
+	      inferior_thread ()->control.step_resume_breakpoint
         	= set_momentary_breakpoint (gdbarch, sal, get_frame_id (frame),
 					    bp_step_resume);
 
@@ -692,7 +819,7 @@ arm_linux_copy_svc (struct gdbarch *gdbarch, uint32_t insn, CORE_ADDR to,
       else if (debug_displaced)
 	fprintf_unfiltered (gdb_stdlog, "displaced: sigreturn/rt_sigreturn "
 			    "SVC call not in signal trampoline frame\n");
-    }
+    
 
   /* Preparation: If we detect sigreturn, set momentary breakpoint at resume
 		  location, else nothing.
@@ -725,7 +852,7 @@ arm_linux_copy_svc (struct gdbarch *gdbarch, uint32_t insn, CORE_ADDR to,
    would have been called from the non-displaced location).  */
 
 static void
-cleanup_kernel_helper_return (struct gdbarch *gdbarch ATTRIBUTE_UNUSED,
+cleanup_kernel_helper_return (struct gdbarch *gdbarch,
 			      struct regcache *regs,
 			      struct displaced_step_closure *dsc)
 {
@@ -811,6 +938,8 @@ arm_linux_init_abi (struct gdbarch_info info,
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
 
+  linux_init_abi (info, gdbarch);
+
   tdep->lowest_pc = 0x8000;
   if (info.byte_order == BFD_ENDIAN_BIG)
     {
@@ -819,6 +948,7 @@ arm_linux_init_abi (struct gdbarch_info info,
       else
 	tdep->arm_breakpoint = arm_linux_arm_be_breakpoint;
       tdep->thumb_breakpoint = arm_linux_thumb_be_breakpoint;
+      tdep->thumb2_breakpoint = arm_linux_thumb2_be_breakpoint;
     }
   else
     {
@@ -827,14 +957,31 @@ arm_linux_init_abi (struct gdbarch_info info,
       else
 	tdep->arm_breakpoint = arm_linux_arm_le_breakpoint;
       tdep->thumb_breakpoint = arm_linux_thumb_le_breakpoint;
+      tdep->thumb2_breakpoint = arm_linux_thumb2_le_breakpoint;
     }
   tdep->arm_breakpoint_size = sizeof (arm_linux_arm_le_breakpoint);
   tdep->thumb_breakpoint_size = sizeof (arm_linux_thumb_le_breakpoint);
+  tdep->thumb2_breakpoint_size = sizeof (arm_linux_thumb2_le_breakpoint);
 
   if (tdep->fp_model == ARM_FLOAT_AUTO)
     tdep->fp_model = ARM_FLOAT_FPA;
 
-  tdep->jb_pc = ARM_LINUX_JB_PC;
+  switch (tdep->fp_model)
+    {
+    case ARM_FLOAT_FPA:
+      tdep->jb_pc = ARM_LINUX_JB_PC_FPA;
+      break;
+    case ARM_FLOAT_SOFT_FPA:
+    case ARM_FLOAT_SOFT_VFP:
+    case ARM_FLOAT_VFP:
+      tdep->jb_pc = ARM_LINUX_JB_PC_EABI;
+      break;
+    default:
+      internal_error
+	(__FILE__, __LINE__,
+         _("arm_linux_init_abi: Floating point model not supported"));
+      break;
+    }
   tdep->jb_elt_size = ARM_LINUX_JB_ELEMENT_SIZE;
 
   set_solib_svr4_fetch_link_map_offsets
@@ -859,6 +1006,8 @@ arm_linux_init_abi (struct gdbarch_info info,
 				&arm_eabi_linux_sigreturn_tramp_frame);
   tramp_frame_prepend_unwinder (gdbarch,
 				&arm_eabi_linux_rt_sigreturn_tramp_frame);
+  tramp_frame_prepend_unwinder (gdbarch,
+				&arm_linux_restart_syscall_tramp_frame);
 
   /* Core file support.  */
   set_gdbarch_regset_from_core_section (gdbarch,
@@ -873,6 +1022,9 @@ arm_linux_init_abi (struct gdbarch_info info,
   set_gdbarch_displaced_step_free_closure (gdbarch,
 					   simple_displaced_step_free_closure);
   set_gdbarch_displaced_step_location (gdbarch, displaced_step_at_entry_point);
+
+
+  tdep->syscall_next_pc = arm_linux_syscall_next_pc;
 }
 
 /* Provide a prototype to silence -Wmissing-prototypes.  */

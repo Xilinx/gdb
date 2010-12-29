@@ -1,7 +1,7 @@
 /* Target-dependent code for the ALPHA architecture, for GDB, the GNU Debugger.
 
    Copyright (C) 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2005, 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+   2003, 2005, 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -45,6 +45,36 @@
 #include "elf-bfd.h"
 
 #include "alpha-tdep.h"
+
+/* Instruction decoding.  The notations for registers, immediates and
+   opcodes are the same as the one used in Compaq's Alpha architecture
+   handbook.  */
+
+#define INSN_OPCODE(insn) ((insn & 0xfc000000) >> 26)
+
+/* Memory instruction format */
+#define MEM_RA(insn) ((insn & 0x03e00000) >> 21)
+#define MEM_RB(insn) ((insn & 0x001f0000) >> 16)
+#define MEM_DISP(insn) \
+  (((insn & 0x8000) == 0) ? (insn & 0xffff) : -((-insn) & 0xffff))
+
+static const int lda_opcode = 0x08;
+static const int stq_opcode = 0x2d;
+
+/* Branch instruction format */
+#define BR_RA(insn) MEM_RA(insn)
+
+static const int bne_opcode = 0x3d;
+
+/* Operate instruction format */
+#define OPR_FUNCTION(insn) ((insn & 0xfe0) >> 5)
+#define OPR_HAS_IMMEDIATE(insn) ((insn & 0x1000) == 0x1000)
+#define OPR_RA(insn) MEM_RA(insn)
+#define OPR_RC(insn) ((insn & 0x1f))
+#define OPR_LIT(insn) ((insn & 0x1fe000) >> 13)
+
+static const int subq_opcode = 0x10;
+static const int subq_function = 0x29;
 
 
 /* Return the name of the REGNO register.
@@ -265,7 +295,7 @@ alpha_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   int accumulate_size = struct_return ? 8 : 0;
   struct alpha_arg
     {
-      gdb_byte *contents;
+      const gdb_byte *contents;
       int len;
       int offset;
     };
@@ -363,7 +393,7 @@ alpha_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
       m_arg->len = TYPE_LENGTH (arg_type);
       m_arg->offset = accumulate_size;
       accumulate_size = (accumulate_size + m_arg->len + 7) & ~7;
-      m_arg->contents = value_contents_writeable (arg);
+      m_arg->contents = value_contents (arg);
     }
 
   /* Determine required argument register loads, loading an argument register
@@ -385,7 +415,7 @@ alpha_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   /* `Push' arguments on the stack.  */
   for (i = nargs; m_arg--, --i >= 0;)
     {
-      gdb_byte *contents = m_arg->contents;
+      const gdb_byte *contents = m_arg->contents;
       int offset = m_arg->offset;
       int len = m_arg->len;
 
@@ -962,7 +992,7 @@ alpha_heuristic_proc_start (struct gdbarch *gdbarch, CORE_ADDR pc)
   /* It's not clear to me why we reach this point when stopping quietly,
      but with this test, at least we don't print out warnings for every
      child forked (eg, on decstation).  22apr93 rich@cygnus.com.  */
-  if (inf->stop_soon == NO_STOP_QUIETLY)
+  if (inf->control.stop_soon == NO_STOP_QUIETLY)
     {
       static int blurb_printed = 0;
 
@@ -999,6 +1029,108 @@ struct alpha_heuristic_unwind_cache
   struct trad_frame_saved_reg *saved_regs;
   int return_reg;
 };
+
+/* If a probing loop sequence starts at PC, simulate it and compute
+   FRAME_SIZE and PC after its execution.  Otherwise, return with PC and
+   FRAME_SIZE unchanged.  */
+
+static void
+alpha_heuristic_analyze_probing_loop (struct gdbarch *gdbarch, CORE_ADDR *pc,
+				      int *frame_size)
+{
+  CORE_ADDR cur_pc = *pc;
+  int cur_frame_size = *frame_size;
+  int nb_of_iterations, reg_index, reg_probe;
+  unsigned int insn;
+
+  /* The following pattern is recognized as a probing loop:
+
+        lda     REG_INDEX,NB_OF_ITERATIONS
+        lda     REG_PROBE,<immediate>(sp)
+
+     LOOP_START:
+        stq     zero,<immediate>(REG_PROBE)
+        subq    REG_INDEX,0x1,REG_INDEX
+        lda     REG_PROBE,<immediate>(REG_PROBE)
+        bne     REG_INDEX, LOOP_START
+ 
+        lda     sp,<immediate>(REG_PROBE)
+
+     If anything different is found, the function returns without
+     changing PC and FRAME_SIZE.  Otherwise, PC will point immediately
+     after this sequence, and FRAME_SIZE will be updated.
+  */
+
+  /* lda     REG_INDEX,NB_OF_ITERATIONS */
+
+  insn = alpha_read_insn (gdbarch, cur_pc);
+  if (INSN_OPCODE (insn) != lda_opcode)
+    return;
+  reg_index = MEM_RA (insn);
+  nb_of_iterations = MEM_DISP (insn);
+
+  /* lda     REG_PROBE,<immediate>(sp) */
+
+  cur_pc += ALPHA_INSN_SIZE;
+  insn = alpha_read_insn (gdbarch, cur_pc);
+  if (INSN_OPCODE (insn) != lda_opcode
+      || MEM_RB (insn) != ALPHA_SP_REGNUM)
+    return;
+  reg_probe = MEM_RA (insn);
+  cur_frame_size -= MEM_DISP (insn);
+
+  /* stq     zero,<immediate>(REG_PROBE) */
+  
+  cur_pc += ALPHA_INSN_SIZE;
+  insn = alpha_read_insn (gdbarch, cur_pc);
+  if (INSN_OPCODE (insn) != stq_opcode
+      || MEM_RA (insn) != 0x1f
+      || MEM_RB (insn) != reg_probe)
+    return;
+  
+  /* subq    REG_INDEX,0x1,REG_INDEX */
+
+  cur_pc += ALPHA_INSN_SIZE;
+  insn = alpha_read_insn (gdbarch, cur_pc);
+  if (INSN_OPCODE (insn) != subq_opcode
+      || !OPR_HAS_IMMEDIATE (insn)
+      || OPR_FUNCTION (insn) != subq_function
+      || OPR_LIT(insn) != 1
+      || OPR_RA (insn) != reg_index
+      || OPR_RC (insn) != reg_index)
+    return;
+  
+  /* lda     REG_PROBE,<immediate>(REG_PROBE) */
+  
+  cur_pc += ALPHA_INSN_SIZE;
+  insn = alpha_read_insn (gdbarch, cur_pc);
+  if (INSN_OPCODE (insn) != lda_opcode
+      || MEM_RA (insn) != reg_probe
+      || MEM_RB (insn) != reg_probe)
+    return;
+  cur_frame_size -= MEM_DISP (insn) * nb_of_iterations;
+
+  /* bne     REG_INDEX, LOOP_START */
+
+  cur_pc += ALPHA_INSN_SIZE;
+  insn = alpha_read_insn (gdbarch, cur_pc);
+  if (INSN_OPCODE (insn) != bne_opcode
+      || MEM_RA (insn) != reg_index)
+    return;
+
+  /* lda     sp,<immediate>(REG_PROBE) */
+
+  cur_pc += ALPHA_INSN_SIZE;
+  insn = alpha_read_insn (gdbarch, cur_pc);
+  if (INSN_OPCODE (insn) != lda_opcode
+      || MEM_RA (insn) != ALPHA_SP_REGNUM
+      || MEM_RB (insn) != reg_probe)
+    return;
+  cur_frame_size -= MEM_DISP (insn);
+
+  *pc = cur_pc;
+  *frame_size = cur_frame_size;
+}
 
 static struct alpha_heuristic_unwind_cache *
 alpha_heuristic_frame_unwind_cache (struct frame_info *this_frame,
@@ -1116,6 +1248,8 @@ alpha_heuristic_frame_unwind_cache (struct frame_info *this_frame,
 	    frame_reg = ALPHA_GCC_FP_REGNUM;
 	  else if (word == 0x47fe040f)			/* bis zero,sp,fp */
 	    frame_reg = ALPHA_GCC_FP_REGNUM;
+
+	  alpha_heuristic_analyze_probing_loop (gdbarch, &cur_pc, &frame_size);
 	}
 
       /* If we haven't found a valid return address register yet, keep
@@ -1489,12 +1623,13 @@ int
 alpha_software_single_step (struct frame_info *frame)
 {
   struct gdbarch *gdbarch = get_frame_arch (frame);
+  struct address_space *aspace = get_frame_address_space (frame);
   CORE_ADDR pc, next_pc;
 
   pc = get_frame_pc (frame);
   next_pc = alpha_next_pc (frame, pc);
 
-  insert_single_step_breakpoint (gdbarch, next_pc);
+  insert_single_step_breakpoint (gdbarch, aspace, next_pc);
   return 1;
 }
 

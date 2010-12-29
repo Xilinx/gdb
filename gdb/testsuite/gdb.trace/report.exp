@@ -1,4 +1,4 @@
-#   Copyright 1998, 2007, 2008, 2009 Free Software Foundation, Inc.
+#   Copyright 1998, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,45 +21,22 @@ if $tracelevel then {
     strace $tracelevel
 }
 
-set prms_id 0
-set bug_id 0
 
 gdb_exit
 gdb_start
 
-if [istarget "m68k-*-elf"] then {
-    load_lib "emc-support.exp";
-    set srcfile gdb_c_test.c
-    set binfile [board_info target d490_binfile];
-    gdb_test "set remotetimeout 6" "" ""
-    set timeout 500
-    gdb_target_monitor $binfile
-    # Give a TSTOP and ignore errors, to make sure any previous trace is off
-    gdb_test "tstop" "" ""
-    gdb_test "tfind none"  "" ""
-    send_gdb "compare-sections CS\n"
-    gdb_expect {
-	-re "MIS-MATCHED.*$gdb_prompt $" {
-	    untested report.exp
-	    return -1
-	    all tests in this module will fail.";
-	}
-	-re ".*$gdb_prompt $" { }
-    }
-} else {
-    set testfile "actions"
-    set srcfile ${testfile}.c
-    set binfile $objdir/$subdir/report
-    if { [gdb_compile "$srcdir/$subdir/$srcfile" $binfile \
-	     executable {debug nowarnings}] != "" } {
-	untested report.exp
-	return -1
-    }
-    gdb_load $binfile
-    gdb_test "tstop"       "" ""
-    gdb_test "tfind none"  "" ""
-    runto_main
+set testfile "actions"
+set srcfile ${testfile}.c
+set binfile $objdir/$subdir/report
+if { [gdb_compile "$srcdir/$subdir/$srcfile" $binfile \
+	  executable {debug nowarnings}] != "" } {
+    untested report.exp
+    return -1
 }
+gdb_load $binfile
+gdb_test "tstop"       ".*" ""
+gdb_test "tfind none"  ".*" ""
+runto_main
 gdb_reinitialize_dir $srcdir/$subdir
 
 # We generously give ourselves one "pass" if we successfully 
@@ -99,8 +76,9 @@ if { $gdb_recursion_test_baseline == -1 } {
     return;
 }
 
-send_gdb "list $gdb_recursion_test_baseline, +12\n"
-gdb_expect {
+set return_me 0
+
+gdb_test_multiple "list $gdb_recursion_test_baseline, +12" "" {
     -re "\[\r\n\](\[0-9\]+)\[^\r\n\]+gdbtestline 1 " {
 	set testline1 $expect_out(1,string)
 	exp_continue
@@ -128,15 +106,19 @@ gdb_expect {
     -re ".*$gdb_prompt $" {
 	if { ($testline1 == 0) || ($testline2 == 0) || ($testline3 == 0) || ($testline4 == 0) || ($testline5 == 0) || ($testline6 == 0) } {
 	    untested report.exp
-	    return -1
+	    set return_me 1
 all tests in this module will fail."
 	}
     }
     default {
 	    untested report.exp
-	    return -1
+	    set return_me 1
 all tests in this module will fail."
     } 
+}
+
+if { $return_me == 1 } then {
+    return -1;
 }
 
 #
@@ -176,28 +158,36 @@ gdb_trace_setactions "9.x: setup TP to collect locals" \
 	"$tdp4" \
 	"collect \$locs" "^$"
 
+if [istarget "x86_64-*"] then {
+    set fpreg "rbp"
+    set spreg "rsp"
+    set pcreg "rip"
+} elseif [istarget "i?86-*"] then {
+    set fpreg "ebp"
+    set spreg "esp"
+    set pcreg "eip"
+} else {
+    set fpreg "fp"
+    set spreg "sp"
+    set pcreg "pc"
+}
+
 gdb_trace_setactions "9.x: setup TP to collect stack memory" \
 	"$tdp5" \
-	"collect \$fp, \*\(void \*\*\) \$sp @ 64" "^$"
+	"collect \$$fpreg, \*\(void \*\*\) \$$spreg @ 64" "^$"
 
 gdb_trace_setactions "9.x: setup TP to collect expressions" \
 	"$tdp6" \
 	"collect gdb_char_test, gdb_short_test, gdb_long_test" "^$"
 
-gdb_test "tstart" "" ""
+gdb_test "tstart" ".*" ""
 
-if [istarget "m68k-*-elf"] then {
-    gdb_emclaptop_command "85,$arg1,$arg2,$arg3,$arg4,$arg5,$arg6"
-    sleep 5
-    
-} else {
-    gdb_test "break end" "" ""
-    gdb_test "continue" \
-	    "Continuing.*Breakpoint $decimal, end.*" \
-	    "run trace experiment"
-}
+gdb_test "break end" ".*" ""
+gdb_test "continue" \
+    "Continuing.*Breakpoint $decimal, end.*" \
+    "run trace experiment"
 
-gdb_test "tstop" "" ""
+gdb_test "tstop" ".*" ""
 
 #
 # 9.1 test the tdump command
@@ -220,10 +210,11 @@ gdb_tfind_test "9.1: find frame for TP $tdp2" "tracepoint $tdp2" \
 
 # regs were collected at tdp2.
 # How to match for the output of "info registers" on an unknown architecture?
-# For now, assume that every architecture has a register called "pc".
+# For now, assume that most architectures have a register called "pc".
+
 gdb_test "tdump" \
-	"\[\r\n\]pc .*" \
-	"9.1: tdump, regs collected"
+       "\[\r\n\]$pcreg .*" \
+       "9.1: tdump, regs collected"
 
 gdb_tfind_test "9.1: find frame for TP $tdp3" "tracepoint $tdp3" \
 	"\$tracepoint" "$tdp3"
@@ -246,8 +237,8 @@ gdb_tfind_test "9.1: find frame for TP $tdp5" "tracepoint $tdp5" \
 
 # stack was collected at tdp5, plus the frame pointer
 gdb_test "tdump" \
-	".fp = .*sp @ 64 = .*" \
-	"9.1: tdump, memrange collected"
+       ".$fpreg = .*$spreg @ 64 = .*" \
+       "9.1: tdump, memrange collected"
 
 gdb_tfind_test "9.1: find frame for TP $tdp6" "tracepoint $tdp6" \
 	"\$tracepoint" "$tdp6"
@@ -287,19 +278,12 @@ gdb_test "printf \"x %d x\\n\", \$tracepoint" "x $tdp1 x" \
 gdb_test "printf \"x %d x\\n\", \$trace_line" "x $testline1 x" \
 	"11.3: test \$trace_line"
 
-send_gdb "print \$trace_file\n"
-gdb_expect {
+gdb_test_multiple "print \$trace_file" "11.4: test \$trace_file" {
     -re "\\$\[0-9\]+ = \"$srcfile\"\[\r\n\]+$gdb_prompt $" {
 	pass "11.4: test \$trace_file"
     }
     -re "\\$\[0-9\]+ = \"$srcdir/$subdir/$srcfile\"\[\r\n\]+$gdb_prompt $" {
 	pass "11.4: test \$trace_file"
-    }
-    -re "$gdb_prompt $" {
-	fail "11.4: test \$trace_file"
-    }
-    timeout {
-	fail "11.4: test \$trace_file (timeout)"
     }
 }
 
@@ -310,8 +294,7 @@ gdb_expect {
 # 12.x test report generation using arbitrary GDB commands, loops etc.
 #
 
-send_gdb "while \$trace_frame != -1\n  output \$trace_file\n  printf \", line \%d \(tracepoint #\%d\)\\n\", \$trace_line, \$tracepoint\n  tfind\n  end\n"
-gdb_expect {
+gdb_test_multiple "while \$trace_frame != -1\n  output \$trace_file\n  printf \", line \%d \(tracepoint #\%d\)\\n\", \$trace_line, \$tracepoint\n  tfind\n  end" "12.1: trace report #1" {
     -re " line $testline1 .tracepoint .$tdp1" {
 	set linecount1 [expr $linecount1 + 1]
 	exp_continue
@@ -343,18 +326,15 @@ gdb_expect {
 	    pass "12.1: trace report #1"
 	}
     }
-    timeout {
-	fail "12.1: trace report #1 (timeout)"
-    }
 }
 
+gdb_tfind_test "12.2: tfind end, selects no frame" "end" "-1"
 gdb_tfind_test "12.2: find first TDP #2 frame" "tracepoint $tdp2" \
 	"\$tracepoint" "$tdp2"
 
 set linecount2 0
 
-send_gdb "while \$trace_frame != -1\n printf \"tracepoint #\%d, FP 0x\%08x, SP 0x\%08x, PC 0x%08x\\n\", \$tracepoint, \$fp, \$sp, \$pc\n tfind tracepoint\n end\n"
-gdb_expect {
+gdb_test_multiple "while \$trace_frame != -1\n printf \"tracepoint #\%d, FP 0x\%08x, SP 0x\%08x, PC 0x%08x\\n\", \$tracepoint, \$fp, \$sp, \$pc\n tfind tracepoint\n end" "12.2: trace report #2" {
     -re "tracepoint #$tdp2, FP $hex, SP $hex, PC $hex" {
 	set linecount2 [expr $linecount2 + 1]
 	exp_continue
@@ -366,18 +346,15 @@ gdb_expect {
 	    pass "12.2: trace report #2"
 	}
     }
-    timeout {
-	fail "12.2: trace report #2 (timeout)"
-    }
 }
 
+gdb_tfind_test "12.3: tfind end, selects no frame" "end" "-1"
 gdb_tfind_test "12.3: find first TDP #3 frame" "tracepoint $tdp3" \
 	"\$tracepoint" "$tdp3"
 
 set linecount3 0
 
-send_gdb "while \$trace_frame != -1\n printf \"TDP #\%d, frame \%d: depth = \%d, q1 = \%d\\n\", \$tracepoint, \$trace_frame, depth, q1\n tfind tracepoint\n end\n"
-gdb_expect {
+gdb_test_multiple "while \$trace_frame != -1\n printf \"TDP #\%d, frame \%d: depth = \%d, q1 = \%d\\n\", \$tracepoint, \$trace_frame, depth, q1\n tfind tracepoint\n end" "12.3: trace report #3" {
     -re "TDP #$tdp3, frame $decimal: depth = $decimal, q1 = $decimal" {
 	set linecount3 [expr $linecount3 + 1]
 	exp_continue
@@ -389,18 +366,15 @@ gdb_expect {
 	    pass "12.3: trace report #3"
 	}
     }
-    timeout {
-	fail "12.3: trace report #3 (timeout)"
-    }
 }
 
+gdb_tfind_test "12.4: tfind end, selects no frame" "end" "-1"
 gdb_tfind_test "12.4: find first TDP #6 frame" "tracepoint $tdp6" \
 	"\$tracepoint" "$tdp6"
 
 set linecount6 0
 
-send_gdb "while \$trace_frame != -1\n printf \"TDP #\%d, frame %d: char_test = \%d, long_test = \%d\\n\", \$tracepoint, \$trace_frame, gdb_char_test, gdb_long_test\n tfind tracepoint\n end\n"
-gdb_expect {
+gdb_test_multiple "while \$trace_frame != -1\n printf \"TDP #\%d, frame %d: char_test = \%d, long_test = \%d\\n\", \$tracepoint, \$trace_frame, gdb_char_test, gdb_long_test\n tfind tracepoint\n end" "12.4: trace report #4" {
     -re "TDP #$tdp6, frame $decimal: char_test = $arg1, long_test = $arg3" {
 	set linecount6 [expr $linecount6 + 1]
 	exp_continue
@@ -411,9 +385,6 @@ gdb_expect {
 	} else {
 	    pass "12.4: trace report #4"
 	}
-    }
-    timeout {
-	fail "12.4: trace report #4 (timeout)"
     }
 }
 

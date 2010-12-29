@@ -1,3 +1,71 @@
+2010-03-30  Mike Frysinger  <vapier@gentoo.org>
+
+	* devices.c (device_error): Add const to message.
+
+2010-02-11  Doug Evans  <dje@sebabeach.org>
+
+	* cpu.h, * cpu2.h, * cpux.h, * decode.c, * decode2.c, * decodex.c,
+	* model.c, * model2.c, * modelx.c,
+	* sem-switch.c, * sem.c, * sem2-switch.c, * semx-switch.c: Regenerate.
+
+2010-01-09  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
+
+	* configure: Regenerate.
+
+2010-01-02  Doug Evans  <dje@sebabeach.org>
+
+	* arch.c, * arch.h, * cpu.c, * cpu.h, * cpu2.c, * cpu2.h, * cpuall.h,
+	* cpux.c, * cpux.h, * decode.c, * decode.h, * decode2.c, * decode2.h,
+	* decodex.c, * decodex.h, * model.c, * model2.c, * modelx.c,
+	* sem-switch.c, * sem.c, * sem2-switch.c, * semx-switch.c: Regenerate,
+	update copyright year.
+
+2009-11-22  Doug Evans  <dje@sebabeach.org>
+
+	* cpu.h: Regenerate.
+	* cpu2.h: Regenerate.
+	* cpux.h: Regenerate.
+	* cpuall.h: Regenerate.
+	* decode.c: Regenerate.
+	* decode.h: Regenerate.
+	* decode2.c: Regenerate.
+	* decode2.h: Regenerate.
+	* decodex.c: Regenerate.
+	* decodex.h: Regenerate.
+
+2009-11-03  Doug Evans  <dje@sebabeach.org>
+
+	* arch.c: Regenerate.
+	* arch.h: Regenerate.
+	* cpu.c: Regenerate.
+	* cpu.h: Regenerate.
+	* cpu2.c: Regenerate.
+	* cpu2.h: Regenerate.
+	* cpuall.h: Regenerate.
+	* cpux.c: Regenerate.
+	* cpux.h: Regenerate.
+	* decode.c: Regenerate.
+	* decode.h: Regenerate.
+	* decode2.c: Regenerate.
+	* decode2.h: Regenerate.
+	* decodex.c: Regenerate.
+	* decodex.h: Regenerate.
+	* model.c: Regenerate.
+	* model2.c: Regenerate.
+	* modelx.c: Regenerate.
+	* sem-switch.c: Regenerate.
+	* sem.c: Regenerate.
+	* sem2-switch.c: Regenerate.
+	* semx-switch.c: Regenerate.
+
+	* Makefile.in (mloop.c): Add @true to rule.
+	(mloopx.c, mloop2.c): Ditto.
+	(stamp-*): Add Makefile dependency.
+	(arch.c, arch.h, cpuall.h): Specify full path.
+	(cpu.h, sem.c, sem-switch.c, model.c, decode.c, decode.h): Ditto.
+	(cpux.h, semx-switch.c, modelx.c, decodex.c, decodex.h): Ditto.
+	(cpu2.h, sem2-switch.c, model2.c, decode2.c, decode2.h): Ditto.
+
 2009-08-22  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
 
 	* config.in: Regenerate.

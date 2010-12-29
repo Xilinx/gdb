@@ -1,3 +1,51 @@
+2010-04-21  Mike Frysinger  <vapier@gentoo.org>
+
+	* profile.c (sim_profile_print_bar): Add cpu argument.
+
+2010-03-30  Mike Frysinger  <vapier@gentoo.org>
+
+	* devices.c (device_error): Add const to message.
+
+2010-02-12  Doug Evans  <dje@sebabeach.org>
+
+	* decode.c, * decode.h: Regenerate.
+
+2010-02-11  Doug Evans  <dje@sebabeach.org>
+
+	* cpu.h, * decode.c, * model.c, * sem.c: Regenerate.
+
+2010-01-24  Doug Evans  <dje@sebabeach.org>
+
+	* sem.c: Regenerate.
+
+2010-01-09  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
+
+	* configure: Regenerate.
+
+2010-01-02  Doug Evans  <dje@sebabeach.org>
+
+	* arch.c, * arch.h, * cpu.c, * cpu.h, * cpuall.h, * decode.c,
+	* decode.h, * model.c, * sem.c: Regenerate, update copyright year.
+
+2009-11-22  Doug Evans  <dje@sebabeach.org>
+
+	* cpu.h: Regenerate.
+	* cpuall.h: Regenerate.
+	* decode.c: Regenerate.
+	* decode.h: Regenerate.
+
+2009-11-03  Doug Evans  <dje@sebabeach.org>
+
+	* arch.c: Regenerate.
+	* arch.h: Regenerate.
+	* cpu.c: Regenerate.
+	* cpu.h: Regenerate.
+	* cpuall.h: Regenerate.
+	* decode.c: Regenerate.
+	* decode.h: Regenerate.
+	* model.c: Regenerate.
+	* sem.c: Regenerate.
+
 2009-08-22  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
 
 	* config.in: Regenerate.

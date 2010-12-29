@@ -1,5 +1,5 @@
 /* YACC parser for Java expressions, for GDB.
-   Copyright (C) 1997, 1998, 1999, 2000, 2006, 2007, 2008, 2009
+   Copyright (C) 1997, 1998, 1999, 2000, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -547,7 +547,6 @@ CastExpression:
 		  write_exp_elt_opcode (UNOP_CAST); }
 |	'(' Expression ')' UnaryExpressionNotPlusMinus
 		{
-		  int exp_size = expout_ptr;
 		  int last_exp_size = length_of_subexp(expout, expout_ptr);
 		  struct type *type;
 		  int i;
@@ -704,25 +703,28 @@ parse_number (char *p, int len, int parsed_float, YYSTYPE *putithere)
 
   if (parsed_float)
     {
-      /* It's a float since it contains a point or an exponent.  */
-      char c;
-      int num = 0;	/* number of tokens scanned by scanf */
-      char saved_char = p[len];
+      const char *suffix;
+      int suffix_len;
 
-      p[len] = 0;	/* null-terminate the token */
-      num = sscanf (p, "%" DOUBLEST_SCAN_FORMAT "%c",
-		    &putithere->typed_val_float.dval, &c);
-      p[len] = saved_char;	/* restore the input stream */
-      if (num != 1) 		/* check scanf found ONLY a float ... */
+      if (! parse_float (p, len, &putithere->typed_val_float.dval, &suffix))
 	return ERROR;
-      /* See if it has `f' or `d' suffix (float or double).  */
 
-      c = tolower (p[len - 1]);
+      suffix_len = p + len - suffix;
 
-      if (c == 'f' || c == 'F')
-	putithere->typed_val_float.type = parse_type->builtin_float;
-      else if (isdigit (c) || c == '.' || c == 'd' || c == 'D')
+      if (suffix_len == 0)
 	putithere->typed_val_float.type = parse_type->builtin_double;
+      else if (suffix_len == 1)
+	{
+	  /* See if it has `f' or `d' suffix (float or double).  */
+	  if (tolower (*suffix) == 'f')
+	    putithere->typed_val_float.type =
+	      parse_type->builtin_float;
+	  else if (tolower (*suffix) == 'd')
+	    putithere->typed_val_float.type =
+	      parse_type->builtin_double;
+	  else
+	    return ERROR;
+	}
       else
 	return ERROR;
 
@@ -898,7 +900,7 @@ yylex (void)
       lexptr++;
       c = *lexptr++;
       if (c == '\\')
-	c = parse_escape (&lexptr);
+	c = parse_escape (parse_gdbarch, &lexptr);
       else if (c == '\'')
 	error (_("Empty character constant"));
 
@@ -1061,7 +1063,7 @@ yylex (void)
 	    break;
 	  case '\\':
 	    tokptr++;
-	    c = parse_escape (&tokptr);
+	    c = parse_escape (parse_gdbarch, &tokptr);
 	    if (c == -1)
 	      {
 		continue;
@@ -1358,7 +1360,6 @@ push_expression_name (struct stoken name)
 {
   char *tmp;
   struct type *typ;
-  char *ptr;
   int i;
 
   for (i = 0;  i < name.length;  i++)

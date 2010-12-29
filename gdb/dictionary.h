@@ -1,6 +1,6 @@
 /* Routines for name->symbol lookups in GDB.
    
-   Copyright (C) 2003, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    Contributed by David Carlton <carlton@bactrian.org> and by Kealia,
    Inc.
@@ -22,6 +22,8 @@
 
 #ifndef DICTIONARY_H
 #define DICTIONARY_H
+
+#include "symfile.h"
 
 /* An opaque type for dictionaries; only dictionary.c should know
    about its innards.  */
@@ -116,7 +118,7 @@ extern struct symbol *dict_iterator_first (const struct dictionary *dict,
 extern struct symbol *dict_iterator_next (struct dict_iterator *iterator);
 
 /* Initialize ITERATOR to point at the first symbol in DICT whose
-   SYMBOL_BEST_NAME is NAME (as tested using strcmp_iw), and return
+   SYMBOL_SEARCH_NAME is NAME (as tested using strcmp_iw), and return
    that first symbol, or NULL if there are no such symbols.  */
 
 extern struct symbol *dict_iter_name_first (const struct dictionary *dict,
@@ -124,7 +126,7 @@ extern struct symbol *dict_iter_name_first (const struct dictionary *dict,
 					    struct dict_iterator *iterator);
 
 /* Advance ITERATOR to point at the next symbol in DICT whose
-   SYMBOL_BEST_NAME is NAME (as tested using strcmp_iw), or NULL if
+   SYMBOL_SEARCH_NAME is NAME (as tested using strcmp_iw), or NULL if
    there are no more such symbols.  Don't call this if you've
    previously received NULL from dict_iterator_first or
    dict_iterator_next on this iteration.  And don't call it unless
@@ -133,6 +135,29 @@ extern struct symbol *dict_iter_name_first (const struct dictionary *dict,
 
 extern struct symbol *dict_iter_name_next (const char *name,
 					   struct dict_iterator *iterator);
+
+/* Initialize ITERATOR to point at the first symbol in DICT whose
+   SYMBOL_SEARCH_NAME is NAME, as tested using COMPARE (which must use
+   the same conventions as strcmp_iw and be compatible with any
+   dictionary hashing function), and return that first symbol, or NULL
+   if there are no such symbols.  */
+
+extern struct symbol *dict_iter_match_first (const struct dictionary *dict,
+					     const char *name,
+					     symbol_compare_ftype *compare,
+					     struct dict_iterator *iterator);
+
+/* Advance ITERATOR to point at the next symbol in DICT whose
+   SYMBOL_SEARCH_NAME is NAME, as tested using COMPARE (see
+   dict_iter_match_first), or NULL if there are no more such symbols.
+   Don't call this if you've previously received NULL from 
+   dict_iterator_match_first or dict_iterator_match_next on this
+   iteration. And don't call it unless ITERATOR was created by a
+   previous call to dict_iter_match_first with the same NAME and COMPARE.  */
+
+extern struct symbol *dict_iter_match_next (const char *name,
+					    symbol_compare_ftype *compare,
+					    struct dict_iterator *iterator);
 
 /* Return some notion of the size of the dictionary: the number of
    symbols if we have that, the number of hash buckets otherwise.  */

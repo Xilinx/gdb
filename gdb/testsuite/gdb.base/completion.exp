@@ -1,4 +1,4 @@
-# Copyright 1998, 1999, 2002, 2003, 2004, 2007, 2008, 2009
+# Copyright 1998, 1999, 2002, 2003, 2004, 2007, 2008, 2009, 2010
 # Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
@@ -56,8 +56,6 @@ global usestubs
 #
 # test running programs
 #
-set prms_id 0
-set bug_id 0
 
 set testfile "break"
 set srcfile ${testfile}.c
@@ -211,7 +209,7 @@ gdb_expect  {
         -re "^info t foo\\\x07$"\
             { send_gdb "\n"
               gdb_expect {
-                      -re "Ambiguous info command \"t foo\": target, tasks, terminal, threads, tp, tracepoints, types\\..*$gdb_prompt $"\
+                      -re "Ambiguous info command \"t foo\": target, tasks, terminal, threads, tp, tracepoints, tvariables, types\\..*$gdb_prompt $"\
                                         { pass "complete 'info t foo'"}
                       -re ".*$gdb_prompt $" { fail "complete 'info t foo'"}
                       timeout           {fail "(timeout) complete 'info t foo'"}
@@ -227,7 +225,7 @@ gdb_expect  {
         -re "^info t\\\x07$"\
             { send_gdb "\n"
               gdb_expect {
-                      -re "Ambiguous info command \"t\": target, tasks, terminal, threads, tp, tracepoints, types\\..
+                      -re "Ambiguous info command \"t\": target, tasks, terminal, threads, tp, tracepoints, tvariables, types\\..
 *$gdb_prompt $"\
                                         { pass "complete 'info t'"}
                       -re ".*$gdb_prompt $" { fail "complete 'info t'"}
@@ -245,7 +243,7 @@ gdb_expect  {
         -re "^info t \\\x07$"\
             { send_gdb "\n"
               gdb_expect {
-                      -re "Ambiguous info command \"t \": target, tasks, terminal, threads, tp, tracepoints, types\\..
+                      -re "Ambiguous info command \"t \": target, tasks, terminal, threads, tp, tracepoints, tvariables, types\\..
 *$gdb_prompt $"\
                                         { pass "complete 'info t '"}
                       -re ".*$gdb_prompt $" { fail "complete 'info t '"}
@@ -354,7 +352,7 @@ gdb_expect  {
         -re "^help info watchpoints $"\
             { send_gdb "\n"
               gdb_expect {
-                      -re "Synonym for .*\r\n.*$gdb_prompt $"\
+                      -re "Status of watchpoints, .*\r\n.*$gdb_prompt $"\
                           { pass "complete help info wat" }
                       -re ".*$gdb_prompt $" { fail "complete help info wat"}
                       timeout   {fail "(timeout) complete help info wat"}
@@ -686,6 +684,10 @@ gdb_expect  {
         timeout         { fail "(timeout) complete 'p &values\[0\] -> a' 2" }
         }
 
+gdb_test "complete p &values\[0\]->z" \
+    "p &values.0.->z_field" \
+    "copmletion of field in anonymous union"
+
 # The following tests used to simply try to complete `${objdir}/file',
 # and so on.  The problem is that ${objdir} can be very long; the
 # completed filename may be more than eighty characters wide.  When
@@ -724,14 +726,11 @@ gdb_test "cd ${fullsrcdir}" \
 
 
 # GDB used to fail adding / on directories, on the first try only.
-# Do not use the `completion' start here as it would conflict with the
-# testcase (complete 'file ./gdb.base/complet') expectations.
-set uniquedir ${objdir}/${subdir}/compl-uNiQuEdIr
+set uniquedir ../testsuite/gdb.base/comp-dir
 set escapeduniquedir [string_to_regexp ${uniquedir}]
 set uniquesu subdi
 set uniquesub ${uniquesu}r
 set escapeuniquesub [string_to_regexp ${uniquesub}]
-file mkdir ${uniquedir}/${uniquesub}
 send_gdb "dir ${uniquedir}\t"
 gdb_expect {
 	-re "${escapeduniquedir}/" {
@@ -799,7 +798,7 @@ gdb_expect  {
                       -re "marker1.*$gdb_prompt info func marker$"\
                       { send_gdb "\n"
                         gdb_expect {
-                                -re "All functions matching regular expression \"marker\":.*File.*break1.c:\r\nint marker1\\((void|)\\);\r\nint marker2\\(int\\).*marker3\\(char.*char.*\\).*marker4\\(long int\\);.*$gdb_prompt $"\
+                                -re "All functions matching regular expression \"marker\":.*File.*break1.c:\r\nint marker1\\((void|)\\);\r\nint marker2\\(int\\).*marker3\\(char.*char.*\\).*marker4\\(long( int)?\\);.*$gdb_prompt $"\
                                                   { pass "complete 'info func marke'"}
                                 -re ".*$gdb_prompt $" { fail "complete 'info func marke'"}
                                 timeout           {fail "(timeout) complete 'info func marke'"}
@@ -832,23 +831,14 @@ gdb_expect  {
         timeout         { fail "(timeout) complete 'set follow-fork-mode'" }
         }
 
-send_gdb "p values\[0\].nonex.\t"
-gdb_expect  {
-        -re "Type struct some_struct has no component named nonex.\r\n$gdb_prompt $"\
-            { pass "Completing non-existing component" }
-        -re ".*$gdb_prompt $"       { fail "Completing non-existing component" }
-        timeout         { fail "(timeout) Completing non-existing component" }
-        eof             { fail "(eof) Completing non-existing component #2" }
-        }
-# Double memory freeing gets found only on the second run:
-send_gdb "p values\[0\].nonex.\t"
-gdb_expect  {
-        -re "Type struct some_struct has no component named nonex.\r\n$gdb_prompt $"\
-            { pass "Completing non-existing component #2" }
-        -re ".*$gdb_prompt $"       { fail "Completing non-existing component #2" }
-        timeout         { fail "(timeout) Completing non-existing component #2" }
-        eof             { fail "(eof) Completing non-existing component #2" }
-        }
+gdb_test_no_output "complete print values\[0\].x." \
+    "field completion with invalid field"
+
+# If there is a non-deprecated completion, it should be returned.
+gdb_test "complete sav" "save" "test non-deprecated completion"
+# If there is only a deprecated completion, then it should be returned.
+gdb_test "complete save-t" "save-tracepoints" "test deprecated completion"
+
 
 # Restore globals modified in this test...
 set timeout $oldtimeout1

@@ -1,4 +1,4 @@
-# Copyright 2004, 2007, 2008, 2009 Free Software Foundation, Inc.
+# Copyright 2004, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,8 +32,6 @@ if $tracelevel then {
     strace $tracelevel
 }
 
-set prms_id 0
-set bug_id 0
 
 set testfile siginfo
 set srcfile ${testfile}.c
@@ -64,18 +62,17 @@ if { ![runto_main] } then {
 # Run to the signal handler, validate the backtrace.
 gdb_test "break handler"
 gdb_test "continue" ".* handler .*" "continue to stepi handler"
-send_gdb "bt\n"
-gdb_expect_list "backtrace for nexti" ".*$gdb_prompt $" {
+gdb_test_sequence "bt" "backtrace for nexti" {
     "\[\r\n\]+.0 \[^\r\n\]* handler "
     "\[\r\n\]+.1  .signal handler called."
-    "\[\r\n\]+.2 \[^\r\n\]* main .*"
+    "\[\r\n\]+.2 \[^\r\n\]* main "
 }
 
 # Check that GDB can step the inferior back to main
 set test "step out of handler"
 gdb_test_multiple "step" "${test}" {
     -re "Could not insert single-step breakpoint.*$gdb_prompt $" {
-	setup_kfail sparc*-*-openbsd* gdb/1736
+	setup_kfail gdb/1736 sparc*-*-openbsd*
 	fail "$test (could not insert single-step breakpoint)"
     }
     -re "done = 1;.*${gdb_prompt} $" {

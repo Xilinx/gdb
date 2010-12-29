@@ -1,6 +1,6 @@
 /* Handle Darwin shared libraries for GDB, the GNU Debugger.
 
-   Copyright (C) 2009 Free Software Foundation, Inc.
+   Copyright (C) 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -82,7 +82,7 @@ static int
 darwin_dyld_version_ok (void)
 {
   return dyld_all_image.version >= DYLD_VERSION_MIN
-    && dyld_all_image.version >= DYLD_VERSION_MAX;
+    && dyld_all_image.version <= DYLD_VERSION_MAX;
 }
 
 /* Read dyld_all_image from inferior.  */
@@ -154,10 +154,11 @@ lookup_symbol_from_bfd (bfd *abfd, char *symname)
 
   symbol_table = (asymbol **) xmalloc (storage_needed);
   number_of_symbols = bfd_canonicalize_symtab (abfd, symbol_table);
-  
+
   for (i = 0; i < number_of_symbols; i++)
     {
       asymbol *sym = symbol_table[i];
+
       if (strcmp (sym->name, symname) == 0
 	  && (sym->section->flags & (SEC_CODE | SEC_DATA)) != 0)
 	{
@@ -182,7 +183,7 @@ find_program_interpreter (void)
   if (exec_bfd)
     {
       bfd_mach_o_load_command *cmd;
-      
+
       if (bfd_mach_o_lookup_command (exec_bfd,
                                      BFD_MACH_O_LC_LOAD_DYLINKER, &cmd) == 1)
         return cmd->command.dylinker.name_str;
@@ -295,7 +296,7 @@ darwin_special_symbol_handling (void)
 /* Shared library startup support.  See documentation in solib-svr4.c  */
 
 static void
-darwin_solib_create_inferior_hook (void)
+darwin_solib_create_inferior_hook (int from_tty)
 {
   struct minimal_symbol *msymbol;
   char **bkpt_namep;
@@ -309,10 +310,6 @@ darwin_solib_create_inferior_hook (void)
   bfd *dyld_bfd = NULL;
   struct inferior *inf = current_inferior ();
 
-  /* First, remove all the solib event breakpoints.  Their addresses
-     may have changed since the last time we ran the program.  */
-  remove_solib_event_breakpoints ();
-
   /* Find the program interpreter.  */
   interp_name = find_program_interpreter ();
   if (!interp_name)
@@ -324,6 +321,7 @@ darwin_solib_create_inferior_hook (void)
   if (dyld_bfd)
     {
       bfd *sub;
+
       sub = bfd_mach_o_fat_extract (dyld_bfd, bfd_object,
 				    gdbarch_bfd_arch_info (target_gdbarch));
       if (sub)
@@ -336,7 +334,7 @@ darwin_solib_create_inferior_hook (void)
     }
   if (!dyld_bfd)
     return;
-  
+
   if (!inf->attach_flag)
     {
       /* We find the dynamic linker's base address by examining
@@ -356,7 +354,7 @@ darwin_solib_create_inferior_hook (void)
   /* Now try to set a breakpoint in the dynamic linker.  */
   dyld_all_image_addr =
     lookup_symbol_from_bfd (dyld_bfd, "_dyld_all_image_infos");
-  
+
   bfd_close (dyld_bfd);
 
   if (dyld_all_image_addr == 0)
@@ -408,7 +406,6 @@ darwin_relocate_section_addresses (struct so_list *so,
 static struct symbol *
 darwin_lookup_lib_symbol (const struct objfile *objfile,
 			  const char *name,
-			  const char *linkage_name,
 			  const domain_enum domain)
 {
   return NULL;

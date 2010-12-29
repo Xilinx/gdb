@@ -1,6 +1,7 @@
 /* Simulator pseudo baseclass.
 
-   Copyright 1997, 1998, 2003, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 2003, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
 
    Contributed by Cygnus Support.
 
@@ -43,11 +44,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
      };
 
      struct sim_state {
-       sim_cpu cpu[MAX_NR_PROCESSORS];
+       sim_cpu *cpu[MAX_NR_PROCESSORS];
      #if (WITH_SMP)
-     #define STATE_CPU(sd,n) (&(sd)->cpu[n])
+     #define STATE_CPU(sd,n) ((sd)->cpu[n])
      #else
-     #define STATE_CPU(sd,n) (&(sd)->cpu[0])
+     #define STATE_CPU(sd,n) ((sd)->cpu[0])
      #endif
        ... simulator specific members ...
        sim_state_base base;

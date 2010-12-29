@@ -1,7 +1,7 @@
 /* Core dump and executable file functions above target vector, for GDB.
 
    Copyright (C) 1986, 1987, 1989, 1991, 1992, 1993, 1994, 1996, 1997, 1998,
-   1999, 2000, 2001, 2003, 2006, 2007, 2008, 2009
+   1999, 2000, 2001, 2003, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -59,6 +59,10 @@ static int exec_file_hook_count = 0;	/* size of array */
 /* Binary file diddling handle for the core file.  */
 
 bfd *core_bfd = NULL;
+
+/* corelow.c target (if included for this gdb target).  */
+
+struct target_ops *core_target;
 
 
 /* Backward compatability with old way of specifying core files.  */
@@ -66,18 +70,15 @@ bfd *core_bfd = NULL;
 void
 core_file_command (char *filename, int from_tty)
 {
-  struct target_ops *t;
-
   dont_repeat ();		/* Either way, seems bogus. */
 
-  t = find_core_target ();
-  if (t == NULL)
+  if (core_target == NULL)
     error (_("GDB can't read core files on this machine."));
 
   if (!filename)
-    (t->to_detach) (t, filename, from_tty);
+    (core_target->to_detach) (core_target, filename, from_tty);
   else
-    (t->to_open) (filename, from_tty);
+    (core_target->to_open) (filename, from_tty);
 }
 
 
@@ -152,7 +153,6 @@ reopen_exec_file (void)
   char *filename;
   int res;
   struct stat st;
-  long mtime;
   struct cleanup *cleanups;
 
   /* Don't do anything if there isn't an exec file. */
@@ -233,6 +233,7 @@ void
 read_memory (CORE_ADDR memaddr, gdb_byte *myaddr, int len)
 {
   int status;
+
   status = target_read_memory (memaddr, myaddr, len);
   if (status != 0)
     memory_error (status, memaddr);
@@ -244,6 +245,7 @@ void
 read_stack (CORE_ADDR memaddr, gdb_byte *myaddr, int len)
 {
   int status;
+
   status = target_read_stack (memaddr, myaddr, len);
   if (status != 0)
     memory_error (status, memaddr);
@@ -287,11 +289,13 @@ do_captured_read_memory_integer (void *data)
    if successful.  */
 
 int
-safe_read_memory_integer (CORE_ADDR memaddr, int len, enum bfd_endian byte_order,
+safe_read_memory_integer (CORE_ADDR memaddr, int len, 
+			  enum bfd_endian byte_order,
 			  LONGEST *return_value)
 {
   int status;
   struct captured_read_memory_integer_arguments args;
+
   args.memaddr = memaddr;
   args.len = len;
   args.byte_order = byte_order;
@@ -353,6 +357,7 @@ CORE_ADDR
 read_memory_typed_address (CORE_ADDR addr, struct type *type)
 {
   gdb_byte *buf = alloca (TYPE_LENGTH (type));
+
   read_memory (addr, buf, TYPE_LENGTH (type));
   return extract_typed_address (buf, type);
 }
@@ -362,6 +367,7 @@ void
 write_memory (CORE_ADDR memaddr, const bfd_byte *myaddr, int len)
 {
   int status;
+
   status = target_write_memory (memaddr, myaddr, len);
   if (status != 0)
     memory_error (status, memaddr);
@@ -369,20 +375,24 @@ write_memory (CORE_ADDR memaddr, const bfd_byte *myaddr, int len)
 
 /* Store VALUE at ADDR in the inferior as a LEN-byte unsigned integer.  */
 void
-write_memory_unsigned_integer (CORE_ADDR addr, int len, enum bfd_endian byte_order,
+write_memory_unsigned_integer (CORE_ADDR addr, int len, 
+			       enum bfd_endian byte_order,
 			       ULONGEST value)
 {
   gdb_byte *buf = alloca (len);
+
   store_unsigned_integer (buf, len, byte_order, value);
   write_memory (addr, buf, len);
 }
 
 /* Store VALUE at ADDR in the inferior as a LEN-byte signed integer.  */
 void
-write_memory_signed_integer (CORE_ADDR addr, int len, enum bfd_endian byte_order,
+write_memory_signed_integer (CORE_ADDR addr, int len, 
+			     enum bfd_endian byte_order,
 			     LONGEST value)
 {
   gdb_byte *buf = alloca (len);
+
   store_signed_integer (buf, len, byte_order, value);
   write_memory (addr, buf, len);
 }
@@ -425,6 +435,7 @@ void
 _initialize_core (void)
 {
   struct cmd_list_element *c;
+
   c = add_cmd ("core-file", class_files, core_file_command, _("\
 Use FILE as core dump for examining memory and registers.\n\
 No arg means have no core file.  This command has been superseded by the\n\

@@ -1,6 +1,6 @@
 /* Low-level child interface to ttrace.
 
-   Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009
+   Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -314,7 +314,8 @@ inf_ttrace_disable_page_protections (pid_t pid)
    type TYPE.  */
 
 static int
-inf_ttrace_insert_watchpoint (CORE_ADDR addr, int len, int type)
+inf_ttrace_insert_watchpoint (CORE_ADDR addr, int len, int type,
+			      struct expression *cond)
 {
   const int pagesize = inf_ttrace_page_dict.pagesize;
   pid_t pid = ptid_get_pid (inferior_ptid);
@@ -337,7 +338,8 @@ inf_ttrace_insert_watchpoint (CORE_ADDR addr, int len, int type)
    type TYPE.  */
 
 static int
-inf_ttrace_remove_watchpoint (CORE_ADDR addr, int len, int type)
+inf_ttrace_remove_watchpoint (CORE_ADDR addr, int len, int type,
+			      struct expression *cond)
 {
   const int pagesize = inf_ttrace_page_dict.pagesize;
   pid_t pid = ptid_get_pid (inferior_ptid);
@@ -453,6 +455,8 @@ inf_ttrace_follow_fork (struct target_ops *ops, int follow_child)
       inferior_ptid = ptid_build (fpid, flwpid, 0);
       inf = add_inferior (fpid);
       inf->attach_flag = parent_inf->attach_flag;
+      inf->pspace = parent_inf->pspace;
+      inf->aspace = parent_inf->aspace;
       copy_terminal_info (inf, parent_inf);
       detach_breakpoints (pid);
 
@@ -621,13 +625,6 @@ inf_ttrace_him (struct target_ops *ops, int pid)
 
   push_target (ops);
 
-  /* On some targets, there must be some explicit synchronization
-     between the parent and child processes after the debugger forks,
-     and before the child execs the debuggee program.  This call
-     basically gives permission for the child to exec.  */
-
-  target_acknowledge_created_inferior (pid);
-
   /* START_INFERIOR_TRAPS_EXPECTED is defined in inferior.h, and will
      be 1 or 2 depending on whether we're starting without or with a
      shell.  */
@@ -689,17 +686,10 @@ inf_ttrace_attach (struct target_ops *ops, char *args, int from_tty)
 {
   char *exec_file;
   pid_t pid;
-  char *dummy;
   ttevent_t tte;
   struct inferior *inf;
 
-  if (!args)
-    error_no_arg (_("process-id to attach"));
-
-  dummy = args;
-  pid = strtol (args, &dummy, 0);
-  if (pid == 0 && args == dummy)
-    error (_("Illegal process-id: %s."), args);
+  pid = parse_pid_to_attach (args);
 
   if (pid == getpid ())		/* Trying to masturbate?  */
     error (_("I refuse to debug myself!"));
@@ -725,7 +715,8 @@ inf_ttrace_attach (struct target_ops *ops, char *args, int from_tty)
   if (ttrace (TT_PROC_ATTACH, pid, 0, TT_KILL_ON_EXIT, TT_VERSION, 0) == -1)
     perror_with_name (("ttrace"));
 
-  inf = add_inferior (pid);
+  inf = current_inferior ();
+  inferior_appeared (inf, pid);
   inf->attach_flag = 1;
 
   /* Set the initial event mask.  */
@@ -1247,6 +1238,15 @@ inf_ttrace_pid_to_str (struct target_ops *ops, ptid_t ptid)
 }
 
 
+/* Implement the get_ada_task_ptid target_ops method.  */
+
+static ptid_t
+inf_ttrace_get_ada_task_ptid (long lwp, long thread)
+{
+  return ptid_build (ptid_get_pid (inferior_ptid), lwp, 0);
+}
+
+
 struct target_ops *
 inf_ttrace_target (void)
 {
@@ -1271,6 +1271,7 @@ inf_ttrace_target (void)
   t->to_extra_thread_info = inf_ttrace_extra_thread_info;
   t->to_pid_to_str = inf_ttrace_pid_to_str;
   t->to_xfer_partial = inf_ttrace_xfer_partial;
+  t->to_get_ada_task_ptid = inf_ttrace_get_ada_task_ptid;
 
   return t;
 }

@@ -1,4 +1,4 @@
-# Copyright (C) 1998, 2007, 2008, 2009 Free Software Foundation, Inc.
+# Copyright (C) 1998, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -121,7 +121,7 @@ proc gdb_trace_setactions { testname tracepoint args } {
 	    }
 	    exp_continue;
 	}
-	-re "\(.*\)\[\r\n\]+\[ \t]*> $" {
+	-re "\(.*\)\[\r\n\]+\[ \t]*>$" {
 	    if { $expected_result != "" } {
 		regsub "^\[^\r\n\]+\[\r\n\]+" "$expect_out(1,string)" "" out;
 		if ![regexp $expected_result $out] {

@@ -1,6 +1,6 @@
 /* Remote serial support interface definitions for GDB, the GNU Debugger.
    Copyright (C) 1992, 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001, 2004,
-   2005, 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+   2005, 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -21,6 +21,7 @@
 #define SERIAL_H
 
 #ifdef USE_WIN32API
+#include <winsock2.h>
 #include <windows.h>
 #endif
 
@@ -55,6 +56,19 @@ extern struct serial *serial_fdopen (const int fd);
 
 extern void serial_close (struct serial *scb);
 
+/* Create a pipe, and put the read end in files[0], and the write end
+   in filde[1].  Returns 0 for success, negative value for error (in
+   which case errno contains the error).  */
+
+extern int gdb_pipe (int fildes[2]);
+
+/* Create a pipe with each end wrapped in a `struct serial' interface.
+   Put the read end in scbs[0], and the write end in scbs[1].  Returns
+   0 for success, negative value for error (in which case errno
+   contains the error).  */
+
+extern int serial_pipe (struct serial *scbs[2]);
+
 /* Push out all buffers and destroy SCB without closing the device.  */
 
 extern void serial_un_fdopen (struct serial *scb);
@@ -86,7 +100,7 @@ extern int serial_write (struct serial *scb, const char *str, int len);
 /* Write a printf style string onto the serial port.  */
 
 extern void serial_printf (struct serial *desc, 
-			   const char *,...) ATTR_FORMAT (printf, 2, 3);
+			   const char *,...) ATTRIBUTE_PRINTF (2, 3);
 
 /* Allow pending output to drain.  */
 
@@ -221,6 +235,7 @@ struct serial_ops
     struct serial_ops *next;
     int (*open) (struct serial *, const char *name);
     void (*close) (struct serial *);
+    int (*fdopen) (struct serial *, int fd);
     int (*readchar) (struct serial *, int timeout);
     int (*write) (struct serial *, const char *str, int len);
     /* Discard pending output */

@@ -1,5 +1,5 @@
 /* MI Command Set - stack commands.
-   Copyright (C) 2000, 2002, 2003, 2004, 2005, 2007, 2008, 2009
+   Copyright (C) 2000, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
    Contributed by Cygnus Solutions (a Red Hat company).
 
@@ -31,7 +31,7 @@
 #include "gdb_string.h"
 #include "language.h"
 #include "valprint.h"
-
+#include "exceptions.h"
 
 enum what_to_list { locals, arguments, all };
 
@@ -138,14 +138,13 @@ parse_print_values (char *name)
 	    mi_no_values, mi_all_values, mi_simple_values);
 }
 
-/* Print a list of the locals for the current frame. With argument of
+/* Print a list of the locals for the current frame.  With argument of
    0, print only the names, with argument of 1 print also the
    values. */
 void
 mi_cmd_stack_list_locals (char *command, char **argv, int argc)
 {
   struct frame_info *frame;
-  enum print_values print_values;
 
   if (argc != 1)
     error (_("mi_cmd_stack_list_locals: Usage: PRINT_VALUES"));
@@ -155,7 +154,7 @@ mi_cmd_stack_list_locals (char *command, char **argv, int argc)
    list_args_or_locals (locals, parse_print_values (argv[0]), frame);
 }
 
-/* Print a list of the arguments for the current frame. With argument
+/* Print a list of the arguments for the current frame.  With argument
    of 0, print only the names, with argument of 1 print also the
    values. */
 void
@@ -205,6 +204,7 @@ mi_cmd_stack_list_args (char *command, char **argv, int argc)
        i++, fi = get_prev_frame (fi))
     {
       struct cleanup *cleanup_frame;
+
       QUIT;
       cleanup_frame = make_cleanup_ui_out_tuple_begin_end (uiout, "frame");
       ui_out_field_int (uiout, "level", i);
@@ -216,20 +216,20 @@ mi_cmd_stack_list_args (char *command, char **argv, int argc)
 }
 
 /* Print a list of the local variables (including arguments) for the 
-   current frame. With argument of 0, print only the names, with 
-   argument of 1 print also the values. */
+   current frame.  ARGC must be 1 and ARGV[0] specify if only the names,
+   or both names and values of the variables must be printed.  See 
+   parse_print_value for possible values.  */
 void
 mi_cmd_stack_list_variables (char *command, char **argv, int argc)
 {
   struct frame_info *frame;
-  enum print_values print_values;
 
   if (argc != 1)
     error (_("Usage: PRINT_VALUES"));
 
-   frame = get_selected_frame (NULL);
+  frame = get_selected_frame (NULL);
 
-   list_args_or_locals (all, parse_print_values (argv[0]), frame);
+  list_args_or_locals (all, parse_print_values (argv[0]), frame);
 }
 
 
@@ -243,7 +243,6 @@ list_args_or_locals (enum what_to_list what, int values, struct frame_info *fi)
   struct block *block;
   struct symbol *sym;
   struct dict_iterator iter;
-  int nsyms;
   struct cleanup *cleanup_list;
   static struct ui_stream *stb = NULL;
   struct type *type;
@@ -311,10 +310,13 @@ list_args_or_locals (enum what_to_list what, int values, struct frame_info *fi)
 	      struct cleanup *cleanup_tuple = NULL;
 	      struct symbol *sym2;
 	      struct value *val;
-	      if (values != PRINT_NO_VALUES)
+
+	      if (values != PRINT_NO_VALUES || what == all)
 		cleanup_tuple =
 		  make_cleanup_ui_out_tuple_begin_end (uiout, NULL);
 	      ui_out_field_string (uiout, "name", SYMBOL_PRINT_NAME (sym));
+	      if (what == all && SYMBOL_IS_ARGUMENT (sym))
+		ui_out_field_int (uiout, "arg", 1);
 
 	      if (SYMBOL_IS_ARGUMENT (sym))
 		sym2 = lookup_symbol (SYMBOL_NATURAL_NAME (sym),
@@ -332,31 +334,54 @@ list_args_or_locals (enum what_to_list what, int values, struct frame_info *fi)
 		      && TYPE_CODE (type) != TYPE_CODE_STRUCT
 		      && TYPE_CODE (type) != TYPE_CODE_UNION)
 		    {
-		      struct value_print_options opts;
-		      val = read_var_value (sym2, fi);
-		      get_raw_print_options (&opts);
-		      opts.deref_ref = 1;
-		      common_val_print
-			(val, stb->stream, 0, &opts,
-			 language_def (SYMBOL_LANGUAGE (sym2)));
+		      volatile struct gdb_exception except;
+
+		      TRY_CATCH (except, RETURN_MASK_ERROR)
+			{
+			  struct value_print_options opts;
+
+			  val = read_var_value (sym2, fi);
+			  get_raw_print_options (&opts);
+			  opts.deref_ref = 1;
+			  common_val_print
+			    (val, stb->stream, 0, &opts,
+			     language_def (SYMBOL_LANGUAGE (sym2)));
+			}
+		      if (except.reason < 0)
+			fprintf_filtered (stb->stream,
+					  _("<error reading variable: %s>"),
+					  except.message);
+
 		      ui_out_field_stream (uiout, "value", stb);
 		    }
-		  do_cleanups (cleanup_tuple);
 		  break;
 		case PRINT_ALL_VALUES:
 		  {
-		    struct value_print_options opts;
-		    val = read_var_value (sym2, fi);
-		    get_raw_print_options (&opts);
-		    opts.deref_ref = 1;
-		    common_val_print
-		      (val, stb->stream, 0, &opts,
-		       language_def (SYMBOL_LANGUAGE (sym2)));
+		    volatile struct gdb_exception except;
+
+		    TRY_CATCH (except, RETURN_MASK_ERROR)
+		      {
+			struct value_print_options opts;
+
+			val = read_var_value (sym2, fi);
+			get_raw_print_options (&opts);
+			opts.deref_ref = 1;
+			common_val_print
+			  (val, stb->stream, 0, &opts,
+			   language_def (SYMBOL_LANGUAGE (sym2)));
+		      }
+		    if (except.reason < 0)
+		      fprintf_filtered (stb->stream,
+					_("<error reading variable: %s>"),
+					except.message);
+
 		    ui_out_field_stream (uiout, "value", stb);
-		    do_cleanups (cleanup_tuple);
 		  }
 		  break;
 		}
+
+	      if (values != PRINT_NO_VALUES || what == all)
+		do_cleanups (cleanup_tuple);
 	    }
 	}
       if (BLOCK_FUNCTION (block))

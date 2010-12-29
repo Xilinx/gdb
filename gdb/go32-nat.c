@@ -1,5 +1,5 @@
 /* Native debugging support for Intel x86 running DJGPP.
-   Copyright (C) 1997, 1999, 2000, 2001, 2005, 2006, 2007, 2008, 2009
+   Copyright (C) 1997, 1999, 2000, 2001, 2005, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
    Written by Robert Hoehne.
 
@@ -649,6 +649,7 @@ go32_create_inferior (struct target_ops *ops, char *exec_file,
   char *cmdline;
   char **env_save = environ;
   size_t cmdlen;
+  struct inferior *inf;
 
   /* If no exec file handed to us, get it from the exec-file command -- with
      a good, common error message if none is specified.  */
@@ -714,7 +715,8 @@ go32_create_inferior (struct target_ops *ops, char *exec_file,
 #endif
 
   inferior_ptid = pid_to_ptid (SOME_PID);
-  add_inferior_silent (SOME_PID);
+  inf = current_inferior ();
+  inferior_appeared (inf, SOME_PID);
 
   push_target (&go32_ops);
 
@@ -2045,8 +2047,8 @@ go32_pte_for_address (char *arg, int from_tty)
       int pte_idx = (addr >> 12) & 0x3ff;
       unsigned offs = addr & 0xfff;
 
-      printf_filtered ("Page Table entry for address 0x%llx:\n",
-		       (unsigned long long)addr);
+      printf_filtered ("Page Table entry for address %s:\n",
+		       hex_string(addr));
       display_ptable_entry (get_pte (get_pde (pde_idx), pte_idx), 0, 1, offs);
     }
 }

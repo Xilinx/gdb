@@ -1,7 +1,7 @@
 /* Header file for command-reading library command.c.
 
    Copyright (C) 1986, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1999, 2000,
-   2002, 2004, 2007, 2008, 2009 Free Software Foundation, Inc.
+   2002, 2004, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #define COMMAND_H 1
 
 /* Command classes are top-level categories into which commands are broken
-   down for "help" purposes.  
+   down for "help" purposes.
    Notes on classes: class_alias is for alias commands which are not
    abbreviations of the original command.  class-pseudo is for
    commands which are not really commands nor help topics ("stop").  */
@@ -32,8 +32,8 @@ enum command_class
   /* Classes of commands */
   no_class = -1, class_run = 0, class_vars, class_stack,
   class_files, class_support, class_info, class_breakpoint, class_trace,
-  class_alias, class_obscure, class_user, class_maintenance,
-  class_pseudo, class_tui, class_xdb
+  class_alias, class_bookmark, class_obscure, class_maintenance,
+  class_pseudo, class_tui, class_user, class_xdb
 };
 
 /* FIXME: cagney/2002-03-17: Once cmd_type() has been removed, ``enum
@@ -60,7 +60,7 @@ typedef enum var_types
        "auto.  *VAR is an ``enum auto_boolean''.  NOTE: In general a
        custom show command will need to be implemented - one that for
        "auto" prints both the "auto" and the current auto-selected
-       value. */
+       value.  */
     var_auto_boolean,
 
     /* Unsigned Integer.  *VAR is an unsigned int.  The user can type 0
@@ -146,7 +146,7 @@ extern void set_cmd_completer (struct cmd_list_element *cmd,
 extern int cmd_cfunc_eq (struct cmd_list_element *cmd,
 			 void (*cfunc) (char *args, int from_tty));
 
-/* Each command object has a local context attached to it. .  */
+/* Each command object has a local context attached to it.  */
 extern void set_cmd_context (struct cmd_list_element *cmd, void *context);
 extern void *get_cmd_context (struct cmd_list_element *cmd);
 
@@ -341,7 +341,10 @@ extern void add_setshow_zuinteger_cmd (char *name,
 
 extern void cmd_show_list (struct cmd_list_element *, int, char *);
 
-extern NORETURN void error_no_arg (char *) ATTR_NORETURN;
+/* Used everywhere whenever at least one parameter is required and
+   none is specified.  */
+
+extern void error_no_arg (char *) ATTRIBUTE_NORETURN;
 
 extern void dont_repeat (void);
 

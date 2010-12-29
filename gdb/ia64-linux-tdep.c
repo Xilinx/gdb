@@ -1,6 +1,6 @@
 /* Target-dependent code for the IA-64 for GDB, the GNU debugger.
 
-   Copyright (C) 2000, 2004, 2005, 2007, 2008, 2009
+   Copyright (C) 2000, 2004, 2005, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -26,6 +26,7 @@
 #include "osabi.h"
 #include "solib-svr4.h"
 #include "symtab.h"
+#include "linux-tdep.h"
 
 /* The sigtramp code is in a non-readable (executable-only) region
    of memory called the ``gate page''.  The addresses in question
@@ -121,6 +122,8 @@ static void
 ia64_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+
+  linux_init_abi (info, gdbarch);
 
   /* Set the method of obtaining the sigcontext addresses at which
      registers are saved.  */

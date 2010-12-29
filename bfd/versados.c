@@ -1,6 +1,6 @@
 /* BFD back-end for VERSAdos-E objects.
    Copyright 1995, 1996, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-   2006, 2007, 2009 Free Software Foundation, Inc.
+   2006, 2007, 2009, 2010 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support <sac@cygnus.com>.
 
    Versados is a Motorola trademark.
@@ -277,7 +277,9 @@ process_esd (bfd *abfd, struct ext_esd *esd, int pass)
 
 	case ESD_ABS:
 	  size = get_4 (&ptr);
+	  (void) size;
 	  start = get_4 (&ptr);
+	  (void) start;
 	  break;
 	case ESD_STD_REL_SEC:
 	case ESD_SHRT_REL_SEC:
@@ -399,9 +401,9 @@ process_otr (bfd *abfd, struct ext_otr *otr, int pass)
 
 	      for (j = 0; j < esdids; j++)
 		{
-		  int esdid = *srcp++;
+		  int id = *srcp++;
 
-		  if (esdid)
+		  if (id)
 		    {
 		      int rn = EDATA (abfd, otr->esdid - 1).relocs++;
 
@@ -416,7 +418,7 @@ process_otr (bfd *abfd, struct ext_otr *otr, int pass)
 			  EDATA (abfd, otr->esdid - 1).section->relocation + rn;
 			  n->address = dst_idx;
 
-			  n->sym_ptr_ptr = (asymbol **) (size_t) esdid;
+			  n->sym_ptr_ptr = (asymbol **) (size_t) id;
 			  n->addend = 0;
 			  n->howto = versados_howto_table + ((j & 1) * 2) + (sizeinwords - 1);
 			}
@@ -813,6 +815,8 @@ versados_canonicalize_reloc (bfd *abfd,
 #define versados_bfd_link_hash_table_free             _bfd_generic_link_hash_table_free
 #define versados_bfd_link_add_symbols                 _bfd_generic_link_add_symbols
 #define versados_bfd_link_just_syms                   _bfd_generic_link_just_syms
+#define versados_bfd_copy_link_hash_symbol_type \
+  _bfd_generic_copy_link_hash_symbol_type
 #define versados_bfd_final_link                       _bfd_generic_final_link
 #define versados_bfd_link_split_section               _bfd_generic_link_split_section
 

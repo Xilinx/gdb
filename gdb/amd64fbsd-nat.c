@@ -1,6 +1,7 @@
 /* Native-dependent code for FreeBSD/amd64.
 
-   Copyright (C) 2003, 2004, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -95,6 +96,7 @@ static int amd64fbsd32_r_reg_offset[I386_NUM_GREGS] =
 
 #include <sys/types.h>
 #include <machine/pcb.h>
+#include <osreldate.h>
 
 #include "bsd-kvm.h"
 
@@ -123,10 +125,17 @@ amd64fbsd_supply_pcb (struct regcache *regcache, struct pcb *pcb)
   regcache_raw_supply (regcache, 13, &pcb->pcb_r13);
   regcache_raw_supply (regcache, 14, &pcb->pcb_r14);
   regcache_raw_supply (regcache, 15, &pcb->pcb_r15);
+#if (__FreeBSD_version < 800075) && (__FreeBSD_kernel_version < 800075)
+  /* struct pcb provides the pcb_ds/pcb_es/pcb_fs/pcb_gs fields only
+     up until __FreeBSD_version 800074: The removal of these fields
+     occurred on 2009-04-01 while the __FreeBSD_version number was
+     bumped to 800075 on 2009-04-06.  So 800075 is the closest version
+     number where we should not try to access these fields.  */
   regcache_raw_supply (regcache, AMD64_DS_REGNUM, &pcb->pcb_ds);
   regcache_raw_supply (regcache, AMD64_ES_REGNUM, &pcb->pcb_es);
   regcache_raw_supply (regcache, AMD64_FS_REGNUM, &pcb->pcb_fs);
   regcache_raw_supply (regcache, AMD64_GS_REGNUM, &pcb->pcb_gs);
+#endif
 
   return 1;
 }

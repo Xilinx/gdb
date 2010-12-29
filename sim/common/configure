@@ -705,6 +705,7 @@ sim_environment'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
+with_zlib
 enable_maintainer_mode
 enable_sim_bswap
 enable_sim_cflags
@@ -1353,6 +1354,7 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-zlib             include zlib support (auto/yes/no) default=auto
   --with-pkgversion=PKG   Use PKG in the version string in place of "GDB"
   --with-bugurl=URL       Direct users to URL to report a bug
 
@@ -1850,6 +1852,60 @@ $as_echo "$ac_res" >&6; }
   eval $as_lineno_stack; test "x$as_lineno_stack" = x && { as_lineno=; unset as_lineno;}
 
 } # ac_fn_c_check_member
+
+# ac_fn_c_check_type LINENO TYPE VAR INCLUDES
+# -------------------------------------------
+# Tests whether TYPE exists after having included INCLUDES, setting cache
+# variable VAR accordingly.
+ac_fn_c_check_type ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $2" >&5
+$as_echo_n "checking for $2... " >&6; }
+if { as_var=$3; eval "test \"\${$as_var+set}\" = set"; }; then :
+  $as_echo_n "(cached) " >&6
+else
+  eval "$3=no"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$4
+int
+main ()
+{
+if (sizeof ($2))
+	 return 0;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$4
+int
+main ()
+{
+if (sizeof (($2)))
+	    return 0;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+else
+  eval "$3=yes"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+eval ac_res=\$$3
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+  eval $as_lineno_stack; test "x$as_lineno_stack" = x && { as_lineno=; unset as_lineno;}
+
+} # ac_fn_c_check_type
 cat >config.log <<_ACEOF
 This file contains any messages produced by compilers while
 running configure, to aid debugging if configure makes a mistake.
@@ -3974,7 +4030,19 @@ fi
 
 # BFD conditionally uses zlib, so we must link it in if libbfd does, by
 # using the same condition.
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing zlibVersion" >&5
+
+  # See if the user specified whether he wants zlib support or not.
+
+# Check whether --with-zlib was given.
+if test "${with_zlib+set}" = set; then :
+  withval=$with_zlib;
+else
+  with_zlib=auto
+fi
+
+
+  if test "$with_zlib" != "no"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing zlibVersion" >&5
 $as_echo_n "checking for library containing zlibVersion... " >&6; }
 if test "${ac_cv_search_zlibVersion+set}" = set; then :
   $as_echo_n "(cached) " >&6
@@ -4040,6 +4108,11 @@ fi
 done
 
 fi
+
+    if test "$with_zlib" = "yes" -a "$ac_cv_header_zlib_h" != "yes"; then
+      as_fn_error "zlib (libz) library was explicitly requested but not found" "$LINENO" 5
+    fi
+  fi
 
 
 . ${srcdir}/../../bfd/configure.host
@@ -4543,6 +4616,20 @@ _ACEOF
 
 
 fi
+
+ac_fn_c_check_type "$LINENO" "socklen_t" "ac_cv_type_socklen_t" "#include <sys/types.h>
+#include <sys/socket.h>
+
+"
+if test "x$ac_cv_type_socklen_t" = x""yes; then :
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_SOCKLEN_T 1
+_ACEOF
+
+
+fi
+
 
 ac_config_files="$ac_config_files Makefile"
 

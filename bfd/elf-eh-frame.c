@@ -1,5 +1,5 @@
 /* .eh_frame section optimization.
-   Copyright 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
+   Copyright 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
    Written by Jakub Jelinek <jakub@redhat.com>.
 
@@ -636,7 +636,9 @@ _bfd_elf_parse_eh_frame (bfd *abfd, struct bfd_link_info *info,
 	  REQUIRE (read_byte (&buf, end, &cie->version));
 
 	  /* Cannot handle unknown versions.  */
-	  REQUIRE (cie->version == 1 || cie->version == 3);
+	  REQUIRE (cie->version == 1
+		   || cie->version == 3
+		   || cie->version == 4);
 	  REQUIRE (strlen ((char *) buf) < sizeof (cie->augmentation));
 
 	  strcpy (cie->augmentation, (char *) buf);
@@ -650,6 +652,13 @@ _bfd_elf_parse_eh_frame (bfd *abfd, struct bfd_link_info *info,
 		 Just skip it.  */
 	      REQUIRE (skip_bytes (&buf, end, ptr_size));
 	      SKIP_RELOCS (buf);
+	    }
+	  if (cie->version >= 4)
+	    {
+	      REQUIRE (buf + 1 < end);
+	      REQUIRE (buf[0] == ptr_size);
+	      REQUIRE (buf[1] == 0);
+	      buf += 2;
 	    }
 	  REQUIRE (read_uleb128 (&buf, end, &cie->code_align));
 	  REQUIRE (read_sleb128 (&buf, end, &cie->data_align));
@@ -1269,13 +1278,11 @@ _bfd_elf_maybe_strip_eh_frame_hdr (struct bfd_link_info *info)
 
 bfd_vma
 _bfd_elf_eh_frame_section_offset (bfd *output_bfd ATTRIBUTE_UNUSED,
-				  struct bfd_link_info *info,
+				  struct bfd_link_info *info ATTRIBUTE_UNUSED,
 				  asection *sec,
 				  bfd_vma offset)
 {
   struct eh_frame_sec_info *sec_info;
-  struct elf_link_hash_table *htab;
-  struct eh_frame_hdr_info *hdr_info;
   unsigned int lo, hi, mid;
 
   if (sec->sec_info_type != ELF_INFO_TYPE_EH_FRAME)
@@ -1284,9 +1291,6 @@ _bfd_elf_eh_frame_section_offset (bfd *output_bfd ATTRIBUTE_UNUSED,
 
   if (offset >= sec->rawsize)
     return offset - sec->rawsize + sec->size;
-
-  htab = elf_hash_table (info);
-  hdr_info = &htab->eh_info;
 
   lo = 0;
   hi = sec_info->count;
@@ -1568,10 +1572,31 @@ _bfd_elf_write_section_eh_frame (bfd *abfd,
 		  break;
 		case DW_EH_PE_datarel:
 		  {
-		    asection *got = bfd_get_section_by_name (abfd, ".got");
-
-		    BFD_ASSERT (got != NULL);
-		    address += got->vma;
+		    switch (abfd->arch_info->arch)
+		      {
+		      case bfd_arch_ia64:
+			BFD_ASSERT (elf_gp (abfd) != 0);
+			address += elf_gp (abfd);
+			break;
+		      default:
+			(*info->callbacks->einfo)
+			  (_("%P: DW_EH_PE_datarel unspecified"
+			     " for this architecture.\n"));
+			/* Fall thru */
+		      case bfd_arch_frv:
+		      case bfd_arch_i386:
+			BFD_ASSERT (htab->hgot != NULL
+				    && ((htab->hgot->root.type
+					 == bfd_link_hash_defined)
+					|| (htab->hgot->root.type
+					    == bfd_link_hash_defweak)));
+			address
+			  += (htab->hgot->root.u.def.value
+			      + htab->hgot->root.u.def.section->output_offset
+			      + (htab->hgot->root.u.def.section->output_section
+				 ->vma));
+			break;
+		      }
 		  }
 		  break;
 		case DW_EH_PE_pcrel:
@@ -1592,6 +1617,11 @@ _bfd_elf_write_section_eh_frame (bfd *abfd,
 
 	  if (hdr_info)
 	    {
+	      /* The address calculation may overflow, giving us a
+		 value greater than 4G on a 32-bit target when
+		 dwarf_vma is 64-bit.  */
+	      if (sizeof (address) > 4 && ptr_size == 4)
+		address &= 0xffffffff;
 	      hdr_info->array[hdr_info->array_count].initial_loc = address;
 	      hdr_info->array[hdr_info->array_count++].fde
 		= (sec->output_section->vma
@@ -1629,7 +1659,7 @@ _bfd_elf_write_section_eh_frame (bfd *abfd,
 	  if (ent->set_loc)
 	    {
 	      /* Adjust DW_CFA_set_loc.  */
-	      unsigned int cnt, width;
+	      unsigned int cnt;
 	      bfd_vma new_offset;
 
 	      width = get_DW_EH_PE_width (ent->fde_encoding, ptr_size);
@@ -1639,7 +1669,6 @@ _bfd_elf_write_section_eh_frame (bfd *abfd,
 
 	      for (cnt = 1; cnt <= ent->set_loc[0]; cnt++)
 		{
-		  bfd_vma value;
 		  buf = start + ent->set_loc[cnt];
 
 		  value = read_value (abfd, buf, width,

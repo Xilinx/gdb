@@ -1,6 +1,6 @@
 /* This testcase is part of GDB, the GNU debugger.
 
-   Copyright 2004, 2007, 2009 Free Software Foundation, Inc.
+   Copyright 2004, 2007, 2009, 2010 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,9 +42,9 @@ void open_shlib ()
   if (!handle)
     {
 #ifdef __WIN32__
-      fprintf (stderr, "error %d occurred", GetLastError ());
+      fprintf (stderr, "error %d occurred\n", GetLastError ());
 #else
-      fprintf (stderr, "%s", dlerror ());
+      fprintf (stderr, "%s\n", dlerror ());
 #endif
       exit (1);
     }
@@ -53,7 +53,7 @@ void open_shlib ()
 
   if (!foo)
     {
-      fprintf (stderr, dlerror ());
+      fprintf (stderr, "%s\n", dlerror ());
       exit (1);
     }
 

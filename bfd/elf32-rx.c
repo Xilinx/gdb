@@ -1,5 +1,5 @@
 /* Renesas RX specific support for 32-bit ELF.
-   Copyright (C) 2008, 2009
+   Copyright (C) 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -29,7 +29,7 @@
 
 #ifdef DEBUG
 char * rx_get_reloc (long);
-void dump_symtab (bfd *, void *, void *);
+void rx_dump_symtab (bfd *, void *, void *);
 #endif
 
 #define RXREL(n,sz,bit,shift,complain,pcrel)				     \
@@ -250,7 +250,9 @@ static const struct rx_reloc_map rx_reloc_map [] =
   { BFD_RELOC_RX_OP_SUBTRACT,	R_RX_OPsub },
   { BFD_RELOC_RX_ABS8,		R_RX_ABS8 },
   { BFD_RELOC_RX_ABS16,		R_RX_ABS16 },
+  { BFD_RELOC_RX_ABS16_REV,	R_RX_ABS16_REV },
   { BFD_RELOC_RX_ABS32,		R_RX_ABS32 },
+  { BFD_RELOC_RX_ABS32_REV,	R_RX_ABS32_REV },
   { BFD_RELOC_RX_ABS16UL,	R_RX_ABS16UL },
   { BFD_RELOC_RX_ABS16UW,	R_RX_ABS16UW },
   { BFD_RELOC_RX_ABS16U,	R_RX_ABS16U }
@@ -303,7 +305,7 @@ rx_info_to_howto_rela (bfd *               abfd ATTRIBUTE_UNUSED,
 
 static bfd_vma
 get_symbol_value (const char *            name,
-		  bfd_reloc_status_type * stat,
+		  bfd_reloc_status_type * status,
 		  struct bfd_link_info *  info,
 		  bfd *                   input_bfd,
 		  asection *              input_section,
@@ -317,7 +319,7 @@ get_symbol_value (const char *            name,
   if (h == NULL
       || (h->type != bfd_link_hash_defined
 	  && h->type != bfd_link_hash_defweak))
-    * stat = info->callbacks->undefined_symbol
+    * status = info->callbacks->undefined_symbol
       (info, name, input_bfd, input_section, offset, TRUE);
   else
     value = (h->u.def.value
@@ -328,7 +330,7 @@ get_symbol_value (const char *            name,
 }
 
 static bfd_vma
-get_gp (bfd_reloc_status_type * stat,
+get_gp (bfd_reloc_status_type * status,
 	struct bfd_link_info *  info,
 	bfd *                   abfd,
 	asection *              sec,
@@ -339,14 +341,14 @@ get_gp (bfd_reloc_status_type * stat,
 
   if (!cached)
     {
-      cached_value = get_symbol_value ("__gp", stat, info, abfd, sec, offset);
+      cached_value = get_symbol_value ("__gp", status, info, abfd, sec, offset);
       cached = TRUE;
     }
   return cached_value;
 }
 
 static bfd_vma
-get_romstart (bfd_reloc_status_type * stat,
+get_romstart (bfd_reloc_status_type * status,
 	      struct bfd_link_info *  info,
 	      bfd *                   abfd,
 	      asection *              sec,
@@ -357,14 +359,14 @@ get_romstart (bfd_reloc_status_type * stat,
 
   if (!cached)
     {
-      cached_value = get_symbol_value ("_start", stat, info, abfd, sec, offset);
+      cached_value = get_symbol_value ("_start", status, info, abfd, sec, offset);
       cached = TRUE;
     }
   return cached_value;
 }
 
 static bfd_vma
-get_ramstart (bfd_reloc_status_type * stat,
+get_ramstart (bfd_reloc_status_type * status,
 	      struct bfd_link_info *  info,
 	      bfd *                   abfd,
 	      asection *              sec,
@@ -375,7 +377,7 @@ get_ramstart (bfd_reloc_status_type * stat,
 
   if (!cached)
     {
-      cached_value = get_symbol_value ("__datastart", stat, info, abfd, sec, offset);
+      cached_value = get_symbol_value ("__datastart", status, info, abfd, sec, offset);
       cached = TRUE;
     }
   return cached_value;
@@ -453,18 +455,10 @@ rx_elf_relocate_section
   struct elf_link_hash_entry ** sym_hashes;
   Elf_Internal_Rela *           rel;
   Elf_Internal_Rela *           relend;
-  bfd *				dynobj;
-  asection *			splt;
 
   symtab_hdr = & elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
   relend     = relocs + input_section->reloc_count;
-
-  dynobj = elf_hash_table (info)->dynobj;
-  splt = NULL;
-  if (dynobj != NULL)
-    splt = bfd_get_section_by_name (dynobj, ".plt");
-
   for (rel = relocs; rel < relend; rel ++)
     {
       reloc_howto_type *           howto;
@@ -510,15 +504,8 @@ rx_elf_relocate_section
 	}
 
       if (sec != NULL && elf_discarded_section (sec))
-	{
-	  /* For relocs against symbols from removed linkonce sections,
-	     or sections discarded by a linker script, we just want the
-	     section contents zeroed.  Avoid any special processing.  */
-	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
-	  rel->r_info = 0;
-	  rel->r_addend = 0;
-	  continue;
-	}
+	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
+					 rel, relend, howto, contents);
 
       if (info->relocatable)
 	{
@@ -1372,7 +1359,6 @@ elf32_rx_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count,
   bfd_byte *          contents;
   Elf_Internal_Rela * irel;
   Elf_Internal_Rela * irelend;
-  Elf_Internal_Rela * irelalign;
   Elf_Internal_Sym *  isym;
   Elf_Internal_Sym *  isymend;
   bfd_vma             toaddr;
@@ -1389,7 +1375,6 @@ elf32_rx_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count,
 
   /* The deletion must stop at the next alignment boundary, if
      ALIGNMENT_REL is non-NULL.  */
-  irelalign = NULL;
   toaddr = sec->size;
   if (alignment_rel)
     toaddr = alignment_rel->r_offset;
@@ -1545,7 +1530,7 @@ static bfd_vma
 rx_offset_for_reloc (bfd *                    abfd,
 		     Elf_Internal_Rela *      rel,
 		     Elf_Internal_Shdr *      symtab_hdr,
-		     Elf_External_Sym_Shndx * shndx_buf,
+		     Elf_External_Sym_Shndx * shndx_buf ATTRIBUTE_UNUSED,
 		     Elf_Internal_Sym *       intsyms,
 		     Elf_Internal_Rela **     lrel,
 		     bfd *                    input_bfd,
@@ -1570,7 +1555,6 @@ rx_offset_for_reloc (bfd *                    abfd,
 	{
 	  /* A local symbol.  */
 	  Elf_Internal_Sym *isym;
-	  Elf_External_Sym_Shndx *shndx;
 	  asection *ssec;
 
 	  isym = intsyms + ELF32_R_SYM (rel->r_info);
@@ -1584,8 +1568,6 @@ rx_offset_for_reloc (bfd *                    abfd,
 	  else
 	    ssec = bfd_section_from_elf_index (abfd,
 					       isym->st_shndx);
-
-	  shndx = shndx_buf + (shndx_buf ? ELF32_R_SYM (rel->r_info) : 0);
 
 	  /* Initial symbol value.  */
 	  symval = isym->st_value;
@@ -1817,7 +1799,6 @@ elf32_rx_relax_section (bfd *                  abfd,
   Elf_External_Sym_Shndx * shndx_buf = NULL;
   bfd_vma pc;
   bfd_vma sec_start;
-  bfd_vma sec_end;
   bfd_vma symval = 0;
   int pcrel = 0;
   int code = 0;
@@ -1841,7 +1822,6 @@ elf32_rx_relax_section (bfd *                  abfd,
   shndx_hdr = &elf_tdata (abfd)->symtab_shndx_hdr;
 
   sec_start = sec->output_section->vma + sec->output_offset;
-  sec_end   = sec->output_section->vma + sec->output_offset + sec->size;
 
   /* Get the section contents.  */
   if (elf_section_data (sec)->this_hdr.contents != NULL)
@@ -2062,9 +2042,9 @@ elf32_rx_relax_section (bfd *                  abfd,
 	  else if (code == 1 && symval/scale <= 31
 		   /* Decodable bits.  */
 		   && (insn[0] & 0xcc) == 0xcc
-		   /* width */
+		   /* Width.  */
 		   && (insn[0] & 0x30) != 3
-		   /* register MSBs */
+		   /* Register MSBs.  */
 		   && (insn[1] & 0x88)  == 0x00)
 	    {
 	      int newrel = 0;
@@ -2977,7 +2957,7 @@ rx_elf_object_p (bfd * abfd)
 
 #ifdef DEBUG
 void
-dump_symtab (bfd * abfd, void * internal_syms, void * external_syms)
+rx_dump_symtab (bfd * abfd, void * internal_syms, void * external_syms)
 {
   size_t locsymcount;
   Elf_Internal_Sym * isymbuf;

@@ -1,6 +1,6 @@
 /* FLEX lexer for Ada expressions, for GDB.
-   Copyright (C) 1994, 1997, 1998, 2000, 2001, 2002, 2003, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1994, 1997, 1998, 2000, 2001, 2002, 2003, 2007, 2008, 2009,
+   2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -57,6 +57,10 @@ static int find_dot_all (const char *);
 
 #undef YY_DECL
 #define YY_DECL static int yylex ( void )
+
+/* Flex generates a static function "input" which is not used.
+   Defining YY_NO_INPUT comments it out.  */
+#define YY_NO_INPUT
 
 #undef YY_INPUT
 #define YY_INPUT(BUF, RESULT, MAX_SIZE) \
@@ -156,6 +160,15 @@ static int find_dot_all (const char *);
 if		{
 		  while (*lexptr != 'i' && *lexptr != 'I')
 		    lexptr -= 1;
+		  yyrestart(NULL);
+		  return 0;
+		}
+
+(task|thread)	{
+                  /* This keyword signals the end of the expression and
+                     will be processed separately.  */
+		  while (*lexptr != 't' && *lexptr != 'T')
+		    lexptr--;
 		  yyrestart(NULL);
 		  return 0;
 		}

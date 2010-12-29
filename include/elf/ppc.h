@@ -1,26 +1,28 @@
 /* PPC ELF support for BFD.
    Copyright 1995, 1996, 1998, 2000, 2001, 2002, 2003, 2005, 2007, 2008,
-   2009 Free Software Foundation, Inc.
+   2009, 2010 Free Software Foundation, Inc.
 
-   By Michael Meissner, Cygnus Support, <meissner@cygnus.com>, from information
-   in the System V Application Binary Interface, PowerPC Processor Supplement
-   and the PowerPC Embedded Application Binary Interface (eabi).
+   By Michael Meissner, Cygnus Support, <meissner@cygnus.com>,
+   from information in the System V Application Binary Interface,
+   PowerPC Processor Supplement and the PowerPC Embedded Application
+   Binary Interface (eabi).
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 3 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 /* This file holds definitions specific to the PPC ELF ABI.  Note
    that most of this is not actually implemented by BFD.  */
@@ -73,10 +75,9 @@ START_RELOC_NUMBERS (elf_ppc_reloc_type)
 
 #ifndef RELOC_MACROS_GEN_FUNC
 /* Fake relocations for branch stubs, only used internally by ld.  */
-  RELOC_NUMBER (R_PPC_RELAX32,		 48)
-  RELOC_NUMBER (R_PPC_RELAX32PC,	 49)
-  RELOC_NUMBER (R_PPC_RELAX32_PLT,	 50)
-  RELOC_NUMBER (R_PPC_RELAX32PC_PLT,	 51)
+  RELOC_NUMBER (R_PPC_RELAX,		 48)
+  RELOC_NUMBER (R_PPC_RELAX_PLT,	 49)
+  RELOC_NUMBER (R_PPC_RELAX_PLTREL24,	 50)
 #endif
 
   /* Relocs added to support TLS.  */
@@ -172,15 +173,6 @@ END_RELOC_NUMBERS (R_PPC_max)
 						   based on the address \
 						   specified in the associated \
 						   symbol table entry.  */
-
-/* Processor specific section flags, sh_flags field.  */
-
-#define SHF_EXCLUDE		0x80000000	/* Link editor is to exclude \
-						   this section from executable \
-						   and shared objects that it \
-						   builds when those objects \
-						   are not to be furhter \
-						   relocated.  */
 
 /* Object attribute tags.  */
 enum

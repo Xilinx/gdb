@@ -1,5 +1,5 @@
 /* Simulator watchpoint support.
-   Copyright (C) 1997, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 1997, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
 This file is part of GDB, the GNU debugger.
@@ -63,7 +63,7 @@ typedef struct _sim_watchpoints {
   /* FIXME: can this be done better?  Look at the PPC's interrupt
      mechanism and table for a rough idea of where it will go next */
   int nr_interrupts;
-  char **interrupt_names;
+  const char **interrupt_names;
 
   /* active watchpoints */
   int last_point_nr;

@@ -1,5 +1,6 @@
 /* m32r device support
-   Copyright (C) 1997, 1998, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 1997, 1998, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
    Contributed by Cygnus Solutions.
 
 This file is part of GDB, the GNU debugger.
@@ -101,6 +102,6 @@ device_io_write_buffer (device *me, const void *source, int space,
 }
 
 void
-device_error (device *me, char *message, ...)
+device_error (device *me, const char *message, ...)
 {
 }

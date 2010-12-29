@@ -1,6 +1,6 @@
 /* The common simulator framework for GDB, the GNU Debugger.
 
-   Copyright 2002, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright 2002, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    Contributed by Andrew Cagney and Red Hat.
 
@@ -32,8 +32,6 @@
 #include <strings.h>
 #endif
 #endif
-
-#define TRACE(A,B)
 
 /* property entries */
 
@@ -418,9 +416,7 @@ hw_find_ihandle_runtime_property (struct hw *me,
 				  ihandle_runtime_property_spec *ihandle)
 {
   struct hw_property_data *entry = find_property_data (me, property);
-  TRACE (trace_devices,
-	 ("hw_find_ihandle_runtime_property(me=0x%lx, property=%s)\n",
-	  (long)me, property));
+  HW_TRACE ((me, "hw_find_ihandle_runtime_property(property=%s)\n", property));
   if (entry == NULL)
     hw_abort (me, "property \"%s\" not found", property);
   if (entry->property->type != ihandle_property
@@ -492,9 +488,7 @@ hw_find_integer_property (struct hw *me,
 {
   const struct hw_property *node;
   signed_cell integer;
-  TRACE (trace_devices,
-	 ("hw_find_integer(me=0x%lx, property=%s)\n",
-	  (long)me, property));
+  HW_TRACE ((me, "hw_find_integer(property=%s)\n", property));
   node = hw_find_property (me, property);
   if (node == NULL)
     hw_abort (me, "property \"%s\" not found", property);
@@ -514,9 +508,7 @@ hw_find_integer_array_property (struct hw *me,
   const struct hw_property *node;
   int sizeof_integer = sizeof (*integer);
   signed_cell *cell;
-  TRACE (trace_devices,
-	 ("hw_find_integer(me=0x%lx, property=%s)\n",
-	  (long)me, property));
+  HW_TRACE ((me, "hw_find_integer(property=%s)\n", property));
   
   /* check things sane */
   node = hw_find_property (me, property);
@@ -886,9 +878,7 @@ hw_add_duplicate_property (struct hw *me,
 			   const struct hw_property *original)
 {
   struct hw_property_data *master;
-  TRACE (trace_devices,
-	 ("hw_add_duplicate_property(me=0x%lx, property=%s, ...)\n",
-	  (long)me, property));
+  HW_TRACE ((me, "hw_add_duplicate_property(property=%s, ...)\n", property));
   if (original->disposition != permenant_object)
     hw_abort (me, "Can only duplicate permenant objects");
   /* find the original's master */

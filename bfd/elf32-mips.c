@@ -1422,8 +1422,7 @@ mips_info_to_howto_rel (bfd *abfd, arelent *cache_ptr, Elf_Internal_Rela *dst)
      when we do the relocation, because the symbol manipulations done
      by the linker may cause us to lose track of the input BFD.  */
   if (((*cache_ptr->sym_ptr_ptr)->flags & BSF_SECTION_SYM) != 0
-      && (r_type == (unsigned int) R_MIPS_GPREL16
-	  || r_type == (unsigned int) R_MIPS_LITERAL))
+      && (gprel16_reloc_p (r_type) || r_type == (unsigned int) R_MIPS_LITERAL))
     cache_ptr->addend = elf_gp (abfd);
 }
 
@@ -1507,7 +1506,7 @@ elf32_mips_grok_prstatus (bfd *abfd, Elf_Internal_Note *note)
 	elf_tdata (abfd)->core_signal = bfd_get_16 (abfd, note->descdata + 12);
 
 	/* pr_pid */
-	elf_tdata (abfd)->core_pid = bfd_get_32 (abfd, note->descdata + 24);
+	elf_tdata (abfd)->core_lwpid = bfd_get_32 (abfd, note->descdata + 24);
 
 	/* pr_reg */
 	offset = 72;
@@ -1606,6 +1605,7 @@ static const struct ecoff_debug_swap mips_elf32_ecoff_debug_swap = {
 };
 
 #define ELF_ARCH			bfd_arch_mips
+#define ELF_TARGET_ID			MIPS_ELF_DATA
 #define ELF_MACHINE_CODE		EM_MIPS
 
 #define elf_backend_collect		TRUE
@@ -1677,7 +1677,6 @@ static const struct ecoff_debug_swap mips_elf32_ecoff_debug_swap = {
 #define bfd_elf32_set_section_contents	_bfd_mips_elf_set_section_contents
 #define bfd_elf32_bfd_get_relocated_section_contents \
 				_bfd_elf_mips_get_relocated_section_contents
-#define bfd_elf32_mkobject		_bfd_mips_elf_mkobject
 #define bfd_elf32_bfd_link_hash_table_create \
 					_bfd_mips_elf_link_hash_table_create
 #define bfd_elf32_bfd_final_link	_bfd_mips_elf_final_link

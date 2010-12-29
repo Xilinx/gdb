@@ -1,4 +1,5 @@
-#   Copyright 1997, 1999, 2007, 2008, 2009 Free Software Foundation, Inc.
+#   Copyright 1997, 1999, 2007, 2008, 2009, 2010
+#   Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,8 +18,6 @@ if { [is_remote target] || ![isnative] } then {
     continue
 }
 
-set prms_id 0
-set bug_id 0
 
 # NOTE drow/2002-12-06: I don't know what the referenced kernel problem
 # is, but it appears to be fixed in recent HP/UX versions.
@@ -93,10 +92,10 @@ proc check_vfork_catchpoints {} {
 proc vfork_parent_follow_through_step {} {
    global gdb_prompt
 
-   send_gdb "set follow parent\n"
+   send_gdb "set follow-fork parent\n"
    gdb_expect {
-      -re "$gdb_prompt $" {pass "set follow parent, vfork through step"}
-      timeout         {fail "set follow parent, vfork through step"}
+      -re "$gdb_prompt $" {pass "set follow-fork parent, vfork through step"}
+      timeout         {fail "set follow-fork parent, vfork through step"}
    }
    send_gdb "next\n"
    gdb_expect {
@@ -116,10 +115,10 @@ proc vfork_parent_follow_to_bp {} {
    global gdb_prompt
    global srcfile
 
-   send_gdb "set follow parent\n"
+   send_gdb "set follow-fork parent\n"
    gdb_expect {
-      -re "$gdb_prompt $" {pass "set follow parent, vfork to bp"}
-      timeout         {fail "set follow parent, vfork to bp"}
+      -re "$gdb_prompt $" {pass "set follow-fork parent, vfork to bp"}
+      timeout         {fail "set follow-fork parent, vfork to bp"}
    }
    send_gdb "break ${srcfile}:18\n"
    gdb_expect {
@@ -144,14 +143,14 @@ proc vfork_and_exec_child_follow_to_main_bp {} {
    global gdb_prompt
    global binfile
 
-   send_gdb "set follow child\n"
+   send_gdb "set follow-fork child\n"
    gdb_expect {
-      -re "$gdb_prompt $" {pass "set follow child, vfork and exec to main bp"}
-      timeout         {fail "set follow child, vfork and exec to main bp"}
+      -re "$gdb_prompt $" {pass "set follow-fork child, vfork and exec to main bp"}
+      timeout         {fail "set follow-fork child, vfork and exec to main bp"}
    }
    send_gdb "continue\n"
    gdb_expect {
-      -re "Attaching after fork to.*Executing new program.*Breakpoint.*vforked-prog.c:9.*$gdb_prompt "\
+      -re "Attaching after.* vfork to.*xecuting new program.*Breakpoint.*vforked-prog.c:9.*$gdb_prompt "\
                       {pass "vfork and exec child follow, to main bp"}
       -re "$gdb_prompt $" {fail "vfork and exec child follow, to main bp"}
       timeout         {fail "(timeout) vfork and exec child follow, to main bp" }
@@ -193,7 +192,7 @@ proc vfork_and_exec_child_follow_through_step {} {
 # This test cannot be performed prior to HP-UX 10.30, because ptrace-based
 # debugging of a vforking program basically doesn't allow the child to do
 # things like hit a breakpoint between a vfork and exec.  This means that
-# saying "set follow child; next" at a vfork() call won't work, because
+# saying "set follow-fork child; next" at a vfork() call won't work, because
 # the implementation of "next" sets a "step resume" breakpoint at the
 # return from the vfork(), which the child will hit on its way to exec'ing.
 #
@@ -202,10 +201,10 @@ proc vfork_and_exec_child_follow_through_step {} {
       return 0
    }
 
-   send_gdb "set follow child\n"
+   send_gdb "set follow-fork child\n"
    gdb_expect {
-      -re "$gdb_prompt $" {pass "set follow child, vfork and exec through step"}
-      timeout         {fail "set follow child, vfork and exec through step"}
+      -re "$gdb_prompt $" {pass "set follow-fork child, vfork and exec through step"}
+      timeout         {fail "set follow-fork child, vfork and exec through step"}
    }
    send_gdb "next\n"
    gdb_expect {
@@ -248,10 +247,10 @@ proc tcatch_vfork_then_parent_follow {} {
    global gdb_prompt
    global srcfile
 
-   send_gdb "set follow parent\n"
+   send_gdb "set follow-fork parent\n"
    gdb_expect {
-      -re "$gdb_prompt $" {pass "set follow parent, tcatch vfork"}
-      timeout         {fail "set follow parent, tcatch vfork"}
+      -re "$gdb_prompt $" {pass "set follow-fork parent, tcatch vfork"}
+      timeout         {fail "set follow-fork parent, tcatch vfork"}
    }
    send_gdb "tcatch vfork\n"
    gdb_expect {
@@ -294,10 +293,10 @@ proc tcatch_vfork_then_child_follow {} {
    global srcfile
    global srcfile2
 
-   send_gdb "set follow child\n"
+   send_gdb "set follow-fork child\n"
    gdb_expect {
-      -re "$gdb_prompt $" {pass "set follow child, tcatch vfork"}
-      timeout         {fail "set follow child, tcatch vfork"}
+      -re "$gdb_prompt $" {pass "set follow-fork child, tcatch vfork"}
+      timeout         {fail "set follow-fork child, tcatch vfork"}
    }
    send_gdb "tcatch vfork\n"
    gdb_expect {
@@ -397,7 +396,7 @@ gdb_load ${binfile}
 
 # The "Detaching..." and "Attaching..." messages may be hidden by
 # default.
-gdb_test "set verbose" ""
+gdb_test_no_output "set verbose"
 
 # This is a test of gdb's ability to follow the parent or child
 # of a Unix vfork() system call.  (The child will subsequently

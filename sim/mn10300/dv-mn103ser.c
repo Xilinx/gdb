@@ -1,6 +1,6 @@
 /*  This file is part of the program GDB, the GNU debugger.
     
-    Copyright (C) 1998, 2007, 2008, 2009 Free Software Foundation, Inc.
+    Copyright (C) 1998, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
     Contributed by Cygnus Solutions.
     
     This program is free software; you can redistribute it and/or modify
@@ -72,11 +72,6 @@ enum serial_register_types {
     SC2STR,
     SC2TIM,
 };
-
-
-/* Access dv-sockser state */
-extern char* sockser_addr;
-#define USE_SOCKSER_P (sockser_addr != NULL)
 
 
 #define NR_SERIAL_DEVS  3
@@ -238,15 +233,17 @@ static void
 do_polling_event (struct hw *me,
 		  void *data)
 {
+  SIM_DESC sd = hw_system (me);
   struct mn103ser *serial = hw_data(me);
   long serial_reg = (long) data;
   char c;
-  int count;
+  int count, status;
 
-  if(USE_SOCKSER_P)
+  status = dv_sockser_status (sd);
+  if (!(status & DV_SOCKSER_DISCONNECTED))
     {
       int rd;
-      rd = dv_sockser_read (hw_system (me));
+      rd = dv_sockser_read (sd);
       if(rd != -1)
 	{
 	  c = (char) rd;
@@ -375,6 +372,9 @@ read_status_reg (struct hw *me,
 
   if ( (serial->device[serial_reg].status & SIO_STAT_RRDY) == 0 )
     {
+      SIM_DESC sd = hw_system (me);
+      int status;
+
       /* FIFO is empty */
       /* Kill current poll event */
       if ( NULL != serial->device[serial_reg].event )
@@ -383,10 +383,11 @@ read_status_reg (struct hw *me,
 	  serial->device[serial_reg].event = NULL;
 	}
 
-      if(USE_SOCKSER_P)
+      status = dv_sockser_status (sd);
+      if (!(status & DV_SOCKSER_DISCONNECTED))
 	{
 	  int rd;
-	  rd = dv_sockser_read (hw_system (me));
+	  rd = dv_sockser_read (sd);
 	  if(rd != -1)
 	    {
 	      c = (char) rd;
@@ -597,16 +598,20 @@ write_txb (struct hw *me,
 {
   if ( nr_bytes == 1 )
     {
+      SIM_DESC sd = hw_system (me);
+      int status;
+
       serial->device[serial_reg].txb = *(unsigned8 *)source;
 
-      if(USE_SOCKSER_P)
+      status = dv_sockser_status (sd);
+      if (!(status & DV_SOCKSER_DISCONNECTED))
 	{
-	  dv_sockser_write(hw_system (me), * (char*) source);
+	  dv_sockser_write(sd, * (char*) source);
 	}
       else
 	{
-	  sim_io_write_stdout(hw_system (me), (char *)source, 1);
-	  sim_io_flush_stdout(hw_system (me));
+	  sim_io_write_stdout(sd, (char *)source, 1);
+	  sim_io_flush_stdout(sd);
 	}
 
       hw_port_event (me, serial_reg+SERIAL0_SEND, 1);

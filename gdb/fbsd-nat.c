@@ -1,6 +1,6 @@
 /* Native-dependent code for FreeBSD.
 
-   Copyright (C) 2002, 2003, 2004, 2007, 2008, 2009
+   Copyright (C) 2002, 2003, 2004, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -92,9 +92,7 @@ fbsd_read_mapping (FILE *mapfile, unsigned long *start, unsigned long *end,
    argument to FUNC.  */
 
 int
-fbsd_find_memory_regions (int (*func) (CORE_ADDR, unsigned long,
-				       int, int, int, void *),
-			  void *obfd)
+fbsd_find_memory_regions (find_memory_region_ftype func, void *obfd)
 {
   pid_t pid = ptid_get_pid (inferior_ptid);
   char *mapfilename;
@@ -145,7 +143,7 @@ fbsd_find_memory_regions (int (*func) (CORE_ADDR, unsigned long,
 static int
 find_signalled_thread (struct thread_info *info, void *data)
 {
-  if (info->stop_signal != TARGET_SIGNAL_0
+  if (info->suspend.stop_signal != TARGET_SIGNAL_0
       && ptid_get_pid (info->ptid) == ptid_get_pid (inferior_ptid))
     return 1;
 
@@ -159,7 +157,7 @@ find_stop_signal (void)
     iterate_over_threads (find_signalled_thread, NULL);
 
   if (info)
-    return info->stop_signal;
+    return info->suspend.stop_signal;
   else
     return TARGET_SIGNAL_0;
 }
@@ -208,7 +206,8 @@ fbsd_make_corefile_notes (bfd *obfd, int *note_size)
       char *psargs = xstrdup (fname);
 
       if (get_inferior_args ())
-	psargs = reconcat (psargs, psargs, " ", get_inferior_args (), NULL);
+	psargs = reconcat (psargs, psargs, " ", get_inferior_args (),
+			   (char *) NULL);
 
       note_data = elfcore_write_prpsinfo (obfd, note_data, note_size,
 					  fname, psargs);

@@ -1,5 +1,5 @@
 /* Copyright (C) 1992, 1993, 1994, 1997, 1998, 1999, 2000, 2003, 2004, 2005,
-   2007, 2008, 2009 Free Software Foundation, Inc.
+   2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -198,6 +198,7 @@ get_task_number_from_id (CORE_ADDR task_id)
 int
 valid_task_id (int task_num)
 {
+  ada_build_task_list (0);
   return (task_num > 0
           && task_num <= VEC_length (ada_task_info_s, task_list));
 }
@@ -209,6 +210,27 @@ static int
 ada_task_is_alive (struct ada_task_info *task_info)
 {
   return (task_info->state != Terminated);
+}
+
+/* Call the ITERATOR function once for each Ada task that hasn't been
+   terminated yet.  */
+
+void
+iterate_over_live_ada_tasks (ada_task_list_iterator_ftype *iterator)
+{
+  int i, nb_tasks;
+  struct ada_task_info *task;
+
+  ada_build_task_list (0);
+  nb_tasks = VEC_length (ada_task_info_s, task_list);
+
+  for (i = 0; i < nb_tasks; i++)
+    {
+      task = VEC_index (ada_task_info_s, task_list, i);
+      if (!ada_task_is_alive (task))
+        continue;
+      iterator (task);
+    }
 }
 
 /* Extract the contents of the value as a string whose length is LENGTH,
@@ -292,7 +314,6 @@ get_known_tasks_addr (void)
 
   if (ada_tasks_check_symbol_table)
     {
-      struct symbol *sym;
       struct minimal_symbol *msym;
 
       msym = lookup_minimal_symbol (KNOWN_TASKS_NAME, NULL, NULL);
@@ -359,20 +380,29 @@ get_tcb_types_info (struct type **atcb_type,
   const char *private_data_name = "system__task_primitives__private_data";
   const char *entry_call_record_name = "system__tasking__entry_call_record";
 
+  /* ATCB symbols may be found in several compilation units. As we
+     are only interested in one instance, use standard (literal,
+     C-like) lookups to get the first match.  */
+
   struct symbol *atcb_sym =
-    lookup_symbol (atcb_name, NULL, VAR_DOMAIN, NULL);
+    lookup_symbol_in_language (atcb_name, NULL, VAR_DOMAIN,
+			       language_c, NULL);
   const struct symbol *common_atcb_sym =
-    lookup_symbol (common_atcb_name, NULL, VAR_DOMAIN, NULL);
+    lookup_symbol_in_language (common_atcb_name, NULL, VAR_DOMAIN,
+			       language_c, NULL);
   const struct symbol *private_data_sym =
-    lookup_symbol (private_data_name, NULL, VAR_DOMAIN, NULL);
+    lookup_symbol_in_language (private_data_name, NULL, VAR_DOMAIN,
+			       language_c, NULL);
   const struct symbol *entry_call_record_sym =
-    lookup_symbol (entry_call_record_name, NULL, VAR_DOMAIN, NULL);
+    lookup_symbol_in_language (entry_call_record_name, NULL, VAR_DOMAIN,
+			       language_c, NULL);
 
   if (atcb_sym == NULL || atcb_sym->type == NULL)
     {
       /* In Ravenscar run-time libs, the  ATCB does not have a dynamic
          size, so the symbol name differs.  */
-      atcb_sym = lookup_symbol (atcb_name_fixed, NULL, VAR_DOMAIN, NULL);
+      atcb_sym = lookup_symbol_in_language (atcb_name_fixed, NULL, VAR_DOMAIN,
+					    language_c, NULL);
 
       if (atcb_sym == NULL || atcb_sym->type == NULL)
         error (_("Cannot find Ada_Task_Control_Block type. Aborting"));
@@ -583,9 +613,18 @@ read_atcb (CORE_ADDR task_id, struct ada_task_info *task_info)
         }
     }
 
-  /* And finally, compute the task ptid.  */
+  /* And finally, compute the task ptid.  Note that there are situations
+     where this cannot be determined:
+       - The task is no longer alive - the ptid is irrelevant;
+       - We are debugging a core file - the thread is not always
+         completely preserved for us to link back a task to its
+         underlying thread.  Since we do not support task switching
+         when debugging core files anyway, we don't need to compute
+         that task ptid.
+     In either case, we don't need that ptid, and it is just good enough
+     to set it to null_ptid.  */
 
-  if (ada_task_is_alive (task_info))
+  if (target_has_execution && ada_task_is_alive (task_info))
     task_info->ptid = ptid_from_atcb_common (common_value);
   else
     task_info->ptid = null_ptid;
@@ -875,6 +914,19 @@ task_command_1 (char *taskno_str, int from_tty)
      that thread, we need to make sure that any new threads gets added
      to the thread list.  */
   target_find_new_threads ();
+
+  /* Verify that the ptid of the task we want to switch to is valid
+     (in other words, a ptid that GDB knows about).  Otherwise, we will
+     cause an assertion failure later on, when we try to determine
+     the ptid associated thread_info data.  We should normally never
+     encounter such an error, but the wrong ptid can actually easily be
+     computed if target_get_ada_task_ptid has not been implemented for
+     our target (yet).  Rather than cause an assertion error in that case,
+     it's nicer for the user to just refuse to perform the task switch.  */
+  if (!find_thread_ptid (task_info->ptid))
+    error (_("Unable to compute thread ID for task %d.\n"
+             "Cannot switch to this task."),
+           taskno);
 
   switch_to_thread (task_info->ptid);
   ada_find_printable_frame (get_selected_frame (NULL));

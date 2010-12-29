@@ -1,6 +1,6 @@
 /* This testcase is part of GDB, the GNU debugger.
 
-   Copyright 2009 Free Software Foundation, Inc.
+   Copyright 2009, 2010 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1409,5 +1409,5 @@ main ()
   gen_63 ();
   gen_TERM ();
 
-  return 0;
+  return 0;	/* end of main */
 }

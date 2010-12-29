@@ -1,4 +1,4 @@
-#   Copyright 1998, 2007, 2008, 2009 Free Software Foundation, Inc.
+#   Copyright 1998, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,46 +21,23 @@ if $tracelevel then {
     strace $tracelevel
 }
 
-set prms_id 0
-set bug_id 0
 
 gdb_exit
 gdb_start
 
-if [istarget "m68k-*-elf"] then {
-    load_lib "emc-support.exp"
-    set testfile "gdb_c_test"
-    set srcfile  $testfile.c
-    set binfile [board_info target d490_binfile];
-    gdb_test "set remotetimeout 6" "" ""
-    set timeout 500
-    gdb_target_monitor "$binfile"
-    # Give a TSTOP and ignore errors, to make sure any previous trace is off
-    gdb_test "tstop" "" ""
-    gdb_test "tfind none"  "" ""
-    send_gdb "compare-section CS\n"
-    gdb_expect {
-	-re "MIS-MATCHED.*$gdb_prompt $" {
-	    untested while-dyn.exp
-	    return -1
-	    all tests in this module will fail.";
-	}
-	-re ".*$gdb_prompt $" { }
-    }
-} else {
-    set testfile "actions"
-    set srcfile $testfile.c
-    set binfile $objdir/$subdir/while-dyn
-    if { [gdb_compile "$srcdir/$subdir/$srcfile" $binfile \
-	    executable {debug nowarnings}] != "" } {
-	untested while-dyn.exp
-	return -1
-    }
-    gdb_load $binfile
-    gdb_test "tstop"       "" ""
-    gdb_test "tfind none"  "" ""
-    runto_main
+set testfile "actions"
+set srcfile $testfile.c
+set executable while-dyn
+set binfile $objdir/$subdir/$executable
+if { [gdb_compile "$srcdir/$subdir/$srcfile" $binfile \
+	  executable {debug nowarnings}] != "" } {
+    untested while-dyn.exp
+    return -1
 }
+gdb_load $binfile
+gdb_test "tstop"       ".*" ""
+gdb_test "tfind none"  ".*" ""
+runto_main
 gdb_reinitialize_dir $srcdir/$subdir
 
 # We generously give ourselves one "pass" if we successfully 
@@ -68,55 +45,73 @@ gdb_reinitialize_dir $srcdir/$subdir
 if { ![gdb_target_supports_trace] } then {
     pass "Current target does not support trace"
     return 1;
-
 }
-
-# If testing on a remote host, download the source file.
-# remote_download host $srcdir/$subdir/$srcfile
 
 #
 # test while-stepping dynamically (live target)
 #
 
-## verify number of trace frames collected matches stepcount
+if [istarget "x86_64-*"] then {
+    set fpreg "\$rbp"
+} elseif [istarget "i?86-*"] then {
+    set fpreg "\$ebp"
+} else {
+    set fpreg "\$fp"
+}
 
-gdb_delete_tracepoints
-gdb_test "trace gdb_c_test" \
+proc test_while_stepping { while_stepping } {
+    global fpreg
+    global decimal
+    global gdb_prompt
+    global executable
+
+    clean_restart $executable
+
+    gdb_test "tstop" ".*" ""
+    gdb_test "tfind none" ".*" ""
+    runto_main
+
+    ## verify number of trace frames collected matches stepcount
+
+    gdb_delete_tracepoints
+    gdb_test "trace gdb_c_test" \
 	"Tracepoint $decimal at .*" \
-	"Set tracepoint at gdb_c_test"
+	"$while_stepping: Set tracepoint at gdb_c_test"
 
-gdb_trace_setactions "5.12: define while-stepping <stepcount>" \
+    gdb_trace_setactions "5.12: define $while_stepping <stepcount>" \
 	"" \
-	"collect \$fp" "^$" \
-	"while-stepping 5" "^$" \
+	"collect $fpreg" "^$" \
+	"$while_stepping 5" "^$" \
 	"collect p" "^$" \
 	"end" "^$" \
 	"end" ""
 
-gdb_test "tstart" "" ""
+    gdb_test "tstart" ".*" ""
 
-if [istarget "m68k-*-elf"] then {
-    gdb_emclaptop_command "85,1,2,3,4,5,6"
-    sleep 5
-} else {
-    gdb_test "break end" "" ""
+    gdb_test "break end" ".*" ""
     gdb_test "continue" \
-	    "Continuing.*Breakpoint $decimal, end.*" \
-	    "run trace experiment"
+	"Continuing.*Breakpoint $decimal, end.*" \
+	"$while_stepping: run trace experiment"
+
+    gdb_test "tstop" ".*" ""
+
+    gdb_tfind_test "$while_stepping: frame 5 should be the last one collected" "5" "5"
+
+    set test "$while_stepping: trace stopped after 5 stepping frames"
+    gdb_test_multiple "tfind 6" "$test" {
+	-re "failed to find.*$gdb_prompt $" {
+	    pass "$test"
+	}
+	-re ".*$gdb_prompt $" {
+	    fail "$test"
+	}
+    }
+
+    gdb_test "tfind none" ".*" ""
 }
 
-gdb_test "tstop" "" ""
+# Test all while-stepping aliases.
 
-gdb_tfind_test "5.12: frame 5 should be the last one collected" "5" "5"
-
-send_gdb "tfind 6\n"
-gdb_expect {
-    -re "failed to find.*$gdb_prompt $" {
-	pass "5.12: trace stopped after 5 stepping frames"
-    }
-    -re ".*$gdb_prompt $" {
-	fail "5.12: trace stopped after 5 stepping frames"
-    }
-}
-
-gdb_test "tfind none" "" ""
+test_while_stepping "while-stepping"
+test_while_stepping "stepping"
+test_while_stepping "ws"

@@ -2,7 +2,7 @@
    Written by Fred Fish <fnf@cygnus.com>
    Rewritten by Jim Blandy <jimb@cygnus.com>
 
-   Copyright (C) 1999, 2000, 2002, 2003, 2007, 2008, 2009
+   Copyright (C) 1999, 2000, 2002, 2003, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -89,6 +89,12 @@ struct bcache
      16 bits of hash values) hit, but the corresponding combined
      length/data compare missed.  */
   unsigned long half_hash_miss_count;
+
+  /* Hash function to be used for this bcache object.  */
+  unsigned long (*hash_function)(const void *addr, int length);
+
+  /* Compare function to be used for this bcache object.  */
+  int (*compare_function)(const void *, const void *, int length);
 };
 
 /* The old hash function was stolen from SDBM. This is what DB 3.0 uses now,
@@ -98,17 +104,24 @@ struct bcache
 unsigned long
 hash(const void *addr, int length)
 {
-		const unsigned char *k, *e;
-		unsigned long h;
-		
-		k = (const unsigned char *)addr;
-		e = k+length;
-		for (h=0; k< e;++k)
-		{
-				h *=16777619;
-				h ^= *k;
-		}
-		return (h);
+  return hash_continue (addr, length, 0);
+}
+
+/* Continue the calculation of the hash H at the given address.  */
+
+unsigned long
+hash_continue (const void *addr, int length, unsigned long h)
+{
+  const unsigned char *k, *e;
+
+  k = (const unsigned char *)addr;
+  e = k+length;
+  for (; k< e;++k)
+    {
+      h *=16777619;
+      h ^= *k;
+    }
+  return (h);
 }
 
 /* Growing the bcache's hash table.  */
@@ -152,6 +165,7 @@ expand_hash_table (struct bcache *bcache)
   /* Allocate the new table.  */
   {
     size_t new_size = new_num_buckets * sizeof (new_buckets[0]);
+
     new_buckets = (struct bstring **) xmalloc (new_size);
     memset (new_buckets, 0, new_size);
 
@@ -170,7 +184,8 @@ expand_hash_table (struct bcache *bcache)
 	  struct bstring **new_bucket;
 	  next = s->next;
 
-	  new_bucket = &new_buckets[(hash (&s->d.data, s->length)
+	  new_bucket = &new_buckets[(bcache->hash_function (&s->d.data,
+							    s->length)
 				     % new_num_buckets)];
 	  s->next = *new_bucket;
 	  *new_bucket = s;
@@ -234,7 +249,8 @@ bcache_full (const void *addr, int length, struct bcache *bcache, int *added)
   bcache->total_count++;
   bcache->total_size += length;
 
-  full_hash = hash (addr, length);
+  full_hash = bcache->hash_function (addr, length);
+
   half_hash = (full_hash >> 16);
   hash_index = full_hash % bcache->num_buckets;
 
@@ -246,7 +262,7 @@ bcache_full (const void *addr, int length, struct bcache *bcache, int *added)
       if (s->half_hash == half_hash)
 	{
 	  if (s->length == length
-	      && ! memcmp (&s->d.data, addr, length))
+	      && bcache->compare_function (&s->d.data, addr, length))
 	    return &s->d.data;
 	  else
 	    bcache->half_hash_miss_count++;
@@ -257,6 +273,7 @@ bcache_full (const void *addr, int length, struct bcache *bcache, int *added)
   {
     struct bstring *new
       = obstack_alloc (&bcache->cache, BSTRING_SIZE (length));
+
     memcpy (&new->d.data, addr, length);
     new->length = length;
     new->next = bcache->bucket[hash_index];
@@ -274,13 +291,39 @@ bcache_full (const void *addr, int length, struct bcache *bcache, int *added)
   }
 }
 
+
+/* Compare the byte string at ADDR1 of lenght LENGHT to the
+   string at ADDR2.  Return 1 if they are equal.  */
+
+static int
+bcache_compare (const void *addr1, const void *addr2, int length)
+{
+  return memcmp (addr1, addr2, length) == 0;
+}
+
 /* Allocating and freeing bcaches.  */
 
+/* Allocated a bcache.  HASH_FUNCTION and COMPARE_FUNCTION can be used
+   to pass in custom hash, and compare functions to be used by this
+   bcache. If HASH_FUNCTION is NULL hash() is used and if COMPARE_FUNCTION
+   is NULL memcmp() is used.  */
+
 struct bcache *
-bcache_xmalloc (void)
+bcache_xmalloc (unsigned long (*hash_function)(const void *, int length),
+                int (*compare_function)(const void *, const void *, int length))
 {
   /* Allocate the bcache pre-zeroed.  */
   struct bcache *b = XCALLOC (1, struct bcache);
+
+  if (hash_function)
+    b->hash_function = hash_function;
+  else
+    b->hash_function = hash;
+
+  if (compare_function)
+    b->compare_function = compare_function;
+  else
+    b->compare_function = bcache_compare;
   return b;
 }
 
@@ -300,15 +343,6 @@ bcache_xfree (struct bcache *bcache)
 
 
 /* Printing statistics.  */
-
-static int
-compare_ints (const void *ap, const void *bp)
-{
-  /* Because we know we're comparing two ints which are positive,
-     there's no danger of overflow here.  */
-  return * (int *) ap - * (int *) bp;
-}
-
 
 static void
 print_percentage (int portion, int total)
@@ -367,9 +401,9 @@ print_bcache_statistics (struct bcache *c, char *type)
 
     /* To compute the median, we need the set of chain lengths sorted.  */
     qsort (chain_length, c->num_buckets, sizeof (chain_length[0]),
-	   compare_ints);
+	   compare_positive_ints);
     qsort (entry_size, c->unique_count, sizeof (entry_size[0]),
-	   compare_ints);
+	   compare_positive_ints);
 
     if (c->num_buckets > 0)
       {

@@ -1,4 +1,4 @@
-# Copyright 2008, 2009 Free Software Foundation, Inc.
+# Copyright 2008, 2009, 2010 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,8 +31,7 @@ runto main
 
 if [target_info exists gdb,use_precord] {
     # Activate process record/replay
-    gdb_test "record" "" "Turn on process record"
-    # FIXME: command ought to acknowledge, so we can test if it succeeded.
+    gdb_test_no_output "record" "Turn on process record"
 }
 
 # Test finish from void func
@@ -155,7 +154,7 @@ gdb_test_multiple "finish" "$test_msg" {
 ###
 
 # Now switch to reverse
-gdb_test "set exec-dir reverse" "" "set reverse execution"
+gdb_test_no_output "set exec-dir reverse" "set reverse execution"
 
 # Test reverse finish from long long func
 
@@ -228,5 +227,3 @@ gdb_test_multiple "finish" "$test_msg" {
 	pass "$test_msg"
     }
 }
-
-return 0

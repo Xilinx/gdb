@@ -1,7 +1,7 @@
 /* Target-dependent code for the HP PA-RISC architecture.
 
    Copyright (C) 1986, 1987, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
-   1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009
+   1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    Contributed by the Center for Software Science at the
@@ -1305,41 +1305,6 @@ hppa_write_pc (struct regcache *regcache, CORE_ADDR pc)
   regcache_cooked_write_unsigned (regcache, HPPA_PCOQ_TAIL_REGNUM, pc + 4);
 }
 
-/* return the alignment of a type in bytes. Structures have the maximum
-   alignment required by their fields. */
-
-static int
-hppa_alignof (struct type *type)
-{
-  int max_align, align, i;
-  CHECK_TYPEDEF (type);
-  switch (TYPE_CODE (type))
-    {
-    case TYPE_CODE_PTR:
-    case TYPE_CODE_INT:
-    case TYPE_CODE_FLT:
-      return TYPE_LENGTH (type);
-    case TYPE_CODE_ARRAY:
-      return hppa_alignof (TYPE_INDEX_TYPE (type));
-    case TYPE_CODE_STRUCT:
-    case TYPE_CODE_UNION:
-      max_align = 1;
-      for (i = 0; i < TYPE_NFIELDS (type); i++)
-	{
-	  /* Bit fields have no real alignment. */
-	  /* if (!TYPE_FIELD_BITPOS (type, i)) */
-	  if (!TYPE_FIELD_BITSIZE (type, i))	/* elz: this should be bitsize */
-	    {
-	      align = hppa_alignof (TYPE_FIELD_TYPE (type, i));
-	      max_align = max (max_align, align);
-	    }
-	}
-      return max_align;
-    default:
-      return 4;
-    }
-}
-
 /* For the given instruction (INST), return any adjustment it makes
    to the stack pointer or zero for no adjustment. 
 
@@ -2541,7 +2506,7 @@ unwind_command (char *exp, int from_tty)
       return;
     }
 
-  printf_unfiltered ("unwind_table_entry (0x%lx):\n", (unsigned long)u);
+  printf_unfiltered ("unwind_table_entry (%s):\n", host_address_to_string (u));
 
   printf_unfiltered ("\tregion_start = %s\n", hex_string (u->region_start));
   gdb_flush (gdb_stdout);

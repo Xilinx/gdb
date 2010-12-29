@@ -1,5 +1,6 @@
 /* YACC parser for Pascal expressions, for GDB.
-   Copyright (C) 2000, 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2006, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -524,6 +525,9 @@ exp	:	SIZEOF '(' type ')'	%prec UNARY
 			  write_exp_elt_opcode (OP_LONG); }
 	;
 
+exp	:	SIZEOF  '(' exp ')'      %prec UNARY
+			{ write_exp_elt_opcode (UNOP_SIZEOF); }
+	
 exp	:	STRING
 			{ /* C strings are converted into array constants with
 			     an explicit null byte added at the end.  Thus
@@ -787,11 +791,7 @@ name_not_typename :	NAME
 /*** Needs some error checking for the float case ***/
 
 static int
-parse_number (p, len, parsed_float, putithere)
-     char *p;
-     int len;
-     int parsed_float;
-     YYSTYPE *putithere;
+parse_number (char *p, int len, int parsed_float, YYSTYPE *putithere)
 {
   /* FIXME: Shouldn't these be unsigned?  We don't deal with negative values
      here, and we do kind of silly things like cast to unsigned.  */
@@ -816,30 +816,10 @@ parse_number (p, len, parsed_float, putithere)
 
   if (parsed_float)
     {
-      /* It's a float since it contains a point or an exponent.  */
-      char c;
-      int num = 0;	/* number of tokens scanned by scanf */
-      char saved_char = p[len];
-
-      p[len] = 0;	/* null-terminate the token */
-      num = sscanf (p, "%" DOUBLEST_SCAN_FORMAT "%c",
-		    &putithere->typed_val_float.dval, &c);
-      p[len] = saved_char;	/* restore the input stream */
-      if (num != 1) 		/* check scanf found ONLY a float ... */
+      if (! parse_c_float (parse_gdbarch, p, len,
+			   &putithere->typed_val_float.dval,
+			   &putithere->typed_val_float.type))
 	return ERROR;
-      /* See if it has `f' or `l' suffix (float or long double).  */
-
-      c = tolower (p[len - 1]);
-
-      if (c == 'f')
-	putithere->typed_val_float.type = parse_type->builtin_float;
-      else if (c == 'l')
-	putithere->typed_val_float.type = parse_type->builtin_long_double;
-      else if (isdigit (c) || c == '.')
-	putithere->typed_val_float.type = parse_type->builtin_double;
-      else
-	return ERROR;
-
       return FLOAT;
     }
 
@@ -1084,7 +1064,6 @@ yylex ()
   char *tokstart;
   char *uptokstart;
   char *tokptr;
-  char *p;
   int explen, tempbufindex;
   static char *tempbuf;
   static int tempbufsize;
@@ -1137,7 +1116,7 @@ yylex ()
       lexptr++;
       c = *lexptr++;
       if (c == '\\')
-	c = parse_escape (&lexptr);
+	c = parse_escape (parse_gdbarch, &lexptr);
       else if (c == '\'')
 	error ("Empty character constant.");
 
@@ -1302,7 +1281,7 @@ yylex ()
 	    break;
 	  case '\\':
 	    tokptr++;
-	    c = parse_escape (&tokptr);
+	    c = parse_escape (parse_gdbarch, &tokptr);
 	    if (c == -1)
 	      {
 		continue;

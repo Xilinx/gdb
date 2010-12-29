@@ -1,6 +1,6 @@
 /* Target-dependent code for the Sanyo Xstormy16a (LC590000) processor.
 
-   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009
+   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -809,6 +809,7 @@ xstormy16_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   set_gdbarch_ptr_bit (gdbarch, 2 * TARGET_CHAR_BIT);
   set_gdbarch_addr_bit (gdbarch, 4 * TARGET_CHAR_BIT);
+  set_gdbarch_dwarf2_addr_size (gdbarch, 4);
 
   set_gdbarch_address_to_pointer (gdbarch, xstormy16_address_to_pointer);
   set_gdbarch_pointer_to_address (gdbarch, xstormy16_pointer_to_address);

@@ -1,5 +1,5 @@
 # Copyright 1992, 1994, 1995, 1996, 1997, 1998, 1999, 2001, 2002, 2003, 2004,
-# 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+# 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -231,23 +231,22 @@ proc test_virtual_calls {} {
 }
 
 proc do_tests {} {
-    global prms_id
-    global bug_id
     global srcdir subdir binfile
     global gdb_prompt
 
-    set prms_id 0
-    set bug_id 0
 
     gdb_exit
     gdb_start
     gdb_reinitialize_dir $srcdir/$subdir
     gdb_load $binfile
 
-    gdb_test "set language c++" "" ""
-    gdb_test "set width 0" "" ""
+    gdb_test_no_output "set language c++" ""
+    gdb_test_no_output "set width 0" ""
 
-    runto_main
+    if ![runto_main] then {
+	perror "couldn't run to breakpoint"
+	return
+    }
     test_ptype_of_classes
 
     gdb_breakpoint test_calls

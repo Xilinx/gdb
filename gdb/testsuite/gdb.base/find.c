@@ -1,7 +1,7 @@
 /* Testcase for the find command.
    This testcase is part of GDB, the GNU debugger.
 
-   Copyright 2008, 2009 Free Software Foundation, Inc.
+   Copyright 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,15 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+
+/* According to C99 <stdint.h> has to provide these identifiers as
+   types, but is also free to define macros shadowing the typedefs.
+   This is the case with some C library implementations.  Undefine
+   them to make sure the types are used and included in debug output.  */
+#undef int8_t
+#undef int16_t
+#undef int32_t
+#undef int64_t
 
 #define CHUNK_SIZE 16000 /* same as findcmd.c's */
 #define BUF_SIZE (2 * CHUNK_SIZE) /* at least two chunks */
@@ -57,6 +66,12 @@ main ()
   init_bufs ();
 
   stop_here ();
+
+  /* Reference variables.  */
+  x = int8_search_buf[0];
+  x = int16_search_buf[0];
+  x = int32_search_buf[0];
+  x = int64_search_buf[0];
 
   return 0;
 }

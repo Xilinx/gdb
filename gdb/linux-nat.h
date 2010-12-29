@@ -1,7 +1,7 @@
 /* Native debugging support for GNU/Linux (LWP layer).
 
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+   2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -62,6 +62,18 @@ struct lwp_info
      be the address of a hardware watchpoint.  */
   struct siginfo siginfo;
 
+  /* STOPPED_BY_WATCHPOINT is non-zero if this LWP stopped with a data
+     watchpoint trap.  */
+  int stopped_by_watchpoint;
+
+  /* On architectures where it is possible to know the data address of
+     a triggered watchpoint, STOPPED_DATA_ADDRESS_P is non-zero, and
+     STOPPED_DATA_ADDRESS contains such data address.  Otherwise,
+     STOPPED_DATA_ADDRESS_P is false, and STOPPED_DATA_ADDRESS is
+     undefined.  Only valid if STOPPED_BY_WATCHPOINT is true.  */
+  int stopped_data_address_p;
+  CORE_ADDR stopped_data_address;
+
   /* Non-zero if we expect a duplicated SIGINT.  */
   int ignore_sigint;
 
@@ -76,6 +88,9 @@ struct lwp_info
      - TARGET_WAITKIND_SYSCALL_ENTRY
      - TARGET_WAITKIND_SYSCALL_RETURN */
   int syscall_state;
+
+  /* The processor core this LWP was last seen on.  */
+  int core;
 
   /* Next LWP in list.  */
   struct lwp_info *next;
@@ -102,6 +117,9 @@ extern struct lwp_info *lwp_list;
 void check_for_thread_db (void);
 
 int thread_db_attach_lwp (ptid_t ptid);
+
+/* Return the set of signals used by the threads library.  */
+extern void lin_thread_get_thread_signals (sigset_t *mask);
 
 /* Find process PID's pending signal set from /proc/pid/status.  */
 void linux_proc_pending_signals (int pid, sigset_t *pending, sigset_t *blocked, sigset_t *ignored);
@@ -151,3 +169,10 @@ void linux_nat_switch_fork (ptid_t new_ptid);
 
 /* Return the saved siginfo associated with PTID.  */
 struct siginfo *linux_nat_get_siginfo (ptid_t ptid);
+
+/* Compute and return the processor core of a given thread.  */
+int linux_nat_core_of_thread_1 (ptid_t ptid);
+
+/* Set alternative SIGTRAP-like events recognizer.  */
+void linux_nat_set_status_is_event (struct target_ops *t,
+				    int (*status_is_event) (int status));

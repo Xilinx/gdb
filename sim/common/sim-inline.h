@@ -1,6 +1,6 @@
 /* The common simulator framework for GDB, the GNU Debugger.
 
-   Copyright 2002, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright 2002, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    Contributed by Andrew Cagney and Red Hat.
 
@@ -33,7 +33,7 @@
    eliminate the overhead of function calls and (as a consequence)
    also eliminate further dead code.
 
-   On a CISC (x86) I've found that I can achieve an order of magintude
+   On a CISC (x86) I've found that I can achieve an order of magnitude
    speed improvement (x3-x5).  In the case of RISC (sparc) while the
    performance gain isn't as great it is still significant.
 

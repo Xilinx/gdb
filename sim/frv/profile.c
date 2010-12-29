@@ -1,6 +1,6 @@
 /* frv simulator machine independent profiling code.
 
-   Copyright (C) 1998, 1999, 2000, 2001, 2003, 2007, 2008, 2009
+   Copyright (C) 1998, 1999, 2000, 2001, 2003, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
    Contributed by Red Hat
 
@@ -2042,7 +2042,7 @@ print_parallel (SIM_CPU *cpu, int verbose)
 				 max_name_len, slot_names[i],
 				 max_val < 10000 ? 5 : 10,
 				 COMMAS (INSNS_IN_SLOT (i)));
-		  sim_profile_print_bar (sd, PROFILE_HISTOGRAM_WIDTH,
+		  sim_profile_print_bar (sd, cpu, PROFILE_HISTOGRAM_WIDTH,
 					 INSNS_IN_SLOT (i),
 					 max_val);
 		  sim_io_printf (sd, "\n");

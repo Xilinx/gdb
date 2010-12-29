@@ -197,7 +197,8 @@ coff_link_add_object_symbols (bfd *abfd, struct bfd_link_info *info)
 static bfd_boolean
 coff_link_check_ar_symbols (bfd *abfd,
 			    struct bfd_link_info *info,
-			    bfd_boolean *pneeded)
+			    bfd_boolean *pneeded,
+			    bfd **subsbfd)
 {
   bfd_size_type symesz;
   bfd_byte *esym;
@@ -243,7 +244,8 @@ coff_link_check_ar_symbols (bfd *abfd,
 	  if (h != (struct bfd_link_hash_entry *) NULL
 	      && h->type == bfd_link_hash_undefined)
 	    {
-	      if (! (*info->callbacks->add_archive_element) (info, abfd, name))
+	      if (!(*info->callbacks
+		    ->add_archive_element) (info, abfd, name, subsbfd))
 		return FALSE;
 	      *pneeded = TRUE;
 	      return TRUE;
@@ -267,20 +269,38 @@ coff_link_check_archive_element (bfd *abfd,
 				 struct bfd_link_info *info,
 				 bfd_boolean *pneeded)
 {
-  if (! _bfd_coff_get_external_symbols (abfd))
+  bfd *oldbfd;
+  bfd_boolean needed;
+
+  if (!_bfd_coff_get_external_symbols (abfd))
     return FALSE;
 
-  if (! coff_link_check_ar_symbols (abfd, info, pneeded))
+  oldbfd = abfd;
+  if (!coff_link_check_ar_symbols (abfd, info, pneeded, &abfd))
     return FALSE;
 
-  if (*pneeded
-      && ! coff_link_add_symbols (abfd, info))
-    return FALSE;
+  needed = *pneeded;
+  if (needed)
+    {
+      /* Potentially, the add_archive_element hook may have set a
+	 substitute BFD for us.  */
+      if (abfd != oldbfd)
+	{
+	  if (!info->keep_memory
+	      && !_bfd_coff_free_symbols (oldbfd))
+	    return FALSE;
+	  if (!_bfd_coff_get_external_symbols (abfd))
+	    return FALSE;
+	}
+      if (!coff_link_add_symbols (abfd, info))
+	return FALSE;
+    }
 
-  if ((! info->keep_memory || ! *pneeded)
-      && ! _bfd_coff_free_symbols (abfd))
-    return FALSE;
-
+  if (!info->keep_memory || !needed)
+    {
+      if (!_bfd_coff_free_symbols (abfd))
+	return FALSE;
+    }
   return TRUE;
 }
 

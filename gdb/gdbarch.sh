@@ -3,7 +3,7 @@
 # Architecture commands for GDB, the GNU debugger.
 #
 # Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-# 2008, 2009 Free Software Foundation, Inc.
+# 2008, 2009, 2010 Free Software Foundation, Inc.
 #
 # This file is part of GDB.
 #
@@ -22,8 +22,8 @@
 
 # Make certain that the script is not running in an internationalized
 # environment.
-LANG=c ; export LANG
-LC_ALL=c ; export LC_ALL
+LANG=C ; export LANG
+LC_ALL=C ; export LC_ALL
 
 
 compare_new ()
@@ -363,12 +363,14 @@ v:int:long_bit:::8 * sizeof (long):4*TARGET_CHAR_BIT::0
 # machine.
 v:int:long_long_bit:::8 * sizeof (LONGEST):2*gdbarch->long_bit::0
 
-# The ABI default bit-size and format for "float", "double", and "long
-# double".  These bit/format pairs should eventually be combined into
-# a single object.  For the moment, just initialize them as a pair.
+# The ABI default bit-size and format for "half", "float", "double", and
+# "long double".  These bit/format pairs should eventually be combined
+# into a single object.  For the moment, just initialize them as a pair.
 # Each format describes both the big and little endian layouts (if
 # useful).
 
+v:int:half_bit:::16:2*TARGET_CHAR_BIT::0
+v:const struct floatformat **:half_format:::::floatformats_ieee_half::pformat (gdbarch->half_format)
 v:int:float_bit:::8 * sizeof (float):4*TARGET_CHAR_BIT::0
 v:const struct floatformat **:float_format:::::floatformats_ieee_single::pformat (gdbarch->float_format)
 v:int:double_bit:::8 * sizeof (double):8*TARGET_CHAR_BIT::0
@@ -382,13 +384,28 @@ v:const struct floatformat **:long_double_format:::::floatformats_ieee_double::p
 # / addr_bit will be set from it.
 #
 # If gdbarch_ptr_bit and gdbarch_addr_bit are different, you'll probably
-# also need to set gdbarch_pointer_to_address and gdbarch_address_to_pointer
-# as well.
+# also need to set gdbarch_dwarf2_addr_size, gdbarch_pointer_to_address and
+# gdbarch_address_to_pointer as well.
 #
 # ptr_bit is the size of a pointer on the target
 v:int:ptr_bit:::8 * sizeof (void*):gdbarch->int_bit::0
 # addr_bit is the size of a target address as represented in gdb
 v:int:addr_bit:::8 * sizeof (void*):0:gdbarch_ptr_bit (gdbarch):
+#
+# dwarf2_addr_size is the target address size as used in the Dwarf debug
+# info.  For .debug_frame FDEs, this is supposed to be the target address
+# size from the associated CU header, and which is equivalent to the
+# DWARF2_ADDR_SIZE as defined by the target specific GCC back-end.
+# Unfortunately there is no good way to determine this value.  Therefore
+# dwarf2_addr_size simply defaults to the target pointer size.
+#
+# dwarf2_addr_size is not used for .eh_frame FDEs, which are generally
+# defined using the target's pointer size so far.
+#
+# Note that dwarf2_addr_size only needs to be redefined by a target if the
+# GCC back-end defines a DWARF2_ADDR_SIZE other than the target pointer size,
+# and if Dwarf versions < 4 need to be supported.
+v:int:dwarf2_addr_size:::sizeof (void*):0:gdbarch_ptr_bit (gdbarch) / TARGET_CHAR_BIT:
 #
 # One if \`char' acts like \`signed char', zero if \`unsigned char'.
 v:int:char_signed:::1:-1:1
@@ -409,6 +426,15 @@ v:int:num_regs:::0:-1
 # These pseudo-registers may be aliases for other registers,
 # combinations of other registers, or they may be computed by GDB.
 v:int:num_pseudo_regs:::0:0::0
+
+# Assemble agent expression bytecode to collect pseudo-register REG.
+# Return -1 if something goes wrong, 0 otherwise.
+M:int:ax_pseudo_register_collect:struct agent_expr *ax, int reg:ax, reg
+
+# Assemble agent expression bytecode to push the value of pseudo-register
+# REG on the interpreter stack.
+# Return -1 if something goes wrong, 0 otherwise.
+M:int:ax_pseudo_register_push_stack:struct agent_expr *ax, int reg:ax, reg
 
 # GDB's standard (or well known) register numbers.  These can map onto
 # a real register or a pseudo (computed) register or not be defined at
@@ -486,6 +512,10 @@ m:CORE_ADDR:skip_prologue:CORE_ADDR ip:ip:0:0
 M:CORE_ADDR:skip_main_prologue:CORE_ADDR ip:ip
 f:int:inner_than:CORE_ADDR lhs, CORE_ADDR rhs:lhs, rhs:0:0
 m:const gdb_byte *:breakpoint_from_pc:CORE_ADDR *pcptr, int *lenptr:pcptr, lenptr::0:
+# Return the adjusted address and kind to use for Z0/Z1 packets.
+# KIND is usually the memory length of the breakpoint, but may have a
+# different target-specific meaning.
+m:void:remote_breakpoint_from_pc:CORE_ADDR *pcptr, int *kindptr:pcptr, kindptr:0:default_remote_breakpoint_from_pc::0
 M:CORE_ADDR:adjust_breakpoint_address:CORE_ADDR bpaddr:bpaddr
 m:int:memory_insert_breakpoint:struct bp_target_info *bp_tgt:bp_tgt:0:default_memory_insert_breakpoint::0
 m:int:memory_remove_breakpoint:struct bp_target_info *bp_tgt:bp_tgt:0:default_memory_remove_breakpoint::0
@@ -591,13 +621,6 @@ F:CORE_ADDR:fetch_pointer_argument:struct frame_info *frame, int argi, struct ty
 # name SECT_NAME and size SECT_SIZE.
 M:const struct regset *:regset_from_core_section:const char *sect_name, size_t sect_size:sect_name, sect_size
 
-# When creating core dumps, some systems encode the PID in addition
-# to the LWP id in core file register section names.  In those cases, the
-# "XXX" in ".reg/XXX" is encoded as [LWPID << 16 | PID].  This setting
-# is set to true for such architectures; false if "XXX" represents an LWP
-# or thread id with no special encoding.
-v:int:core_reg_section_encodes_pid:::0:0::0
-
 # Supported register notes in a core file.
 v:struct core_regset_section *:core_regset_sections:const char *name, int len::::::host_address_to_string (gdbarch->core_regset_sections)
 
@@ -605,8 +628,7 @@ v:struct core_regset_section *:core_regset_sections:const char *name, int len:::
 # core file into buffer READBUF with length LEN.
 M:LONGEST:core_xfer_shared_libraries:gdb_byte *readbuf, ULONGEST offset, LONGEST len:readbuf, offset, len
 
-# How the core_stratum layer converts a PTID from a core file to a
-# string.
+# How the core target converts a PTID from a core file to a string.
 M:char *:core_pid_to_str:ptid_t ptid:ptid
 
 # BFD target to use when generating a core file.
@@ -704,6 +726,19 @@ m:void:displaced_step_free_closure:struct displaced_step_closure *closure:closur
 # see the comments in infrun.c.
 m:CORE_ADDR:displaced_step_location:void:::NULL::(! gdbarch->displaced_step_location) != (! gdbarch->displaced_step_copy_insn)
 
+# Relocate an instruction to execute at a different address.  OLDLOC
+# is the address in the inferior memory where the instruction to
+# relocate is currently at.  On input, TO points to the destination
+# where we want the instruction to be copied (and possibly adjusted)
+# to.  On output, it points to one past the end of the resulting
+# instruction(s).  The effect of executing the instruction at TO shall
+# be the same as if executing it at FROM.  For example, call
+# instructions that implicitly push the return address on the stack
+# should be adjusted to return to the instruction after OLDLOC;
+# relative branches, and other PC-relative instructions need the
+# offset adjusted; etc.
+M:void:relocate_instruction:CORE_ADDR *to, CORE_ADDR from:to, from::NULL
+
 # Refresh overlay mapped state for section OSECT.
 F:void:overlay_update:struct obj_section *osect:osect
 
@@ -756,6 +791,30 @@ v:int:has_global_solist:::0:0::0
 # visible to all address spaces automatically.  For such cases,
 # this property should be set to true.
 v:int:has_global_breakpoints:::0:0::0
+
+# True if inferiors share an address space (e.g., uClinux).
+m:int:has_shared_address_space:void:::default_has_shared_address_space::0
+
+# True if a fast tracepoint can be set at an address.
+m:int:fast_tracepoint_valid_at:CORE_ADDR addr, int *isize, char **msg:addr, isize, msg::default_fast_tracepoint_valid_at::0
+
+# Return the "auto" target charset.
+f:const char *:auto_charset:void::default_auto_charset:default_auto_charset::0
+# Return the "auto" target wide charset.
+f:const char *:auto_wide_charset:void::default_auto_wide_charset:default_auto_wide_charset::0
+
+# If non-empty, this is a file extension that will be opened in place
+# of the file extension reported by the shared library list.
+#
+# This is most useful for toolchains that use a post-linker tool,
+# where the names of the files run on the target differ in extension
+# compared to the names of the files GDB should load for debug info.
+v:const char *:solib_symbols_extension:::::::pstring (gdbarch->solib_symbols_extension)
+
+# If true, the target OS has DOS-based file system semantics.  That
+# is, absolute paths include a drive name, and the backslash is
+# considered a directory separator.
+v:int:has_dos_based_file_system:::0:0::0
 EOF
 }
 
@@ -808,8 +867,8 @@ cat <<EOF
 
 /* Dynamic architecture support for GDB, the GNU debugger.
 
-   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
+   2007, 2008, 2009 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -869,6 +928,7 @@ struct target_desc;
 struct displaced_step_closure;
 struct core_regset_section;
 struct syscall;
+struct agent_expr;
 
 /* The architecture associated with the connection to the target.
  
@@ -1227,6 +1287,14 @@ pformat (const struct floatformat **format)
     return format[0]->name;
 }
 
+static const char *
+pstring (const char *string)
+{
+  if (string == NULL)
+    return "(null)";
+  return string;
+}
+
 EOF
 
 # gdbarch open the gdbarch object
@@ -1407,6 +1475,7 @@ void *
 gdbarch_obstack_zalloc (struct gdbarch *arch, long size)
 {
   void *data = obstack_alloc (arch->obstack, size);
+
   memset (data, 0, size);
   return data;
 }
@@ -1422,6 +1491,7 @@ void
 gdbarch_free (struct gdbarch *arch)
 {
   struct obstack *obstack;
+
   gdb_assert (arch != NULL);
   gdb_assert (!arch->initialized_p);
   obstack = arch->obstack;
@@ -1443,6 +1513,7 @@ verify_gdbarch (struct gdbarch *gdbarch)
   struct cleanup *cleanups;
   long length;
   char *buf;
+
   log = mem_fileopen ();
   cleanups = make_cleanup_ui_file_delete (log);
   /* fundamental */
@@ -1507,6 +1578,7 @@ void
 gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
 {
   const char *gdb_nm_file = "<not-defined>";
+
 #if defined (GDB_NM_FILE)
   gdb_nm_file = GDB_NM_FILE;
 #endif
@@ -1711,7 +1783,8 @@ gdbarch_data_register (gdbarch_data_pre_init_ftype *pre_init,
 		       gdbarch_data_post_init_ftype *post_init)
 {
   struct gdbarch_data_registration **curr;
-  /* Append the new registraration.  */
+
+  /* Append the new registration.  */
   for (curr = &gdbarch_data_registry.registrations;
        (*curr) != NULL;
        curr = &(*curr)->next);
@@ -1827,10 +1900,10 @@ gdbarch_printable_names (void)
 {
   /* Accumulate a list of names based on the registed list of
      architectures. */
-  enum bfd_architecture a;
   int nr_arches = 0;
   const char **arches = NULL;
   struct gdbarch_registration *rego;
+
   for (rego = gdbarch_registry;
        rego != NULL;
        rego = rego->next)
@@ -1859,6 +1932,7 @@ gdbarch_register (enum bfd_architecture bfd_architecture,
 {
   struct gdbarch_registration **curr;
   const struct bfd_arch_info *bfd_arch_info;
+
   /* Check that BFD recognizes this architecture */
   bfd_arch_info = bfd_lookup_arch (bfd_architecture, 0);
   if (bfd_arch_info == NULL)
@@ -2062,8 +2136,6 @@ extern void _initialize_gdbarch (void);
 void
 _initialize_gdbarch (void)
 {
-  struct cmd_list_element *c;
-
   add_setshow_zinteger_cmd ("arch", class_maintenance, &gdbarch_debug, _("\\
 Set architecture debugging."), _("\\
 Show architecture debugging."), _("\\

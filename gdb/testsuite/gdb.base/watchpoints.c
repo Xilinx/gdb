@@ -1,6 +1,6 @@
 /* This testcase is part of GDB, the GNU debugger.
 
-   Copyright 2009 Free Software Foundation, Inc.
+   Copyright 2009, 2010 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,9 +20,6 @@
 
 /* This source is mainly to test what happens when a watchpoint is
    removed while another watchpoint, inserted later is left active.  */
-
-#include <stdio.h>
-#include <unistd.h>
 
 int count = -1;
 int ival1 = -1;

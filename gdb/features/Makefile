@@ -1,10 +1,10 @@
-# Copyright (C) 2007, 2008, 2009 Free Software Foundation, Inc.
+# Copyright (C) 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
 # This file is part of GDB.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
+# the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
@@ -13,8 +13,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 # This file requires GNU make!
@@ -32,18 +31,38 @@
 #   make GDB=/path/to/gdb XMLTOC="xml files" cfiles
 
 WHICH = arm-with-iwmmxt arm-with-vfpv2 arm-with-vfpv3 arm-with-neon \
+	i386/i386 i386/i386-linux \
+	i386/i386-mmx i386/i386-mmx-linux \
+	i386/amd64 i386/amd64-linux \
+	i386/i386-avx i386/i386-avx-linux \
+	i386/amd64-avx i386/amd64-avx-linux \
 	mips-linux mips64-linux \
+	rs6000/powerpc-32 \
 	rs6000/powerpc-32l rs6000/powerpc-altivec32l rs6000/powerpc-e500l \
 	rs6000/powerpc-64l rs6000/powerpc-altivec64l rs6000/powerpc-vsx32l \
-	rs6000/powerpc-vsx64l rs6000/powerpc-cell32l rs6000/powerpc-cell64l
+	rs6000/powerpc-vsx64l rs6000/powerpc-cell32l rs6000/powerpc-cell64l \
+	s390-linux32 s390-linux64 s390x-linux64
 
 # Record which registers should be sent to GDB by default after stop.
 arm-expedite = r11,sp,pc
+i386/i386-expedite = ebp,esp,eip
+i386/i386-linux-expedite = ebp,esp,eip
+i386/amd64-expedite = rbp,rsp,rip
+i386/amd64-linux-expedite = rbp,rsp,rip
+i386/i386-avx-expedite = ebp,esp,eip
+i386/i386-avx-linux-expedite = ebp,esp,eip
+i386/i386-mmx-expedite = ebp,esp,eip
+i386/i386-mmx-linux-expedite = ebp,esp,eip
+i386/amd64-avx-expedite = rbp,rsp,rip
+i386/amd64-avx-linux-expedite = rbp,rsp,rip
 mips-expedite = r29,pc
 mips64-expedite = r29,pc
 powerpc-expedite = r1,pc
 rs6000/powerpc-cell32l-expedite = r1,pc,r0,orig_r3,r4
 rs6000/powerpc-cell64l-expedite = r1,pc,r0,orig_r3,r4
+s390-linux32-expedite = r14,r15,pswa
+s390-linux64-expedite = r14l,r15l,pswa
+s390x-linux64-expedite = r14,r15,pswa
 
 
 XSLTPROC = xsltproc
@@ -75,3 +94,17 @@ cfiles: $(CFILES)
 
 # Other dependencies.
 $(outdir)/arm-with-iwmmxt.dat: arm-core.xml xscale-iwmmxt.xml
+$(outdir)/i386/i386.dat: i386/32bit-core.xml i386/32bit-sse.xml
+$(outdir)/i386/i386-linux.dat: i386/32bit-core.xml i386/32bit-sse.xml \
+			       i386/32bit-linux.xml
+$(outdir)/i386/amd64.dat: i386/64bit-core.xml i386/64bit-sse.xml
+$(outdir)/i386/amd64-linux.dat: i386/64bit-core.xml i386/64bit-sse.xml \
+			        i386/64bit-linux.xml
+$(outdir)/i386/i386-avx.dat: i386/32bit-core.xml i386/32bit-avx.xml
+$(outdir)/i386/i386-avx-linux.dat: i386/32bit-core.xml i386/32bit-avx.xml \
+			       i386/32bit-linux.xml
+$(outdir)/i386/i386-mmx.dat: i386/32bit-core.xml 
+$(outdir)/i386/i386-mmx-linux.dat: i386/32bit-core.xml i386/32bit-linux.xml
+$(outdir)/i386/amd64-avx.dat: i386/64bit-core.xml i386/64bit-avx.xml
+$(outdir)/i386/amd64-avx-linux.dat: i386/64bit-core.xml i386/64bit-avx.xml \
+				    i386/64bit-linux.xml

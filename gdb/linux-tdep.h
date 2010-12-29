@@ -1,6 +1,6 @@
 /* Target-dependent code for GNU/Linux, architecture independent.
 
-   Copyright (C) 2009 Free Software Foundation, Inc.
+   Copyright (C) 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -21,5 +21,7 @@
 #define LINUX_TDEP_H
 
 struct type *linux_get_siginfo_type (struct gdbarch *);
+
+extern void linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch);
 
 #endif /* linux-tdep.h */

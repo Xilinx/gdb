@@ -64,8 +64,6 @@ code on the hardware.
 #include "gdb/callback.h"   /* GDB simulator callback interface */
 #include "gdb/remote-sim.h" /* GDB simulator interface */
 
-#include "sysdep.h"
-
 #ifndef PARAMS
 #define PARAMS(x) 
 #endif
@@ -864,7 +862,7 @@ int
 sim_write (sd,addr,buffer,size)
      SIM_DESC sd;
      SIM_ADDR addr;
-     unsigned char *buffer;
+     const unsigned char *buffer;
      int size;
 {
   int index;

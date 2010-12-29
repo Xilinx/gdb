@@ -2,7 +2,7 @@
 
    Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
    1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009 Free Software Foundation, Inc.
+   2008, 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -21,6 +21,7 @@
 
 #include "defs.h"
 #include "breakpoint.h"
+#include "tracepoint.h"
 #include "target.h"
 #include "regcache.h"
 #include "inferior.h"
@@ -142,7 +143,7 @@ value_arg_coerce (struct gdbarch *gdbarch, struct value *arg,
 
   /* Perform any Ada-specific coercion first.  */
   if (current_language->la_language == language_ada)
-    arg = ada_convert_actual (arg, type, gdbarch, sp);
+    arg = ada_convert_actual (arg, type);
 
   /* Force the value to the target if we will need its address.  At
      this point, we could allocate arguments on the stack instead of
@@ -267,10 +268,12 @@ find_function_addr (struct value *function, struct type **retval_type)
 	{
 	  /* Handle function descriptors lacking debug info.  */
 	  int found_descriptor = 0;
+
 	  funaddr = 0;	/* pacify "gcc -Werror" */
 	  if (VALUE_LVAL (function) == lval_memory)
 	    {
 	      CORE_ADDR nfunaddr;
+
 	      funaddr = value_as_address (value_addr (function));
 	      nfunaddr = funaddr;
 	      funaddr = gdbarch_convert_from_func_ptr_addr (gdbarch, funaddr,
@@ -320,6 +323,7 @@ get_function_name (CORE_ADDR funaddr, char *buf, int buf_size)
 {
   {
     struct symbol *symbol = find_pc_function (funaddr);
+
     if (symbol)
       return SYMBOL_PRINT_NAME (symbol);
   }
@@ -327,6 +331,7 @@ get_function_name (CORE_ADDR funaddr, char *buf, int buf_size)
   {
     /* Try the minimal symbols.  */
     struct minimal_symbol *msymbol = lookup_minimal_symbol_by_pc (funaddr);
+
     if (msymbol)
       return SYMBOL_PRINT_NAME (msymbol);
   }
@@ -334,6 +339,7 @@ get_function_name (CORE_ADDR funaddr, char *buf, int buf_size)
   {
     char *tmp = xstrprintf (_(RAW_FUNCTION_ADDRESS_FORMAT),
                             hex_string (funaddr));
+
     gdb_assert (strlen (tmp) + 1 <= buf_size);
     strcpy (buf, tmp);
     xfree (tmp);
@@ -354,16 +360,18 @@ run_inferior_call (struct thread_info *call_thread, CORE_ADDR real_pc)
 {
   volatile struct gdb_exception e;
   int saved_async = 0;
-  int saved_in_infcall = call_thread->in_infcall;
+  int saved_in_infcall = call_thread->control.in_infcall;
   ptid_t call_thread_ptid = call_thread->ptid;
   char *saved_target_shortname = xstrdup (target_shortname);
 
-  call_thread->in_infcall = 1;
+  call_thread->control.in_infcall = 1;
 
   clear_proceed_status ();
 
   disable_watchpoints_before_interactive_call_start ();
-  call_thread->proceed_to_finish = 1; /* We want stop_registers, please... */
+
+  /* We want stop_registers, please... */
+  call_thread->control.proceed_to_finish = 1;
 
   if (target_can_async_p ())
     saved_async = target_async_mask (0);
@@ -391,15 +399,22 @@ run_inferior_call (struct thread_info *call_thread, CORE_ADDR real_pc)
   if (e.reason < 0)
     {
       if (call_thread != NULL)
-	breakpoint_auto_delete (call_thread->stop_bpstat);
+	breakpoint_auto_delete (call_thread->control.stop_bpstat);
     }
 
   if (call_thread != NULL)
-    call_thread->in_infcall = saved_in_infcall;
+    call_thread->control.in_infcall = saved_in_infcall;
 
   xfree (saved_target_shortname);
 
   return e;
+}
+
+/* A cleanup function that calls delete_std_terminate_breakpoint.  */
+static void
+cleanup_delete_std_terminate_breakpoint (void *ignore)
+{
+  delete_std_terminate_breakpoint ();
 }
 
 /* All this stuff with a dummy frame may seem unnecessarily complicated
@@ -427,10 +442,9 @@ call_function_by_hand (struct value *function, int nargs, struct value **args)
   struct type *values_type, *target_values_type;
   unsigned char struct_return = 0, lang_struct_return = 0;
   CORE_ADDR struct_addr = 0;
-  struct inferior_status *inf_status;
+  struct infcall_control_state *inf_status;
   struct cleanup *inf_status_cleanup;
-  struct inferior_thread_state *caller_state;
-  struct cleanup *caller_state_cleanup;
+  struct infcall_suspend_state *caller_state;
   CORE_ADDR funaddr;
   CORE_ADDR real_pc;
   struct type *ftype = check_typedef (value_type (function));
@@ -439,12 +453,9 @@ call_function_by_hand (struct value *function, int nargs, struct value **args)
   struct cleanup *args_cleanup;
   struct frame_info *frame;
   struct gdbarch *gdbarch;
-  struct breakpoint *terminate_bp = NULL;
-  struct minimal_symbol *tm;
-  struct cleanup *terminate_bp_cleanup = NULL;
+  struct cleanup *terminate_bp_cleanup;
   ptid_t call_thread_ptid;
   struct gdb_exception e;
-  const char *name;
   char name_buf[RAW_FUNCTION_ADDRESS_SIZE];
 
   if (TYPE_CODE (ftype) == TYPE_CODE_PTR)
@@ -452,6 +463,9 @@ call_function_by_hand (struct value *function, int nargs, struct value **args)
 
   if (!target_has_execution)
     noprocess ();
+
+  if (get_traceframe_number () >= 0)
+    error (_("May not call functions while looking at trace frames."));
 
   frame = get_current_frame ();
   gdbarch = get_frame_arch (frame);
@@ -461,20 +475,22 @@ call_function_by_hand (struct value *function, int nargs, struct value **args)
 
   /* A cleanup for the inferior status.
      This is only needed while we're preparing the inferior function call.  */
-  inf_status = save_inferior_status ();
-  inf_status_cleanup = make_cleanup_restore_inferior_status (inf_status);
+  inf_status = save_infcall_control_state ();
+  inf_status_cleanup
+    = make_cleanup_restore_infcall_control_state (inf_status);
 
   /* Save the caller's registers and other state associated with the
      inferior itself so that they can be restored once the
      callee returns.  To allow nested calls the registers are (further
      down) pushed onto a dummy frame stack.  Include a cleanup (which
      is tossed once the regcache has been pushed).  */
-  caller_state = save_inferior_thread_state ();
-  caller_state_cleanup = make_cleanup_restore_inferior_thread_state (caller_state);
+  caller_state = save_infcall_suspend_state ();
+  make_cleanup_restore_infcall_suspend_state (caller_state);
 
   /* Ensure that the initial SP is correctly aligned.  */
   {
     CORE_ADDR old_sp = get_frame_sp (frame);
+
     if (gdbarch_frame_align_p (gdbarch))
       {
 	sp = gdbarch_frame_align (gdbarch, old_sp);
@@ -518,10 +534,9 @@ call_function_by_hand (struct value *function, int nargs, struct value **args)
 	      /* Stack grows up.  */
 	      sp = gdbarch_frame_align (gdbarch, old_sp + 1);
 	  }
-	gdb_assert ((gdbarch_inner_than (gdbarch, 1, 2)
-		    && sp <= old_sp)
-		    || (gdbarch_inner_than (gdbarch, 2, 1)
-		       && sp >= old_sp));
+	/* SP may have underflown address zero here from OLD_SP.  Memory access
+	   functions will probably fail in such case but that is a target's
+	   problem.  */
       }
     else
       /* FIXME: cagney/2002-09-18: Hey, you loose!
@@ -634,6 +649,7 @@ call_function_by_hand (struct value *function, int nargs, struct value **args)
 
   {
     int i;
+
     for (i = nargs - 1; i >= 0; i--)
       {
 	int prototyped;
@@ -668,6 +684,7 @@ call_function_by_hand (struct value *function, int nargs, struct value **args)
   if (struct_return || lang_struct_return)
     {
       int len = TYPE_LENGTH (values_type);
+
       if (gdbarch_inner_than (gdbarch, 1, 2))
 	{
 	  /* Stack grows downward.  Align STRUCT_ADDR and SP after
@@ -730,7 +747,9 @@ call_function_by_hand (struct value *function, int nargs, struct value **args)
   {
     struct breakpoint *bpt;
     struct symtab_and_line sal;
+
     init_sal (&sal);		/* initialize to zeroes */
+    sal.pspace = current_program_space;
     sal.pc = bp_addr;
     sal.section = find_pc_overlay (sal.pc);
     /* Sanity.  The exact same SP value is returned by
@@ -753,13 +772,7 @@ call_function_by_hand (struct value *function, int nargs, struct value **args)
      call.  Place a momentary breakpoint in the std::terminate function
      and if triggered in the call, rewind.  */
   if (unwind_on_terminating_exception_p)
-     {
-       struct minimal_symbol *tm = lookup_minimal_symbol  ("std::terminate()",
-							   NULL, NULL);
-       if (tm != NULL)
-	   terminate_bp = set_momentary_breakpoint_at_pc
-	     (gdbarch, SYMBOL_VALUE_ADDRESS (tm),  bp_breakpoint);
-     }
+    set_std_terminate_breakpoint ();
 
   /* Everything's ready, push all the info needed to restore the
      caller (and identify the dummy-frame) onto the dummy-frame
@@ -772,8 +785,8 @@ call_function_by_hand (struct value *function, int nargs, struct value **args)
   discard_cleanups (inf_status_cleanup);
 
   /* Register a clean-up for unwind_on_terminating_exception_breakpoint.  */
-  if (terminate_bp)
-    terminate_bp_cleanup = make_cleanup_delete_breakpoint (terminate_bp);
+  terminate_bp_cleanup = make_cleanup (cleanup_delete_std_terminate_breakpoint,
+				       NULL);
 
   /* - SNIP - SNIP - SNIP - SNIP - SNIP - SNIP - SNIP - SNIP - SNIP -
      If you're looking to implement asynchronous dummy-frames, then
@@ -800,7 +813,7 @@ call_function_by_hand (struct value *function, int nargs, struct value **args)
       const char *name = get_function_name (funaddr,
                                             name_buf, sizeof (name_buf));
 
-      discard_inferior_status (inf_status);
+      discard_infcall_control_state (inf_status);
 
       /* We could discard the dummy frame here if the program exited,
          but it will get garbage collected the next time the program is
@@ -832,7 +845,7 @@ When the function is done executing, GDB will silently stop."),
 
       /* If we try to restore the inferior status,
 	 we'll crash as the inferior is no longer running.  */
-      discard_inferior_status (inf_status);
+      discard_infcall_control_state (inf_status);
 
       /* We could discard the dummy frame here given that the program exited,
          but it will get garbage collected the next time the program is
@@ -854,7 +867,7 @@ Evaluation of the expression containing the function\n\
 	 signal or breakpoint while our thread was running.
 	 There's no point in restoring the inferior status,
 	 we're in a different thread.  */
-      discard_inferior_status (inf_status);
+      discard_infcall_control_state (inf_status);
       /* Keep the dummy frame record, if the user switches back to the
 	 thread with the hand-call, we'll need it.  */
       if (stopped_by_random_signal)
@@ -874,7 +887,7 @@ When the function is done executing, GDB will silently stop."),
 	       name);
     }
 
-  if (stopped_by_random_signal || !stop_stack_dummy)
+  if (stopped_by_random_signal || stop_stack_dummy != STOP_STACK_DUMMY)
     {
       const char *name = get_function_name (funaddr,
 					    name_buf, sizeof (name_buf));
@@ -895,7 +908,7 @@ When the function is done executing, GDB will silently stop."),
 
 	      /* We also need to restore inferior status to that before the
 		 dummy call.  */
-	      restore_inferior_status (inf_status);
+	      restore_infcall_control_state (inf_status);
 
 	      /* FIXME: Insert a bunch of wrap_here; name can be very
 		 long if it's a C++ name with arguments and stuff.  */
@@ -913,7 +926,7 @@ Evaluation of the expression containing the function\n\
 		 (default).
 		 Discard inferior status, we're not at the same point
 		 we started at.  */
-	      discard_inferior_status (inf_status);
+	      discard_infcall_control_state (inf_status);
 
 	      /* FIXME: Insert a bunch of wrap_here; name can be very
 		 long if it's a C++ name with arguments and stuff.  */
@@ -928,30 +941,17 @@ When the function is done executing, GDB will silently stop."),
 	    }
 	}
 
-      if (!stop_stack_dummy)
+      if (stop_stack_dummy == STOP_STD_TERMINATE)
 	{
+	  /* We must get back to the frame we were before the dummy
+	     call.  */
+	  dummy_frame_pop (dummy_id);
 
-	  /* Check if unwind on terminating exception behaviour is on.  */
-	  if (unwind_on_terminating_exception_p)
-	    {
-	      /* Check that the breakpoint is our special std::terminate
-		 breakpoint.  If it is, we do not want to kill the inferior
-		 in an inferior function call. Rewind, and warn the
-		 user.  */
+	  /* We also need to restore inferior status to that before
+	     the dummy call.  */
+	  restore_infcall_control_state (inf_status);
 
-	      if (terminate_bp != NULL
-		  && (inferior_thread ()->stop_bpstat->breakpoint_at->address
-		      == terminate_bp->loc->address))
-		{
-		  /* We must get back to the frame we were before the
-		     dummy call.  */
-		  dummy_frame_pop (dummy_id);
-
-		  /* We also need to restore inferior status to that before the
-		     dummy call.  */
-		  restore_inferior_status (inf_status);
-
-		  error (_("\
+	  error (_("\
 The program being debugged entered a std::terminate call, most likely\n\
 caused by an unhandled C++ exception.  GDB blocked this call in order\n\
 to prevent the program from being terminated, and has restored the\n\
@@ -959,14 +959,16 @@ context to its original state before the call.\n\
 To change this behaviour use \"set unwind-on-terminating-exception off\".\n\
 Evaluation of the expression containing the function (%s)\n\
 will be abandoned."),
-			 name);
-		}
-	    }
+		 name);
+	}
+      else if (stop_stack_dummy == STOP_NONE)
+	{
+
 	  /* We hit a breakpoint inside the FUNCTION.
 	     Keep the dummy frame, the user may want to examine its state.
 	     Discard inferior status, we're not at the same point
 	     we started at.  */
-	  discard_inferior_status (inf_status);
+	  discard_infcall_control_state (inf_status);
 
 	  /* The following error message used to say "The expression
 	     which contained the function call has been discarded."
@@ -988,16 +990,14 @@ When the function is done executing, GDB will silently stop."),
       internal_error (__FILE__, __LINE__, _("... should not be here"));
     }
 
-  /* If we get here and the std::terminate() breakpoint has been set,
-     it has to be cleaned manually.  */
-  if (terminate_bp)
-    do_cleanups (terminate_bp_cleanup);
+  do_cleanups (terminate_bp_cleanup);
 
   /* If we get here the called FUNCTION ran to completion,
      and the dummy frame has already been popped.  */
 
   {
-    struct regcache *retbuf = regcache_xmalloc (gdbarch);
+    struct address_space *aspace = get_regcache_aspace (stop_registers);
+    struct regcache *retbuf = regcache_xmalloc (gdbarch, aspace);
     struct cleanup *retbuf_cleanup = make_cleanup_regcache_xfree (retbuf);
     struct value *retval = NULL;
 
@@ -1005,7 +1005,7 @@ When the function is done executing, GDB will silently stop."),
 
     /* Inferior call is successful.  Restore the inferior status.
        At this stage, leave the RETBUF alone.  */
-    restore_inferior_status (inf_status);
+    restore_infcall_control_state (inf_status);
 
     /* Figure out the value returned by the function.  */
 

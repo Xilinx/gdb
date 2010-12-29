@@ -46,7 +46,9 @@ public:
   void  operator []     (foo&);
   void  operator ()     (foo&);
   void* operator new    (size_t) throw ();
+  void* operator new[]  (size_t) throw ();
   void  operator delete (void *);
+  void  operator delete[] (void *);
   /**/  operator int    ();
   /**/  operator char*  ();
 
@@ -115,7 +117,9 @@ void  foo::operator ->*    (foo& afoo) { afoo.ifoo = 0; }
 void  foo::operator []     (foo& afoo) { afoo.ifoo = 0; }
 void  foo::operator ()     (foo& afoo) { afoo.ifoo = 0; }
 void* foo::operator new    (size_t ival) throw () { ival = 0; return 0; }
+void* foo::operator new[]    (size_t ival) throw () { ival = 0; return 0; }
 void  foo::operator delete (void *ptr) { ptr = 0; }
+void  foo::operator delete[] (void *ptr) { ptr = 0; }
 /**/  foo::operator int    () { return 0; }
 /**/  foo::operator char*  () { return 0; }
 
@@ -191,6 +195,12 @@ char *	dm_type_char_star (char * p)		{ return p; }
 int	dm_type_foo_ref (foo & foo)		{ return foo.ifoo; }
 int *	dm_type_int_star (int * p)		{ return p; }
 long *	dm_type_long_star (long * p)		{ return p; }
+int	dm_type_short (short i)			{ return i; }
+int	dm_type_long (long i)			{ return i; }
 int	dm_type_unsigned_int (unsigned int i)	{ return i; }
+int	dm_type_unsigned_short (unsigned short i)	{ return i; }
+int	dm_type_unsigned_long (unsigned long i)	{ return i; }
 int	dm_type_void (void)			{ return 0; }
 void *	dm_type_void_star (void * p)		{ return p; }
+typedef int myint;
+int	dm_type_typedef (myint i)		{ return i; }

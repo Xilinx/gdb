@@ -1,7 +1,7 @@
 /* YACC parser for C expressions, for GDB.
 
    Copyright (C) 1986, 1989, 1990, 1991, 1993, 1994, 2002, 2006, 2007, 2008,
-   2009 Free Software Foundation, Inc.
+   2009, 2010 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1012,26 +1012,10 @@ parse_number (p, len, parsed_float, putithere)
 
   if (parsed_float)
     {
-      char c;
-
-      /* It's a float since it contains a point or an exponent.  */
-
-      sscanf (p, "%" DOUBLEST_SCAN_FORMAT "%c",
-	      &putithere->typed_val_float.dval, &c);
-
-      /* See if it has `f' or `l' suffix (float or long double).  */
-
-      c = tolower (p[len - 1]);
-
-      if (c == 'f')
-	putithere->typed_val_float.type = parse_type->builtin_float;
-      else if (c == 'l')
-	putithere->typed_val_float.type = parse_type->builtin_long_double;
-      else if (isdigit (c) || c == '.')
-	putithere->typed_val_float.type = parse_type->builtin_double;
-      else
+      if (! parse_c_float (parse_gdbarch, p, len,
+			   &putithere->typed_val_float.dval,
+			   &putithere->typed_val_float.type))
 	return ERROR;
-
       return FLOAT;
     }
 
@@ -1276,7 +1260,7 @@ yylex ()
       lexptr++;
       c = *lexptr++;
       if (c == '\\')
-	c = parse_escape (&lexptr);
+	c = parse_escape (parse_gdbarch, &lexptr);
       else if (c == '\'')
 	error ("Empty character constant.");
 
@@ -1506,7 +1490,7 @@ yylex ()
 	    break;
 	  case '\\':
 	    tokptr++;
-	    c = parse_escape (&tokptr);
+	    c = parse_escape (parse_gdbarch, &tokptr);
 	    if (c == -1)
 	      {
 		continue;

@@ -1,6 +1,6 @@
 /* Remote debugging interface for M32R/SDI.
 
-   Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+   Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    Contributed by Renesas Technology Co.
@@ -32,7 +32,7 @@
 #include <ctype.h>
 #include <signal.h>
 #ifdef __MINGW32__
-#include <winsock.h>
+#include <winsock2.h>
 #else
 #include <netinet/in.h>
 #endif
@@ -231,6 +231,7 @@ static int
 send_cmd (unsigned char cmd)
 {
   unsigned char buf[1];
+
   buf[0] = cmd;
   return send_data (buf, 1);
 }
@@ -239,6 +240,7 @@ static int
 send_one_arg_cmd (unsigned char cmd, unsigned char arg1)
 {
   unsigned char buf[2];
+
   buf[0] = cmd;
   buf[1] = arg1;
   return send_data (buf, 2);
@@ -248,6 +250,7 @@ static int
 send_two_arg_cmd (unsigned char cmd, unsigned char arg1, unsigned long arg2)
 {
   unsigned char buf[6];
+
   buf[0] = cmd;
   buf[1] = arg1;
   store_long_parameter (buf + 2, arg2);
@@ -259,6 +262,7 @@ send_three_arg_cmd (unsigned char cmd, unsigned long arg1, unsigned long arg2,
 		    unsigned long arg3)
 {
   unsigned char buf[13];
+
   buf[0] = cmd;
   store_long_parameter (buf + 1, arg1);
   store_long_parameter (buf + 5, arg2);
@@ -270,6 +274,7 @@ static unsigned char
 recv_char_data (void)
 {
   unsigned char val;
+
   recv_data (&val, 1);
   return val;
 }
@@ -278,6 +283,7 @@ static unsigned long
 recv_long_data (void)
 {
   unsigned long val;
+
   recv_data (&val, 4);
   return ntohl (val);
 }
@@ -709,7 +715,7 @@ m32r_wait (struct target_ops *ops,
     fprintf_unfiltered (gdb_stdlog, "m32r_wait()\n");
 
   status->kind = TARGET_WAITKIND_EXITED;
-  status->value.sig = 0;
+  status->value.sig = TARGET_SIGNAL_0;
 
   interrupted = 0;
   prev_sigint = signal (SIGINT, gdb_cntrl_c);
@@ -880,7 +886,7 @@ m32r_detach (struct target_ops *ops, char *args, int from_tty)
   if (remote_debug)
     fprintf_unfiltered (gdb_stdlog, "m32r_detach(%d)\n", from_tty);
 
-  m32r_resume (ops, inferior_ptid, 0, 0);
+  m32r_resume (ops, inferior_ptid, 0, TARGET_SIGNAL_0);
 
   /* calls m32r_close to do the real work */
   pop_target ();
@@ -1020,7 +1026,7 @@ m32r_prepare_to_store (struct regcache *regcache)
 static void
 m32r_files_info (struct target_ops *target)
 {
-  char *file = "nothing";
+  const char *file = "nothing";
 
   if (exec_bfd)
     {
@@ -1371,7 +1377,7 @@ m32r_load (char *args, int from_tty)
      might be to call normal_stop, except that the stack may not be valid,
      and things would get horribly confused... */
 
-  clear_symtab_users ();
+  clear_symtab_users (0);
 
   if (!nostart)
     {
@@ -1415,7 +1421,8 @@ m32r_can_use_hw_watchpoint (int type, int cnt, int othertype)
    watchpoint. */
 
 static int
-m32r_insert_watchpoint (CORE_ADDR addr, int len, int type)
+m32r_insert_watchpoint (CORE_ADDR addr, int len, int type,
+			struct expression *cond)
 {
   int i;
 
@@ -1439,7 +1446,8 @@ m32r_insert_watchpoint (CORE_ADDR addr, int len, int type)
 }
 
 static int
-m32r_remove_watchpoint (CORE_ADDR addr, int len, int type)
+m32r_remove_watchpoint (CORE_ADDR addr, int len, int type,
+			struct expression *cond)
 {
   int i;
 
@@ -1463,6 +1471,7 @@ static int
 m32r_stopped_data_address (struct target_ops *target, CORE_ADDR *addr_p)
 {
   int rc = 0;
+
   if (hit_watchpoint_addr != 0x00000000)
     {
       *addr_p = hit_watchpoint_addr;
@@ -1475,6 +1484,7 @@ static int
 m32r_stopped_by_watchpoint (void)
 {
   CORE_ADDR addr;
+
   return m32r_stopped_data_address (&current_target, &addr);
 }
 

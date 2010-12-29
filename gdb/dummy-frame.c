@@ -1,8 +1,8 @@
 /* Code dealing with dummy stack frames, for GDB, the GNU debugger.
 
    Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009,
+   2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -43,7 +43,7 @@ struct dummy_frame
      gdbarch_dummy_id.  */
   struct frame_id id;
   /* The caller's state prior to the call.  */
-  struct inferior_thread_state *caller_state;
+  struct infcall_suspend_state *caller_state;
 };
 
 static struct dummy_frame *dummy_frame_stack = NULL;
@@ -69,6 +69,7 @@ int
 deprecated_pc_in_call_dummy (struct gdbarch *gdbarch, CORE_ADDR pc)
 {
   struct dummy_frame *dummyframe;
+
   for (dummyframe = dummy_frame_stack;
        dummyframe != NULL;
        dummyframe = dummyframe->next)
@@ -85,7 +86,7 @@ deprecated_pc_in_call_dummy (struct gdbarch *gdbarch, CORE_ADDR pc)
    dummy-frame stack.  */
 
 void
-dummy_frame_push (struct inferior_thread_state *caller_state,
+dummy_frame_push (struct infcall_suspend_state *caller_state,
 		  const struct frame_id *dummy_id)
 {
   struct dummy_frame *dummy_frame;
@@ -105,7 +106,7 @@ remove_dummy_frame (struct dummy_frame **dummy_ptr)
   struct dummy_frame *dummy = *dummy_ptr;
 
   *dummy_ptr = dummy->next;
-  discard_inferior_thread_state (dummy->caller_state);
+  discard_infcall_suspend_state (dummy->caller_state);
   xfree (dummy);
 }
 
@@ -117,9 +118,9 @@ pop_dummy_frame (struct dummy_frame **dummy_ptr)
 {
   struct dummy_frame *dummy;
 
-  restore_inferior_thread_state ((*dummy_ptr)->caller_state);
+  restore_infcall_suspend_state ((*dummy_ptr)->caller_state);
 
-  /* restore_inferior_status frees inf_state,
+  /* restore_infcall_control_state frees inf_state,
      all that remains is to pop *dummy_ptr */
   dummy = *dummy_ptr;
   *dummy_ptr = dummy->next;
@@ -217,8 +218,10 @@ dummy_frame_sniffer (const struct frame_unwind *self,
 	  if (frame_id_eq (dummyframe->id, this_id))
 	    {
 	      struct dummy_frame_cache *cache;
+
 	      cache = FRAME_OBSTACK_ZALLOC (struct dummy_frame_cache);
-	      cache->prev_regcache = get_inferior_thread_state_regcache (dummyframe->caller_state);
+	      cache->prev_regcache = get_infcall_suspend_state_regcache
+						   (dummyframe->caller_state);
 	      cache->this_id = this_id;
 	      (*this_prologue_cache) = cache;
 	      return 1;
@@ -267,11 +270,12 @@ dummy_frame_this_id (struct frame_info *this_frame,
 {
   /* The dummy-frame sniffer always fills in the cache.  */
   struct dummy_frame_cache *cache = (*this_prologue_cache);
+
   gdb_assert (cache != NULL);
   (*this_id) = cache->this_id;
 }
 
-static const struct frame_unwind dummy_frame_unwinder =
+const struct frame_unwind dummy_frame_unwind =
 {
   DUMMY_FRAME,
   dummy_frame_this_id,
@@ -280,14 +284,11 @@ static const struct frame_unwind dummy_frame_unwinder =
   dummy_frame_sniffer,
 };
 
-const struct frame_unwind *const dummy_frame_unwind = {
-  &dummy_frame_unwinder
-};
-
 static void
 fprint_dummy_frames (struct ui_file *file)
 {
   struct dummy_frame *s;
+
   for (s = dummy_frame_stack; s != NULL; s = s->next)
     {
       gdb_print_host_address (s, file);
@@ -307,6 +308,7 @@ maintenance_print_dummy_frames (char *args, int from_tty)
     {
       struct cleanup *cleanups;
       struct ui_file *file = gdb_fopen (args, "w");
+
       if (file == NULL)
 	perror_with_name (_("maintenance print dummy-frames"));
       cleanups = make_cleanup_ui_file_delete (file);

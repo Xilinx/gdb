@@ -1,5 +1,5 @@
 /* Remote serial interface for local (hardwired) serial ports for GO32.
-   Copyright (C) 1992, 1993, 2000, 2001, 2007, 2008, 2009
+   Copyright (C) 1992, 1993, 2000, 2001, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    Contributed by Nigel Stephens, Algorithmics Ltd. (nigel@algor.co.uk).
@@ -677,6 +677,7 @@ static int
 dos_flush_input (struct serial *scb)
 {
   struct dos_ttystate *port = &ports[scb->fd];
+
   disable ();
   port->first = port->count = 0;
   if (port->fifo)
@@ -842,6 +843,7 @@ static struct serial_ops dos_ops =
   0,
   dos_open,
   dos_close,
+  NULL,				/* fdopen, not implemented */
   dos_readchar,
   dos_write,
   dos_noop,			/* flush output */
@@ -858,6 +860,13 @@ static struct serial_ops dos_ops =
   (void (*)(struct serial *, int))NULL	/* change into async mode */
 };
 
+int
+gdb_pipe (int pdes[2])
+{
+  /* No support for pipes.  */
+  errno = ENOSYS;
+  return -1;
+}
 
 static void
 dos_info (char *arg, int from_tty)

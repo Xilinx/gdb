@@ -1,6 +1,6 @@
 /* Multi-process/thread control defs for GDB, the GNU debugger.
    Copyright (C) 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1997, 1998, 1999,
-   2000, 2007, 2008, 2009 Free Software Foundation, Inc.
+   2000, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
    Contributed by Lynx Real-Time Systems, Inc.  Los Gatos, CA.
    
 
@@ -28,6 +28,94 @@ struct symtab;
 #include "frame.h"
 #include "ui-out.h"
 #include "inferior.h"
+
+/* Inferior thread specific part of `struct infcall_control_state'.
+
+   Inferior process counterpart is `struct inferior_control_state'.  */
+
+struct thread_control_state
+{
+  /* User/external stepping state.  */
+
+  /* Step-resume or longjmp-resume breakpoint.  */
+  struct breakpoint *step_resume_breakpoint;
+
+  /* Exception-resume breakpoint.  */
+  struct breakpoint *exception_resume_breakpoint;
+
+  /* Range to single step within.
+
+     If this is nonzero, respond to a single-step signal by continuing
+     to step if the pc is in this range.
+
+     If step_range_start and step_range_end are both 1, it means to
+     step for a single instruction (FIXME: it might clean up
+     wait_for_inferior in a minor way if this were changed to the
+     address of the instruction and that address plus one.  But maybe
+     not.).  */
+  CORE_ADDR step_range_start;	/* Inclusive */
+  CORE_ADDR step_range_end;	/* Exclusive */
+
+  /* Stack frame address as of when stepping command was issued.
+     This is how we know when we step into a subroutine call, and how
+     to set the frame for the breakpoint used to step out.  */
+  struct frame_id step_frame_id;
+
+  /* Similarly, the frame ID of the underlying stack frame (skipping
+     any inlined frames).  */
+  struct frame_id step_stack_frame_id;
+
+  /* Nonzero if we are presently stepping over a breakpoint.
+
+     If we hit a breakpoint or watchpoint, and then continue, we need
+     to single step the current thread with breakpoints disabled, to
+     avoid hitting the same breakpoint or watchpoint again.  And we
+     should step just a single thread and keep other threads stopped,
+     so that other threads don't miss breakpoints while they are
+     removed.
+
+     So, this variable simultaneously means that we need to single
+     step the current thread, keep other threads stopped, and that
+     breakpoints should be removed while we step.
+
+     This variable is set either:
+     - in proceed, when we resume inferior on user's explicit request
+     - in keep_going, if handle_inferior_event decides we need to
+     step over breakpoint.
+
+     The variable is cleared in normal_stop.  The proceed calls
+     wait_for_inferior, which calls handle_inferior_event in a loop,
+     and until wait_for_inferior exits, this variable is changed only
+     by keep_going.  */
+  int trap_expected;
+
+  /* Nonzero if the thread is being proceeded for a "finish" command
+     or a similar situation when stop_registers should be saved.  */
+  int proceed_to_finish;
+
+  /* Nonzero if the thread is being proceeded for an inferior function
+     call.  */
+  int in_infcall;
+
+  enum step_over_calls_kind step_over_calls;
+
+  /* Nonzero if stopped due to a step command.  */
+  int stop_step;
+
+  /* Chain containing status of breakpoint(s) the thread stopped
+     at.  */
+  bpstat stop_bpstat;
+};
+
+/* Inferior thread specific part of `struct infcall_suspend_state'.
+
+   Inferior process counterpart is `struct inferior_suspend_state'.  */
+
+struct thread_suspend_state
+{
+  /* Last signal that the inferior received (why it stopped).  */
+  enum target_signal stop_signal;
+};
 
 struct thread_info
 {
@@ -61,32 +149,13 @@ struct thread_info
      if we detect it exiting.  */
   int refcount;
 
-  /* User/external stepping state.  */
+  /* State of GDB control of inferior thread execution.
+     See `struct thread_control_state'.  */
+  struct thread_control_state control;
 
-  /* Step-resume or longjmp-resume breakpoint.  */
-  struct breakpoint *step_resume_breakpoint;
-
-  /* Range to single step within.
-
-     If this is nonzero, respond to a single-step signal by continuing
-     to step if the pc is in this range.
-
-     If step_range_start and step_range_end are both 1, it means to
-     step for a single instruction (FIXME: it might clean up
-     wait_for_inferior in a minor way if this were changed to the
-     address of the instruction and that address plus one.  But maybe
-     not.).  */
-  CORE_ADDR step_range_start;	/* Inclusive */
-  CORE_ADDR step_range_end;	/* Exclusive */
-
-  /* Stack frame address as of when stepping command was issued.
-     This is how we know when we step into a subroutine call, and how
-     to set the frame for the breakpoint used to step out.  */
-  struct frame_id step_frame_id;
-
-  /* Similarly, the frame ID of the underlying stack frame (skipping
-     any inlined frames).  */
-  struct frame_id step_stack_frame_id;
+  /* State of inferior thread to restore after GDB is done with an inferior
+     call.  See `struct thread_suspend_state'.  */
+  struct thread_suspend_state suspend;
 
   int current_line;
   struct symtab *current_symtab;
@@ -98,30 +167,6 @@ struct thread_info
      adjust_pc_after_break to distinguish a hardware single-step
      SIGTRAP from a breakpoint SIGTRAP.  */
   CORE_ADDR prev_pc;
-
-  /* Nonzero if we are presently stepping over a breakpoint.
-
-     If we hit a breakpoint or watchpoint, and then continue, we need
-     to single step the current thread with breakpoints disabled, to
-     avoid hitting the same breakpoint or watchpoint again.  And we
-     should step just a single thread and keep other threads stopped,
-     so that other threads don't miss breakpoints while they are
-     removed.
-
-     So, this variable simultaneously means that we need to single
-     step the current thread, keep other threads stopped, and that
-     breakpoints should be removed while we step.
-
-     This variable is set either:
-     - in proceed, when we resume inferior on user's explicit request
-     - in keep_going, if handle_inferior_event decides we need to
-     step over breakpoint.
-
-     The variable is cleared in normal_stop.  The proceed calls
-     wait_for_inferior, which calls handle_inferior_event in a loop,
-     and until wait_for_inferior exits, this variable is changed only
-     by keep_going.  */
-  int trap_expected;
 
   /* Should we step over breakpoint next time keep_going is called?  */
   int stepping_over_breakpoint;
@@ -153,19 +198,6 @@ struct thread_info
      command.  */
   struct continuation *intermediate_continuations;
 
-  /* Nonzero if the thread is being proceeded for a "finish" command
-     or a similar situation when stop_registers should be saved.  */
-  int proceed_to_finish;
-
-  /* Nonzero if the thread is being proceeded for an inferior function
-     call.  */
-  int in_infcall;
-
-  enum step_over_calls_kind step_over_calls;
-
-  /* Nonzero if stopped due to a step command.  */
-  int stop_step;
-
   /* If stepping, nonzero means step count is > 1 so don't print frame
      next time inferior stops if it stops due to stepping.  */
   int step_multi;
@@ -175,18 +207,19 @@ struct thread_info
      resume of the thread, and not immediately.  */
   struct target_waitstatus pending_follow;
 
-  /* Last signal that the inferior received (why it stopped).  */
-  enum target_signal stop_signal;
-
-  /* Chain containing status of breakpoint(s) the thread stopped
-     at.  */
-  bpstat stop_bpstat;
-
   /* True if this thread has been explicitly requested to stop.  */
   int stop_requested;
 
+  /* The initiating frame of a nexting operation, used for deciding
+     which exceptions to intercept.  */
+  struct frame_id initiating_frame;
+
   /* Private data used by the target vector implementation.  */
   struct private_thread_info *private;
+
+  /* Function that is called to free PRIVATE.  If this is NULL, then
+     xfree will be called on PRIVATE.  */
+  void (*private_dtor) (struct private_thread_info *);
 };
 
 /* Create an empty thread list, or empty the existing one.  */
@@ -217,6 +250,9 @@ extern void delete_thread_silent (ptid_t);
 /* Delete a step_resume_breakpoint from the thread database. */
 extern void delete_step_resume_breakpoint (struct thread_info *);
 
+/* Delete an exception_resume_breakpoint from the thread database. */
+extern void delete_exception_resume_breakpoint (struct thread_info *);
+
 /* Translate the integer thread id (GDB's homegrown id, not the system's)
    into a "pid" (which may be overloaded with extra thread information).  */
 extern ptid_t thread_id_to_pid (int);
@@ -245,6 +281,10 @@ struct thread_info *first_thread_of_process (int pid);
 
 /* Returns any thread of process PID.  */
 extern struct thread_info *any_thread_of_process (int pid);
+
+/* Returns any non-exited thread of process PID, giving preference for
+   already stopped threads.  */
+extern struct thread_info *any_live_thread_of_process (int pid);
 
 /* Change the ptid of thread OLD_PTID to NEW_PTID.  */
 void thread_change_ptid (ptid_t old_ptid, ptid_t new_ptid);
@@ -341,5 +381,7 @@ extern struct cleanup *make_cleanup_restore_current_thread (void);
 /* Returns a pointer into the thread_info corresponding to
    INFERIOR_PTID.  INFERIOR_PTID *must* be in the thread list.  */
 extern struct thread_info* inferior_thread (void);
+
+extern void update_thread_list (void);
 
 #endif /* GDBTHREAD_H */

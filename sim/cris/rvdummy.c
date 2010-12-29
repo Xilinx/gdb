@@ -1,7 +1,7 @@
 /* Test-driver for the remote-virtual-component simulator framework
    for GDB, the GNU Debugger.
 
-   Copyright 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -118,7 +118,7 @@ int setupsocket (void)
   memset (&sa_in, 0, sizeof (sa_in));
 
   s = socket (AF_INET, SOCK_STREAM, 0);
-  if (s < 0)
+  if (s == -1)
     return -1;
 
   if (setsockopt (s, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof reuse) != 0)
@@ -517,7 +517,7 @@ main (int argc, char *argv[])
       }
 
   fd = setupsocket ();
-  if (fd < 0)
+  if (fd == -1)
     {
       fprintf (stderr, "%s: problem setting up the connection: %s\n",
 	       progname, strerror (errno));

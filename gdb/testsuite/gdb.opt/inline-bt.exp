@@ -1,4 +1,4 @@
-# Copyright 2008 Free Software Foundation, Inc.
+# Copyright 2008, 2010 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ set sources [list ${fullsrcfile} ${fullsrcfile2}]
 set binfile ${objdir}/${subdir}/${testfile}
 
 if  { [gdb_compile ${sources} ${binfile} \
-	   executable {debug optimize=-O2}] != "" } {
+	   executable {debug optimize=-O2 additional_flags=-Winline}] != "" } {
     untested inline-bt.exp
     return -1
 }

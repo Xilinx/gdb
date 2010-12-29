@@ -1,6 +1,6 @@
 /* Target-dependent code for the Xtensa port of GDB, the GNU debugger.
 
-   Copyright (C) 2003, 2005, 2006, 2007, 2008, 2009
+   Copyright (C) 2003, 2005, 2006, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -811,7 +811,7 @@ xtensa_supply_gregset (const struct regset *regset,
   struct gdbarch *gdbarch = get_regcache_arch (rc);
   int i;
 
-  DEBUGTRACE ("xtensa_supply_gregset (..., regnum==%d, ...) \n", regnum);
+  DEBUGTRACE ("xtensa_supply_gregset (..., regnum==%d, ...)\n", regnum);
 
   if (regnum == gdbarch_pc_regnum (gdbarch) || regnum == -1)
     regcache_raw_supply (rc, gdbarch_pc_regnum (gdbarch), (char *) &regs->pc);
@@ -869,7 +869,7 @@ xtensa_regset_from_core_section (struct gdbarch *core_arch,
 				 size_t sect_size)
 {
   DEBUGTRACE ("xtensa_regset_from_core_section "
-	      "(..., sect_name==\"%s\", sect_size==%x) \n",
+	      "(..., sect_name==\"%s\", sect_size==%x)\n",
 	      sect_name, (unsigned int) sect_size);
 
   if (strcmp (sect_name, ".reg") == 0
@@ -1046,7 +1046,8 @@ xtensa_dummy_id (struct gdbarch *gdbarch, struct frame_info *this_frame)
 /* Returns the best guess about which register is a frame pointer
    for the function containing CURRENT_PC.  */
 
-#define XTENSA_ISA_BSZ 32	    /* Instruction buffer size.  */
+#define XTENSA_ISA_BSZ		32		/* Instruction buffer size.  */
+#define XTENSA_ISA_BADPC	((CORE_ADDR)0)	/* Bad PC value.  */
 
 static unsigned int
 xtensa_scan_prologue (struct gdbarch *gdbarch, CORE_ADDR current_pc)
@@ -1083,7 +1084,8 @@ xtensa_scan_prologue (struct gdbarch *gdbarch, CORE_ADDR current_pc)
 	  ba = ia;
 	  bt = (ba + XTENSA_ISA_BSZ) < current_pc
 	    ? ba + XTENSA_ISA_BSZ : current_pc;
-	  read_memory (ba, ibuf, bt - ba);
+	  if (target_read_memory (ba, ibuf, bt - ba) != 0)
+	    RETURN_FP;
 	}
 
       xtensa_insnbuf_from_chars (isa, ins, &ibuf[ia-ba], 0);
@@ -1634,8 +1636,9 @@ xtensa_push_dummy_call (struct gdbarch *gdbarch,
         {
 	  struct value *arg = args[i];
 	  struct type *arg_type = check_typedef (value_type (arg));
-	  fprintf_unfiltered (gdb_stdlog, "%2d: 0x%lx %3d ",
-			      i, (unsigned long) arg, TYPE_LENGTH (arg_type));
+	  fprintf_unfiltered (gdb_stdlog, "%2d: %s %3d ", i,
+			      host_address_to_string (arg),
+			      TYPE_LENGTH (arg_type));
 	  switch (TYPE_CODE (arg_type))
 	    {
 	    case TYPE_CODE_INT:
@@ -1648,8 +1651,8 @@ xtensa_push_dummy_call (struct gdbarch *gdbarch,
 	      fprintf_unfiltered (gdb_stdlog, "%3d", TYPE_CODE (arg_type));
 	      break;
 	    }
-	  fprintf_unfiltered (gdb_stdlog, " 0x%lx\n",
-			      (unsigned long) value_contents (arg));
+	  fprintf_unfiltered (gdb_stdlog, " %s\n",
+			      host_address_to_string (value_contents (arg)));
 	}
     }
 
@@ -2055,7 +2058,7 @@ call0_track_op (struct gdbarch *gdbarch,
 	}
       break;
     default:
-	gdb_assert (0);
+	gdb_assert_not_reached ("unexpected instruction kind");
     }
 }
 
@@ -2171,6 +2174,8 @@ call0_analyze_prologue (struct gdbarch *gdbarch,
 	  ba = ia;
 	  bt = (ba + XTENSA_ISA_BSZ) < body_pc ? ba + XTENSA_ISA_BSZ : body_pc;
 	  read_memory (ba, ibuf, bt - ba);
+	  /* If there is a memory reading error read_memory () will report it
+	     and then throw an exception, stopping command execution.  */
 	}
 
       /* Decode format information.  */
@@ -2290,7 +2295,7 @@ done:
 	     (unsigned)ia, fail ? "failed" : "succeeded");
   xtensa_insnbuf_free(isa, slot);
   xtensa_insnbuf_free(isa, ins);
-  return fail ? 0 : ia;
+  return fail ? XTENSA_ISA_BADPC : ia;
 }
 
 /* Initialize frame cache for the current frame in CALL0 ABI.  */
@@ -2315,6 +2320,10 @@ call0_frame_cache (struct frame_info *this_frame,
 					C0_NREGS,
 					&cache->c0.c0_rt[0],
 					&cache->call0);
+
+      if (body_pc == XTENSA_ISA_BADPC)
+	error (_("Xtensa-specific internal error: CALL0 prologue \
+analysis failed in this frame. GDB command execution stopped."));
     }
   
   sp = get_frame_register_unsigned

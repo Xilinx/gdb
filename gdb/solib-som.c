@@ -1,6 +1,7 @@
 /* Handle SOM shared libraries.
 
-   Copyright (C) 2004, 2005, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2005, 2007, 2008, 2009, 2010
+   Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -182,7 +183,7 @@ struct {
    means running until the "_start" is called.  */
 
 static void
-som_solib_create_inferior_hook (void)
+som_solib_create_inferior_hook (int from_tty)
 {
   enum bfd_endian byte_order = gdbarch_byte_order (target_gdbarch);
   struct minimal_symbol *msymbol;
@@ -190,10 +191,6 @@ som_solib_create_inferior_hook (void)
   asection *shlib_info;
   char buf[4];
   CORE_ADDR anaddr;
-
-  /* First, remove all the solib event breakpoints.  Their addresses
-     may have changed since the last time we ran the program.  */
-  remove_solib_event_breakpoints ();
 
   if (symfile_objfile == NULL)
     return;
@@ -357,7 +354,7 @@ keep_going:
   /* Make the breakpoint at "_start" a shared library event breakpoint.  */
   create_solib_event_breakpoint (target_gdbarch, anaddr);
 
-  clear_symtab_users ();
+  clear_symtab_users (0);
 }
 
 static void
@@ -819,8 +816,8 @@ void
 som_solib_select (struct gdbarch *gdbarch)
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
-  set_solib_ops (gdbarch, &som_so_ops);
 
+  set_solib_ops (gdbarch, &som_so_ops);
   tdep->solib_thread_start_addr = som_solib_thread_start_addr;
   tdep->solib_get_got_by_pc = som_solib_get_got_by_pc;
   tdep->solib_get_solib_by_pc = som_solib_get_solib_by_pc;

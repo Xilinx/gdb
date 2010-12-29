@@ -1,5 +1,5 @@
 /* GNU/Linux/Xtensa specific low level interface, for the remote server for GDB.
-   Copyright 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -37,7 +37,7 @@ enum regnum {
 };
 
 static void
-xtensa_fill_gregset (void *buf)
+xtensa_fill_gregset (struct regcache *regcache, void *buf)
 {
   elf_greg_t* rset = (elf_greg_t*)buf;
   int ar0_regnum;
@@ -51,27 +51,27 @@ xtensa_fill_gregset (void *buf)
 
   for (i = ar0_regnum; i < ar0_regnum + XCHAL_NUM_AREGS; i++)
     {
-      collect_register (i, ptr);
+      collect_register (regcache, i, ptr);
       ptr += register_size(i);
     }
 
   /* Loop registers, if hardware has it.  */
 
 #if XCHAL_HAVE_LOOP
-  collect_register_by_name ("lbeg", (char*)&rset[R_LBEG]);
-  collect_register_by_name ("lend", (char*)&rset[R_LEND]);
-  collect_register_by_name ("lcount", (char*)&rset[R_LCOUNT]);
+  collect_register_by_name (regcache, "lbeg", (char*)&rset[R_LBEG]);
+  collect_register_by_name (regcache, "lend", (char*)&rset[R_LEND]);
+  collect_register_by_name (regcache, "lcount", (char*)&rset[R_LCOUNT]);
 #endif
 
-  collect_register_by_name ("sar", (char*)&rset[R_SAR]);
-  collect_register_by_name ("pc", (char*)&rset[R_PC]);
-  collect_register_by_name ("ps", (char*)&rset[R_PS]);
-  collect_register_by_name ("windowbase", (char*)&rset[R_WB]);
-  collect_register_by_name ("windowstart", (char*)&rset[R_WS]);
+  collect_register_by_name (regcache, "sar", (char*)&rset[R_SAR]);
+  collect_register_by_name (regcache, "pc", (char*)&rset[R_PC]);
+  collect_register_by_name (regcache, "ps", (char*)&rset[R_PS]);
+  collect_register_by_name (regcache, "windowbase", (char*)&rset[R_WB]);
+  collect_register_by_name (regcache, "windowstart", (char*)&rset[R_WS]);
 }
 
 static void
-xtensa_store_gregset (const void *buf)
+xtensa_store_gregset (struct regcache *regcache, const void *buf)
 {
   const elf_greg_t* rset = (const elf_greg_t*)buf;
   int ar0_regnum;
@@ -85,59 +85,59 @@ xtensa_store_gregset (const void *buf)
 
   for (i = ar0_regnum; i < ar0_regnum + XCHAL_NUM_AREGS; i++)
     {
-      supply_register (i, ptr);
+      supply_register (regcache, i, ptr);
       ptr += register_size(i);
     }
 
   /* Loop registers, if hardware has it.  */
 
 #if XCHAL_HAVE_LOOP
-  supply_register_by_name ("lbeg", (char*)&rset[R_LBEG]);
-  supply_register_by_name ("lend", (char*)&rset[R_LEND]);
-  supply_register_by_name ("lcount", (char*)&rset[R_LCOUNT]);
+  supply_register_by_name (regcache, "lbeg", (char*)&rset[R_LBEG]);
+  supply_register_by_name (regcache, "lend", (char*)&rset[R_LEND]);
+  supply_register_by_name (regcache, "lcount", (char*)&rset[R_LCOUNT]);
 #endif
 
-  supply_register_by_name ("sar", (char*)&rset[R_SAR]);
-  supply_register_by_name ("pc", (char*)&rset[R_PC]);
-  supply_register_by_name ("ps", (char*)&rset[R_PS]);
-  supply_register_by_name ("windowbase", (char*)&rset[R_WB]);
-  supply_register_by_name ("windowstart", (char*)&rset[R_WS]);
+  supply_register_by_name (regcache, "sar", (char*)&rset[R_SAR]);
+  supply_register_by_name (regcache, "pc", (char*)&rset[R_PC]);
+  supply_register_by_name (regcache, "ps", (char*)&rset[R_PS]);
+  supply_register_by_name (regcache, "windowbase", (char*)&rset[R_WB]);
+  supply_register_by_name (regcache, "windowstart", (char*)&rset[R_WS]);
 }
 
 /* Xtensa GNU/Linux PTRACE interface includes extended register set.  */
 
 static void
-xtensa_fill_xtregset (void *buf)
+xtensa_fill_xtregset (struct regcache *regcache, void *buf)
 {
   const xtensa_regtable_t *ptr;
 
   for (ptr = xtensa_regmap_table; ptr->name; ptr++)
     {
-      collect_register_by_name (ptr->name,
+      collect_register_by_name (regcache, ptr->name,
 				(char*)buf + ptr->ptrace_offset);
     }
 }
 
 static void
-xtensa_store_xtregset (const void *buf)
+xtensa_store_xtregset (struct regcache *regcache, const void *buf)
 {
   const xtensa_regtable_t *ptr;
 
   for (ptr = xtensa_regmap_table; ptr->name; ptr++)
     {
-      supply_register_by_name (ptr->name,
+      supply_register_by_name (regcache, ptr->name,
 				(char*)buf + ptr->ptrace_offset);
     }
 }
 
 struct regset_info target_regsets[] = {
-  { PTRACE_GETREGS, PTRACE_SETREGS, sizeof (elf_gregset_t),
+  { PTRACE_GETREGS, PTRACE_SETREGS, 0, sizeof (elf_gregset_t),
     GENERAL_REGS,
     xtensa_fill_gregset, xtensa_store_gregset },
-  { PTRACE_GETXTREGS, PTRACE_SETXTREGS, XTENSA_ELF_XTREG_SIZE,
+  { PTRACE_GETXTREGS, PTRACE_SETXTREGS, 0, XTENSA_ELF_XTREG_SIZE,
     EXTENDED_REGS,
     xtensa_fill_xtregset, xtensa_store_xtregset },
-  { 0, 0, -1, -1, NULL, NULL }
+  { 0, 0, 0, -1, -1, NULL, NULL }
 };
 
 #if XCHAL_HAVE_BE
@@ -150,19 +150,19 @@ static const unsigned char xtensa_breakpoint[] = XTENSA_BREAKPOINT;
 #define xtensa_breakpoint_len 2
 
 static CORE_ADDR
-xtensa_get_pc (void)
+xtensa_get_pc (struct regcache *regcache)
 {
   unsigned long pc;
 
-  collect_register_by_name ("pc", &pc);
+  collect_register_by_name (regcache, "pc", &pc);
   return pc;
 }
 
 static void
-xtensa_set_pc (CORE_ADDR pc)
+xtensa_set_pc (struct regcache *regcache, CORE_ADDR pc)
 {
   unsigned long newpc = pc;
-  supply_register_by_name ("pc", &newpc);
+  supply_register_by_name (regcache, "pc", &newpc);
 }
 
 static int

@@ -1,5 +1,5 @@
 /* Internal interfaces for the Win32 specific target code for gdbserver.
-   Copyright (C) 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -27,6 +27,9 @@ typedef struct win32_thread_info
 
   /* The handle to the thread.  */
   HANDLE h;
+
+  /* Thread Information Block address.  */
+  CORE_ADDR thread_local_base;
 
   /* Non zero if SuspendThread was called on this thread.  */
   int suspended;
@@ -61,10 +64,12 @@ struct win32_target_ops
   void (*thread_added) (win32_thread_info *th);
 
   /* Fetch register from gdbserver regcache data.  */
-  void (*fetch_inferior_register) (win32_thread_info *th, int r);
+  void (*fetch_inferior_register) (struct regcache *regcache,
+				   win32_thread_info *th, int r);
 
   /* Store a new register value into the thread context of TH.  */
-  void (*store_inferior_register) (win32_thread_info *th, int r);
+  void (*store_inferior_register) (struct regcache *regcache,
+				   win32_thread_info *th, int r);
 
   void (*single_step) (win32_thread_info *th);
 

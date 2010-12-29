@@ -1,6 +1,6 @@
 /* Read HP PA/Risc object files for GDB.
    Copyright (C) 1991, 1992, 1994, 1995, 1996, 1998, 1999, 2000, 2001, 2002,
-   2004, 2007, 2008, 2009 Free Software Foundation, Inc.
+   2004, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
    Written by Fred Fish at Cygnus Support.
 
    This file is part of GDB.
@@ -32,6 +32,7 @@
 #include "demangle.h"
 #include "som.h"
 #include "libhppa.h"
+#include "psymtab.h"
 
 #include "solib-som.h"
 
@@ -292,9 +293,6 @@ som_symtab_read (bfd *abfd, struct objfile *objfile,
    SECTION_OFFSETS is a set of offsets to apply to relocate the symbols
    in each section.  This is ignored, as it isn't needed for SOM.
 
-   MAINLINE is true if we are reading the main symbol
-   table (as opposed to a shared lib or dynamically loaded file).
-
    This function only does the minimum work necessary for letting the
    user "name" things symbolically; it does not read the entire symtab.
    Instead, it reads the external and static symbols and puts them in partial
@@ -315,7 +313,7 @@ som_symtab_read (bfd *abfd, struct objfile *objfile,
    capability even for files compiled without -g.  */
 
 static void
-som_symfile_read (struct objfile *objfile, int mainline)
+som_symfile_read (struct objfile *objfile, int symfile_flags)
 {
   bfd *abfd = objfile->obfd;
   struct cleanup *back_to;
@@ -340,7 +338,7 @@ som_symfile_read (struct objfile *objfile, int mainline)
 
   /* Now read information from the stabs debug sections.
      This is emitted by gcc.  */
-  stabsect_build_psymtabs (objfile, mainline,
+  stabsect_build_psymtabs (objfile,
 			   "$GDB_SYMBOLS$", "$GDB_STRINGS$", "$TEXT$");
 }
 
@@ -429,7 +427,7 @@ som_symfile_offsets (struct objfile *objfile, struct section_addr_info *addrs)
 
 /* Register that we are able to handle SOM object file formats.  */
 
-static struct sym_fns som_sym_fns =
+static const struct sym_fns som_sym_fns =
 {
   bfd_target_som_flavour,
   som_new_init,			/* sym_new_init: init anything gbl to entire symtab */
@@ -440,7 +438,8 @@ static struct sym_fns som_sym_fns =
   default_symfile_segments,	/* sym_segments: Get segment information from
 				   a file.  */
   NULL,                         /* sym_read_linetable */
-  NULL				/* next: pointer to next struct sym_fns */
+  default_symfile_relocate,	/* sym_relocate: Relocate a debug section.  */
+  &psym_functions
 };
 
 void

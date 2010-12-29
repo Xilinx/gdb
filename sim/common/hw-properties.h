@@ -1,6 +1,6 @@
 /* The common simulator framework for GDB, the GNU Debugger.
 
-   Copyright 2002, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright 2002, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 
    Contributed by Andrew Cagney and Red Hat.
 
@@ -120,7 +120,7 @@ const struct hw_property *hw_find_array_property
 void hw_add_boolean_property
 (struct hw *me,
  const char *property,
- int bool);
+ int boolean);
 
 int hw_find_boolean_property
 (struct hw *me,

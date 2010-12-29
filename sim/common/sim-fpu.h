@@ -1,6 +1,6 @@
 /* Simulator Floating-point support.
 
-   Copyright 1997, 1998, 2002, 2003, 2007, 2008, 2009
+   Copyright 1997, 1998, 2002, 2003, 2007, 2008, 2009, 2010
    Free Software Foundation, Inc.
 
    Contributed by Cygnus Support.
@@ -404,7 +404,7 @@ extern const sim_fpu sim_fpu_max64;
 
 /* For debugging */
 
-typedef void sim_fpu_print_func (void *, char *, ...);
+typedef void sim_fpu_print_func (void *, const char *, ...);
 
 /* Print a sim_fpu with full precision.  */
 INLINE_SIM_FPU (void) sim_fpu_print_fpu (const sim_fpu *f,
