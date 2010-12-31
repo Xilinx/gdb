@@ -1,3 +1,37 @@
+2010-12-30  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin-tdep.c (bfin_register_type): Move || to start of line.
+
+2010-12-29  Michael Snyder  <msnyder@vmware.com>
+
+	* bcache.c: Comment clean-up.
+	* block.c: Ditto.
+	* blockframe.c: Ditto.
+	* breakpoint.c: Ditto.
+	* bsd-kvm.c: Ditto.
+	* buildsym.c: Ditto.
+
+2010-12-29  Jie Zhang  <jie.zhang@analog.com>
+
+	* configure.tgt (bfin-*-*): Set build_gdbserver to yes.
+	* NEWS: Mention new Blackfin support.
+	* regformats/reg-bfin.dat: New file.
+
+2010-12-29  Jie Zhang  <jie.zhang@analog.com>
+	    Mike Frysinger  <vapier@gentoo.org>
+
+	* Makefile.in (ALLDEPFILES): Add bfin-linux-tdep.c and bfin-tdep.c.
+	(HFILES_NO_SRCDIR): Add bfin-tdep.h.
+	(ALL_TARGET_OBS): Add bfin-linux-tdep.o and bfin-tdep.o.
+	* NEWS: Mention new Blackfin port.
+	* bfin-tdep.c, bfin-tdep.h, bfin-linux-tdep.c,
+	syscalls/bfin-linux.xml: New files.
+	* configure.tgt (bfin-*-*): Handle bfin targets.
+
+2010-12-29  Hui Zhu  <teawater@gmail.com>
+
+	* ax-gdb.c (gen_expr): Change error message.
+
 2010-12-29  Joel Brobecker  <brobecker@adacore.com>
 
 	* gdb.c: Revert the previous change, which was probably committed
