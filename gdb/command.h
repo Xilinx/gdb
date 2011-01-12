@@ -1,7 +1,7 @@
 /* Header file for command-reading library command.c.
 
    Copyright (C) 1986, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1999, 2000,
-   2002, 2004, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+   2002, 2004, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,8 +19,9 @@
 #if !defined (COMMAND_H)
 #define COMMAND_H 1
 
-/* Command classes are top-level categories into which commands are broken
-   down for "help" purposes.
+/* Command classes are top-level categories into which commands are
+   broken down for "help" purposes.
+
    Notes on classes: class_alias is for alias commands which are not
    abbreviations of the original command.  class-pseudo is for
    commands which are not really commands nor help topics ("stop").  */
@@ -30,8 +31,8 @@ enum command_class
   /* Special args to help_list */
   class_deprecated = -3, all_classes = -2, all_commands = -1,
   /* Classes of commands */
-  no_class = -1, class_run = 0, class_vars, class_stack,
-  class_files, class_support, class_info, class_breakpoint, class_trace,
+  no_class = -1, class_run = 0, class_vars, class_stack, class_files,
+  class_support, class_info, class_breakpoint, class_trace,
   class_alias, class_bookmark, class_obscure, class_maintenance,
   class_pseudo, class_tui, class_user, class_xdb
 };
@@ -63,16 +64,17 @@ typedef enum var_types
        value.  */
     var_auto_boolean,
 
-    /* Unsigned Integer.  *VAR is an unsigned int.  The user can type 0
-       to mean "unlimited", which is stored in *VAR as UINT_MAX.  */
+    /* Unsigned Integer.  *VAR is an unsigned int.  The user can type
+       0 to mean "unlimited", which is stored in *VAR as UINT_MAX.  */
     var_uinteger,
 
-    /* Like var_uinteger but signed.  *VAR is an int.  The user can type 0
-       to mean "unlimited", which is stored in *VAR as INT_MAX.  */
+    /* Like var_uinteger but signed.  *VAR is an int.  The user can
+       type 0 to mean "unlimited", which is stored in *VAR as
+       INT_MAX.  */
     var_integer,
 
-    /* String which the user enters with escapes (e.g. the user types \n and
-       it is a real newline in the stored string).
+    /* String which the user enters with escapes (e.g. the user types
+       \n and it is a real newline in the stored string).
        *VAR is a malloc'd string, or NULL if the string is empty.  */
     var_string,
     /* String which stores what the user types verbatim.
@@ -90,8 +92,9 @@ typedef enum var_types
     /* ZeroableUnsignedInteger.  *VAR is an unsigned int.  Zero really
        means zero.  */
     var_zuinteger,
-    /* Enumerated type.  Can only have one of the specified values.  *VAR is a
-       char pointer to the name of the element that we find.  */
+    /* Enumerated type.  Can only have one of the specified values.
+       *VAR is a char pointer to the name of the element that we
+       find.  */
     var_enum
   }
 var_types;
@@ -137,9 +140,9 @@ typedef void cmd_sfunc_ftype (char *args, int from_tty,
 extern void set_cmd_sfunc (struct cmd_list_element *cmd,
 			   cmd_sfunc_ftype *sfunc);
 
-extern void set_cmd_completer (struct cmd_list_element *cmd,
-			       char **(*completer) (struct cmd_list_element *cmd,
-						    char *text, char *word));
+extern void set_cmd_completer (struct cmd_list_element *,
+			       char **(*completer) (struct cmd_list_element *,
+						    char *, char *));
 
 /* HACK: cagney/2002-02-23: Code, mostly in tracepoints.c, grubs
    around in cmd objects to test the value of the commands sfunc().  */
@@ -147,7 +150,8 @@ extern int cmd_cfunc_eq (struct cmd_list_element *cmd,
 			 void (*cfunc) (char *args, int from_tty));
 
 /* Each command object has a local context attached to it.  */
-extern void set_cmd_context (struct cmd_list_element *cmd, void *context);
+extern void set_cmd_context (struct cmd_list_element *cmd,
+			     void *context);
 extern void *get_cmd_context (struct cmd_list_element *cmd);
 
 
@@ -170,39 +174,42 @@ extern struct cmd_list_element *lookup_cmd_1 (char **,
 					      struct cmd_list_element **,
 					      int);
 
-extern struct cmd_list_element *
-  deprecate_cmd (struct cmd_list_element *, char * );
+extern struct cmd_list_element *deprecate_cmd (struct cmd_list_element *,
+					       char * );
 
-extern void
-  deprecated_cmd_warning (char **);
+extern void deprecated_cmd_warning (char **);
 
-extern int
-  lookup_cmd_composition (char *text,
-                        struct cmd_list_element **alias,
-                        struct cmd_list_element **prefix_cmd,
-                        struct cmd_list_element **cmd);
+extern int lookup_cmd_composition (char *text,
+				   struct cmd_list_element **alias,
+				   struct cmd_list_element **prefix_cmd,
+				   struct cmd_list_element **cmd);
 
 extern struct cmd_list_element *add_com (char *, enum command_class,
-					 void (*fun) (char *, int), char *);
+					 void (*fun) (char *, int),
+					 char *);
 
 extern struct cmd_list_element *add_com_alias (char *, char *,
 					       enum command_class, int);
 
-extern struct cmd_list_element *add_info (char *, void (*fun) (char *, int),
+extern struct cmd_list_element *add_info (char *,
+					  void (*fun) (char *, int),
 					  char *);
 
 extern struct cmd_list_element *add_info_alias (char *, char *, int);
 
-extern char **complete_on_cmdlist (struct cmd_list_element *, char *, char *);
+extern char **complete_on_cmdlist (struct cmd_list_element *,
+				   char *, char *);
 
-extern char **complete_on_enum (const char *enumlist[], char *, char *);
+extern char **complete_on_enum (const char *enumlist[],
+				char *, char *);
 
 extern void help_cmd (char *, struct ui_file *);
 
 extern void help_list (struct cmd_list_element *, char *,
 		       enum command_class, struct ui_file *);
 
-extern void help_cmd_list (struct cmd_list_element *, enum command_class,
+extern void help_cmd_list (struct cmd_list_element *,
+			   enum command_class,
 			   char *, int, struct ui_file *);
 
 /* Method for show a set/show variable's VALUE on FILE.  If this
@@ -354,10 +361,11 @@ extern void dont_repeat (void);
 
 extern void not_just_help_class_command (char *, int);
 
-/* check function pointer */
+/* Check function pointer.  */
 extern int cmd_func_p (struct cmd_list_element *cmd);
 
-/* call the command function */
-extern void cmd_func (struct cmd_list_element *cmd, char *args, int from_tty);
+/* Call the command function.  */
+extern void cmd_func (struct cmd_list_element *cmd,
+		      char *args, int from_tty);
 
 #endif /* !defined (COMMAND_H) */

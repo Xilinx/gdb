@@ -1,5 +1,5 @@
 /* Cell SPU GNU/Linux support -- shared library handling.
-   Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2009, 2010, 2011 Free Software Foundation, Inc.
 
    Contributed by Ulrich Weigand <uweigand@de.ibm.com>.
 
@@ -227,7 +227,7 @@ spu_current_sos (void)
       link_ptr = &new->next;
     }
 
-  /* Append OpenCL sos. */
+  /* Append OpenCL sos.  */
   append_ocl_sos (link_ptr);
 
   return head;

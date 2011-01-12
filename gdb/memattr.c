@@ -1,7 +1,7 @@
 /* Memory attributes support, for GDB.
 
-   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+   2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -73,11 +73,11 @@ show_inaccessible_by_default (struct ui_file *file, int from_tty,
 			      const char *value)
 {
   if (inaccessible_by_default)
-    fprintf_filtered (file, _("\
-Unknown memory addresses will be treated as inaccessible.\n"));
+    fprintf_filtered (file, _("Unknown memory addresses will "
+			      "be treated as inaccessible.\n"));
   else
-    fprintf_filtered (file, _("\
-Unknown memory addresses will be treated as RAM.\n"));          
+    fprintf_filtered (file, _("Unknown memory addresses "
+			      "will be treated as RAM.\n"));          
 }
 
 
@@ -176,7 +176,7 @@ create_mem_region (CORE_ADDR lo, CORE_ADDR hi,
   struct mem_region new;
   int i, ix;
 
-  /* lo == hi is a useless empty region */
+  /* lo == hi is a useless empty region.  */
   if (lo >= hi && hi != 0)
     {
       printf_unfiltered (_("invalid memory region: low >= high\n"));
@@ -253,7 +253,8 @@ lookup_mem_region (CORE_ADDR addr)
     {
       if (m->enabled_p == 1)
 	{
-	  /* If the address is in the memory region, return that memory range.  */
+	  /* If the address is in the memory region, return that
+	     memory range.  */
 	  if (addr >= m->lo && (addr < m->hi || m->hi == 0))
 	    return m;
 
@@ -301,7 +302,7 @@ invalidate_target_mem_regions (void)
     mem_region_list = NULL;
 }
 
-/* Clear memory region list */
+/* Clear memory region list.  */
 
 static void
 mem_clear (void)
@@ -541,7 +542,7 @@ mem_info_command (char *args, int from_tty)
 }
 
 
-/* Enable the memory region number NUM. */
+/* Enable the memory region number NUM.  */
 
 static void
 mem_enable (int num)
@@ -595,7 +596,7 @@ mem_enable_command (char *args, int from_tty)
 }
 
 
-/* Disable the memory region number NUM. */
+/* Disable the memory region number NUM.  */
 
 static void
 mem_disable (int num)
@@ -648,7 +649,7 @@ mem_disable_command (char *args, int from_tty)
       }
 }
 
-/* Delete the memory region number NUM. */
+/* Delete the memory region number NUM.  */
 
 static void
 mem_delete (int num)

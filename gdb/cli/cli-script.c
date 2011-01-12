@@ -2,7 +2,7 @@
 
    Copyright (c) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
    1996, 1997, 1998, 1999, 2000, 2001, 2002, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010 Free Software Foundation, Inc.
+   2009, 2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -1186,7 +1186,8 @@ read_command_lines (char *prompt_arg, int from_tty, int parse_commands,
       if (deprecated_readline_begin_hook)
 	{
 	  /* Note - intentional to merge messages with no newline.  */
-	  (*deprecated_readline_begin_hook) ("%s  %s\n", prompt_arg, END_MESSAGE);
+	  (*deprecated_readline_begin_hook) ("%s  %s\n", prompt_arg,
+					     END_MESSAGE);
 	}
       else
 	{
@@ -1479,7 +1480,8 @@ define_command (char *comname, int from_tty)
 	hookc = 0;
       if (!hookc)
 	{
-	  warning (_("Your new `%s' command does not hook any existing command."),
+	  warning (_("Your new `%s' command does not "
+		     "hook any existing command."),
 		   comfull);
 	  if (!query (_("Proceed? ")))
 	    error (_("Not confirmed."));
@@ -1517,7 +1519,8 @@ define_command (char *comname, int from_tty)
           break;
         case CMD_POST_HOOK:
           hookc->hook_post  = newc;  /* Target gets hooked.  */
-          newc->hookee_post = hookc; /* We are marked as hooking target cmd.  */
+          newc->hookee_post = hookc; /* We are marked as hooking
+					target cmd.  */
           break;
         default:
           /* Should never come here as hookc would be 0.  */

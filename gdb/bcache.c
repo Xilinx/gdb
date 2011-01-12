@@ -2,7 +2,7 @@
    Written by Fred Fish <fnf@cygnus.com>
    Rewritten by Jim Blandy <jimb@cygnus.com>
 
-   Copyright (C) 1999, 2000, 2002, 2003, 2007, 2008, 2009, 2010
+   Copyright (C) 1999, 2000, 2002, 2003, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -455,7 +455,8 @@ print_bcache_statistics (struct bcache *c, char *type)
   printf_filtered (_("    Median entry size:  %d\n"), median_entry_size);
   printf_filtered ("\n");
 
-  printf_filtered (_("    Total memory used by bcache, including overhead: %ld\n"),
+  printf_filtered (_("    \
+Total memory used by bcache, including overhead: %ld\n"),
 		   c->structure_size);
   printf_filtered (_("    Percentage memory overhead: "));
   print_percentage (c->structure_size - c->unique_size, c->unique_size);

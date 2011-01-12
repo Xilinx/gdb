@@ -1,6 +1,6 @@
 /* nto-tdep.c - general QNX Neutrino target functionality.
 
-   Copyright (C) 2003, 2004, 2007, 2008, 2009, 2010
+   Copyright (C) 2003, 2004, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    Contributed by QNX Software Systems Ltd.
@@ -92,7 +92,8 @@ nto_find_and_open_solib (char *solib, unsigned o_flags, char **temp_pathname)
   char *buf, *arch_path, *nto_root, *endian, *base;
   const char *arch;
   int ret;
-#define PATH_FMT "%s/lib:%s/usr/lib:%s/usr/photon/lib:%s/usr/photon/dll:%s/lib/dll"
+#define PATH_FMT \
+  "%s/lib:%s/usr/lib:%s/usr/photon/lib:%s/usr/photon/dll:%s/lib/dll"
 
   nto_root = nto_target ();
   if (strcmp (gdbarch_bfd_arch_info (target_gdbarch)->arch_name, "i386") == 0)
@@ -413,6 +414,7 @@ When non-zero, nto specific debug info is\n\
 displayed. Different information is displayed\n\
 for different positive values."),
 			    NULL,
-			    NULL, /* FIXME: i18n: QNX NTO internal debugging is %s.  */
+			    NULL, /* FIXME: i18n: QNX NTO internal
+				     debugging is %s.  */
 			    &setdebuglist, &showdebuglist);
 }

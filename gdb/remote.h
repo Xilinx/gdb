@@ -1,5 +1,5 @@
 /* Remote target communications for serial-line targets in custom GDB protocol
-   Copyright (C) 1999, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
+   Copyright (C) 1999, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -34,7 +34,7 @@ extern void getpkt (char **buf, long *sizeof_buf, int forever);
    of the packet is in BUF.  The string in BUF can be at most PBUFSIZ
    - 5 to account for the $, # and checksum, and for a possible /0 if
    we are debugging (remote_debug) and want to print the sent packet
-   as a string */
+   as a string.  */
 
 extern int putpkt (char *buf);
 

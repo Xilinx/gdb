@@ -1,3 +1,107 @@
+2011-01-11  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.python/py-infthread.exp: Load gdb-python.exp.
+
+2010-01-11  Thiago Jung Bauermann  <bauerman@br.ibm.com>
+
+	Convert hardware watchpoints to use breakpoint_ops.
+	* gdb.base/foll-exec.exp: Adapt to new error string when the catchpoint
+	type is not supported.
+	* gdb.base/foll-fork.exp: Likewise.
+	* gdb.base/foll-vfork.exp: Likewise.
+
+2011-01-10  Phil Muldoon  <pmuldoon@redhat.com>
+
+	* gdb.python/py-cmd.exp: Remove gdb_py_test_multiple function.
+	Use load_lib gdb-python.exp.
+	* gdb.python/python.exp: Ditto.
+	* gdb.python/py-function.exp: Ditto.
+
+2011-01-09  Andreas Schwab  <schwab@linux-m68k.org>
+
+	* gdb.threads/tls.exp ("info address me"): Fix expected output.
+
+2011-01-07  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* configure: Regenerate.
+
+2011-01-06  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.python/py-frame.exp: Test gdb.newest_frame.
+
+2011-01-06  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.ada/array_bounds.exp, gdb.ada/array_return.exp,
+	gdb.ada/array_subscript_addr.exp, gdb.ada/arrayidx.exp,
+	gdb.ada/arrayparam.exp, gdb.ada/arrayptr.exp,
+	gdb.ada/atomic_enum.exp, gdb.ada/call_pn.exp,
+	gdb.ada/catch_ex.exp, gdb.ada/char_param.exp,
+	gdb.ada/complete.exp, gdb.ada/exprs.exp, gdb.ada/fixed_cmp.exp,
+	gdb.ada/fixed_points.exp, gdb.ada/formatted_ref.exp,
+	gdb.ada/frame_args.exp, gdb.ada/fun_addr.exp,
+	gdb.ada/fun_in_declare.exp, gdb.ada/funcall_param.exp,
+	gdb.ada/homonym.exp, gdb.ada/int_deref.exp,
+	gdb.ada/interface.exp, gdb.ada/lang_switch.exp,
+	gdb.ada/mod_from_name.exp, gdb.ada/nested.exp,
+	gdb.ada/null_array.exp, gdb.ada/null_record.exp,
+	gdb.ada/packed_array.exp, gdb.ada/packed_tagged.exp,
+	gdb.ada/print_chars.exp, gdb.ada/print_pc.exp,
+	gdb.ada/ptype_field.exp, gdb.ada/ptype_tagged_param.exp,
+	gdb.ada/rec_return.exp, gdb.ada/ref_param.exp,
+	gdb.ada/ref_tick_size.exp, gdb.ada/start.exp,
+	gdb.ada/str_ref_cmp.exp, gdb.ada/sym_print_name.exp,
+	gdb.ada/taft_type.exp, gdb.ada/tagged.exp, gdb.ada/tasks.exp,
+	gdb.ada/tick_last_segv.exp, gdb.ada/type_coercion.exp,
+	gdb.ada/uninitialized_vars.exp,
+	gdb.ada/variant_record_packed_array.exp, gdb.ada/watch_arg.exp:
+	Simplify by using clean_restart.
+
+2011-01-06  Joel Brobecker  <brobecker@adacore.com>
+
+	Add marker to be used as anchor for inserting breakpoints.
+	* gdb.ada/null_record/null_record.adb: Add "-- START" comment.
+	* gdb.ada/start/dummy.adb, gdb.ada/uninitialized_vars/parse.adb:
+	Likewise.
+
+	Remove uses of gdb_start_cmd.
+	* gdb.ada/null_record.exp: Remove use of gdb_start_cmd.
+	* gdb.ada/print_pc.exp, gdb.ada/uninitialized_vars.exp: Ditto.
+
+	Do not run testcase if testing with GDBserver.
+	* gdb.ada/exec_changed.exp, gdb.ada/start.exp: Abort as untested
+	if testing with GDBserver.
+
+2011-01-06  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.ada/complete/foo.adb, gdb.ada/complete/pck.adb,
+	gdb.ada/complete/pck.ads, gdb.ada/print_chars/foo.adb: Add
+	copyright header.
+
+2011-01-05  Joel Brobecker  <brobecker@adacore.com>
+
+	* testsuite/configure.ac, testsuite/gdb.arch/gdb1291.s,
+	testsuite/gdb.arch/gdb1431.s, testsuite/gdb.fortran/array-element.f,
+	testsuite/gdb.fortran/complex.f,
+	testsuite/gdb.fortran/derived-type.f90,
+	testsuite/gdb.fortran/library-module-lib.f90,
+	testsuite/gdb.fortran/library-module-main.f90,
+	testsuite/gdb.fortran/logical.f90, testsuite/gdb.fortran/module.f90,
+	testsuite/gdb.fortran/subarray.f, testsuite/gdb.mi/array.f:
+	Copyright year update.
+
+2011-01-05  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.base/langs1.f: Add copyright header.
+
+2011-01-03  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.base/morestack.exp: New file.
+	* gdb.base/morestack.c: New file.
+
+2011-01-02  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.ada/gnat_ada.gpr: Fix copyright comment line regression by 2011.
+
 2010-12-29  Joel Brobecker  <brobecker@adacore.com>
 
 	* gdb.ada/arrayptr/foo.adb: Add new local variable Null_String.
@@ -93,7 +197,7 @@
 
 2010-11-29  Phil Muldoon  <pmuldoon@redhat.com>
 
-        PR python/12199
+	PR python/12199
 
 	* gdb.python/py-breakpoint.exp: Test the delete method.
 
@@ -498,7 +602,7 @@
 	* gdb.dwarf2/dw2-const.S, gdb.dwarf2/dw2-const.exp: New files.
 
 2010-09-16  Phil Muldoon  <pmuldoon@redhat.com>
-            Jan Kratochvil  <jan.kratochvil@redhat.com>
+	    Jan Kratochvil  <jan.kratochvil@redhat.com>
 
 	PR mi/11407
 	* gdb.mi/dw2-ref-missing-frame-func.c: New File.
@@ -596,7 +700,7 @@
 	* gdb.base/ui-redirect.exp: New file.
 
 2010-09-02  Jan Kratochvil  <jan.kratochvil@redhat.com>
-            Joel Brobecker  <brobecker@adacore.com>
+	    Joel Brobecker  <brobecker@adacore.com>
 
 	* gdb.dwarf/dw2-filename.S, gdb.dwarf/dw2-filename.exp: New files.
 
@@ -4696,7 +4800,7 @@
 2009-05-11  Doug Evans  <dje@sebabeach.org>
 
 	* gdb.mi/nsintrall.c (main): Fix off-by-one error.
-	* gdb.threads/pending-step.c (main): Fix off-by-one error. 
+	* gdb.threads/pending-step.c (main): Fix off-by-one error.
 	* gdb.threads/schedlock.c (main): Fix off-by-one error.
 
 2009-05-11  Jan Kratochvil  <jan.kratochvil@redhat.com>

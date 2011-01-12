@@ -1,5 +1,5 @@
 /* Darwin support for GDB, the GNU debugger.
-   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2008, 2009, 2010
+   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    Contributed by Apple Computer, Inc.
@@ -544,7 +544,7 @@ darwin_debug_regions (task_t task, mach_vm_address_t address, int max)
 
       address = prev_address + prev_size;
 
-      /* Check to see if address space has wrapped around. */
+      /* Check to see if address space has wrapped around.  */
       if (address == 0)
         print = done = 1;
 

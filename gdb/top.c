@@ -2,7 +2,7 @@
 
    Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
    1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009, 2010 Free Software Foundation, Inc.
+   2008, 2009, 2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -102,8 +102,8 @@ static void
 show_caution (struct ui_file *file, int from_tty,
 	      struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file, _("\
-Whether to confirm potentially dangerous operations is %s.\n"),
+  fprintf_filtered (file, _("Whether to confirm potentially "
+			    "dangerous operations is %s.\n"),
 		    value);
 }
 
@@ -250,7 +250,7 @@ void (*deprecated_detach_hook) (void);
 
 void (*deprecated_interactive_hook) (void);
 
-/* Tell the GUI someone changed the register REGNO. -1 means
+/* Tell the GUI someone changed the register REGNO.  -1 means
    that the caller does not know which register changed or
    that several registers have changed (see value_assign).  */
 void (*deprecated_register_changed_hook) (int regno);
@@ -282,7 +282,7 @@ void (*deprecated_context_hook) (int id);
 #ifdef SIGHUP
 /* NOTE 1999-04-29: This function will be static again, once we modify
    gdb to use the event loop as the default command loop and we merge
-   event-top.c into this file, top.c */
+   event-top.c into this file, top.c.  */
 /* static */ int
 quit_cover (void *s)
 {
@@ -297,13 +297,13 @@ quit_cover (void *s)
 /* Line number we are currently in in a file which is being sourced.  */
 /* NOTE 1999-04-29: This variable will be static again, once we modify
    gdb to use the event loop as the default command loop and we merge
-   event-top.c into this file, top.c */
+   event-top.c into this file, top.c.  */
 /* static */ int source_line_number;
 
 /* Name of the file we are sourcing.  */
 /* NOTE 1999-04-29: This variable will be static again, once we modify
    gdb to use the event loop as the default command loop and we merge
-   event-top.c into this file, top.c */
+   event-top.c into this file, top.c.  */
 /* static */ const char *source_file_name;
 
 /* Clean up on error during a "source" command (or execution of a
@@ -528,7 +528,7 @@ command_loop (void)
 	reinitialize_more_filter ();
       old_chain = make_cleanup (null_cleanup, 0);
 
-      /* Get a command-line. This calls the readline package.  */
+      /* Get a command-line.  This calls the readline package.  */
       command = command_line_input (instream == stdin ?
 				    get_prompt () : (char *) NULL,
 				    instream == stdin, "prompt");
@@ -630,7 +630,7 @@ static int command_editing_p;
 
 /* NOTE 1999-04-29: This variable will be static again, once we modify
    gdb to use the event loop as the default command loop and we merge
-   event-top.c into this file, top.c */
+   event-top.c into this file, top.c.  */
 
 /* static */ int history_expansion_p;
 
@@ -657,8 +657,8 @@ static void
 show_history_filename (struct ui_file *file, int from_tty,
 		       struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file, _("\
-The filename in which to record the command history is \"%s\".\n"),
+  fprintf_filtered (file, _("The filename in which to record "
+			    "the command history is \"%s\".\n"),
 		    value);
 }
 
@@ -990,7 +990,8 @@ command_line_input (char *prompt_arg, int repeat, char *annotation_suffix)
 	  if (expanded < 0)
 	    {
 	      xfree (history_value);
-	      return command_line_input (prompt_arg, repeat, annotation_suffix);
+	      return command_line_input (prompt_arg, repeat,
+					 annotation_suffix);
 	    }
 	  if (strlen (history_value) > linelength)
 	    {
@@ -1054,7 +1055,8 @@ print_gdb_version (struct ui_file *stream)
 
   /* Second line is a copyright notice.  */
 
-  fprintf_filtered (stream, "Copyright (C) 2010 Free Software Foundation, Inc.\n");
+  fprintf_filtered (stream,
+		    "Copyright (C) 2011 Free Software Foundation, Inc.\n");
 
   /* Following the copyright is a brief statement that the program is
      free software, that users are free to copy and change it on
@@ -1062,8 +1064,8 @@ print_gdb_version (struct ui_file *stream)
      there is no warranty.  */
 
   fprintf_filtered (stream, "\
-License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n\
-This is free software: you are free to change and redistribute it.\n\
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\
+\nThis is free software: you are free to change and redistribute it.\n\
 There is NO WARRANTY, to the extent permitted by law.  Type \"show copying\"\n\
 and \"show warranty\" for details.\n");
 
@@ -1072,7 +1074,8 @@ and \"show warranty\" for details.\n");
   fprintf_filtered (stream, "This GDB was configured as \"");
   if (strcmp (host_name, target_name) != 0)
     {
-      fprintf_filtered (stream, "--host=%s --target=%s", host_name, target_name);
+      fprintf_filtered (stream, "--host=%s --target=%s",
+			host_name, target_name);
     }
   else
     {
@@ -1276,8 +1279,8 @@ show_interactive_mode (struct ui_file *file, int from_tty,
                        const char *value)
 {
   if (interactive_mode == AUTO_BOOLEAN_AUTO)
-    fprintf_filtered (file, "\
-Debugger's interactive mode is %s (currently %s).\n",
+    fprintf_filtered (file, "Debugger's interactive mode "
+		      "is %s (currently %s).\n",
                       value, input_from_terminal_p () ? "on" : "off");
   else
     fprintf_filtered (file, "Debugger's interactive mode is %s.\n", value);
@@ -1409,7 +1412,8 @@ set_history_size_command (char *args, int from_tty, struct cmd_list_element *c)
 void
 set_history (char *args, int from_tty)
 {
-  printf_unfiltered (_("\"set history\" must be followed by the name of a history subcommand.\n"));
+  printf_unfiltered (_("\"set history\" must be followed "
+		       "by the name of a history subcommand.\n"));
   help_list (sethistlist, "set history ", -1, gdb_stdout);
 }
 
@@ -1491,8 +1495,8 @@ static void
 show_async_command_editing_p (struct ui_file *file, int from_tty,
 			      struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file, _("\
-Editing of command lines as they are typed is %s.\n"),
+  fprintf_filtered (file, _("Editing of command lines as "
+			    "they are typed is %s.\n"),
 		    value);
 }
 
@@ -1507,8 +1511,8 @@ static void
 show_exec_done_display_p (struct ui_file *file, int from_tty,
 			  struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file, _("\
-Notification of completion for asynchronous execution commands is %s.\n"),
+  fprintf_filtered (file, _("Notification of completion for "
+			    "asynchronous execution commands is %s.\n"),
 		    value);
 }
 static void
@@ -1550,16 +1554,16 @@ init_main (void)
   rl_add_defun ("operate-and-get-next", gdb_rl_operate_and_get_next, 15);
 
   add_setshow_string_cmd ("prompt", class_support,
-			  &new_async_prompt, _("\
-Set gdb's prompt"), _("\
-Show gdb's prompt"), NULL,
-			  set_async_prompt,
+			  &new_async_prompt,
+			  _("Set gdb's prompt"),
+			  _("Show gdb's prompt"),
+			  NULL, set_async_prompt,
 			  show_new_async_prompt,
 			  &setlist, &showlist);
 
   add_com ("dont-repeat", class_support, dont_repeat_command, _("\
-Don't repeat this command.\n\
-Primarily used inside of user-defined commands that should not be repeated when\n\
+Don't repeat this command.\nPrimarily \
+used inside of user-defined commands that should not be repeated when\n\
 hitting return."));
 
   add_setshow_boolean_cmd ("editing", class_support,
@@ -1688,7 +1692,7 @@ gdb_init (char *argv0)
   set_language (language_c);
   expected_language = current_language;	/* Don't warn about the change.  */
 
-  /* Allow another UI to initialize. If the UI fails to initialize,
+  /* Allow another UI to initialize.  If the UI fails to initialize,
      and it wants GDB to revert to the CLI, it should clear
      deprecated_init_ui_hook.  */
   if (deprecated_init_ui_hook)

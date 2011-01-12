@@ -2,7 +2,7 @@
 
    Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
    1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009,
-   2010 Free Software Foundation, Inc.
+   2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -121,7 +121,7 @@ pop_dummy_frame (struct dummy_frame **dummy_ptr)
   restore_infcall_suspend_state ((*dummy_ptr)->caller_state);
 
   /* restore_infcall_control_state frees inf_state,
-     all that remains is to pop *dummy_ptr */
+     all that remains is to pop *dummy_ptr.  */
   dummy = *dummy_ptr;
   *dummy_ptr = dummy->next;
   xfree (dummy);

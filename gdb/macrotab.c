@@ -1,5 +1,6 @@
 /* C preprocessor macro tables for GDB.
-   Copyright (C) 2002, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2007, 2008, 2009, 2010, 2011
+   Free Software Foundation, Inc.
    Contributed by Red Hat, Inc.
 
    This file is part of GDB.
@@ -159,7 +160,7 @@ struct macro_key
   struct macro_table *table;
 
   /* The name of the macro.  This is in the table's bcache, if it has
-     one. */
+     one.  */
   const char *name;
 
   /* The source file and line number where the definition's scope
@@ -469,8 +470,8 @@ macro_include (struct macro_source_file *source,
 
          First, squawk.  */
       complaint (&symfile_complaints,
-		 _("both `%s' and `%s' allegedly #included at %s:%d"), included,
-		 (*link)->filename, source->filename, line);
+		 _("both `%s' and `%s' allegedly #included at %s:%d"),
+		 included, (*link)->filename, source->filename, line);
 
       /* Now, choose a new, unoccupied line number for this
          #inclusion, after the alleged #inclusion line.  */
@@ -728,7 +729,8 @@ check_for_redefinition (struct macro_source_file *source, int line,
       if (! same)
         {
 	  complaint (&symfile_complaints,
-		     _("macro `%s' redefined at %s:%d; original definition at %s:%d"),
+		     _("macro `%s' redefined at %s:%d; "
+		       "original definition at %s:%d"),
 		     name, source->filename, line,
 		     found_key->start_file->filename, found_key->start_line);
         }

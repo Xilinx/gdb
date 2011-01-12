@@ -3,7 +3,7 @@
 
    Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
    1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009,
-   2010 Free Software Foundation, Inc.
+   2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -281,13 +281,16 @@ find_pc_partial_function (CORE_ADDR pc, char **name, CORE_ADDR *address,
 
       for (i = 1; SYMBOL_LINKAGE_NAME (msymbol + i) != NULL; i++)
 	{
-	  if (SYMBOL_VALUE_ADDRESS (msymbol + i) != SYMBOL_VALUE_ADDRESS (msymbol)
-	      && SYMBOL_OBJ_SECTION (msymbol + i) == SYMBOL_OBJ_SECTION (msymbol))
+	  if (SYMBOL_VALUE_ADDRESS (msymbol + i)
+	      != SYMBOL_VALUE_ADDRESS (msymbol)
+	      && SYMBOL_OBJ_SECTION (msymbol + i)
+	      == SYMBOL_OBJ_SECTION (msymbol))
 	    break;
 	}
 
       if (SYMBOL_LINKAGE_NAME (msymbol + i) != NULL
-	  && SYMBOL_VALUE_ADDRESS (msymbol + i) < obj_section_endaddr (section))
+	  && SYMBOL_VALUE_ADDRESS (msymbol + i)
+	  < obj_section_endaddr (section))
 	cache_pc_function_high = SYMBOL_VALUE_ADDRESS (msymbol + i);
       else
 	/* We got the start address from the last msymbol in the objfile.

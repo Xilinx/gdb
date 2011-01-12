@@ -2,7 +2,7 @@
 
    Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
    1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009, 2010 Free Software Foundation, Inc.
+   2008, 2009, 2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -106,7 +106,8 @@ static void signal_command (char *, int);
 static void jump_command (char *, int);
 
 static void step_1 (int, int, char *);
-static void step_once (int skip_subroutines, int single_inst, int count, int thread);
+static void step_once (int skip_subroutines, int single_inst,
+		       int count, int thread);
 
 static void next_command (char *, int);
 
@@ -125,10 +126,11 @@ void _initialize_infcmd (void);
 #define ERROR_NO_INFERIOR \
    if (!target_has_execution) error (_("The program is not being run."));
 
-/* Scratch area where string containing arguments to give to the program will be
-   stored by 'set args'.  As soon as anything is stored, notice_args_set will
-   move it into per-inferior storage.  Arguments are separated by spaces. Empty
-   string (pointer to '\0') means no args.  */
+/* Scratch area where string containing arguments to give to the
+   program will be stored by 'set args'.  As soon as anything is
+   stored, notice_args_set will move it into per-inferior storage.
+   Arguments are separated by spaces.  Empty string (pointer to '\0')
+   means no args.  */
 
 static char *inferior_args_scratch;
 
@@ -163,7 +165,7 @@ enum stop_stack_kind stop_stack_dummy;
 int stopped_by_random_signal;
 
 
-/* Accessor routines. */
+/* Accessor routines.  */
 
 /* Set the io terminal for the current inferior.  Ownership of
    TERMINAL_NAME is not transferred.  */
@@ -337,7 +339,8 @@ construct_inferior_arguments (int argc, char **argv)
 	  if (cp == NULL)
 	    cp = strchr (argv[i], '\n');
 	  if (cp != NULL)
-	    error (_("can't handle command-line argument containing whitespace"));
+	    error (_("can't handle command-line "
+		     "argument containing whitespace"));
 	  length += strlen (argv[i]) + 1;
 	}
 
@@ -357,8 +360,8 @@ construct_inferior_arguments (int argc, char **argv)
 
 /* This function detects whether or not a '&' character (indicating
    background execution) has been added as *the last* of the arguments ARGS
-   of a command. If it has, it removes it and returns 1. Otherwise it
-   does nothing and returns 0. */
+   of a command.  If it has, it removes it and returns 1.  Otherwise it
+   does nothing and returns 0.  */
 static int
 strip_bg_char (char **args)
 {
@@ -470,7 +473,7 @@ Start it from the beginning? ")))
     }
 }
 
-/* Implement the "run" command. If TBREAK_AT_MAIN is set, then insert
+/* Implement the "run" command.  If TBREAK_AT_MAIN is set, then insert
    a temporary breakpoint at the begining of the main program before
    running the program.  */
 
@@ -529,19 +532,19 @@ run_command_1 (char *args, int from_tty, int tbreak_at_main)
       int async_exec = strip_bg_char (&args);
 
       /* If we get a request for running in the bg but the target
-         doesn't support it, error out. */
+         doesn't support it, error out.  */
       if (async_exec && !target_can_async_p ())
 	error (_("Asynchronous execution not supported on this target."));
 
       /* If we don't get a request of running in the bg, then we need
-         to simulate synchronous (fg) execution. */
+         to simulate synchronous (fg) execution.  */
       if (!async_exec && target_can_async_p ())
 	{
-	  /* Simulate synchronous execution */
+	  /* Simulate synchronous execution.  */
 	  async_disable_stdin ();
 	}
 
-      /* If there were other args, beside '&', process them. */
+      /* If there were other args, beside '&', process them.  */
       if (args)
 	set_inferior_args (args);
     }
@@ -563,7 +566,8 @@ run_command_1 (char *args, int from_tty, int tbreak_at_main)
   /* We call get_inferior_args() because we might need to compute
      the value now.  */
   target_create_inferior (exec_file, get_inferior_args (),
-			  environ_vector (current_inferior ()->environment), from_tty);
+			  environ_vector (current_inferior ()->environment),
+			  from_tty);
 
   /* We're starting off a new process.  When we get out of here, in
      non-stop mode, finish the state of all threads of that process,
@@ -645,20 +649,18 @@ ensure_valid_thread (void)
 {
   if (ptid_equal (inferior_ptid, null_ptid)
       || is_exited (inferior_ptid))
-    error (_("\
-Cannot execute this command without a live selected thread."));
+    error (_("Cannot execute this command without a live selected thread."));
 }
 
 /* If the user is looking at trace frames, any resumption of execution
-   is likely to mix up recorded and live target data. So simply
+   is likely to mix up recorded and live target data.  So simply
    disallow those commands.  */
 
 void
 ensure_not_tfind_mode (void)
 {
   if (get_traceframe_number () >= 0)
-    error (_("\
-Cannot execute this command while looking at trace frames."));
+    error (_("Cannot execute this command while looking at trace frames."));
 }
 
 void
@@ -698,20 +700,20 @@ continue_command (char *args, int from_tty)
   int all_threads = 0;
   ERROR_NO_INFERIOR;
 
-  /* Find out whether we must run in the background. */
+  /* Find out whether we must run in the background.  */
   if (args != NULL)
     async_exec = strip_bg_char (&args);
 
   /* If we must run in the background, but the target can't do it,
-     error out. */
+     error out.  */
   if (async_exec && !target_can_async_p ())
     error (_("Asynchronous execution not supported on this target."));
 
   /* If we are not asked to run in the bg, then prepare to run in the
-     foreground, synchronously. */
+     foreground, synchronously.  */
   if (!async_exec && target_can_async_p ())
     {
-      /* Simulate synchronous execution */
+      /* Simulate synchronous execution.  */
       async_disable_stdin ();
     }
 
@@ -730,8 +732,8 @@ continue_command (char *args, int from_tty)
     error (_("`-a' is meaningless in all-stop mode."));
 
   if (args != NULL && all_threads)
-    error (_("\
-Can't resume all threads and specify proceed count simultaneously."));
+    error (_("Can't resume all threads and specify "
+	     "proceed count simultaneously."));
 
   /* If we have an argument left, set proceed count of breakpoint we
      stopped at.  */
@@ -846,21 +848,21 @@ step_1 (int skip_subroutines, int single_inst, char *count_string)
     async_exec = strip_bg_char (&count_string);
 
   /* If we get a request for running in the bg but the target
-     doesn't support it, error out. */
+     doesn't support it, error out.  */
   if (async_exec && !target_can_async_p ())
     error (_("Asynchronous execution not supported on this target."));
 
   /* If we don't get a request of running in the bg, then we need
-     to simulate synchronous (fg) execution. */
+     to simulate synchronous (fg) execution.  */
   if (!async_exec && target_can_async_p ())
     {
-      /* Simulate synchronous execution */
+      /* Simulate synchronous execution.  */
       async_disable_stdin ();
     }
 
   count = count_string ? parse_and_eval_long (count_string) : 1;
 
-  if (!single_inst || skip_subroutines)		/* leave si command alone */
+  if (!single_inst || skip_subroutines)		/* Leave si command alone.  */
     {
       struct thread_info *tp = inferior_thread ();
 
@@ -924,9 +926,9 @@ struct step_1_continuation_args
 
 /* Called after we are done with one step operation, to check whether
    we need to step again, before we print the prompt and return control
-   to the user. If count is > 1, we will need to do one more call to
-   proceed(), via step_once(). Basically it is like step_once and
-   step_1_continuation are co-recursive. */
+   to the user.  If count is > 1, we will need to do one more call to
+   proceed(), via step_once().  Basically it is like step_once and
+   step_1_continuation are co-recursive.  */
 static void
 step_1_continuation (void *args)
 {
@@ -1011,9 +1013,9 @@ step_once (int skip_subroutines, int single_inst, int count, int thread)
 		error (_("Cannot find bounds of current function"));
 
 	      target_terminal_ours ();
-	      printf_filtered (_("\
-Single stepping until exit from function %s,\n\
-which has no line number information.\n"), name);
+	      printf_filtered (_("Single stepping until exit from function %s,"
+				 "\nwhich has no line number information.\n"),
+			       name);
 	    }
 	}
       else
@@ -1070,12 +1072,12 @@ jump_command (char *arg, int from_tty)
   ensure_valid_thread ();
   ensure_not_running ();
 
-  /* Find out whether we must run in the background. */
+  /* Find out whether we must run in the background.  */
   if (arg != NULL)
     async_exec = strip_bg_char (&arg);
 
   /* If we must run in the background, but the target can't do it,
-     error out. */
+     error out.  */
   if (async_exec && !target_can_async_p ())
     error (_("Asynchronous execution not supported on this target."));
 
@@ -1094,9 +1096,9 @@ jump_command (char *arg, int from_tty)
   if (sal.symtab == 0 && sal.pc == 0)
     error (_("No source file has been specified."));
 
-  resolve_sal_pc (&sal);	/* May error out */
+  resolve_sal_pc (&sal);	/* May error out.  */
 
-  /* See if we are trying to jump to another function. */
+  /* See if we are trying to jump to another function.  */
   fn = get_frame_function (get_current_frame ());
   sfn = find_pc_function (sal.pc);
   if (fn != NULL && sfn != fn)
@@ -1115,7 +1117,8 @@ jump_command (char *arg, int from_tty)
       if (section_is_overlay (SYMBOL_OBJ_SECTION (sfn)) &&
 	  !section_is_mapped (SYMBOL_OBJ_SECTION (sfn)))
 	{
-	  if (!query (_("WARNING!!!  Destination is in unmapped overlay!  Jump anyway? ")))
+	  if (!query (_("WARNING!!!  Destination is in "
+			"unmapped overlay!  Jump anyway? ")))
 	    {
 	      error (_("Not confirmed."));
 	      /* NOTREACHED */
@@ -1133,10 +1136,10 @@ jump_command (char *arg, int from_tty)
     }
 
   /* If we are not asked to run in the bg, then prepare to run in the
-     foreground, synchronously. */
+     foreground, synchronously.  */
   if (!async_exec && target_can_async_p ())
     {
-      /* Simulate synchronous execution */
+      /* Simulate synchronous execution.  */
       async_disable_stdin ();
     }
 
@@ -1145,7 +1148,7 @@ jump_command (char *arg, int from_tty)
 }
 
 
-/* Go to line or address in current procedure */
+/* Go to line or address in current procedure.  */
 static void
 go_command (char *line_no, int from_tty)
 {
@@ -1258,7 +1261,7 @@ until_next_command (int from_tty)
 
   /* Step until either exited from this function or greater
      than the current line (if in symbolic section) or pc (if
-     not). */
+     not).  */
 
   pc = get_frame_pc (frame);
   func = find_pc_function (pc);
@@ -1309,20 +1312,20 @@ until_command (char *arg, int from_tty)
   ensure_valid_thread ();
   ensure_not_running ();
 
-  /* Find out whether we must run in the background. */
+  /* Find out whether we must run in the background.  */
   if (arg != NULL)
     async_exec = strip_bg_char (&arg);
 
   /* If we must run in the background, but the target can't do it,
-     error out. */
+     error out.  */
   if (async_exec && !target_can_async_p ())
     error (_("Asynchronous execution not supported on this target."));
 
   /* If we are not asked to run in the bg, then prepare to run in the
-     foreground, synchronously. */
+     foreground, synchronously.  */
   if (!async_exec && target_can_async_p ())
     {
-      /* Simulate synchronous execution */
+      /* Simulate synchronous execution.  */
       async_disable_stdin ();
     }
 
@@ -1434,7 +1437,7 @@ print_return_value (struct type *func_type, struct type *value_type)
    impossible to do all the stuff as part of the finish_command
    function itself.  The only chance we have to complete this command
    is in fetch_inferior_event, which is called by the event loop as
-   soon as it detects that the target has stopped. This function is
+   soon as it detects that the target has stopped.  This function is
    called via the cmd_continuation pointer.  */
 
 struct finish_command_continuation_args
@@ -1749,8 +1752,8 @@ program_info (char *args, int from_tty)
 	{
 	  if (stat < 0)
 	    {
-	      printf_filtered (_("\
-It stopped at a breakpoint that has since been deleted.\n"));
+	      printf_filtered (_("It stopped at a breakpoint "
+				 "that has since been deleted.\n"));
 	    }
 	  else
 	    printf_filtered (_("It stopped at breakpoint %d.\n"), num);
@@ -1766,8 +1769,8 @@ It stopped at a breakpoint that has since been deleted.\n"));
 
   if (!from_tty)
     {
-      printf_filtered (_("\
-Type \"info stack\" or \"info registers\" for more information.\n"));
+      printf_filtered (_("Type \"info stack\" or \"info "
+			 "registers\" for more information.\n"));
     }
 }
 
@@ -1813,7 +1816,7 @@ set_environment_command (char *arg, int from_tty)
   if (arg == 0)
     error_no_arg (_("environment variable and value"));
 
-  /* Find seperation between variable name and value */
+  /* Find seperation between variable name and value.  */
   p = (char *) strchr (arg, '=');
   val = (char *) strchr (arg, ' ');
 
@@ -1821,7 +1824,7 @@ set_environment_command (char *arg, int from_tty)
     {
       /* We have both a space and an equals.  If the space is before the
          equals, walk forward over the spaces til we see a nonspace 
-         (possibly the equals). */
+         (possibly the equals).  */
       if (p > val)
 	while (*val == ' ')
 	  val++;
@@ -1841,11 +1844,11 @@ set_environment_command (char *arg, int from_tty)
     {
       nullset = 1;
       if (p == 0)
-	p = arg + strlen (arg);	/* So that savestring below will work */
+	p = arg + strlen (arg);	/* So that savestring below will work.  */
     }
   else
     {
-      /* Not setting variable value to null */
+      /* Not setting variable value to null.  */
       val = p + 1;
       while (*val == ' ' || *val == '\t')
 	val++;
@@ -1857,8 +1860,8 @@ set_environment_command (char *arg, int from_tty)
   var = savestring (arg, p - arg);
   if (nullset)
     {
-      printf_filtered (_("\
-Setting environment variable \"%s\" to null value.\n"),
+      printf_filtered (_("Setting environment variable "
+			 "\"%s\" to null value.\n"),
 		       var);
       set_in_environ (current_inferior ()->environment, var, "");
     }
@@ -1884,7 +1887,7 @@ unset_environment_command (char *var, int from_tty)
     unset_in_environ (current_inferior ()->environment, var);
 }
 
-/* Handle the execution path (PATH variable) */
+/* Handle the execution path (PATH variable).  */
 
 static const char path_var_name[] = "PATH";
 
@@ -1892,7 +1895,8 @@ static void
 path_info (char *args, int from_tty)
 {
   puts_filtered ("Executable and object file path: ");
-  puts_filtered (get_in_environ (current_inferior ()->environment, path_var_name));
+  puts_filtered (get_in_environ (current_inferior ()->environment,
+				 path_var_name));
   puts_filtered ("\n");
 }
 
@@ -1906,7 +1910,7 @@ path_command (char *dirname, int from_tty)
 
   dont_repeat ();
   env = get_in_environ (current_inferior ()->environment, path_var_name);
-  /* Can be null if path is not set */
+  /* Can be null if path is not set.  */
   if (!env)
     env = "";
   exec_path = xstrdup (env);
@@ -1918,7 +1922,7 @@ path_command (char *dirname, int from_tty)
 }
 
 
-/* Print out the machine register regnum. If regnum is -1, print all
+/* Print out the machine register regnum.  If regnum is -1, print all
    registers (print_all == 1) or all non-float and non-vector
    registers (print_all == 0).
 
@@ -2199,7 +2203,7 @@ kill_command (char *arg, int from_tty)
 {
   /* FIXME:  This should not really be inferior_ptid (or target_has_execution).
      It should be a distinct flag that indicates that a target is active, cuz
-     some targets don't have processes! */
+     some targets don't have processes!  */
 
   if (ptid_equal (inferior_ptid, null_ptid))
     error (_("The program is not being run."));
@@ -2211,7 +2215,7 @@ kill_command (char *arg, int from_tty)
      with their threads.  */
   if (!have_inferiors ())
     {
-      init_thread_list ();		/* Destroy thread info */
+      init_thread_list ();		/* Destroy thread info.  */
 
       /* Killing off the inferior can leave us with a core file.  If
 	 so, print the state we are left in.  */
@@ -2276,8 +2280,7 @@ proceed_after_attach (int pid)
  * This only needs to be done if we are attaching to a process.
  */
 
-/*
-   attach_command --
+/* attach_command --
    takes a program started up outside of gdb and ``attaches'' to it.
    This stops it cold in its tracks and allows us to start debugging it.
    and wait for the trace-trap that results from attaching.  */
@@ -2306,8 +2309,8 @@ attach_command_post_wait (char *args, int from_tty, int async_exec)
 
 	     Attempt to qualify the filename against the source path.
 	     (If that fails, we'll just fall back on the original
-	     filename.  Not much more we can do...)
-	   */
+	     filename.  Not much more we can do...)  */
+
 	  if (!source_full_path_of (exec_file, &full_exec_path))
 	    full_exec_path = xstrdup (exec_file);
 
@@ -2430,7 +2433,7 @@ attach_command (char *args, int from_tty)
       async_exec = strip_bg_char (&args);
 
       /* If we get a request for running in the bg but the target
-         doesn't support it, error out. */
+         doesn't support it, error out.  */
       if (async_exec && !target_can_async_p ())
 	error (_("Asynchronous execution not supported on this target."));
     }
@@ -2439,7 +2442,7 @@ attach_command (char *args, int from_tty)
      to simulate synchronous (fg) execution.  */
   if (!async_exec && target_can_async_p ())
     {
-      /* Simulate synchronous execution */
+      /* Simulate synchronous execution.  */
       async_disable_stdin ();
       make_cleanup ((make_cleanup_ftype *)async_enable_stdin, NULL);
     }
@@ -2476,7 +2479,7 @@ attach_command (char *args, int from_tty)
     {
       struct inferior *inferior = current_inferior ();
 
-      /* Careful here. See comments in inferior.h.  Basically some
+      /* Careful here.  See comments in inferior.h.  Basically some
 	 OSes don't ignore SIGSTOPs on continue requests anymore.  We
 	 need a way for handle_inferior_event to reset the stop_signal
 	 variable after an attach, and this is what
@@ -2619,7 +2622,7 @@ detach_command (char *args, int from_tty)
 static void
 disconnect_command (char *args, int from_tty)
 {
-  dont_repeat ();		/* Not for the faint of heart */
+  dont_repeat ();		/* Not for the faint of heart.  */
   target_disconnect (args, from_tty);
   no_shared_libraries (NULL, from_tty);
   init_thread_list ();
@@ -2661,7 +2664,7 @@ interrupt_target_command (char *args, int from_tty)
     {
       int all_threads = 0;
 
-      dont_repeat ();		/* Not for the faint of heart */
+      dont_repeat ();		/* Not for the faint of heart.  */
 
       if (args != NULL
 	  && strncmp (args, "-a", sizeof ("-a") - 1) == 0)
@@ -2699,8 +2702,8 @@ print_float_info (struct ui_file *file,
 	    }
 	}
       if (!printed_something)
-	fprintf_filtered (file, "\
-No floating-point info available for this processor.\n");
+	fprintf_filtered (file, "No floating-point info "
+			  "available for this processor.\n");
     }
 }
 
@@ -2716,8 +2719,8 @@ float_info (char *args, int from_tty)
 static void
 unset_command (char *args, int from_tty)
 {
-  printf_filtered (_("\
-\"unset\" must be followed by the name of an unset subcommand.\n"));
+  printf_filtered (_("\"unset\" must be followed by the "
+		     "name of an unset subcommand.\n"));
   help_list (unsetlist, "unset ", -1, gdb_stdout);
 }
 
@@ -2726,7 +2729,7 @@ _initialize_infcmd (void)
 {
   struct cmd_list_element *c = NULL;
 
-  /* add the filename of the terminal connected to inferior I/O */
+  /* Add the filename of the terminal connected to inferior I/O.  */
   add_setshow_filename_cmd ("inferior-tty", class_run,
 			    &inferior_io_terminal_scratch, _("\
 Set terminal for future runs of program being debugged."), _("\
@@ -2776,7 +2779,8 @@ Add directory DIR(s) to beginning of search path for object files.\n\
 $cwd in the path means the current working directory.\n\
 This path is equivalent to the $PATH shell variable.  It is a list of\n\
 directories, separated by colons.  These directories are searched to find\n\
-fully linked executable files and separately compiled object files as needed."));
+fully linked executable files and separately compiled object files as \
+needed."));
   set_cmd_completer (c, filename_completer);
 
   c = add_cmd ("paths", no_class, path_info, _("\
@@ -2784,7 +2788,8 @@ Current search path for finding object files.\n\
 $cwd in the path means the current working directory.\n\
 This path is equivalent to the $PATH shell variable.  It is a list of\n\
 directories, separated by colons.  These directories are searched to find\n\
-fully linked executable files and separately compiled object files as needed."),
+fully linked executable files and separately compiled object files as \
+needed."),
 	       &showlist);
   set_cmd_completer (c, noop_completer);
 
@@ -2822,12 +2827,14 @@ An argument of \"0\" means continue program without giving it a signal."));
 
   add_com ("stepi", class_run, stepi_command, _("\
 Step one instruction exactly.\n\
-Argument N means do this N times (or till program stops for another reason)."));
+Argument N means do this N times (or till program stops for another \
+reason)."));
   add_com_alias ("si", "stepi", class_alias, 0);
 
   add_com ("nexti", class_run, nexti_command, _("\
 Step one instruction, but proceed through subroutine calls.\n\
-Argument N means do this N times (or till program stops for another reason)."));
+Argument N means do this N times (or till program stops for another \
+reason)."));
   add_com_alias ("ni", "nexti", class_alias, 0);
 
   add_com ("finish", class_run, finish_command, _("\
@@ -2839,24 +2846,28 @@ Upon return, the value returned is printed and put in the value history."));
 Step program, proceeding through subroutine calls.\n\
 Like the \"step\" command as long as subroutine calls do not happen;\n\
 when they do, the call is treated as one instruction.\n\
-Argument N means do this N times (or till program stops for another reason)."));
+Argument N means do this N times (or till program stops for another \
+reason)."));
   add_com_alias ("n", "next", class_run, 1);
   if (xdb_commands)
     add_com_alias ("S", "next", class_run, 1);
 
   add_com ("step", class_run, step_command, _("\
 Step program until it reaches a different source line.\n\
-Argument N means do this N times (or till program stops for another reason)."));
+Argument N means do this N times (or till program stops for another \
+reason)."));
   add_com_alias ("s", "step", class_run, 1);
 
   c = add_com ("until", class_run, until_command, _("\
 Execute until the program reaches a source line greater than the current\n\
-or a specified location (same args as break command) within the current frame."));
+or a specified location (same args as break command) within the current \
+frame."));
   set_cmd_completer (c, location_completer);
   add_com_alias ("u", "until", class_run, 1);
 
   c = add_com ("advance", class_run, advance_command, _("\
-Continue the program up to the given location (same form as args for break command).\n\
+Continue the program up to the given location (same form as args for break \
+command).\n\
 Execution will also stop upon exit from the current stack frame."));
   set_cmd_completer (c, location_completer);
 
@@ -2897,8 +2908,10 @@ Specifying -a and an ignore count simultaneously is an error."));
   c = add_com ("run", class_run, run_command, _("\
 Start debugged program.  You may specify arguments to give it.\n\
 Args may include \"*\", or \"[...]\"; they are expanded using \"sh\".\n\
-Input and output redirection with \">\", \"<\", or \">>\" are also allowed.\n\n\
-With no arguments, uses arguments last specified (with \"run\" or \"set args\").\n\
+Input and output redirection with \">\", \"<\", or \">>\" are also \
+allowed.\n\n\
+With no arguments, uses arguments last specified (with \"run\" \
+or \"set args\").\n\
 To cancel previous arguments and run with no arguments,\n\
 use \"set args\" without arguments."));
   set_cmd_completer (c, filename_completer);

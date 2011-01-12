@@ -1,5 +1,5 @@
 /* Darwin support for GDB, the GNU debugger.
-   Copyright (C) 2008, 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
 
    Contributed by AdaCore.
 
@@ -44,8 +44,8 @@ static int mach_o_debug_level = 0;
    during the link.
    Each time an oso (other source) is found in the executable, the reader
    creates such a structure.  They are read after the processing of the
-   executable.
-*/
+   executable.  */
+
 typedef struct oso_el
 {
   /* Object file name.  */
@@ -206,7 +206,7 @@ macho_symtab_read (struct objfile *objfile,
       if (sym->name == NULL || *sym->name == '\0')
 	{
 	  /* Skip names that don't exist (shouldn't happen), or names
-	     that are null strings (may happen). */
+	     that are null strings (may happen).  */
 	  continue;
 	}
 
@@ -215,12 +215,12 @@ macho_symtab_read (struct objfile *objfile,
 	  struct minimal_symbol *msym;
 	  CORE_ADDR symaddr;
 
-	  /* Bfd symbols are section relative. */
+	  /* Bfd symbols are section relative.  */
 	  symaddr = sym->value + sym->section->vma;
 
 	  /* Select global/local/weak symbols.  Note that bfd puts abs
 	     symbols in their own section, so all symbols we are
-	     interested in will have a section. */
+	     interested in will have a section.  */
 	  /* Relocate all non-absolute and non-TLS symbols by the
 	     section offset.  */
 	  if (sym->section != &bfd_abs_section
@@ -258,7 +258,7 @@ macho_symtab_read (struct objfile *objfile,
 		ms_type = mst_unknown;
 	    }
 	  else
-	    continue;	/* Skip this symbol. */
+	    continue;	/* Skip this symbol.  */
 
 	  gdb_assert (sym->section->index < nbr_sections);
 	  if (oso_file != NULL
@@ -840,15 +840,14 @@ macho_symfile_offsets (struct objfile *objfile,
 static const struct sym_fns macho_sym_fns = {
   bfd_target_mach_o_flavour,
 
-  macho_new_init,               /* sym_new_init: init anything gbl to entire symtab */
-  macho_symfile_init,           /* sym_init: read initial info, setup for sym_read() */
-  macho_symfile_read,           /* sym_read: read a symbol file into symtab */
-  macho_symfile_finish,         /* sym_finish: finished with file, cleanup */
-  macho_symfile_offsets,        /* sym_offsets:  xlate external to internal form */
-  default_symfile_segments,	/* sym_segments: Get segment information from
-				   a file.  */
-  NULL,                         /* sym_read_linetable */
-  macho_symfile_relocate,	/* sym_relocate: Relocate a debug section.  */
+  macho_new_init,               /* init anything gbl to entire symtab */
+  macho_symfile_init,           /* read initial info, setup for sym_read() */
+  macho_symfile_read,           /* read a symbol file into symtab */
+  macho_symfile_finish,         /* finished with file, cleanup */
+  macho_symfile_offsets,        /* xlate external to internal form */
+  default_symfile_segments,	/* Get segment information from a file.  */
+  NULL,
+  macho_symfile_relocate,	/* Relocate a debug section.  */
   &psym_functions
 };
 
@@ -858,9 +857,9 @@ _initialize_machoread ()
   add_symtab_fns (&macho_sym_fns);
 
   add_setshow_zinteger_cmd ("mach-o", class_obscure,
-			    &mach_o_debug_level, _("\
-Set if printing Mach-O symbols processing."), _("\
-Show if printing Mach-O symbols processing."), NULL,
-			    NULL, NULL,
+			    &mach_o_debug_level,
+			    _("Set if printing Mach-O symbols processing."),
+			    _("Show if printing Mach-O symbols processing."),
+			    NULL, NULL, NULL,
 			    &setdebuglist, &showdebuglist);
 }

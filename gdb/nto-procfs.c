@@ -1,7 +1,7 @@
 /* Machine independent support for QNX Neutrino /proc (process file system)
-   for GDB.  Written by Colin Burgess at QNX Software Systems Limited. 
+   for GDB.  Written by Colin Burgess at QNX Software Systems Limited.
 
-   Copyright (C) 2003, 2006, 2007, 2008, 2009, 2010
+   Copyright (C) 2003, 2006, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    Contributed by QNX Software Systems Ltd.
@@ -402,7 +402,7 @@ procfs_pidlist (char *args, int from_tty)
 	}
       while (pid == 0);
 
-      /* Open the procfs path. */
+      /* Open the procfs path.  */
       fd = open (buf, O_RDONLY);
       if (fd == -1)
 	{
@@ -604,7 +604,8 @@ procfs_files_info (struct target_ops *ignore)
 		     target_pid_to_str (inferior_ptid), nto_procfs_path);
 }
 
-/* Mark our target-struct as eligible for stray "run" and "attach" commands.  */
+/* Mark our target-struct as eligible for stray "run" and "attach"
+   commands.  */
 static int
 procfs_can_run (void)
 {
@@ -998,7 +999,7 @@ procfs_resume (struct target_ops *ops,
 			  signal_to_pass, 0, 0);
 	      run.flags |= _DEBUG_RUN_CLRFLT | _DEBUG_RUN_CLRSIG;
 	    }
-	  else			/* Let it kill the program without telling us.  */
+	  else		/* Let it kill the program without telling us.  */
 	    sigdelset (&run.trace, signal_to_pass);
 	}
     }
@@ -1008,7 +1009,7 @@ procfs_resume (struct target_ops *ops,
   errno = devctl (ctl_fd, DCMD_PROC_RUN, &run, sizeof (run), 0);
   if (errno != EOK)
     {
-      perror ("run error!\n");
+      perror (_("run error!\n"));
       return;
     }
 }
@@ -1493,7 +1494,7 @@ procfs_hw_watchpoint (int addr, int len, int type)
   errno = devctl (ctl_fd, DCMD_PROC_BREAK, &brk, sizeof (brk), 0);
   if (errno != EOK)
     {
-      perror ("Failed to set hardware watchpoint");
+      perror (_("Failed to set hardware watchpoint"));
       return -1;
     }
   return 0;

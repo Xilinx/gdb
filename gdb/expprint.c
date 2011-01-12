@@ -1,7 +1,7 @@
 /* Print in infix form a struct expression.
 
    Copyright (C) 1986, 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2003, 2007, 2008, 2009, 2010
+   1998, 1999, 2000, 2003, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -205,7 +205,8 @@ print_subexp_standard (struct expression *exp, int *pos,
       fprintf_unfiltered (stream, "B'<unimplemented>'");
       return;
 
-    case OP_OBJC_NSSTRING:	/* Objective-C Foundation Class NSString constant.  */
+    case OP_OBJC_NSSTRING:	/* Objective-C Foundation Class
+				   NSString constant.  */
       {
 	struct value_print_options opts;
 
@@ -254,7 +255,7 @@ print_subexp_standard (struct expression *exp, int *pos,
 	    fprintf_unfiltered (stream, " %s", selector);
 	  }
 	fprintf_unfiltered (stream, "]");
-	/* "selector" was malloc'd by target_read_string. Free it.  */
+	/* "selector" was malloc'd by target_read_string.  Free it.  */
 	xfree (selector);
 	return;
       }
@@ -276,7 +277,7 @@ print_subexp_standard (struct expression *exp, int *pos,
 	     does not match our expection of what we should find for
 	     a simple string, revert back to array printing.  Note that
 	     the last expression element is an explicit null terminator
-	     byte, which doesn't get printed. */
+	     byte, which doesn't get printed.  */
 	  tempstr = alloca (nargs);
 	  pc += 4;
 	  while (tem < nargs)
@@ -285,7 +286,8 @@ print_subexp_standard (struct expression *exp, int *pos,
 		  || exp->elts[pc + 1].type
 		     != builtin_type (exp->gdbarch)->builtin_char)
 		{
-		  /* Not a simple array of char, use regular array printing. */
+		  /* Not a simple array of char, use regular array
+		     printing.  */
 		  tem = 0;
 		  break;
 		}
@@ -370,7 +372,7 @@ print_subexp_standard (struct expression *exp, int *pos,
       fputs_filtered (&exp->elts[pc + 2].string, stream);
       return;
 
-      /* Will not occur for Modula-2 */
+      /* Will not occur for Modula-2.  */
     case STRUCTOP_PTR:
       tem = longest_to_int (exp->elts[pc + 1].longconst);
       (*pos) += 3 + BYTES_TO_EXP_ELEM (tem + 1);
@@ -551,7 +553,7 @@ print_subexp_standard (struct expression *exp, int *pos,
 	error (_("Invalid expression"));
     }
 
-  /* Note that PREC_BUILTIN will always emit parentheses. */
+  /* Note that PREC_BUILTIN will always emit parentheses.  */
   if ((int) myprec < (int) prec)
     fputs_filtered ("(", stream);
   if ((int) opcode > (int) BINOP_END)
@@ -621,7 +623,7 @@ op_string (enum exp_opcode op)
 static char *op_name (struct expression *, enum exp_opcode);
 static int dump_subexp_body (struct expression *exp, struct ui_file *, int);
 
-/* Name for OPCODE, when it appears in expression EXP. */
+/* Name for OPCODE, when it appears in expression EXP.  */
 
 static char *
 op_name (struct expression *exp, enum exp_opcode opcode)

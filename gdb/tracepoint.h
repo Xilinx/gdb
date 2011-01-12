@@ -1,5 +1,5 @@
 /* Data structures associated with tracepoints in GDB.
-   Copyright (C) 1997, 1998, 1999, 2000, 2007, 2008, 2009, 2010
+   Copyright (C) 1997, 1998, 1999, 2000, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -24,10 +24,10 @@
 #include "target.h"
 
 /* A trace state variable is a value managed by a target being
-   traced. A trace state variable (or tsv for short) can be accessed
+   traced.  A trace state variable (or tsv for short) can be accessed
    and assigned to by tracepoint actions and conditionals, but is not
    part of the program being traced, and it doesn't have to be
-   collected. Effectively the variables are scratch space for
+   collected.  Effectively the variables are scratch space for
    tracepoints.  */
 
 struct trace_state_variable
@@ -139,7 +139,8 @@ struct uploaded_tp
   /* String that is the encoded form of the tracepoint's condition.  */
   char *cond;
 
-  /* Vectors of strings that are the encoded forms of a tracepoint's actions.  */
+  /* Vectors of strings that are the encoded forms of a tracepoint's
+     actions.  */
   VEC(char_ptr) *actions;
   VEC(char_ptr) *step_actions;
 
@@ -209,7 +210,8 @@ extern int encode_source_string (int num, ULONGEST addr,
 
 extern void parse_trace_status (char *line, struct trace_status *ts);
 
-extern void parse_tracepoint_definition (char *line, struct uploaded_tp **utpp);
+extern void parse_tracepoint_definition (char *line,
+					 struct uploaded_tp **utpp);
 extern void parse_tsv_definition (char *line, struct uploaded_tsv **utsvp);
 
 extern struct uploaded_tp *get_uploaded_tp (int num, ULONGEST addr,

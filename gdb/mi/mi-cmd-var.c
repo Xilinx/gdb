@@ -1,6 +1,6 @@
 /* MI Command Set - varobj commands.
 
-   Copyright (C) 2000, 2002, 2004, 2005, 2007, 2008, 2009, 2010
+   Copyright (C) 2000, 2002, 2004, 2005, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    Contributed by Cygnus Solutions (a Red Hat company).
@@ -41,7 +41,8 @@ static void varobj_update_one (struct varobj *var,
 			      enum print_values print_values,
 			      int explicit);
 
-static int mi_print_value_p (struct varobj *var, enum print_values print_values);
+static int mi_print_value_p (struct varobj *var,
+			     enum print_values print_values);
 
 /* Print variable object VAR.  The PRINT_VALUES parameter controls
    if the value should be printed.  The PRINT_EXPRESSION parameter
@@ -180,7 +181,8 @@ mi_cmd_var_delete (char *command, char **argv, int argc)
   if (argc == 1)
     {
       if (strcmp (name, "-c") == 0)
-	error (_("mi_cmd_var_delete: Missing required argument after '-c': variable object name"));
+	error (_("mi_cmd_var_delete: Missing required "
+		 "argument after '-c': variable object name"));
       if (*name == '-')
 	error (_("mi_cmd_var_delete: Illegal variable object name"));
     }
@@ -232,7 +234,8 @@ mi_parse_format (const char *arg)
 	return FORMAT_OCTAL;
     }
 
-  error (_("Must specify the format as: \"natural\", \"binary\", \"decimal\", \"hexadecimal\", or \"octal\""));
+  error (_("Must specify the format as: \"natural\", "
+	   "\"binary\", \"decimal\", \"hexadecimal\", or \"octal\""));
 }
 
 void
@@ -268,12 +271,12 @@ mi_cmd_var_set_visualizer (char *command, char **argv, int argc)
   struct varobj *var;
 
   if (argc != 2)
-    error ("Usage: NAME VISUALIZER_FUNCTION.");
+    error (_("Usage: NAME VISUALIZER_FUNCTION."));
 
   var = varobj_get_handle (argv[0]);
 
   if (var == NULL)
-    error ("Variable object not found");
+    error (_("Variable object not found"));
 
   varobj_set_visualizer (var, argv[1]);
 }
@@ -400,7 +403,8 @@ mi_cmd_var_list_children (char *command, char **argv, int argc)
   char *display_hint;
 
   if (argc < 1 || argc > 4)
-    error (_("mi_cmd_var_list_children: Usage: [PRINT_VALUES] NAME [FROM TO]"));
+    error (_("mi_cmd_var_list_children: Usage: "
+	     "[PRINT_VALUES] NAME [FROM TO]"));
 
   /* Get varobj handle, if a valid var obj name was specified */
   if (argc == 1 || argc == 3)
@@ -617,7 +621,8 @@ mi_cmd_var_assign (char *command, char **argv, int argc)
   expression = xstrdup (argv[1]);
 
   if (!varobj_set_value (var, expression))
-    error (_("mi_cmd_var_assign: Could not assign expression to variable object"));
+    error (_("mi_cmd_var_assign: Could not assign "
+	     "expression to variable object"));
 
   val = varobj_get_value (var);
   ui_out_field_string (uiout, "value", val);
@@ -793,7 +798,8 @@ varobj_update_one (struct varobj *var, enum print_values print_values,
 	    {
 	      struct cleanup *cleanup_child;
 
-	      cleanup_child = make_cleanup_ui_out_tuple_begin_end (uiout, NULL);
+	      cleanup_child
+		= make_cleanup_ui_out_tuple_begin_end (uiout, NULL);
 	      print_varobj (child, print_values, 1 /* print_expression */);
 	      do_cleanups (cleanup_child);
 	    }

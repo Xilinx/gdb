@@ -1,6 +1,6 @@
 /* Handle set and show GDB commands.
 
-   Copyright (c) 2000, 2001, 2002, 2003, 2007, 2008, 2009, 2010
+   Copyright (c) 2000, 2001, 2002, 2003, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -352,7 +352,8 @@ do_setshow_command (char *arg, int from_tty, struct cmd_list_element *c)
 	      break;
 	    default:
 	      internal_error (__FILE__, __LINE__,
-			      _("do_setshow_command: invalid var_auto_boolean"));
+			      _("do_setshow_command: "
+				"invalid var_auto_boolean"));
 	      break;
 	    }
 	  break;

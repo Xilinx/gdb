@@ -1,6 +1,6 @@
 /* Remote utility routines for the remote server for GDB.
    Copyright (C) 1986, 1989, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
+   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -328,7 +328,8 @@ remote_open (char *name)
       if (port == 0)
 	{
 	  socklen_t len = sizeof (sockaddr);
-	  if (getsockname (listen_desc, (struct sockaddr *) &sockaddr, &len) < 0
+	  if (getsockname (listen_desc,
+			   (struct sockaddr *) &sockaddr, &len) < 0
 	      || len < sizeof (sockaddr))
 	    perror_with_name ("Can't determine port");
 	  port = ntohs (sockaddr.sin_port);
@@ -971,7 +972,8 @@ readchar (void)
 
   if (readchar_bufcnt == 0)
     {
-      readchar_bufcnt = read (remote_desc, readchar_buf, sizeof (readchar_buf));
+      readchar_bufcnt = read (remote_desc, readchar_buf,
+			      sizeof (readchar_buf));
 
       if (readchar_bufcnt <= 0)
 	{
@@ -1083,7 +1085,9 @@ getpkt (char *buf)
 
       if (noack_mode)
 	{
-	  fprintf (stderr, "Bad checksum, sentsum=0x%x, csum=0x%x, buf=%s [no-ack-mode, Bad medium?]\n",
+	  fprintf (stderr,
+		   "Bad checksum, sentsum=0x%x, csum=0x%x, "
+		   "buf=%s [no-ack-mode, Bad medium?]\n",
 		   (c1 << 4) + c2, csum, buf);
 	  /* Not much we can do, GDB wasn't expecting an ack/nac.  */
 	  break;

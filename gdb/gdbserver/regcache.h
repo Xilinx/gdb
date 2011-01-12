@@ -1,5 +1,5 @@
 /* Register support routines for the remote server for GDB.
-   Copyright (C) 2001, 2002, 2007, 2008, 2009, 2010
+   Copyright (C) 2001, 2002, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -93,6 +93,7 @@ void collect_register (struct regcache *regcache, int n, void *buf);
 
 void collect_register_as_string (struct regcache *regcache, int n, char *buf);
 
-void collect_register_by_name (struct regcache *regcache, const char *name, void *buf);
+void collect_register_by_name (struct regcache *regcache,
+			       const char *name, void *buf);
 
 #endif /* REGCACHE_H */

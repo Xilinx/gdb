@@ -1,6 +1,6 @@
 /* GNU/Linux native-dependent code for debugging multiple forks.
 
-   Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010
+   Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -49,7 +49,7 @@ struct fork_info
   struct fork_info *next;
   ptid_t ptid;
   ptid_t parent_ptid;
-  int num;			/* Convenient handle (GDB fork id) */
+  int num;			/* Convenient handle (GDB fork id).  */
   struct regcache *savedregs;	/* Convenient for info fork, saves
 				   having to actually switch contexts.  */
   int clobber_regs;		/* True if we should restore saved regs.  */
@@ -419,7 +419,7 @@ inferior_call_waitpid_cleanup (void *fp)
 
   if (oldfp)
     {
-      /* Switch back to inferior_ptid. */
+      /* Switch back to inferior_ptid.  */
       remove_breakpoints ();
       fork_load_infrun_state (oldfp);
       insert_breakpoints ();

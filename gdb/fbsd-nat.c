@@ -1,6 +1,6 @@
 /* Native-dependent code for FreeBSD.
 
-   Copyright (C) 2002, 2003, 2004, 2007, 2008, 2009, 2010
+   Copyright (C) 2002, 2003, 2004, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -132,7 +132,7 @@ fbsd_find_memory_regions (find_memory_region_ftype func, void *obfd)
 			    exec ? 'x' : '-');
 	}
 
-      /* Invoke the callback function to create the corefile segment. */
+      /* Invoke the callback function to create the corefile segment.  */
       func (start, size, read, write, exec, obfd);
     }
 

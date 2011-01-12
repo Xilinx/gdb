@@ -1,6 +1,7 @@
 /* Helper routines for parsing XML using Expat.
 
-   Copyright (C) 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011
+   Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -338,7 +339,7 @@ gdb_xml_end_element (void *data, const XML_Char *name)
       gdb_xml_error (parser, _("Required element <%s> is missing"),
 		     element->name);
 
-  /* Call the element processor. */
+  /* Call the element processor.  */
   if (scope->element != NULL && scope->element->end_handler)
     {
       char *body;
@@ -483,7 +484,8 @@ gdb_xml_fetch_external_entity (XML_Parser expat_parser,
     {
       text = fetch_xml_builtin (parser->dtd_name);
       if (text == NULL)
-	internal_error (__FILE__, __LINE__, "could not locate built-in DTD %s",
+	internal_error (__FILE__, __LINE__,
+			_("could not locate built-in DTD %s"),
 			parser->dtd_name);
     }
   else
@@ -528,7 +530,8 @@ gdb_xml_use_dtd (struct gdb_xml_parser *parser, const char *dtd_name)
   err = XML_UseForeignDTD (parser->expat_parser, XML_TRUE);
   if (err != XML_ERROR_NONE)
     internal_error (__FILE__, __LINE__,
-		    "XML_UseForeignDTD failed: %s", XML_ErrorString (err));
+		    _("XML_UseForeignDTD failed: %s"),
+		    XML_ErrorString (err));
 }
 
 /* Invoke PARSER on BUFFER.  BUFFER is the data to parse, which

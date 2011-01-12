@@ -1,6 +1,6 @@
 /* Multi-process control for GDB, the GNU debugger.
 
-   Copyright (C) 2008, 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -830,7 +830,7 @@ add_inferior_command (char *args, int from_tty)
       if (exec != NULL)
 	{
 	  /* Switch over temporarily, while reading executable and
-	     symbols.q  */
+	     symbols.q.  */
 	  set_current_program_space (inf->pspace);
 	  set_current_inferior (inf);
 	  switch_to_thread (null_ptid);

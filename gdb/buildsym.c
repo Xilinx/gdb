@@ -1,7 +1,7 @@
 /* Support routines for building symbol tables in GDB's internal format.
    Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
    1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009,
-   2010 Free Software Foundation, Inc.
+   2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -326,13 +326,15 @@ finish_block (struct symbol *symbol, struct pending **listhead,
       if (symbol)
 	{
 	  complaint (&symfile_complaints,
-		     _("block end address less than block start address in %s (patched it)"),
+		     _("block end address less than block "
+		       "start address in %s (patched it)"),
 		     SYMBOL_PRINT_NAME (symbol));
 	}
       else
 	{
 	  complaint (&symfile_complaints,
-		     _("block end address %s less than block start address %s (patched it)"),
+		     _("block end address %s less than block "
+		       "start address %s (patched it)"),
 		     paddress (gdbarch, BLOCK_END (block)),
 		     paddress (gdbarch, BLOCK_START (block)));
 	}
@@ -370,7 +372,8 @@ finish_block (struct symbol *symbol, struct pending **listhead,
 	      else
 		{
 		  complaint (&symfile_complaints,
-			     _("inner block (%s-%s) not inside outer block (%s-%s)"),
+			     _("inner block (%s-%s) not "
+			       "inside outer block (%s-%s)"),
 			     paddress (gdbarch, BLOCK_START (pblock->block)),
 			     paddress (gdbarch, BLOCK_END (pblock->block)),
 			     paddress (gdbarch, BLOCK_START (block)),
@@ -695,7 +698,8 @@ pop_subfile (void)
 
   if (link == NULL)
     {
-      internal_error (__FILE__, __LINE__, _("failed internal consistency check"));
+      internal_error (__FILE__, __LINE__,
+		      _("failed internal consistency check"));
     }
   name = link->name;
   subfile_stack = link->next;

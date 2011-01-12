@@ -1,7 +1,7 @@
 /* Cache and manage the values of registers for GDB, the GNU debugger.
 
    Copyright (C) 1986, 1987, 1989, 1991, 1994, 1995, 1996, 1998, 2000, 2001,
-   2002, 2004, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+   2002, 2004, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -37,7 +37,7 @@
  */
 
 /* Per-architecture object describing the layout of a register cache.
-   Computed once when the architecture is created */
+   Computed once when the architecture is created.  */
 
 struct gdbarch_data *regcache_descr_handle;
 
@@ -100,7 +100,8 @@ init_regcache_descr (struct gdbarch *gdbarch)
 
   /* Fill in a table of register types.  */
   descr->register_type
-    = GDBARCH_OBSTACK_CALLOC (gdbarch, descr->nr_cooked_registers, struct type *);
+    = GDBARCH_OBSTACK_CALLOC (gdbarch, descr->nr_cooked_registers,
+			      struct type *);
   for (i = 0; i < descr->nr_cooked_registers; i++)
     descr->register_type[i] = gdbarch_register_type (gdbarch, i);
 
@@ -292,7 +293,8 @@ regcache_save (struct regcache *dst, regcache_cooked_read_ftype *cooked_read,
   gdb_assert (dst->readonly_p);
   /* Clear the dest.  */
   memset (dst->registers, 0, dst->descr->sizeof_cooked_registers);
-  memset (dst->register_valid_p, 0, dst->descr->sizeof_cooked_register_valid_p);
+  memset (dst->register_valid_p, 0,
+	  dst->descr->sizeof_cooked_register_valid_p);
   /* Copy over any registers (identified by their membership in the
      save_reggroup) and mark them as valid.  The full [0 .. gdbarch_num_regs +
      gdbarch_num_pseudo_regs) range is checked since some architectures need
@@ -553,7 +555,7 @@ registers_changed_ptid (ptid_t ptid)
   current_thread_ptid = null_ptid;
   current_thread_arch = NULL;
 
-  /* Need to forget about any frames we have cached, too. */
+  /* Need to forget about any frames we have cached, too.  */
   reinit_frame_cache ();
 
   /* Force cleanup of any alloca areas if using C alloca instead of
@@ -752,7 +754,7 @@ regcache_raw_write (struct regcache *regcache, int regnum,
     return;
 
   /* If we have a valid copy of the register, and new value == old
-     value, then don't bother doing the actual store. */
+     value, then don't bother doing the actual store.  */
   if (regcache_valid_p (regcache, regnum)
       && (memcmp (register_buffer (regcache, regnum), buf,
 		  regcache->descr->sizeof_register[regnum]) == 0))
@@ -807,7 +809,7 @@ regcache_xfer_part (struct regcache *regcache, int regnum,
   /* Something to do?  */
   if (offset + len == 0)
     return;
-  /* Read (when needed) ... */
+  /* Read (when needed) ...  */
   if (in != NULL
       || offset > 0
       || offset + len < descr->sizeof_register[regnum])
@@ -815,7 +817,7 @@ regcache_xfer_part (struct regcache *regcache, int regnum,
       gdb_assert (read != NULL);
       read (regcache, regnum, reg);
     }
-  /* ... modify ... */
+  /* ... modify ...  */
   if (in != NULL)
     memcpy (in, reg + offset, len);
   if (out != NULL)
@@ -992,7 +994,8 @@ dump_endian_bytes (struct ui_file *file, enum bfd_endian endian,
 
 enum regcache_dump_what
 {
-  regcache_dump_none, regcache_dump_raw, regcache_dump_cooked, regcache_dump_groups
+  regcache_dump_none, regcache_dump_raw,
+  regcache_dump_cooked, regcache_dump_groups
 };
 
 static void
@@ -1171,7 +1174,8 @@ regcache_dump (struct regcache *regcache, struct ui_file *file,
 		{
 		  if (gdbarch_register_reggroup_p (gdbarch, regnum, group))
 		    {
-		      fprintf_unfiltered (file, "%s%s", sep, reggroup_name (group));
+		      fprintf_unfiltered (file,
+					  "%s%s", sep, reggroup_name (group));
 		      sep = ",";
 		    }
 		}
@@ -1241,7 +1245,8 @@ extern initialize_file_ftype _initialize_regcache; /* -Wmissing-prototype */
 void
 _initialize_regcache (void)
 {
-  regcache_descr_handle = gdbarch_data_register_post_init (init_regcache_descr);
+  regcache_descr_handle
+    = gdbarch_data_register_post_init (init_regcache_descr);
 
   observer_attach_target_changed (regcache_observer_target_changed);
   observer_attach_thread_ptid_changed (regcache_thread_ptid_changed);
@@ -1249,21 +1254,24 @@ _initialize_regcache (void)
   add_com ("flushregs", class_maintenance, reg_flush_command,
 	   _("Force gdb to flush its register cache (maintainer command)"));
 
-  add_cmd ("registers", class_maintenance, maintenance_print_registers, _("\
-Print the internal register configuration.\n\
-Takes an optional file parameter."), &maintenanceprintlist);
+  add_cmd ("registers", class_maintenance, maintenance_print_registers,
+	   _("Print the internal register configuration.\n"
+	     "Takes an optional file parameter."), &maintenanceprintlist);
   add_cmd ("raw-registers", class_maintenance,
-	   maintenance_print_raw_registers, _("\
-Print the internal register configuration including raw values.\n\
-Takes an optional file parameter."), &maintenanceprintlist);
+	   maintenance_print_raw_registers,
+	   _("Print the internal register configuration "
+	     "including raw values.\n"
+	     "Takes an optional file parameter."), &maintenanceprintlist);
   add_cmd ("cooked-registers", class_maintenance,
-	   maintenance_print_cooked_registers, _("\
-Print the internal register configuration including cooked values.\n\
-Takes an optional file parameter."), &maintenanceprintlist);
+	   maintenance_print_cooked_registers,
+	   _("Print the internal register configuration "
+	     "including cooked values.\n"
+	     "Takes an optional file parameter."), &maintenanceprintlist);
   add_cmd ("register-groups", class_maintenance,
-	   maintenance_print_register_groups, _("\
-Print the internal register configuration including each register's group.\n\
-Takes an optional file parameter."),
+	   maintenance_print_register_groups,
+	   _("Print the internal register configuration "
+	     "including each register's group.\n"
+	     "Takes an optional file parameter."),
 	   &maintenanceprintlist);
 
 }

@@ -1,7 +1,8 @@
 /* Cache and manage frames for GDB, the GNU debugger.
 
    Copyright (C) 1986, 1987, 1989, 1991, 1994, 1995, 1996, 1998, 2000, 2001,
-   2002, 2003, 2004, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+   2002, 2003, 2004, 2007, 2008, 2009, 2010, 2011
+   Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -180,8 +181,9 @@ static void
 show_backtrace_past_main (struct ui_file *file, int from_tty,
 			  struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file, _("\
-Whether backtraces should continue past \"main\" is %s.\n"),
+  fprintf_filtered (file,
+		    _("Whether backtraces should "
+		      "continue past \"main\" is %s.\n"),
 		    value);
 }
 
@@ -190,8 +192,8 @@ static void
 show_backtrace_past_entry (struct ui_file *file, int from_tty,
 			   struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file, _("\
-Whether backtraces should continue past the entry point of a program is %s.\n"),
+  fprintf_filtered (file, _("Whether backtraces should continue past the "
+			    "entry point of a program is %s.\n"),
 		    value);
 }
 
@@ -200,8 +202,9 @@ static void
 show_backtrace_limit (struct ui_file *file, int from_tty,
 		      struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file, _("\
-An upper bound on the number of backtrace levels is %s.\n"),
+  fprintf_filtered (file,
+		    _("An upper bound on the number "
+		      "of backtrace levels is %s.\n"),
 		    value);
 }
 
@@ -446,7 +449,8 @@ frame_id_eq (struct frame_id l, struct frame_id r)
 {
   int eq;
 
-  if (!l.stack_addr_p && l.special_addr_p && !r.stack_addr_p && r.special_addr_p)
+  if (!l.stack_addr_p && l.special_addr_p
+      && !r.stack_addr_p && r.special_addr_p)
     /* The outermost frame marker is equal to itself.  This is the
        dodgy thing about outer_frame_id, since between execution steps
        we might step into another function - from which we can't
@@ -495,7 +499,7 @@ frame_id_eq (struct frame_id l, struct frame_id r)
    to sigaltstack).
 
    However, it can be used as safety net to discover invalid frame
-   IDs in certain circumstances. Assuming that NEXT is the immediate
+   IDs in certain circumstances.  Assuming that NEXT is the immediate
    inner frame to THIS and that NEXT and THIS are both NORMAL frames:
 
    * The stack address of NEXT must be inner-than-or-equal to the stack
@@ -515,7 +519,7 @@ frame_id_eq (struct frame_id l, struct frame_id r)
    is involved, because signal handlers might be executed on a different
    stack than the stack used by the routine that caused the signal
    to be raised.  This can happen for instance when a thread exceeds
-   its maximum stack size. In this case, certain compilers implement
+   its maximum stack size.  In this case, certain compilers implement
    a stack overflow strategy that cause the handler to be run on a
    different stack.  */
 
@@ -648,7 +652,8 @@ frame_unwind_pc (struct frame_info *this_frame)
       this_frame->prev_pc.p = 1;
       if (frame_debug)
 	fprintf_unfiltered (gdb_stdlog,
-			    "{ frame_unwind_caller_pc (this_frame=%d) -> %s }\n",
+			    "{ frame_unwind_caller_pc "
+			    "(this_frame=%d) -> %s }\n",
 			    this_frame->level,
 			    hex_string (this_frame->prev_pc.value));
     }
@@ -831,8 +836,9 @@ frame_unwind_register_value (struct frame_info *frame, int regnum)
 
   if (frame_debug)
     {
-      fprintf_unfiltered (gdb_stdlog, "\
-{ frame_unwind_register_value (frame=%d,regnum=%d(%s),...) ",
+      fprintf_unfiltered (gdb_stdlog,
+			  "{ frame_unwind_register_value "
+			  "(frame=%d,regnum=%d(%s),...) ",
 			  frame->level, regnum,
 			  user_reg_map_regnum_to_name (gdbarch, regnum));
     }
@@ -1117,7 +1123,7 @@ create_sentinel_frame (struct program_space *pspace, struct regcache *regcache)
   return frame;
 }
 
-/* Info about the innermost stack frame (contents of FP register) */
+/* Info about the innermost stack frame (contents of FP register).  */
 
 static struct frame_info *current_frame;
 
@@ -1273,7 +1279,7 @@ select_frame (struct frame_info *fi)
 
      Once we have frame-parameterized frame (and frame-related) commands,
      the event notification can be moved here, since this function will only
-     be called when the user's selected frame is being changed. */
+     be called when the user's selected frame is being changed.  */
 
   /* Ensure that symbols for this frame are read in.  Also, determine the
      source language of this frame, and switch to it if desired.  */
@@ -1313,7 +1319,8 @@ create_new_frame (CORE_ADDR addr, CORE_ADDR pc)
 
   fi = FRAME_OBSTACK_ZALLOC (struct frame_info);
 
-  fi->next = create_sentinel_frame (current_program_space, get_current_regcache ());
+  fi->next = create_sentinel_frame (current_program_space,
+				    get_current_regcache ());
 
   /* Set/update this frame's cached PC value, found in the next frame.
      Do this before looking for this frame's unwinder.  A sniffer is
@@ -1380,7 +1387,7 @@ reinit_frame_cache (void)
 	fi->base->unwind->dealloc_cache (fi, fi->base_cache);
     }
 
-  /* Since we can't really be sure what the first object allocated was */
+  /* Since we can't really be sure what the first object allocated was.  */
   obstack_free (&frame_cache_obstack, 0);
   obstack_init (&frame_cache_obstack);
 
@@ -1501,14 +1508,27 @@ get_prev_frame_1 (struct frame_info *this_frame)
       && frame_id_inner (get_frame_arch (this_frame->next), this_id,
 			 get_frame_id (this_frame->next)))
     {
-      if (frame_debug)
+      CORE_ADDR this_pc_in_block;
+      struct minimal_symbol *morestack_msym;
+      const char *morestack_name = NULL;
+      
+      /* gcc -fsplit-stack __morestack can continue the stack anywhere.  */
+      this_pc_in_block = get_frame_address_in_block (this_frame);
+      morestack_msym = lookup_minimal_symbol_by_pc (this_pc_in_block);
+      if (morestack_msym)
+	morestack_name = SYMBOL_LINKAGE_NAME (morestack_msym);
+      if (!morestack_name || strcmp (morestack_name, "__morestack") != 0)
 	{
-	  fprintf_unfiltered (gdb_stdlog, "-> ");
-	  fprint_frame (gdb_stdlog, NULL);
-	  fprintf_unfiltered (gdb_stdlog, " // this frame ID is inner }\n");
+	  if (frame_debug)
+	    {
+	      fprintf_unfiltered (gdb_stdlog, "-> ");
+	      fprint_frame (gdb_stdlog, NULL);
+	      fprintf_unfiltered (gdb_stdlog,
+				  " // this frame ID is inner }\n");
+	    }
+	  this_frame->stop_reason = UNWIND_INNER_ID;
+	  return NULL;
 	}
-      this_frame->stop_reason = UNWIND_INNER_ID;
-      return NULL;
     }
 
   /* Check that this and the next frame are not identical.  If they
@@ -2267,7 +2287,7 @@ Zero is unlimited."),
 			   &set_backtrace_cmdlist,
 			   &show_backtrace_cmdlist);
 
-  /* Debug this files internals. */
+  /* Debug this files internals.  */
   add_setshow_zinteger_cmd ("frame", class_maintenance, &frame_debug,  _("\
 Set frame debugging."), _("\
 Show frame debugging."), _("\

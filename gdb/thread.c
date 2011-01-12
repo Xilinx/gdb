@@ -1,7 +1,7 @@
 /* Multi-process/thread control for GDB, the GNU debugger.
 
    Copyright (C) 1986, 1987, 1988, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009, 2010
+   2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    Contributed by Lynx Real-Time Systems, Inc.  Los Gatos, CA.
@@ -44,13 +44,13 @@
 #include "annotate.h"
 #include "cli/cli-decode.h"
 
-/* Definition of struct thread_info exported to gdbthread.h */
+/* Definition of struct thread_info exported to gdbthread.h.  */
 
-/* Prototypes for exported functions. */
+/* Prototypes for exported functions.  */
 
 void _initialize_thread (void);
 
-/* Prototypes for local functions. */
+/* Prototypes for local functions.  */
 
 static struct thread_info *thread_list = NULL;
 static int highest_thread_num;
@@ -432,7 +432,7 @@ in_thread_list (ptid_t ptid)
     if (ptid_equal (tp->ptid, ptid))
       return 1;
 
-  return 0;			/* Never heard of 'im */
+  return 0;			/* Never heard of 'im.  */
 }
 
 /* Finds the first thread of the inferior given by PID.  If PID is -1,
@@ -482,7 +482,7 @@ any_live_thread_of_process (int pid)
 }
 
 /* Print a list of thread ids currently known, and the total number of
-   threads. To be used from within catch_errors. */
+   threads.  To be used from within catch_errors.  */
 static int
 do_captured_list_thread_ids (struct ui_out *uiout, void *arg)
 {
@@ -516,7 +516,7 @@ do_captured_list_thread_ids (struct ui_out *uiout, void *arg)
 }
 
 /* Official gdblib interface function to get a list of thread ids and
-   the total number. */
+   the total number.  */
 enum gdb_rc
 gdb_list_thread_ids (struct ui_out *uiout, char **error_message)
 {
@@ -526,7 +526,7 @@ gdb_list_thread_ids (struct ui_out *uiout, char **error_message)
   return GDB_RC_OK;
 }
 
-/* Return true if TP is an active thread. */
+/* Return true if TP is an active thread.  */
 static int
 thread_alive (struct thread_info *tp)
 {
@@ -754,12 +754,12 @@ finish_thread_state_cleanup (void *arg)
 
 /* Prints the list of threads and their details on UIOUT.
    This is a version of 'info_thread_command' suitable for
-   use from MI.  
+   use from MI.
    If REQUESTED_THREAD is not -1, it's the GDB id of the thread
    that should be printed.  Otherwise, all threads are
-   printed.  
+   printed.
    If PID is not -1, only print threads from the process PID.
-   Otherwise, threads from all attached PIDs are printed.   
+   Otherwise, threads from all attached PIDs are printed.
    If both REQUESTED_THREAD and PID are not -1, then the thread
    is printed if it belongs to the specified process.  Otherwise,
    an error is raised.  */
@@ -940,7 +940,7 @@ info_threads_command (char *arg, int from_tty)
   print_thread_info (uiout, -1, -1);
 }
 
-/* Switch from one thread to another. */
+/* Switch from one thread to another.  */
 
 void
 switch_to_thread (ptid_t ptid)
@@ -1024,8 +1024,8 @@ restore_selected_frame (struct frame_id a_frame_id, int frame_level)
   /* Warn the user.  */
   if (frame_level > 0 && !ui_out_is_mi_like_p (uiout))
     {
-      warning (_("\
-Couldn't restore frame #%d in current thread, at reparsed frame #0\n"),
+      warning (_("Couldn't restore frame #%d in "
+		 "current thread, at reparsed frame #0\n"),
 	       frame_level);
       /* For MI, we should probably have a notification about
 	 current frame change.  But this error is not very
@@ -1128,8 +1128,7 @@ make_cleanup_restore_current_thread (void)
 
    thread apply 1 2 7 4 backtrace       Apply backtrace cmd to threads 1,2,7,4
    thread apply 2-7 9 p foo(1)  Apply p foo(1) cmd to threads 2->7 & 9
-   thread apply all p x/i $pc   Apply x/i $pc cmd to all threads
- */
+   thread apply all p x/i $pc   Apply x/i $pc cmd to all threads.  */
 
 static void
 thread_apply_all_command (char *cmd, int from_tty)
@@ -1146,7 +1145,7 @@ thread_apply_all_command (char *cmd, int from_tty)
   old_chain = make_cleanup_restore_current_thread ();
 
   /* Save a copy of the command in case it is clobbered by
-     execute_command */
+     execute_command.  */
   saved_cmd = xstrdup (cmd);
   make_cleanup (xfree, saved_cmd);
   for (tp = thread_list; tp; tp = tp->next)
@@ -1157,7 +1156,8 @@ thread_apply_all_command (char *cmd, int from_tty)
 	printf_filtered (_("\nThread %d (%s):\n"),
 			 tp->num, target_pid_to_str (inferior_ptid));
 	execute_command (cmd, from_tty);
-	strcpy (cmd, saved_cmd);	/* Restore exact command used previously */
+	strcpy (cmd, saved_cmd);	/* Restore exact command used
+					   previously.  */
       }
 
   do_cleanups (old_chain);
@@ -1180,7 +1180,7 @@ thread_apply_command (char *tidlist, int from_tty)
     error (_("Please specify a command following the thread ID list"));
 
   /* Save a copy of the command in case it is clobbered by
-     execute_command */
+     execute_command.  */
   saved_cmd = xstrdup (cmd);
   old_chain = make_cleanup (xfree, saved_cmd);
   while (tidlist < cmd)
@@ -1196,7 +1196,7 @@ thread_apply_command (char *tidlist, int from_tty)
       while (*tidlist == ' ' || *tidlist == '\t')
 	tidlist++;
 
-      if (*tidlist == '-')	/* Got a range of IDs? */
+      if (*tidlist == '-')	/* Got a range of IDs?  */
 	{
 	  tidlist++;		/* Skip the - */
 	  end = strtol (tidlist, &p, 10);
@@ -1273,8 +1273,8 @@ static void
 show_print_thread_events (struct ui_file *file, int from_tty,
                           struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file, _("\
-Printing of thread events is %s.\n"),
+  fprintf_filtered (file,
+		    _("Printing of thread events is %s.\n"),
                     value);
 }
 
@@ -1309,7 +1309,10 @@ do_captured_thread_select (struct ui_out *uiout, void *tidstr)
   if (tp->state_ == THREAD_RUNNING)
     ui_out_text (uiout, "(running)\n");
   else
-    print_stack_frame (get_selected_frame (NULL), 1, SRC_AND_LOC);
+    {
+      ui_out_text (uiout, "\n");
+      print_stack_frame (get_selected_frame (NULL), 1, SRC_AND_LOC);
+    }
 
   /* Since the current thread may have changed, see if there is any
      exited thread we can now delete.  */

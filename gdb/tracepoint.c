@@ -1,7 +1,7 @@
 /* Tracing functionality for remote targets in custom GDB protocol
 
    Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
-   2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+   2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -142,13 +142,13 @@ static int traceframe_number;
 /* Tracepoint for last traceframe collected.  */
 static int tracepoint_number;
 
-/* Symbol for function for last traceframe collected */
+/* Symbol for function for last traceframe collected.  */
 static struct symbol *traceframe_fun;
 
-/* Symtab and line for last traceframe collected */
+/* Symtab and line for last traceframe collected.  */
 static struct symtab_and_line traceframe_sal;
 
-/* Tracing command lists */
+/* Tracing command lists.  */
 static struct cmd_list_element *tfindlist;
 
 /* List of expressions to collect by default at each tracepoint hit.  */
@@ -225,14 +225,14 @@ set_tracepoint_num (int num)
 }
 
 /* Set externally visible debug variables for querying/printing
-   the traceframe context (line, function, file) */
+   the traceframe context (line, function, file).  */
 
 static void
 set_traceframe_context (struct frame_info *trace_frame)
 {
   CORE_ADDR trace_pc;
 
-  if (trace_frame == NULL)		/* Cease debugging any trace buffers.  */
+  if (trace_frame == NULL)	/* Cease debugging any trace buffers.  */
     {
       traceframe_fun = 0;
       traceframe_sal.pc = traceframe_sal.line = 0;
@@ -364,7 +364,8 @@ trace_variable_command (char *args, int from_tty)
   if (tsv)
     {
       tsv->initial_value = initval;
-      printf_filtered (_("Trace state variable $%s now has initial value %s.\n"),
+      printf_filtered (_("Trace state variable $%s "
+			 "now has initial value %s.\n"),
 		       tsv->name, plongest (tsv->initial_value));
       do_cleanups (old_chain);
       return;
@@ -374,7 +375,8 @@ trace_variable_command (char *args, int from_tty)
   tsv = create_trace_state_variable (internalvar_name (intvar));
   tsv->initial_value = initval;
 
-  printf_filtered (_("Trace state variable $%s created, with initial value %s.\n"),
+  printf_filtered (_("Trace state variable $%s "
+		     "created, with initial value %s.\n"),
 		   tsv->name, plongest (tsv->initial_value));
 
   do_cleanups (old_chain);
@@ -549,7 +551,8 @@ trace_actions_command (char *args, int from_tty)
 		    t->number);
       struct cleanup *cleanups = make_cleanup (xfree, tmpbuf);
 
-      l = read_command_lines (tmpbuf, from_tty, 1, check_tracepoint_command, t);
+      l = read_command_lines (tmpbuf, from_tty, 1,
+			      check_tracepoint_command, t);
       do_cleanups (cleanups);
       breakpoint_set_commands (t, l);
     }
@@ -594,7 +597,7 @@ validate_actionline (char **line, struct breakpoint *t)
   struct bp_location *loc;
   struct agent_expr *aexpr;
 
-  /* if EOF is typed, *line is NULL */
+  /* If EOF is typed, *line is NULL.  */
   if (*line == NULL)
     return;
 
@@ -615,12 +618,12 @@ validate_actionline (char **line, struct breakpoint *t)
   if (cmd_cfunc_eq (c, collect_pseudocommand))
     {
       do
-	{			/* repeat over a comma-separated list */
-	  QUIT;			/* allow user to bail out with ^C */
+	{			/* Repeat over a comma-separated list.  */
+	  QUIT;			/* Allow user to bail out with ^C.  */
 	  while (isspace ((int) *p))
 	    p++;
 
-	  if (*p == '$')	/* look for special pseudo-symbols */
+	  if (*p == '$')	/* Look for special pseudo-symbols.  */
 	    {
 	      if (0 == strncasecmp ("reg", p + 1, 3)
 		  || 0 == strncasecmp ("arg", p + 1, 3)
@@ -643,13 +646,16 @@ validate_actionline (char **line, struct breakpoint *t)
 		{
 		  if (SYMBOL_CLASS (exp->elts[2].symbol) == LOC_CONST)
 		    {
-		      error (_("constant `%s' (value %ld) will not be collected."),
+		      error (_("constant `%s' (value %ld) "
+			       "will not be collected."),
 			     SYMBOL_PRINT_NAME (exp->elts[2].symbol),
 			     SYMBOL_VALUE (exp->elts[2].symbol));
 		    }
-		  else if (SYMBOL_CLASS (exp->elts[2].symbol) == LOC_OPTIMIZED_OUT)
+		  else if (SYMBOL_CLASS (exp->elts[2].symbol)
+			   == LOC_OPTIMIZED_OUT)
 		    {
-		      error (_("`%s' is optimized away and cannot be collected."),
+		      error (_("`%s' is optimized away "
+			       "and cannot be collected."),
 			     SYMBOL_PRINT_NAME (exp->elts[2].symbol));
 		    }
 		}
@@ -676,8 +682,8 @@ validate_actionline (char **line, struct breakpoint *t)
   else if (cmd_cfunc_eq (c, teval_pseudocommand))
     {
       do
-	{			/* repeat over a comma-separated list */
-	  QUIT;			/* allow user to bail out with ^C */
+	{			/* Repeat over a comma-separated list.  */
+	  QUIT;			/* Allow user to bail out with ^C.  */
 	  while (isspace ((int) *p))
 	    p++;
 
@@ -709,7 +715,7 @@ validate_actionline (char **line, struct breakpoint *t)
 
   else if (cmd_cfunc_eq (c, while_stepping_pseudocommand))
     {
-      char *steparg;		/* in case warning is necessary */
+      char *steparg;		/* In case warning is necessary.  */
 
       while (isspace ((int) *p))
 	p++;
@@ -733,7 +739,7 @@ enum {
 struct memrange
 {
   int type;		/* memrange_absolute for absolute memory range,
-                           else basereg number */
+                           else basereg number.  */
   bfd_signed_vma start;
   bfd_signed_vma end;
 };
@@ -758,7 +764,7 @@ tracepoint_list, stepping_list;
 
 static int memrange_cmp (const void *, const void *);
 
-/* compare memranges for qsort */
+/* Compare memranges for qsort.  */
 static int
 memrange_cmp (const void *va, const void *vb)
 {
@@ -827,7 +833,7 @@ add_register (struct collection_list *collection, unsigned int regno)
   collection->regs_mask[regno / 8] |= 1 << (regno % 8);
 }
 
-/* Add a memrange to a collection list */
+/* Add a memrange to a collection list.  */
 static void
 add_memrange (struct collection_list *memranges, 
 	      int type, bfd_signed_vma base,
@@ -854,7 +860,7 @@ add_memrange (struct collection_list *memranges,
 				  memranges->listsize);
     }
 
-  if (type != memrange_absolute)		/* Better collect the base register!  */
+  if (type != memrange_absolute)    /* Better collect the base register!  */
     add_register (memranges, type);
 }
 
@@ -996,20 +1002,20 @@ collect_symbol (struct collection_list *collect,
       discard_cleanups (old_chain1);
       add_aexpr (collect, aexpr);
 
-      /* take care of the registers */
+      /* Take care of the registers.  */
       if (aexpr->reg_mask_len > 0)
 	{
 	  int ndx1, ndx2;
 
 	  for (ndx1 = 0; ndx1 < aexpr->reg_mask_len; ndx1++)
 	    {
-	      QUIT;	/* allow user to bail out with ^C */
+	      QUIT;	/* Allow user to bail out with ^C.  */
 	      if (aexpr->reg_mask[ndx1] != 0)
 		{
-		  /* assume chars have 8 bits */
+		  /* Assume chars have 8 bits.  */
 		  for (ndx2 = 0; ndx2 < 8; ndx2++)
 		    if (aexpr->reg_mask[ndx1] & (1 << ndx2))
-		      /* it's used -- record it */
+		      /* It's used -- record it.  */
 		      add_register (collect, ndx1 * 8 + ndx2);
 		}
 	    }
@@ -1030,7 +1036,7 @@ struct add_local_symbols_data
   int count;
 };
 
-/* The callback for the locals and args iterators  */
+/* The callback for the locals and args iterators.  */
 
 static void
 do_collect_symbol (const char *print_name,
@@ -1044,7 +1050,7 @@ do_collect_symbol (const char *print_name,
   p->count++;
 }
 
-/* Add all locals (or args) symbols to collection list */
+/* Add all locals (or args) symbols to collection list.  */
 static void
 add_local_symbols (struct collection_list *collect,
 		   struct gdbarch *gdbarch, CORE_ADDR pc,
@@ -1115,7 +1121,7 @@ clear_collection_list (struct collection_list *list)
   list->strace_data = 0;
 }
 
-/* reduce a collection list to string form (for gdb protocol) */
+/* Reduce a collection list to string form (for gdb protocol).  */
 static char **
 stringify_collection_list (struct collection_list *list, char *string)
 {
@@ -1141,9 +1147,9 @@ stringify_collection_list (struct collection_list *list, char *string)
     }
 
   for (i = sizeof (list->regs_mask) - 1; i > 0; i--)
-    if (list->regs_mask[i] != 0)	/* skip leading zeroes in regs_mask */
+    if (list->regs_mask[i] != 0)    /* Skip leading zeroes in regs_mask.  */
       break;
-  if (list->regs_mask[i] != 0)	/* prepare to send regs_mask to the stub */
+  if (list->regs_mask[i] != 0)	/* Prepare to send regs_mask to the stub.  */
     {
       if (info_verbose)
 	printf_filtered ("\nCollecting registers (mask): 0x");
@@ -1151,7 +1157,7 @@ stringify_collection_list (struct collection_list *list, char *string)
       *end++ = 'R';
       for (; i >= 0; i--)
 	{
-	  QUIT;			/* allow user to bail out with ^C */
+	  QUIT;			/* Allow user to bail out with ^C.  */
 	  if (info_verbose)
 	    printf_filtered ("%02X", list->regs_mask[i]);
 	  sprintf (end, "%02X", list->regs_mask[i]);
@@ -1166,7 +1172,7 @@ stringify_collection_list (struct collection_list *list, char *string)
     printf_filtered ("Collecting memranges: \n");
   for (i = 0, count = 0, end = temp_buf; i < list->next_memrange; i++)
     {
-      QUIT;			/* allow user to bail out with ^C */
+      QUIT;			/* Allow user to bail out with ^C.  */
       sprintf_vma (tmp2, list->list[i].start);
       if (info_verbose)
 	{
@@ -1202,7 +1208,7 @@ stringify_collection_list (struct collection_list *list, char *string)
 
   for (i = 0; i < list->next_aexpr_elt; i++)
     {
-      QUIT;			/* allow user to bail out with ^C */
+      QUIT;			/* Allow user to bail out with ^C.  */
       if ((count + 10 + 2 * list->aexpr_list[i]->len) > MAX_AGENT_EXPR_LEN)
 	{
 	  (*str_list)[ndx] = savestring (temp_buf, count);
@@ -1256,7 +1262,7 @@ encode_actions_1 (struct command_line *action,
 
   for (; action; action = action->next)
     {
-      QUIT;			/* allow user to bail out with ^C */
+      QUIT;			/* Allow user to bail out with ^C.  */
       action_exp = action->line;
       while (isspace ((int) *action_exp))
 	action_exp++;
@@ -1268,8 +1274,8 @@ encode_actions_1 (struct command_line *action,
       if (cmd_cfunc_eq (cmd, collect_pseudocommand))
 	{
 	  do
-	    {			/* repeat over a comma-separated list */
-	      QUIT;		/* allow user to bail out with ^C */
+	    {			/* Repeat over a comma-separated list.  */
+	      QUIT;		/* Allow user to bail out with ^C.  */
 	      while (isspace ((int) *action_exp))
 		action_exp++;
 
@@ -1333,7 +1339,7 @@ encode_actions_1 (struct command_line *action,
 		      }
 
 		    case UNOP_MEMVAL:
-		      /* safe because we know it's a simple expression */
+		      /* Safe because we know it's a simple expression.  */
 		      tempval = evaluate_expression (exp);
 		      addr = value_address (tempval);
 		      len = TYPE_LENGTH (check_typedef (exp->elts[1].type));
@@ -1349,7 +1355,7 @@ encode_actions_1 (struct command_line *action,
 				      tloc->address);
 		      break;
 
-		    default:	/* full-fledged expression */
+		    default:	/* Full-fledged expression.  */
 		      aexpr = gen_trace_for_expr (tloc->address, exp);
 
 		      old_chain1 = make_cleanup_free_agent_expr (aexpr);
@@ -1361,7 +1367,7 @@ encode_actions_1 (struct command_line *action,
 		      discard_cleanups (old_chain1);
 		      add_aexpr (collect, aexpr);
 
-		      /* take care of the registers */
+		      /* Take care of the registers.  */
 		      if (aexpr->reg_mask_len > 0)
 			{
 			  int ndx1;
@@ -1369,13 +1375,13 @@ encode_actions_1 (struct command_line *action,
 
 			  for (ndx1 = 0; ndx1 < aexpr->reg_mask_len; ndx1++)
 			    {
-			      QUIT;	/* allow user to bail out with ^C */
+			      QUIT;	/* Allow user to bail out with ^C.  */
 			      if (aexpr->reg_mask[ndx1] != 0)
 				{
-				  /* assume chars have 8 bits */
+				  /* Assume chars have 8 bits.  */
 				  for (ndx2 = 0; ndx2 < 8; ndx2++)
 				    if (aexpr->reg_mask[ndx1] & (1 << ndx2))
-				      /* it's used -- record it */
+				      /* It's used -- record it.  */
 				      add_register (collect, 
 						    ndx1 * 8 + ndx2);
 				}
@@ -1391,8 +1397,8 @@ encode_actions_1 (struct command_line *action,
       else if (cmd_cfunc_eq (cmd, teval_pseudocommand))
 	{
 	  do
-	    {			/* repeat over a comma-separated list */
-	      QUIT;		/* allow user to bail out with ^C */
+	    {			/* Repeat over a comma-separated list.  */
+	      QUIT;		/* Allow user to bail out with ^C.  */
 	      while (isspace ((int) *action_exp))
 		action_exp++;
 
@@ -1522,7 +1528,7 @@ start_tracing (void)
   
   tp_vec = all_tracepoints ();
 
-  /* No point in tracing without any tracepoints... */
+  /* No point in tracing without any tracepoints...  */
   if (VEC_length (breakpoint_p, tp_vec) == 0)
     {
       VEC_free (breakpoint_p, tp_vec);
@@ -1629,7 +1635,7 @@ void
 stop_tracing (void)
 {
   target_trace_stop ();
-  /* should change in response to reply? */
+  /* Should change in response to reply?  */
   current_trace_status ()->running = 0;
 }
 
@@ -1683,7 +1689,8 @@ trace_status_command (char *args, int from_tty)
 	  break;
 	case tracepoint_error:
 	  if (ts->stopping_tracepoint)
-	    printf_filtered (_("Trace stopped by an error (%s, tracepoint %d).\n"),
+	    printf_filtered (_("Trace stopped by an "
+			       "error (%s, tracepoint %d).\n"),
 			     ts->error_desc, ts->stopping_tracepoint);
 	  else
 	    printf_filtered (_("Trace stopped by an error (%s).\n"),
@@ -1702,7 +1709,8 @@ trace_status_command (char *args, int from_tty)
   if (ts->traceframes_created >= 0
       && ts->traceframe_count != ts->traceframes_created)
     {
-      printf_filtered (_("Buffer contains %d trace frames (of %d created total).\n"),
+      printf_filtered (_("Buffer contains %d trace "
+			 "frames (of %d created total).\n"),
 		       ts->traceframe_count, ts->traceframes_created);
     }
   else if (ts->traceframe_count >= 0)
@@ -1864,12 +1872,14 @@ disconnect_tracing (int from_tty)
     {
       if (current_trace_status ()->disconnected_tracing)
 	{
-	  if (!query (_("Trace is running and will continue after detach; detach anyway? ")))
+	  if (!query (_("Trace is running and will "
+			"continue after detach; detach anyway? ")))
 	    error (_("Not confirmed."));
 	}
       else
 	{
-	  if (!query (_("Trace is running but will stop on detach; detach anyway? ")))
+	  if (!query (_("Trace is running but will "
+			"stop on detach; detach anyway? ")))
 	    error (_("Not confirmed."));
 	}
     }
@@ -1940,7 +1950,7 @@ tfind_1 (enum trace_find_type type, int num,
 	{
 	  if (info_verbose)
 	    printf_filtered ("End of trace buffer.\n");
-#if 0 /* dubious now? */
+#if 0 /* dubious now?  */
 	  /* The following will not recurse, since it's
 	     special-cased.  */
 	  trace_find_command ("-1", from_tty);
@@ -1982,7 +1992,7 @@ tfind_1 (enum trace_find_type type, int num,
 	ui_out_field_string (uiout, "found", "0");
       else if (type == tfind_number && num == -1)
 	printf_unfiltered (_("No longer looking at any trace frame\n"));
-      else /* this case may never occur, check */
+      else /* This case may never occur, check.  */
 	printf_unfiltered (_("No trace frame found\n"));
     }
 
@@ -2028,16 +2038,16 @@ tfind_1 (enum trace_find_type type, int num,
 /* tfind command */
 static void
 trace_find_command (char *args, int from_tty)
-{ /* this should only be called with a numeric argument */
+{ /* This should only be called with a numeric argument.  */
   int frameno = -1;
 
   if (current_trace_status ()->running && !current_trace_status ()->from_file)
-    error ("May not look at trace frames while trace is running.");
+    error (_("May not look at trace frames while trace is running."));
   
   if (args == 0 || *args == 0)
     { /* TFIND with no args means find NEXT trace frame.  */
       if (traceframe_number == -1)
-	frameno = 0;	/* "next" is first one */
+	frameno = 0;	/* "next" is first one.  */
         else
 	frameno = traceframe_number + 1;
     }
@@ -2090,7 +2100,7 @@ trace_find_pc_command (char *args, int from_tty)
   CORE_ADDR pc;
 
   if (current_trace_status ()->running && !current_trace_status ()->from_file)
-    error ("May not look at trace frames while trace is running.");
+    error (_("May not look at trace frames while trace is running."));
 
   if (args == 0 || *args == 0)
     pc = regcache_read_pc (get_current_regcache ());
@@ -2108,14 +2118,14 @@ trace_find_tracepoint_command (char *args, int from_tty)
   struct breakpoint *tp;
 
   if (current_trace_status ()->running && !current_trace_status ()->from_file)
-    error ("May not look at trace frames while trace is running.");
+    error (_("May not look at trace frames while trace is running."));
 
   if (args == 0 || *args == 0)
     {
       if (tracepoint_number == -1)
 	error (_("No current tracepoint -- please supply an argument."));
       else
-	tdp = tracepoint_number;	/* default is current TDP */
+	tdp = tracepoint_number;	/* Default is current TDP.  */
     }
   else
     tdp = parse_and_eval_long (args);
@@ -2147,7 +2157,7 @@ trace_find_line_command (char *args, int from_tty)
   struct cleanup *old_chain;
 
   if (current_trace_status ()->running && !current_trace_status ()->from_file)
-    error ("May not look at trace frames while trace is running.");
+    error (_("May not look at trace frames while trace is running."));
 
   if (args == 0 || *args == 0)
     {
@@ -2211,7 +2221,7 @@ trace_find_range_command (char *args, int from_tty)
   char *tmp;
 
   if (current_trace_status ()->running && !current_trace_status ()->from_file)
-    error ("May not look at trace frames while trace is running.");
+    error (_("May not look at trace frames while trace is running."));
 
   if (args == 0 || *args == 0)
     { /* XXX FIXME: what should default behavior be?  */
@@ -2221,14 +2231,14 @@ trace_find_range_command (char *args, int from_tty)
 
   if (0 != (tmp = strchr (args, ',')))
     {
-      *tmp++ = '\0';	/* terminate start address */
+      *tmp++ = '\0';	/* Terminate start address.  */
       while (isspace ((int) *tmp))
 	tmp++;
       start = parse_and_eval_address (args);
       stop = parse_and_eval_address (tmp);
     }
   else
-    {			/* no explicit end address? */
+    {			/* No explicit end address?  */
       start = parse_and_eval_address (args);
       stop = start + 1;	/* ??? */
     }
@@ -2244,24 +2254,24 @@ trace_find_outside_command (char *args, int from_tty)
   char *tmp;
 
   if (current_trace_status ()->running && !current_trace_status ()->from_file)
-    error ("May not look at trace frames while trace is running.");
+    error (_("May not look at trace frames while trace is running."));
 
   if (args == 0 || *args == 0)
-    { /* XXX FIXME: what should default behavior be? */
+    { /* XXX FIXME: what should default behavior be?  */
       printf_filtered ("Usage: tfind outside <startaddr>,<endaddr>\n");
       return;
     }
 
   if (0 != (tmp = strchr (args, ',')))
     {
-      *tmp++ = '\0';	/* terminate start address */
+      *tmp++ = '\0';	/* Terminate start address.  */
       while (isspace ((int) *tmp))
 	tmp++;
       start = parse_and_eval_address (args);
       stop = parse_and_eval_address (tmp);
     }
   else
-    {			/* no explicit end address? */
+    {			/* No explicit end address?  */
       start = parse_and_eval_address (args);
       stop = start + 1;	/* ??? */
     }
@@ -2284,29 +2294,30 @@ scope_info (char *args, int from_tty)
   int regno;
 
   if (args == 0 || *args == 0)
-    error (_("requires an argument (function, line or *addr) to define a scope"));
+    error (_("requires an argument (function, "
+	     "line or *addr) to define a scope"));
 
   sals = decode_line_1 (&args, 1, NULL, 0, &canonical, NULL);
   if (sals.nelts == 0)
-    return;		/* presumably decode_line_1 has already warned */
+    return;		/* Presumably decode_line_1 has already warned.  */
 
-  /* Resolve line numbers to PC */
+  /* Resolve line numbers to PC.  */
   resolve_sal_pc (&sals.sals[0]);
   block = block_for_pc (sals.sals[0].pc);
 
   while (block != 0)
     {
-      QUIT;			/* allow user to bail out with ^C */
+      QUIT;			/* Allow user to bail out with ^C.  */
       ALL_BLOCK_SYMBOLS (block, iter, sym)
 	{
-	  QUIT;			/* allow user to bail out with ^C */
+	  QUIT;			/* Allow user to bail out with ^C.  */
 	  if (count == 0)
 	    printf_filtered ("Scope for %s:\n", save_args);
 	  count++;
 
 	  symname = SYMBOL_PRINT_NAME (sym);
 	  if (symname == NULL || *symname == '\0')
-	    continue;		/* probably botched, certainly useless */
+	    continue;		/* Probably botched, certainly useless.  */
 
 	  gdbarch = get_objfile_arch (SYMBOL_SYMTAB (sym)->objfile);
 
@@ -2314,10 +2325,10 @@ scope_info (char *args, int from_tty)
 	  switch (SYMBOL_CLASS (sym))
 	    {
 	    default:
-	    case LOC_UNDEF:	/* messed up symbol? */
+	    case LOC_UNDEF:	/* Messed up symbol?  */
 	      printf_filtered ("a bogus symbol, class %d.\n",
 			       SYMBOL_CLASS (sym));
-	      count--;		/* don't count this one */
+	      count--;		/* Don't count this one.  */
 	      continue;
 	    case LOC_CONST:
 	      printf_filtered ("a constant with value %ld (0x%lx)",
@@ -2343,7 +2354,8 @@ scope_info (char *args, int from_tty)
 		 We assume the objfile architecture will contain all the
 		 standard registers that occur in debug info in that
 		 objfile.  */
-	      regno = SYMBOL_REGISTER_OPS (sym)->register_number (sym, gdbarch);
+	      regno = SYMBOL_REGISTER_OPS (sym)->register_number (sym,
+								  gdbarch);
 
 	      if (SYMBOL_IS_ARGUMENT (sym))
 		printf_filtered ("an argument in register $%s",
@@ -2366,7 +2378,8 @@ scope_info (char *args, int from_tty)
 	      break;
 	    case LOC_REGPARM_ADDR:
 	      /* Note comment at LOC_REGISTER.  */
-	      regno = SYMBOL_REGISTER_OPS (sym)->register_number (sym, gdbarch);
+	      regno = SYMBOL_REGISTER_OPS (sym)->register_number (sym,
+								  gdbarch);
 	      printf_filtered ("the address of an argument, in register $%s",
 			       gdbarch_register_name (gdbarch, regno));
 	      break;
@@ -2444,7 +2457,7 @@ trace_dump_actions (struct command_line *action,
     {
       struct cmd_list_element *cmd;
 
-      QUIT;			/* allow user to bail out with ^C */
+      QUIT;			/* Allow user to bail out with ^C.  */
       action_exp = action->line;
       while (isspace ((int) *action_exp))
 	action_exp++;
@@ -2478,8 +2491,8 @@ trace_dump_actions (struct command_line *action,
 	  if (stepping_frame == stepping_actions)
 	    {
 	      do
-		{		/* repeat over a comma-separated list */
-		  QUIT;		/* allow user to bail out with ^C */
+		{		/* Repeat over a comma-separated list.  */
+		  QUIT;		/* Allow user to bail out with ^C.  */
 		  if (*action_exp == ',')
 		    action_exp++;
 		  while (isspace ((int) *action_exp))
@@ -2594,7 +2607,8 @@ encode_source_string (int tpnum, ULONGEST addr,
   if (80 + strlen (srctype) > buf_size)
     error (_("Buffer too small for source encoding"));
   sprintf (buf, "%x:%s:%s:%x:%x:",
-	   tpnum, phex_nz (addr, sizeof (addr)), srctype, 0, (int) strlen (src));
+	   tpnum, phex_nz (addr, sizeof (addr)),
+	   srctype, 0, (int) strlen (src));
   if (strlen (buf) + strlen (src) * 2 >= buf_size)
     error (_("Source string too long for buffer"));
   bin2hex (src, buf + strlen (buf), 0);
@@ -2746,7 +2760,8 @@ trace_save (const char *filename, int target_does_save)
       if (utp->cond_string)
 	{
 	  encode_source_string (utp->number, utp->addr,
-				"cond", utp->cond_string, buf, MAX_TRACE_UPLOAD);
+				"cond", utp->cond_string,
+				buf, MAX_TRACE_UPLOAD);
 	  fprintf (fp, "tp Z%s\n", buf);
 	}
       for (a = 0; VEC_iterate (char_ptr, utp->cmd_strings, a, act); ++a)
@@ -3024,7 +3039,7 @@ find_matching_tracepoint (struct uploaded_tp *utp)
       if (t->type == utp->type
 	  && t->step_count == utp->step
 	  && t->pass_count == utp->pass
-	  /* FIXME also test conditionals and actions */
+	  /* FIXME also test conditionals and actions.  */
 	  )
 	{
 	  /* Scan the locations for an address match.  */
@@ -3053,17 +3068,23 @@ merge_uploaded_tracepoints (struct uploaded_tp **uploaded_tps)
     {
       t = find_matching_tracepoint (utp);
       if (t)
-	printf_filtered (_("Assuming tracepoint %d is same as target's tracepoint %d at %s.\n"),
-			 t->number, utp->number, paddress (get_current_arch (), utp->addr));
+	printf_filtered (_("Assuming tracepoint %d is same "
+			   "as target's tracepoint %d at %s.\n"),
+			 t->number, utp->number,
+			 paddress (get_current_arch (), utp->addr));
       else
 	{
 	  t = create_tracepoint_from_upload (utp);
 	  if (t)
-	    printf_filtered (_("Created tracepoint %d for target's tracepoint %d at %s.\n"),
-			     t->number, utp->number, paddress (get_current_arch (), utp->addr));
+	    printf_filtered (_("Created tracepoint %d for "
+			       "target's tracepoint %d at %s.\n"),
+			     t->number, utp->number,
+			     paddress (get_current_arch (), utp->addr));
 	  else
-	    printf_filtered (_("Failed to create tracepoint for target's tracepoint %d at %s, skipping it.\n"),
-			     utp->number, paddress (get_current_arch (), utp->addr));
+	    printf_filtered (_("Failed to create tracepoint for target's "
+			       "tracepoint %d at %s, skipping it.\n"),
+			     utp->number,
+			     paddress (get_current_arch (), utp->addr));
 	}
       /* Whether found or created, record the number used by the
 	 target, to help with mapping target tracepoints back to their
@@ -3107,7 +3128,7 @@ create_tsv_from_upload (struct uploaded_tsv *utsv)
     }
 
   /* Fish for a name that is not in use.  */
-  /* (should check against all internal vars?) */
+  /* (should check against all internal vars?)  */
   while (find_trace_state_variable (buf))
     sprintf (buf, "%s_%d", namebase, try_num++);
 
@@ -3141,14 +3162,16 @@ merge_uploaded_trace_state_variables (struct uploaded_tsv **uploaded_tsvs)
       if (tsv)
 	{
 	  if (info_verbose)
-	    printf_filtered (_("Assuming trace state variable $%s is same as target's variable %d.\n"),
+	    printf_filtered (_("Assuming trace state variable $%s "
+			       "is same as target's variable %d.\n"),
 			     tsv->name, utsv->number);
 	}
       else
 	{
 	  tsv = create_tsv_from_upload (utsv);
 	  if (info_verbose)
-	    printf_filtered (_("Created trace state variable $%s for target's variable %d.\n"),
+	    printf_filtered (_("Created trace state variable "
+			       "$%s for target's variable %d.\n"),
 			     tsv->name, utsv->number);
 	}
       /* Give precedence to numberings that come from the target.  */
@@ -3197,7 +3220,7 @@ tfile_open (char *filename, int from_tty)
   int flags;
   int scratch_chan;
   char header[TRACE_HEADER_SIZE];
-  char linebuf[1000]; /* should be max remote packet size or so */
+  char linebuf[1000]; /* Should be max remote packet size or so.  */
   char byte;
   int bytes, i, gotten;
   struct trace_status *ts;
@@ -3226,7 +3249,7 @@ tfile_open (char *filename, int from_tty)
 
   /* Looks semi-reasonable.  Toss the old trace file and work on the new.  */
 
-  discard_cleanups (old_chain);	/* Don't free filename any more */
+  discard_cleanups (old_chain);	/* Don't free filename any more.  */
   unpush_target (&tfile_ops);
 
   push_target (&tfile_ops);
@@ -3303,7 +3326,7 @@ tfile_open (char *filename, int from_tty)
     error (_("No register block size recorded in trace file"));
   if (ts->traceframe_count <= 0)
     {
-      warning ("No traceframes present in this file.");
+      warning (_("No traceframes present in this file."));
       return;
     }
 
@@ -3315,7 +3338,7 @@ tfile_open (char *filename, int from_tty)
   post_create_inferior (&tfile_ops, from_tty);
 
 #if 0
-  /* FIXME this will get defined in MI patch submission */
+  /* FIXME this will get defined in MI patch submission.  */
   tfind_1 (tfind_number, 0, 0, 0, 0);
 #endif
 }
@@ -3350,7 +3373,7 @@ tfile_interp_line (char *line,
       parse_tsv_definition (p, utsvp);
     }
   else
-    warning ("Ignoring trace file definition \"%s\"", line);
+    warning (_("Ignoring trace file definition \"%s\""), line);
 }
 
 /* Parse the part of trace status syntax that is shared between
@@ -3390,7 +3413,8 @@ Status line: '%s'\n"), p, line);
 	  p = unpack_varlen_hex (++p1, &val);
 	  ts->stop_reason = trace_never_run;
 	}
-      else if (strncmp (p, stop_reason_names[tracepoint_passcount], p1 - p) == 0)
+      else if (strncmp (p, stop_reason_names[tracepoint_passcount],
+			p1 - p) == 0)
 	{
 	  p = unpack_varlen_hex (++p1, &val);
 	  ts->stop_reason = tracepoint_passcount;
@@ -3524,7 +3548,8 @@ parse_tracepoint_definition (char *line, struct uploaded_tp **utpp)
 	      p += 2 * xlen;
 	    }
 	  else
-	    warning (_("Unrecognized char '%c' in tracepoint definition, skipping rest"), *p);
+	    warning (_("Unrecognized char '%c' in tracepoint "
+		       "definition, skipping rest"), *p);
 	}
       utp = get_uploaded_tp (num, addr, utpp);
       utp->type = type;
@@ -3615,7 +3640,7 @@ tfile_close (int quitting)
     return;
 
   pid = ptid_get_pid (inferior_ptid);
-  inferior_ptid = null_ptid;	/* Avoid confusion from thread stuff */
+  inferior_ptid = null_ptid;	/* Avoid confusion from thread stuff.  */
   exit_inferior_silent (pid);
 
   close (trace_fd);
@@ -3627,7 +3652,7 @@ tfile_close (int quitting)
 static void
 tfile_files_info (struct target_ops *t)
 {
-  /* (it would be useful to mention the name of the file) */
+  /* (it would be useful to mention the name of the file).  */
   printf_filtered ("Looking at a trace file.\n");
 }
 
@@ -3656,7 +3681,7 @@ tfile_get_traceframe_address (off_t tframe_offset)
   off_t saved_offset = cur_offset;
   int gotten;
 
-  /* FIXME dig pc out of collected registers */
+  /* FIXME dig pc out of collected registers.  */
 
   /* Fall back to using tracepoint address.  */
   lseek (trace_fd, tframe_offset, SEEK_SET);
@@ -3670,7 +3695,7 @@ tfile_get_traceframe_address (off_t tframe_offset)
 					      (target_gdbarch));
 
   tp = get_tracepoint_by_number_on_target (tpnum);
-  /* FIXME this is a poor heuristic if multiple locations */
+  /* FIXME this is a poor heuristic if multiple locations.  */
   if (tp && tp->loc)
     addr = tp->loc->address;
 
@@ -3853,7 +3878,7 @@ tfile_fetch_registers (struct target_ops *ops,
 	  pos += (4 + 8);
 	  break;
 	default:
-	  error ("Unknown block type '%c' (0x%x) in trace frame",
+	  error (_("Unknown block type '%c' (0x%x) in trace frame"),
 		 block_type, block_type);
 	  break;
 	}
@@ -3878,14 +3903,16 @@ tfile_fetch_registers (struct target_ops *ops,
 	  /* But don't try to guess if tracepoint is multi-location...  */
 	  if (tp->loc->next)
 	    {
-	      warning ("Tracepoint %d has multiple locations, cannot infer $pc",
+	      warning (_("Tracepoint %d has multiple "
+			 "locations, cannot infer $pc"),
 		       tp->number);
 	      return;
 	    }
 	  /* ... or does while-stepping.  */
 	  if (tp->step_count > 0)
 	    {
-	      warning ("Tracepoint %d does while-stepping, cannot infer $pc",
+	      warning (_("Tracepoint %d does while-stepping, "
+			 "cannot infer $pc"),
 		       tp->number);
 	      return;
 	    }
@@ -3913,7 +3940,7 @@ tfile_xfer_partial (struct target_ops *ops, enum target_object object,
     return -1;
 
   if (readbuf == NULL)
-    error ("tfile_xfer_partial: trace file is read-only");
+    error (_("tfile_xfer_partial: trace file is read-only"));
 
   lseek (trace_fd, cur_offset, SEEK_SET);
   pos = 0;
@@ -3977,7 +4004,7 @@ tfile_xfer_partial (struct target_ops *ops, enum target_object object,
 	  pos += (4 + 8);
 	  break;
 	default:
-	  error ("Unknown block type '%c' (0x%x) in traceframe",
+	  error (_("Unknown block type '%c' (0x%x) in traceframe"),
 		 block_type, block_type);
 	  break;
 	}
@@ -3986,7 +4013,7 @@ tfile_xfer_partial (struct target_ops *ops, enum target_object object,
   /* It's unduly pedantic to refuse to look at the executable for
      read-only pieces; so do the equivalent of readonly regions aka
      QTro packet.  */
-  /* FIXME account for relocation at some point */
+  /* FIXME account for relocation at some point.  */
   if (exec_bfd)
     {
       asection *s;
@@ -4083,7 +4110,7 @@ tfile_get_trace_state_variable_value (int tsvnum, LONGEST *val)
 	  pos += (4 + 8);
 	  break;
 	default:
-	  error ("Unknown block type '%c' (0x%x) in traceframe",
+	  error (_("Unknown block type '%c' (0x%x) in traceframe"),
 		 block_type, block_type);
 	  break;
 	}
@@ -4121,8 +4148,8 @@ init_tfile_ops (void)
 {
   tfile_ops.to_shortname = "tfile";
   tfile_ops.to_longname = "Local trace dump file";
-  tfile_ops.to_doc =
-    "Use a trace file as a target.  Specify the filename of the trace file.";
+  tfile_ops.to_doc
+    = "Use a trace file as a target.  Specify the filename of the trace file.";
   tfile_ops.to_open = tfile_open;
   tfile_ops.to_close = tfile_close;
   tfile_ops.to_fetch_registers = tfile_fetch_registers;
@@ -4130,7 +4157,8 @@ init_tfile_ops (void)
   tfile_ops.to_files_info = tfile_files_info;
   tfile_ops.to_get_trace_status = tfile_get_trace_status;
   tfile_ops.to_trace_find = tfile_trace_find;
-  tfile_ops.to_get_trace_state_variable_value = tfile_get_trace_state_variable_value;
+  tfile_ops.to_get_trace_state_variable_value
+    = tfile_get_trace_state_variable_value;
   tfile_ops.to_stratum = process_stratum;
   tfile_ops.to_has_all_memory = tfile_has_all_memory;
   tfile_ops.to_has_memory = tfile_has_memory;
@@ -4455,7 +4483,7 @@ at the start of tracing."));
 Delete one or more trace state variables.\n\
 Arguments are the names of the variables to delete.\n\
 If no arguments are supplied, delete all variables."), &deletelist);
-  /* FIXME add a trace variable completer */
+  /* FIXME add a trace variable completer.  */
 
   add_info ("tvariables", tvariables_info, _("\
 Status of trace state variables and their values.\n\

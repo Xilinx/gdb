@@ -1,6 +1,7 @@
 /* Renesas M32C target-dependent code for GDB, the GNU debugger.
 
-   Copyright 2004, 2005, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+   Copyright 2004, 2005, 2007, 2008, 2009, 2010, 2011
+   Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -2218,9 +2219,9 @@ m32c_return_value (struct gdbarch *gdbarch,
 	    = lookup_minimal_symbol ("mem0", NULL, NULL);
 
 	  if (! mem0)
-	    error ("The return value is stored in memory at 'mem0', "
-		   "but GDB cannot find\n"
-		   "its address.");
+	    error (_("The return value is stored in memory at 'mem0', "
+		     "but GDB cannot find\n"
+		     "its address."));
 	  read_memory (SYMBOL_VALUE_ADDRESS (mem0), readbuf, valtype_len);
 	}
     }
@@ -2250,9 +2251,9 @@ m32c_return_value (struct gdbarch *gdbarch,
 	    = lookup_minimal_symbol ("mem0", NULL, NULL);
 
 	  if (! mem0)
-	    error ("The return value is stored in memory at 'mem0', "
-		   "but GDB cannot find\n"
-		   " its address.");
+	    error (_("The return value is stored in memory at 'mem0', "
+		     "but GDB cannot find\n"
+		     " its address."));
 	  write_memory (SYMBOL_VALUE_ADDRESS (mem0),
                         (char *) writebuf, valtype_len);
 	}
@@ -2344,8 +2345,8 @@ m32c_skip_trampoline_code (struct frame_info *frame, CORE_ADDR stop_pc)
 
 	  /* What we have now is the address of a jump instruction.
 	     What we need is the destination of that jump.
-	     The opcode is 1 byte, and the destination is the next 3 bytes.
-	  */
+	     The opcode is 1 byte, and the destination is the next 3 bytes.  */
+
 	  target = read_memory_unsigned_integer (target + 1, 3, byte_order);
 	  return target;
 	}
@@ -2565,7 +2566,8 @@ m32c_virtual_frame_pointer (struct gdbarch *gdbarch, CORE_ADDR pc,
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   
   if (!find_pc_partial_function (pc, &name, &func_addr, &func_end))
-    internal_error (__FILE__, __LINE__, _("No virtual frame pointer available"));
+    internal_error (__FILE__, __LINE__,
+		    _("No virtual frame pointer available"));
 
   m32c_analyze_prologue (gdbarch, func_addr, pc, &p);
   switch (p.kind)
@@ -2585,7 +2587,8 @@ m32c_virtual_frame_pointer (struct gdbarch *gdbarch, CORE_ADDR pc,
     }
   /* Sanity check */
   if (*frame_regnum > gdbarch_num_regs (gdbarch))
-    internal_error (__FILE__, __LINE__, _("No virtual frame pointer available"));
+    internal_error (__FILE__, __LINE__,
+		    _("No virtual frame pointer available"));
 }
 
 
@@ -2637,8 +2640,7 @@ m32c_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
      They may be in the dwarf2 cfi code in GDB, or they may be in
      the debug info emitted by the upstream toolchain.  I don't 
      know which, but I do know that the prologue analyzer works better.
-     MVS 04/13/06
-  */
+     MVS 04/13/06  */
   dwarf2_append_sniffers (arch);
 #endif
   frame_unwind_append_unwinder (arch, &m32c_unwind);
@@ -2656,7 +2658,7 @@ m32c_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   /* m32c function boundary addresses are not necessarily even.
      Therefore, the `vbit', which indicates a pointer to a virtual
      member function, is stored in the delta field, rather than as
-     the low bit of a function pointer address.  
+     the low bit of a function pointer address.
 
      In order to verify this, see the definition of
      TARGET_PTRMEMFUNC_VBIT_LOCATION in gcc/defaults.h along with the

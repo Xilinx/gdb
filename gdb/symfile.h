@@ -1,7 +1,7 @@
 /* Definitions for reading symbol files into GDB.
 
    Copyright (C) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009, 2010
+   2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -80,7 +80,7 @@ struct section_addr_info
   /* The number of sections for which address information is
      available.  */
   size_t num_sections;
-  /* Sections whose names are file format dependent. */
+  /* Sections whose names are file format dependent.  */
   struct other_sections
   {
     CORE_ADDR addr;
@@ -223,7 +223,7 @@ struct quick_symbol_functions
   /* Find global or static symbols in all tables that are in NAMESPACE 
      and for which MATCH (symbol name, NAME) == 0, passing each to 
      CALLBACK, reading in partial symbol symbol tables as needed.  Look
-     through global symbols if GLOBAL and otherwise static symbols.  
+     through global symbols if GLOBAL and otherwise static symbols.
      Passes NAME, NAMESPACE, and DATA to CALLBACK with each symbol
      found.  After each block is processed, passes NULL to CALLBACK.
      MATCH must be weaker than strcmp_iw in the sense that
@@ -233,7 +233,7 @@ struct quick_symbol_functions
             strcmp(x,y) == 0 --> ORDERED_COMPARE(x,y) == 0 
      and 
             strcmp(x,y) <= 0 --> ORDERED_COMPARE(x,y) <= 0
-     (allowing strcmp(x,y) < 0 while ORDERED_COMPARE(x, y) == 0). 
+     (allowing strcmp(x,y) < 0 while ORDERED_COMPARE(x, y) == 0).
      CALLBACK returns 0 to indicate that the scan should continue, or
      non-zero to indicate that the scan should be terminated.  */
 
@@ -365,7 +365,7 @@ struct sym_fns
 };
 
 extern struct section_addr_info *
-	   build_section_addr_info_from_objfile (const struct objfile *objfile);
+  build_section_addr_info_from_objfile (const struct objfile *objfile);
 
 extern void relative_addr_info_to_section_offsets
   (struct section_offsets *section_offsets, int num_sections,
@@ -454,9 +454,10 @@ extern void free_section_addr_info (struct section_addr_info *);
 
 extern char *obsavestring (const char *, int, struct obstack *);
 
-/* Concatenate NULL terminated variable argument list of `const char *' strings;
-   return the new string.  Space is found in the OBSTACKP.  Argument list must
-   be terminated by a sentinel expression `(char *) NULL'.  */
+/* Concatenate NULL terminated variable argument list of `const char
+   *' strings; return the new string.  Space is found in the OBSTACKP.
+   Argument list must be terminated by a sentinel expression `(char *)
+   NULL'.  */
 
 extern char *obconcat (struct obstack *obstackp, ...) ATTRIBUTE_SENTINEL;
 

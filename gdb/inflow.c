@@ -1,7 +1,7 @@
 /* Low level interface to ptrace, for GDB when running under Unix.
    Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
    1996, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010 Free Software Foundation, Inc.
+   2009, 2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -409,8 +409,8 @@ terminal_ours_1 (int output_only)
          mode, to avoid flushing input.  We need to do the same thing
          regardless of output_only, because we don't have separate
          terminal_is_ours and terminal_is_ours_for_output flags.  It's OK,
-         though, since readline will deal with raw mode when/if it needs to.
-       */
+         though, since readline will deal with raw mode when/if it needs
+         to.  */
 
       serial_noflush_set_tty_state (stdin_serial, our_terminal_info.ttystate,
 				    tinfo->ttystate);
@@ -425,7 +425,8 @@ terminal_ours_1 (int output_only)
 	     used to check for an error here, so perhaps there are other
 	     such situations as well.  */
 	  if (result == -1)
-	    fprintf_unfiltered (gdb_stderr, "[tcsetpgrp failed in terminal_ours: %s]\n",
+	    fprintf_unfiltered (gdb_stderr,
+				"[tcsetpgrp failed in terminal_ours: %s]\n",
 				safe_strerror (errno));
 #endif
 #endif /* termios */
@@ -551,7 +552,8 @@ child_terminal_info (char *args, int from_tty)
   inf = current_inferior ();
   tinfo = get_inflow_inferior_data (inf);
 
-  printf_filtered (_("Inferior's terminal status (currently saved by GDB):\n"));
+  printf_filtered (_("Inferior's terminal status "
+		     "(currently saved by GDB):\n"));
 
   /* First the fcntl flags.  */
   {
@@ -564,7 +566,7 @@ child_terminal_info (char *args, int from_tty)
 #ifndef O_ACCMODE
 #define O_ACCMODE (O_RDONLY | O_WRONLY | O_RDWR)
 #endif
-    /* (O_ACCMODE) parens are to avoid Ultrix header file bug */
+    /* (O_ACCMODE) parens are to avoid Ultrix header file bug.  */
     switch (flags & (O_ACCMODE))
       {
       case O_RDONLY:
@@ -659,7 +661,7 @@ new_tty (void)
 #ifdef TIOCNOTTY
   /* Disconnect the child process from our controlling terminal.  On some
      systems (SVR4 for example), this may cause a SIGTTOU, so temporarily
-     ignore SIGTTOU. */
+     ignore SIGTTOU.  */
   tty = open ("/dev/tty", O_RDWR);
   if (tty > 0)
     {
@@ -698,7 +700,7 @@ new_tty (void)
   if (ioctl (tty, TIOCSCTTY, 0) == -1)
     /* Mention GDB in warning because it will appear in the inferior's
        terminal instead of GDB's.  */
-    warning ("GDB: Failed to set controlling terminal: %s",
+    warning (_("GDB: Failed to set controlling terminal: %s"),
 	     safe_strerror (errno));
 #endif
 
@@ -730,7 +732,7 @@ new_tty_postfork (void)
 
 
 /* Call set_sigint_trap when you need to pass a signal on to an attached
-   process when handling SIGINT */
+   process when handling SIGINT.  */
 
 static void
 pass_signal (int signo)
@@ -787,7 +789,7 @@ create_tty_session (void)
 
   ret = setsid ();
   if (ret == -1)
-    warning ("Failed to create new terminal session: setsid: %s",
+    warning (_("Failed to create new terminal session: setsid: %s"),
 	     safe_strerror (errno));
 
   return ret;
@@ -865,7 +867,7 @@ _initialize_inflow (void)
 #ifdef _SC_JOB_CONTROL
   job_control = sysconf (_SC_JOB_CONTROL);
 #else
-  job_control = 0;		/* have to assume the worst */
+  job_control = 0;		/* Have to assume the worst.  */
 #endif /* _SC_JOB_CONTROL */
 #endif /* _POSIX_JOB_CONTROL */
 #endif /* HAVE_TERMIOS */

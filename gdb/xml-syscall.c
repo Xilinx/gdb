@@ -1,7 +1,7 @@
 /* Functions that provide the mechanism to parse a syscall XML file
    and get its values.
 
-   Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2009, 2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -271,7 +271,8 @@ xml_init_syscalls_info (const char *filename)
   if (dirname != NULL)
     make_cleanup (xfree, dirname);
 
-  sysinfo = syscall_parse_xml (full_file, xml_fetch_content_from_file, dirname);
+  sysinfo = syscall_parse_xml (full_file,
+			       xml_fetch_content_from_file, dirname);
   do_cleanups (back_to);
 
   return sysinfo;
@@ -305,16 +306,14 @@ init_sysinfo (void)
   if (sysinfo == NULL)
     {
       if (xml_syscall_file)
-	warning (_("\
-Could not load the syscall XML file `%s/%s'."),
+	warning (_("Could not load the syscall XML file `%s/%s'."),
 		 gdb_datadir, xml_syscall_file);
       else
-	warning (_("\
-There is no XML file to open."));
+	warning (_("There is no XML file to open."));
 
-      warning (_("\
-GDB will not be able to display syscall names nor to verify if\n\
-any provided syscall numbers are valid."));
+      warning (_("GDB will not be able to display "
+		 "syscall names nor to verify if\n"
+		 "any provided syscall numbers are valid."));
     }
 
   /* Saving the data-directory used to read this XML info.  */

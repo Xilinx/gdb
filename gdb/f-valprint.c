@@ -1,7 +1,7 @@
 /* Support for printing Fortran values for GDB, the GNU debugger.
 
    Copyright (C) 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2003, 2005, 2006,
-   2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+   2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
 
    Contributed by Motorola.  Adapted from the C definitions by Farooq Butt
    (fmbutt@engage.sps.mot.com), additionally worked over by Stan Shebs.
@@ -49,14 +49,14 @@ static void f77_get_dynamic_length_of_aggregate (struct type *);
 int f77_array_offset_tbl[MAX_FORTRAN_DIMS + 1][2];
 
 /* Array which holds offsets to be applied to get a row's elements
-   for a given array. Array also holds the size of each subarray.  */
+   for a given array.  Array also holds the size of each subarray.  */
 
 /* The following macro gives us the size of the nth dimension, Where 
-   n is 1 based. */
+   n is 1 based.  */
 
 #define F77_DIM_SIZE(n) (f77_array_offset_tbl[n][1])
 
-/* The following gives us the offset for row n where n is 1-based. */
+/* The following gives us the offset for row n where n is 1-based.  */
 
 #define F77_DIM_OFFSET(n) (f77_array_offset_tbl[n][0])
 
@@ -85,7 +85,7 @@ f77_get_upperbound (struct type *type)
   return TYPE_ARRAY_UPPER_BOUND_VALUE (type);
 }
 
-/* Obtain F77 adjustable array dimensions */
+/* Obtain F77 adjustable array dimensions.  */
 
 static void
 f77_get_dynamic_length_of_aggregate (struct type *type)
@@ -110,10 +110,11 @@ f77_get_dynamic_length_of_aggregate (struct type *type)
   lower_bound = f77_get_lowerbound (type);
   upper_bound = f77_get_upperbound (type);
 
-  /* Patch in a valid length value. */
+  /* Patch in a valid length value.  */
 
   TYPE_LENGTH (type) =
-    (upper_bound - lower_bound + 1) * TYPE_LENGTH (check_typedef (TYPE_TARGET_TYPE (type)));
+    (upper_bound - lower_bound + 1)
+    * TYPE_LENGTH (check_typedef (TYPE_TARGET_TYPE (type)));
 }
 
 /* Function that sets up the array offset,size table for the array 
@@ -143,7 +144,7 @@ f77_create_arrayprint_offset_tbl (struct type *type, struct ui_file *stream)
   /* Now we multiply eltlen by all the offsets, so that later we 
      can print out array elements correctly.  Up till now we 
      know an offset to apply to get the item but we also 
-     have to know how much to add to get to the next item */
+     have to know how much to add to get to the next item.  */
 
   ndimen--;
   eltlen = TYPE_LENGTH (tmp_type);
@@ -172,7 +173,9 @@ f77_print_array_1 (int nss, int ndimensions, struct type *type,
 
   if (nss != ndimensions)
     {
-      for (i = 0; (i < F77_DIM_SIZE (nss) && (*elts) < options->print_max); i++)
+      for (i = 0;
+	   (i < F77_DIM_SIZE (nss) && (*elts) < options->print_max);
+	   i++)
 	{
 	  fprintf_filtered (stream, "( ");
 	  f77_print_array_1 (nss + 1, ndimensions, TYPE_TARGET_TYPE (type),
@@ -206,7 +209,7 @@ f77_print_array_1 (int nss, int ndimensions, struct type *type,
 }
 
 /* This function gets called to print an F77 array, we set up some 
-   stuff and then immediately call f77_print_array_1() */
+   stuff and then immediately call f77_print_array_1().  */
 
 static void
 f77_print_array (struct type *type, const gdb_byte *valaddr,
@@ -221,12 +224,13 @@ f77_print_array (struct type *type, const gdb_byte *valaddr,
   ndimensions = calc_f77_array_dims (type);
 
   if (ndimensions > MAX_FORTRAN_DIMS || ndimensions < 0)
-    error (_("Type node corrupt! F77 arrays cannot have %d subscripts (%d Max)"),
+    error (_("\
+Type node corrupt! F77 arrays cannot have %d subscripts (%d Max)"),
 	   ndimensions, MAX_FORTRAN_DIMS);
 
   /* Since F77 arrays are stored column-major, we set up an 
-     offset table to get at the various row's elements. The 
-     offset table contains entries for both offset and subarray size. */
+     offset table to get at the various row's elements.  The 
+     offset table contains entries for both offset and subarray size.  */
 
   f77_create_arrayprint_offset_tbl (type, stream);
 
@@ -250,7 +254,7 @@ f_val_print (struct type *type, const gdb_byte *valaddr, int embedded_offset,
 {
   struct gdbarch *gdbarch = get_type_arch (type);
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
-  unsigned int i = 0;	/* Number of characters printed */
+  unsigned int i = 0;	/* Number of characters printed.  */
   struct type *elttype;
   LONGEST val;
   CORE_ADDR addr;
@@ -267,7 +271,8 @@ f_val_print (struct type *type, const gdb_byte *valaddr, int embedded_offset,
 
     case TYPE_CODE_ARRAY:
       fprintf_filtered (stream, "(");
-      f77_print_array (type, valaddr, address, stream, recurse, original_value, options);
+      f77_print_array (type, valaddr, address, stream,
+		       recurse, original_value, options);
       fprintf_filtered (stream, ")");
       break;
 
@@ -369,7 +374,7 @@ f_val_print (struct type *type, const gdb_byte *valaddr, int embedded_offset,
 	  /* C and C++ has no single byte int type, char is used instead.
 	     Since we don't know whether the value is really intended to
 	     be used as an integer or a character, print the character
-	     equivalent as well. */
+	     equivalent as well.  */
 	  if (TYPE_LENGTH (type) == 1)
 	    {
 	      fputs_filtered (" ", stream);
@@ -430,7 +435,7 @@ f_val_print (struct type *type, const gdb_byte *valaddr, int embedded_offset,
 	      TYPE_CODE (type) = TYPE_CODE_INT;
 	      val_print (type, valaddr, 0, address, stream, recurse,
 			 original_value, options, current_language);
-	      /* Restore the type code so later uses work as intended. */
+	      /* Restore the type code so later uses work as intended.  */
 	      TYPE_CODE (type) = TYPE_CODE_BOOL;
 	    }
 	}
@@ -496,8 +501,8 @@ list_all_visible_commons (char *funname)
 }
 
 /* This function is used to print out the values in a given COMMON 
-   block. It will always use the most local common block of the 
-   given name */
+   block.  It will always use the most local common block of the 
+   given name.  */
 
 static void
 info_common_command (char *comname, int from_tty)
@@ -511,12 +516,12 @@ info_common_command (char *comname, int from_tty)
   /* We have been told to display the contents of F77 COMMON 
      block supposedly visible in this function.  Let us 
      first make sure that it is visible and if so, let 
-     us display its contents */
+     us display its contents.  */
 
   fi = get_selected_frame (_("No frame selected"));
 
   /* The following is generally ripped off from stack.c's routine 
-     print_frame_info() */
+     print_frame_info().  */
 
   func = find_pc_function (get_frame_pc (fi));
   if (func)
@@ -533,7 +538,7 @@ info_common_command (char *comname, int from_tty)
          up with a larger address for the function use that instead.
          I don't think this can ever cause any problems; there shouldn't
          be any minimal symbols in the middle of a function.
-         FIXME:  (Not necessarily true.  What about text labels) */
+         FIXME:  (Not necessarily true.  What about text labels?)  */
 
       struct minimal_symbol *msymbol = 
 	lookup_minimal_symbol_by_pc (get_frame_pc (fi));
@@ -557,7 +562,7 @@ info_common_command (char *comname, int from_tty)
     }
 
   /* If comname is NULL, we assume the user wishes to see the 
-     which COMMON blocks are visible here and then return */
+     which COMMON blocks are visible here and then return.  */
 
   if (comname == 0)
     {
@@ -589,7 +594,7 @@ info_common_command (char *comname, int from_tty)
 }
 
 /* This function is used to determine whether there is a
-   F77 common block visible at the current scope called 'comname'. */
+   F77 common block visible at the current scope called 'comname'.  */
 
 #if 0
 static int
@@ -606,7 +611,7 @@ there_is_a_visible_common_named (char *comname)
   fi = get_selected_frame (_("No frame selected"));
 
   /* The following is generally ripped off from stack.c's routine 
-     print_frame_info() */
+     print_frame_info().  */
 
   func = find_pc_function (fi->pc);
   if (func)
@@ -623,7 +628,7 @@ there_is_a_visible_common_named (char *comname)
          up with a larger address for the function use that instead.
          I don't think this can ever cause any problems; there shouldn't
          be any minimal symbols in the middle of a function.
-         FIXME:  (Not necessarily true.  What about text labels) */
+         FIXME:  (Not necessarily true.  What about text labels?)  */
 
       struct minimal_symbol *msymbol = lookup_minimal_symbol_by_pc (fi->pc);
 

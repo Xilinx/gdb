@@ -1,5 +1,5 @@
 /* MI Command Set - stack commands.
-   Copyright (C) 2000, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010
+   Copyright (C) 2000, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
    Contributed by Cygnus Solutions (a Red Hat company).
 
@@ -168,7 +168,8 @@ mi_cmd_stack_list_args (char *command, char **argv, int argc)
   enum print_values print_values;
 
   if (argc < 1 || argc > 3 || argc == 2)
-    error (_("mi_cmd_stack_list_args: Usage: PRINT_VALUES [FRAME_LOW FRAME_HIGH]"));
+    error (_("mi_cmd_stack_list_args: Usage: "
+	     "PRINT_VALUES [FRAME_LOW FRAME_HIGH]"));
 
   if (argc == 3)
     {
@@ -195,7 +196,8 @@ mi_cmd_stack_list_args (char *command, char **argv, int argc)
   if (fi == NULL)
     error (_("mi_cmd_stack_list_args: Not enough frames in stack."));
 
-  cleanup_stack_args = make_cleanup_ui_out_list_begin_end (uiout, "stack-args");
+  cleanup_stack_args
+    = make_cleanup_ui_out_list_begin_end (uiout, "stack-args");
 
   /* Now let's print the frames up to frame_high, or until there are
      frames in the stack. */

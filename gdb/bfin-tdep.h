@@ -1,6 +1,6 @@
 /* Target-dependent code for Analog Devices Blackfin processor, for GDB.
 
-   Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010
+   Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    Contributed by Analog Devices, Inc.
@@ -55,7 +55,7 @@ enum gdb_regnum {
   BFIN_L2_REGNUM,
   BFIN_L3_REGNUM,
   BFIN_A0_DOT_X_REGNUM,
-  BFIN_AO_DOT_W_REGNUM,
+  BFIN_A0_DOT_W_REGNUM,
   BFIN_A1_DOT_X_REGNUM,
   BFIN_A1_DOT_W_REGNUM,
   BFIN_ASTAT_REGNUM,

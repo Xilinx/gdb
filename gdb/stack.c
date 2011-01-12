@@ -2,7 +2,7 @@
 
    Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
    1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008,
-   2009, 2010 Free Software Foundation, Inc.
+   2009, 2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -64,7 +64,7 @@ static const char *print_frame_arguments_choices[] =
   {"all", "scalars", "none", NULL};
 static const char *print_frame_arguments = "scalars";
 
-/* Prototypes for local functions. */
+/* Prototypes for local functions.  */
 
 static void print_frame_local_vars (struct frame_info *, int,
 				    struct ui_file *);
@@ -466,8 +466,9 @@ show_disassemble_next_line (struct ui_file *file, int from_tty,
 				 struct cmd_list_element *c,
 				 const char *value)
 {
-  fprintf_filtered (file, _("\
-Debugger's willingness to use disassemble-next-line is %s.\n"),
+  fprintf_filtered (file,
+		    _("Debugger's willingness to use "
+		      "disassemble-next-line is %s.\n"),
                     value);
 }
 
@@ -628,12 +629,12 @@ print_frame_info (struct frame_info *frame, int print_level,
 
 	      get_user_print_options (&opts);
 	      /* We used to do this earlier, but that is clearly
-		 wrong. This function is used by many different
+		 wrong.  This function is used by many different
 		 parts of gdb, including normal_stop in infrun.c,
 		 which uses this to print out the current PC
 		 when we stepi/nexti into the middle of a source
-		 line. Only the command line really wants this
-		 behavior. Other UIs probably would like the
+		 line.  Only the command line really wants this
+		 behavior.  Other UIs probably would like the
 		 ability to decide for themselves if it is desired.  */
 	      if (opts.addressprint && mid_statement)
 		{
@@ -807,7 +808,7 @@ print_frame (struct frame_info *frame, int print_level,
       args.stream = gdb_stdout;
       args_list_chain = make_cleanup_ui_out_list_begin_end (uiout, "args");
       catch_errors (print_args_stub, &args, "", RETURN_MASK_ERROR);
-      /* FIXME: ARGS must be a list. If one argument is a string it
+      /* FIXME: ARGS must be a list.  If one argument is a string it
 	  will have " that will not be properly escaped.  */
       /* Invoke ui_out_tuple_end.  */
       do_cleanups (args_list_chain);
@@ -933,7 +934,7 @@ parse_frame_specification_1 (const char *frame_exp, const char *message,
 
       fid = find_relative_frame (get_current_frame (), &level);
       if (level == 0)
-	/* find_relative_frame was successful */
+	/* find_relative_frame was successful.  */
 	return fid;
     }
 
@@ -1581,7 +1582,7 @@ struct print_variable_and_value_data
   int values_printed;
 };
 
-/* The callback for the locals and args iterators  */
+/* The callback for the locals and args iterators.  */
 
 static void
 do_print_variable_and_value (const char *print_name,
@@ -2018,9 +2019,10 @@ return_command (char *retval_exp, int from_tty)
 	       && using_struct_return (gdbarch,
 				       SYMBOL_TYPE (thisfun), return_type))
 	{
-	  query_prefix = "\
-The location at which to store the function's return value is unknown.\n\
-If you continue, the return value that you specified will be ignored.\n";
+	  query_prefix = "The location at which to store the "
+	    "function's return value is unknown.\n"
+	    "If you continue, the return value "
+	    "that you specified will be ignored.\n";
 	  return_value = NULL;
 	}
     }
@@ -2073,7 +2075,7 @@ If you continue, the return value that you specified will be ignored.\n";
 }
 
 /* Sets the scope to input function name, provided that the function
-   is within the current stack frame */
+   is within the current stack frame.  */
 
 struct function_bounds
 {
@@ -2187,8 +2189,8 @@ Same as the `down' command, but does not print anything.\n\
 This is useful in command scripts."));
 
   add_com ("frame", class_stack, frame_command, _("\
-Select and print a stack frame.\n\
-With no argument, print the selected stack frame.  (See also \"info frame\").\n\
+Select and print a stack frame.\nWith no argument, \
+print the selected stack frame.  (See also \"info frame\").\n\
 An argument specifies the frame to select.\n\
 It can be a stack frame number or the address of the frame.\n\
 With argument, nothing is printed if input is coming from\n\
@@ -2209,8 +2211,8 @@ It can be a stack frame number or the address of the frame.\n"));
 
   add_com ("backtrace", class_stack, backtrace_command, _("\
 Print backtrace of all stack frames, or innermost COUNT frames.\n\
-With a negative argument, print outermost -COUNT frames.\n\
-Use of the 'full' qualifier also prints the values of the local variables.\n"));
+With a negative argument, print outermost -COUNT frames.\nUse of the \
+'full' qualifier also prints the values of the local variables.\n"));
   add_com_alias ("bt", "backtrace", class_stack, 0);
   if (xdb_commands)
     {
@@ -2253,8 +2255,10 @@ Usage: func <name>\n"));
 
   add_setshow_auto_boolean_cmd ("disassemble-next-line", class_stack,
 			        &disassemble_next_line, _("\
-Set whether to disassemble next source line or insn when execution stops."), _("\
-Show whether to disassemble next source line or insn when execution stops."), _("\
+Set whether to disassemble next source line or insn when execution stops."),
+				_("\
+Show whether to disassemble next source line or insn when execution stops."),
+				_("\
 If ON, GDB will display disassembly of the next source line, in addition\n\
 to displaying the source line itself.  If the next source line cannot\n\
 be displayed (e.g., source is unavailable or there's no line info), GDB\n\

@@ -1,7 +1,7 @@
 /* GNU/Linux native-dependent code common to multiple platforms.
 
-   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+   2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -38,12 +38,12 @@
 #include "inf-ptrace.h"
 #include "auxv.h"
 #include <sys/param.h>		/* for MAXPATHLEN */
-#include <sys/procfs.h>		/* for elf_gregset etc. */
+#include <sys/procfs.h>		/* for elf_gregset etc.  */
 #include "elf-bfd.h"		/* for elfcore_write_* */
 #include "gregset.h"		/* for gregset */
 #include "gdbcore.h"		/* for get_exec_file */
 #include <ctype.h>		/* for isdigit */
-#include "gdbthread.h"		/* for struct thread_info etc. */
+#include "gdbthread.h"		/* for struct thread_info etc.  */
 #include "gdb_stat.h"		/* for struct stat */
 #include <fcntl.h>		/* for O_RDONLY */
 #include "inf-loop.h"
@@ -68,7 +68,7 @@
 # endif
 #endif /* HAVE_PERSONALITY */
 
-/* This comment documents high-level logic of this file. 
+/* This comment documents high-level logic of this file.
 
 Waiting for events in sync mode
 ===============================
@@ -76,20 +76,21 @@ Waiting for events in sync mode
 When waiting for an event in a specific thread, we just use waitpid, passing
 the specific pid, and not passing WNOHANG.
 
-When waiting for an event in all threads, waitpid is not quite good. Prior to
+When waiting for an event in all threads, waitpid is not quite good.  Prior to
 version 2.4, Linux can either wait for event in main thread, or in secondary
-threads. (2.4 has the __WALL flag).  So, if we use blocking waitpid, we might
+threads.  (2.4 has the __WALL flag).  So, if we use blocking waitpid, we might
 miss an event.  The solution is to use non-blocking waitpid, together with
 sigsuspend.  First, we use non-blocking waitpid to get an event in the main 
-process, if any. Second, we use non-blocking waitpid with the __WCLONED
+process, if any.  Second, we use non-blocking waitpid with the __WCLONED
 flag to check for events in cloned processes.  If nothing is found, we use
 sigsuspend to wait for SIGCHLD.  When SIGCHLD arrives, it means something
 happened to a child process -- and SIGCHLD will be delivered both for events
 in main debugged process and in cloned processes.  As soon as we know there's
-an event, we get back to calling nonblocking waitpid with and without __WCLONED.
+an event, we get back to calling nonblocking waitpid with and without 
+__WCLONED.
 
 Note that SIGCHLD should be blocked between waitpid and sigsuspend calls,
-so that we don't miss a signal. If SIGCHLD arrives in between, when it's
+so that we don't miss a signal.  If SIGCHLD arrives in between, when it's
 blocked, the signal becomes pending and sigsuspend immediately
 notices it and returns.
 
@@ -166,7 +167,7 @@ blocked.  */
 #define PTRACE_SETOPTIONS	0x4200
 #define PTRACE_GETEVENTMSG	0x4201
 
-/* options set using PTRACE_SETOPTIONS */
+/* Options set using PTRACE_SETOPTIONS.  */
 #define PTRACE_O_TRACESYSGOOD	0x00000001
 #define PTRACE_O_TRACEFORK	0x00000002
 #define PTRACE_O_TRACEVFORK	0x00000004
@@ -239,7 +240,8 @@ static void
 show_debug_linux_nat_async (struct ui_file *file, int from_tty,
 			    struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file, _("Debugging of GNU/Linux async lwp module is %s.\n"),
+  fprintf_filtered (file,
+		    _("Debugging of GNU/Linux async lwp module is %s.\n"),
 		    value);
 }
 
@@ -250,23 +252,25 @@ show_disable_randomization (struct ui_file *file, int from_tty,
 			    struct cmd_list_element *c, const char *value)
 {
 #ifdef HAVE_PERSONALITY
-  fprintf_filtered (file, _("\
-Disabling randomization of debuggee's virtual address space is %s.\n"),
+  fprintf_filtered (file,
+		    _("Disabling randomization of debuggee's "
+		      "virtual address space is %s.\n"),
 		    value);
 #else /* !HAVE_PERSONALITY */
-  fputs_filtered (_("\
-Disabling randomization of debuggee's virtual address space is unsupported on\n\
-this platform.\n"), file);
+  fputs_filtered (_("Disabling randomization of debuggee's "
+		    "virtual address space is unsupported on\n"
+		    "this platform.\n"), file);
 #endif /* !HAVE_PERSONALITY */
 }
 
 static void
-set_disable_randomization (char *args, int from_tty, struct cmd_list_element *c)
+set_disable_randomization (char *args, int from_tty,
+			   struct cmd_list_element *c)
 {
 #ifndef HAVE_PERSONALITY
-  error (_("\
-Disabling randomization of debuggee's virtual address space is unsupported on\n\
-this platform."));
+  error (_("Disabling randomization of debuggee's "
+	   "virtual address space is unsupported on\n"
+	   "this platform."));
 #endif /* !HAVE_PERSONALITY */
 }
 
@@ -283,8 +287,8 @@ struct simple_pid_list *stopped_pids;
 
 static int linux_supports_tracefork_flag = -1;
 
-/* This variable is a tri-state flag: -1 for unknown, 0 if PTRACE_O_TRACESYSGOOD
-   can not be used, 1 if it can.  */
+/* This variable is a tri-state flag: -1 for unknown, 0 if
+   PTRACE_O_TRACESYSGOOD can not be used, 1 if it can.  */
 
 static int linux_supports_tracesysgood_flag = -1;
 
@@ -293,7 +297,7 @@ static int linux_supports_tracesysgood_flag = -1;
 
 static int linux_supports_tracevforkdone_flag = -1;
 
-/* Async mode support */
+/* Async mode support.  */
 
 /* Zero if the async mode, although enabled, is masked, which means
    linux_nat_wait should behave as if async mode was off.  */
@@ -346,7 +350,8 @@ async_file_mark (void)
 }
 
 static void linux_nat_async (void (*callback)
-			     (enum inferior_event_type event_type, void *context),
+			     (enum inferior_event_type event_type,
+			      void *context),
 			     void *context);
 static int linux_nat_async_mask (int mask);
 static int kill_lwp (int lwpid, int signo);
@@ -473,7 +478,8 @@ linux_test_for_tracefork (int original_pid)
   else if (ret != child_pid)
     error (_("linux_test_for_tracefork: waitpid: unexpected result %d."), ret);
   if (! WIFSTOPPED (status))
-    error (_("linux_test_for_tracefork: waitpid: unexpected status %d."), status);
+    error (_("linux_test_for_tracefork: waitpid: unexpected status %d."),
+	   status);
 
   ret = ptrace (PTRACE_SETOPTIONS, child_pid, 0, PTRACE_O_TRACEFORK);
   if (ret != 0)
@@ -488,10 +494,11 @@ linux_test_for_tracefork (int original_pid)
 
       ret = my_waitpid (child_pid, &status, 0);
       if (ret != child_pid)
-	warning (_("linux_test_for_tracefork: failed to wait for killed child"));
+	warning (_("linux_test_for_tracefork: failed "
+		   "to wait for killed child"));
       else if (!WIFSIGNALED (status))
-	warning (_("linux_test_for_tracefork: unexpected wait status 0x%x from "
-		 "killed child"), status);
+	warning (_("linux_test_for_tracefork: unexpected "
+		   "wait status 0x%x from killed child"), status);
 
       restore_child_signals_mask (&prev_mask);
       return;
@@ -521,7 +528,8 @@ linux_test_for_tracefork (int original_pid)
 	  my_waitpid (second_pid, &second_status, 0);
 	  ret = ptrace (PTRACE_KILL, second_pid, 0, 0);
 	  if (ret != 0)
-	    warning (_("linux_test_for_tracefork: failed to kill second child"));
+	    warning (_("linux_test_for_tracefork: "
+		       "failed to kill second child"));
 	  my_waitpid (second_pid, &status, 0);
 	}
     }
@@ -682,6 +690,7 @@ linux_child_follow_fork (struct target_ops *ops, int follow_child)
 Can not resume the parent process over vfork in the foreground while\n\
 holding the child stopped.  Try \"set detach-on-fork\" or \
 \"set schedule-multiple\".\n"));
+      /* FIXME output string > 80 columns.  */
       return 1;
     }
 
@@ -689,7 +698,7 @@ holding the child stopped.  Try \"set detach-on-fork\" or \
     {
       struct lwp_info *child_lp = NULL;
 
-      /* We're already attached to the parent, by default. */
+      /* We're already attached to the parent, by default.  */
 
       /* Detach new forked process?  */
       if (detach_fork)
@@ -711,7 +720,8 @@ holding the child stopped.  Try \"set detach-on-fork\" or \
 	    {
 	      target_terminal_ours ();
 	      fprintf_filtered (gdb_stdlog,
-				"Detaching after fork from child process %d.\n",
+				"Detaching after fork from "
+				"child process %d.\n",
 				child_pid);
 	    }
 
@@ -843,7 +853,8 @@ holding the child stopped.  Try \"set detach-on-fork\" or \
 
   	      if (debug_linux_nat)
   		fprintf_unfiltered (gdb_stdlog,
-  				    "LCFF: no VFORK_DONE support, sleeping a bit\n");
+				    "LCFF: no VFORK_DONE "
+				    "support, sleeping a bit\n");
 
 	      usleep (10000);
 
@@ -873,12 +884,14 @@ holding the child stopped.  Try \"set detach-on-fork\" or \
 	{
 	  target_terminal_ours ();
 	  if (has_vforked)
-	    fprintf_filtered (gdb_stdlog, _("\
-Attaching after process %d vfork to child process %d.\n"),
+	    fprintf_filtered (gdb_stdlog,
+			      _("Attaching after process %d "
+				"vfork to child process %d.\n"),
 			      parent_pid, child_pid);
 	  else
-	    fprintf_filtered (gdb_stdlog, _("\
-Attaching after process %d fork to child process %d.\n"),
+	    fprintf_filtered (gdb_stdlog,
+			      _("Attaching after process %d "
+				"fork to child process %d.\n"),
 			      parent_pid, child_pid);
 	}
 
@@ -961,36 +974,34 @@ Attaching after process %d fork to child process %d.\n"),
 }
 
 
-static void
+static int
 linux_child_insert_fork_catchpoint (int pid)
 {
-  if (! linux_supports_tracefork (pid))
-    error (_("Your system does not support fork catchpoints."));
+  return !linux_supports_tracefork (pid);
 }
 
-static void
+static int
 linux_child_insert_vfork_catchpoint (int pid)
 {
-  if (!linux_supports_tracefork (pid))
-    error (_("Your system does not support vfork catchpoints."));
+  return !linux_supports_tracefork (pid);
 }
 
-static void
+static int
 linux_child_insert_exec_catchpoint (int pid)
 {
-  if (!linux_supports_tracefork (pid))
-    error (_("Your system does not support exec catchpoints."));
+  return !linux_supports_tracefork (pid);
 }
 
 static int
 linux_child_set_syscall_catchpoint (int pid, int needed, int any_count,
 				    int table_size, int *table)
 {
-  if (! linux_supports_tracesysgood (pid))
-    error (_("Your system does not support syscall catchpoints."));
+  if (!linux_supports_tracesysgood (pid))
+    return 1;
+
   /* On GNU/Linux, we ignore the arguments.  It means that we only
      enable the syscall catchpoints, but do not disable them.
-     
+
      Also, we do not use the `table' information because we do not
      filter system calls here.  We let GDB do the logic for us.  */
   return 0;
@@ -1677,8 +1688,9 @@ get_pending_status (struct lwp_info *lp, int *status)
   else if (!signal_pass_state (signo))
     {
       if (debug_linux_nat)
-	fprintf_unfiltered (gdb_stdlog, "\
-GPT: lwp %s had signal %s, but it is in no pass state\n",
+	fprintf_unfiltered (gdb_stdlog,
+			    "GPT: lwp %s had signal %s, "
+			    "but it is in no pass state\n",
 			    target_pid_to_str (lp->ptid),
 			    target_signal_to_string (signo));
     }
@@ -1838,10 +1850,12 @@ resume_callback (struct lwp_info *lp, void *data)
       lp->stopped_by_watchpoint = 0;
     }
   else if (lp->stopped && debug_linux_nat)
-    fprintf_unfiltered (gdb_stdlog, "RC: Not resuming sibling %s (has pending)\n",
+    fprintf_unfiltered (gdb_stdlog,
+			"RC: Not resuming sibling %s (has pending)\n",
 			target_pid_to_str (lp->ptid));
   else if (debug_linux_nat)
-    fprintf_unfiltered (gdb_stdlog, "RC: Not resuming sibling %s (not stopped)\n",
+    fprintf_unfiltered (gdb_stdlog,
+			"RC: Not resuming sibling %s (not stopped)\n",
 			target_pid_to_str (lp->ptid));
 
   return 0;
@@ -2080,7 +2094,8 @@ linux_handle_syscall_trap (struct lwp_info *lp, int stopping)
 	    fprintf_unfiltered (gdb_stdlog,
 				"LHST: stopping for %s of syscall %d"
 				" for LWP %ld\n",
-				lp->syscall_state == TARGET_WAITKIND_SYSCALL_ENTRY
+				lp->syscall_state
+				== TARGET_WAITKIND_SYSCALL_ENTRY
 				? "entry" : "return",
 				syscall_number,
 				GET_LWP (lp->ptid));
@@ -2116,7 +2131,8 @@ linux_handle_syscall_trap (struct lwp_info *lp, int stopping)
 	 PT_CONTINUE, can not trigger a syscall trace event.  */
       if (debug_linux_nat)
 	fprintf_unfiltered (gdb_stdlog,
-			    "LHST: caught syscall event with no syscall catchpoints."
+			    "LHST: caught syscall event "
+			    "with no syscall catchpoints."
 			    " %d for LWP %ld, ignoring\n",
 			    syscall_number,
 			    GET_LWP (lp->ptid));
@@ -2300,7 +2316,8 @@ linux_handle_extended_wait (struct lwp_info *lp, int status,
 
 	  if (debug_linux_nat)
 	    fprintf_unfiltered (gdb_stdlog,
-				"LHEW: Got clone event from LWP %ld, resuming\n",
+				"LHEW: Got clone event "
+				"from LWP %ld, resuming\n",
 				GET_LWP (lp->ptid));
 	  linux_ops->to_resume (linux_ops, pid_to_ptid (GET_LWP (lp->ptid)),
 				0, TARGET_SIGNAL_0);
@@ -2330,8 +2347,9 @@ linux_handle_extended_wait (struct lwp_info *lp, int status,
       if (current_inferior ()->waiting_for_vfork_done)
 	{
 	  if (debug_linux_nat)
-	    fprintf_unfiltered (gdb_stdlog, "\
-LHEW: Got expected PTRACE_EVENT_VFORK_DONE from LWP %ld: stopping\n",
+	    fprintf_unfiltered (gdb_stdlog,
+				"LHEW: Got expected PTRACE_EVENT_"
+				"VFORK_DONE from LWP %ld: stopping\n",
 				GET_LWP (lp->ptid));
 
 	  ourstatus->kind = TARGET_WAITKIND_VFORK_DONE;
@@ -2339,8 +2357,9 @@ LHEW: Got expected PTRACE_EVENT_VFORK_DONE from LWP %ld: stopping\n",
 	}
 
       if (debug_linux_nat)
-	fprintf_unfiltered (gdb_stdlog, "\
-LHEW: Got PTRACE_EVENT_VFORK_DONE from LWP %ld: resuming\n",
+	fprintf_unfiltered (gdb_stdlog,
+			    "LHEW: Got PTRACE_EVENT_VFORK_DONE "
+			    "from LWP %ld: resuming\n",
 			    GET_LWP (lp->ptid));
       ptrace (PTRACE_CONT, GET_LWP (lp->ptid), 0, 0);
       return 1;
@@ -2673,7 +2692,8 @@ stop_wait_callback (struct lwp_info *lp, void *data)
 	  ptrace (PTRACE_CONT, GET_LWP (lp->ptid), 0, 0);
 	  if (debug_linux_nat)
 	    fprintf_unfiltered (gdb_stdlog,
-				"PTRACE_CONT %s, 0, 0 (%s) (discarding SIGINT)\n",
+				"PTRACE_CONT %s, 0, 0 (%s) "
+				"(discarding SIGINT)\n",
 				target_pid_to_str (lp->ptid),
 				errno ? safe_strerror (errno) : "OK");
 
@@ -2704,7 +2724,7 @@ stop_wait_callback (struct lwp_info *lp, void *data)
 
 	      save_sigtrap (lp);
 
-	      /* Now resume this LWP and get the SIGSTOP event. */
+	      /* Now resume this LWP and get the SIGSTOP event.  */
 	      errno = 0;
 	      ptrace (PTRACE_CONT, GET_LWP (lp->ptid), 0, 0);
 	      if (debug_linux_nat)
@@ -2719,12 +2739,12 @@ stop_wait_callback (struct lwp_info *lp, void *data)
 				      target_pid_to_str (lp->ptid));
 		}
 	      /* Hold this event/waitstatus while we check to see if
-		 there are any more (we still want to get that SIGSTOP). */
+		 there are any more (we still want to get that SIGSTOP).  */
 	      stop_wait_callback (lp, NULL);
 
 	      /* Hold the SIGTRAP for handling by linux_nat_wait.  If
 		 there's another event, throw it back into the
-		 queue. */
+		 queue.  */
 	      if (lp->status)
 		{
 		  if (debug_linux_nat)
@@ -2735,14 +2755,14 @@ stop_wait_callback (struct lwp_info *lp, void *data)
 		  kill_lwp (GET_LWP (lp->ptid), WSTOPSIG (lp->status));
 		}
 
-	      /* Save the sigtrap event. */
+	      /* Save the sigtrap event.  */
 	      lp->status = status;
 	      return 0;
 	    }
 	  else
 	    {
 	      /* The thread was stopped with a signal other than
-	         SIGSTOP, and didn't accidentally trip a breakpoint. */
+	         SIGSTOP, and didn't accidentally trip a breakpoint.  */
 
 	      if (debug_linux_nat)
 		{
@@ -2751,7 +2771,7 @@ stop_wait_callback (struct lwp_info *lp, void *data)
 				      status_to_str ((int) status),
 				      target_pid_to_str (lp->ptid));
 		}
-	      /* Now resume this LWP and get the SIGSTOP event. */
+	      /* Now resume this LWP and get the SIGSTOP event.  */
 	      errno = 0;
 	      ptrace (PTRACE_CONT, GET_LWP (lp->ptid), 0, 0);
 	      if (debug_linux_nat)
@@ -2761,7 +2781,7 @@ stop_wait_callback (struct lwp_info *lp, void *data)
 				    errno ? safe_strerror (errno) : "OK");
 
 	      /* Hold this event/waitstatus while we check to see if
-	         there are any more (we still want to get that SIGSTOP). */
+	         there are any more (we still want to get that SIGSTOP).  */
 	      stop_wait_callback (lp, NULL);
 
 	      /* If the lp->status field is still empty, use it to
@@ -2865,7 +2885,7 @@ select_event_lwp_callback (struct lwp_info *lp, void *data)
 
   gdb_assert (selector != NULL);
 
-  /* Select only resumed LWPs that have a SIGTRAP event pending. */
+  /* Select only resumed LWPs that have a SIGTRAP event pending.  */
   if (lp->resumed && linux_nat_lp_status_is_event (lp))
     if ((*selector)-- == 0)
       return 1;
@@ -3043,7 +3063,7 @@ linux_nat_filter_event (int lwpid, int status, int options)
     }
 
   /* Make sure we don't report an event for the exit of an LWP not in
-     our list, i.e.  not part of the current process.  This can happen
+     our list, i.e. not part of the current process.  This can happen
      if we detach from a program we original forked and then it
      exits.  */
   if (!WIFSTOPPED (status) && !lp)
@@ -3428,7 +3448,8 @@ retry:
 	      gdb_assert (lp->resumed);
 
 	      if (debug_linux_nat)
-		fprintf (stderr, "LWP %ld got an event %06x, leaving pending.\n",
+		fprintf (stderr,
+			 "LWP %ld got an event %06x, leaving pending.\n",
 			 ptid_get_lwp (lp->ptid), lp->status);
 
 	      if (WIFSTOPPED (lp->status))
@@ -3453,8 +3474,9 @@ retry:
 
 			  if (debug_linux_nat)
 			    fprintf (stderr,
-				     "LLW: LWP %ld hit a breakpoint while waiting "
-				     "for another process; cancelled it\n",
+				     "LLW: LWP %ld hit a breakpoint while"
+				     " waiting for another process;"
+				     " cancelled it\n",
 				     ptid_get_lwp (lp->ptid));
 			}
 		      lp->stopped = 1;
@@ -3468,7 +3490,8 @@ retry:
 	      else if (WIFEXITED (lp->status) || WIFSIGNALED (lp->status))
 		{
 		  if (debug_linux_nat)
-		    fprintf (stderr, "Process %ld exited while stopping LWPs\n",
+		    fprintf (stderr,
+			     "Process %ld exited while stopping LWPs\n",
 			     ptid_get_lwp (lp->ptid));
 
 		  /* This was the last lwp in the process.  Since
@@ -3742,7 +3765,8 @@ linux_nat_wait (struct target_ops *ops,
   ptid_t event_ptid;
 
   if (debug_linux_nat)
-    fprintf_unfiltered (gdb_stdlog, "linux_nat_wait: [%s]\n", target_pid_to_str (ptid));
+    fprintf_unfiltered (gdb_stdlog,
+			"linux_nat_wait: [%s]\n", target_pid_to_str (ptid));
 
   /* Flush the async file first.  */
   if (target_can_async_p ())
@@ -4245,8 +4269,8 @@ linux_nat_do_thread_registers (bfd *obfd, ptid_t ptid,
 
       if (core_regset_p
 	  && (regset = gdbarch_regset_from_core_section (gdbarch, ".reg",
-							 sizeof (gregs))) != NULL
-	  && regset->collect_regset != NULL)
+							 sizeof (gregs)))
+	  != NULL && regset->collect_regset != NULL)
 	regset->collect_regset (regset, regcache, -1,
 				&gregs, sizeof (gregs));
       else
@@ -4258,8 +4282,8 @@ linux_nat_do_thread_registers (bfd *obfd, ptid_t ptid,
 
       if (core_regset_p
           && (regset = gdbarch_regset_from_core_section (gdbarch, ".reg2",
-							 sizeof (fpregs))) != NULL
-	  && regset->collect_regset != NULL)
+							 sizeof (fpregs)))
+	  != NULL && regset->collect_regset != NULL)
 	regset->collect_regset (regset, regcache, -1,
 				&fpregs, sizeof (fpregs));
       else
@@ -4543,7 +4567,7 @@ linux_nat_info_proc_cmd (char *args, int from_tty)
 	}
       else
 	{
-	  /* [...] (future options here) */
+	  /* [...] (future options here).  */
 	}
       argv++;
     }
@@ -4714,8 +4738,8 @@ linux_nat_info_proc_cmd (char *args, int from_tty)
 	  if (fscanf (procfile, "%ld ", &ltmp) > 0)
 	    printf_filtered (_("stime, children: %ld\n"), ltmp);
 	  if (fscanf (procfile, "%ld ", &ltmp) > 0)
-	    printf_filtered (_("jiffies remaining in current time slice: %ld\n"),
-			     ltmp);
+	    printf_filtered (_("jiffies remaining in current "
+			       "time slice: %ld\n"), ltmp);
 	  if (fscanf (procfile, "%ld ", &ltmp) > 0)
 	    printf_filtered (_("'nice' value: %ld\n"), ltmp);
 	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
@@ -4725,13 +4749,14 @@ linux_nat_info_proc_cmd (char *args, int from_tty)
 	    printf_filtered (_("jiffies until next SIGALRM: %lu\n"),
 			     (unsigned long) ltmp);
 	  if (fscanf (procfile, "%ld ", &ltmp) > 0)
-	    printf_filtered (_("start time (jiffies since system boot): %ld\n"),
-			     ltmp);
+	    printf_filtered (_("start time (jiffies since "
+			       "system boot): %ld\n"), ltmp);
 	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
 	    printf_filtered (_("Virtual memory size: %lu\n"),
 			     (unsigned long) ltmp);
 	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
-	    printf_filtered (_("Resident set size: %lu\n"), (unsigned long) ltmp);
+	    printf_filtered (_("Resident set size: %lu\n"),
+			     (unsigned long) ltmp);
 	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
 	    printf_filtered (_("rlim: %lu\n"), (unsigned long) ltmp);
 	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
@@ -4740,11 +4765,11 @@ linux_nat_info_proc_cmd (char *args, int from_tty)
 	    printf_filtered (_("End of text: 0x%lx\n"), ltmp);
 	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
 	    printf_filtered (_("Start of stack: 0x%lx\n"), ltmp);
-#if 0				/* Don't know how architecture-dependent the rest is...
-				   Anyway the signal bitmap info is available from "status".  */
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)	/* FIXME arch? */
+#if 0	/* Don't know how architecture-dependent the rest is...
+	   Anyway the signal bitmap info is available from "status".  */
+	  if (fscanf (procfile, "%lu ", &ltmp) > 0)	/* FIXME arch?  */
 	    printf_filtered (_("Kernel stack pointer: 0x%lx\n"), ltmp);
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)	/* FIXME arch? */
+	  if (fscanf (procfile, "%lu ", &ltmp) > 0)	/* FIXME arch?  */
 	    printf_filtered (_("Kernel instr pointer: 0x%lx\n"), ltmp);
 	  if (fscanf (procfile, "%ld ", &ltmp) > 0)
 	    printf_filtered (_("Pending signals bitmap: 0x%lx\n"), ltmp);
@@ -4754,7 +4779,7 @@ linux_nat_info_proc_cmd (char *args, int from_tty)
 	    printf_filtered (_("Ignored signals bitmap: 0x%lx\n"), ltmp);
 	  if (fscanf (procfile, "%ld ", &ltmp) > 0)
 	    printf_filtered (_("Catched signals bitmap: 0x%lx\n"), ltmp);
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)	/* FIXME arch? */
+	  if (fscanf (procfile, "%lu ", &ltmp) > 0)	/* FIXME arch?  */
 	    printf_filtered (_("wchan (system call): 0x%lx\n"), ltmp);
 #endif
 	  do_cleanups (cleanup);
@@ -4948,7 +4973,8 @@ add_line_to_sigset (const char *line, sigset_t *sigs)
    SIGS to match.  */
 
 void
-linux_proc_pending_signals (int pid, sigset_t *pending, sigset_t *blocked, sigset_t *ignored)
+linux_proc_pending_signals (int pid, sigset_t *pending,
+			    sigset_t *blocked, sigset_t *ignored)
 {
   FILE *procfile;
   char buffer[MAXPATHLEN], fname[MAXPATHLEN];
@@ -5012,11 +5038,11 @@ linux_nat_xfer_osdata (struct target_ops *ops, enum target_object object,
 	  obstack_init (&obstack);
 	  obstack_grow_str (&obstack, "<osdata type=\"types\">\n");
 
-	  obstack_xml_printf (
-			      &obstack,
+	  obstack_xml_printf (&obstack,
 			      "<item>"
 			      "<column name=\"Type\">processes</column>"
-			      "<column name=\"Description\">Listing of all processes</column>"
+			      "<column name=\"Description\">"
+			      "Listing of all processes</column>"
 			      "</item>");
 
 	  obstack_grow_str0 (&obstack, "</osdata>\n");
@@ -5490,12 +5516,13 @@ linux_nat_stop_lwp (struct lwp_info *lwp, void *data)
       if (debug_linux_nat)
 	{
 	  if (find_thread_ptid (lwp->ptid)->stop_requested)
-	    fprintf_unfiltered (gdb_stdlog, "\
-LNSL: already stopped/stop_requested %s\n",
+	    fprintf_unfiltered (gdb_stdlog,
+				"LNSL: already stopped/stop_requested %s\n",
 				target_pid_to_str (lwp->ptid));
 	  else
-	    fprintf_unfiltered (gdb_stdlog, "\
-LNSL: already stopped/no stop_requested yet %s\n",
+	    fprintf_unfiltered (gdb_stdlog,
+				"LNSL: already stopped/no "
+				"stop_requested yet %s\n",
 				target_pid_to_str (lwp->ptid));
 	}
     }

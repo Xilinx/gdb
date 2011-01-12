@@ -1,6 +1,7 @@
 /* Serial interface for local (hardwired) serial ports on Windows systems
 
-   Copyright (C) 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011
+   Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -379,7 +380,7 @@ struct ser_console_state
      the started state.  */
   HANDLE start_select;
   /* Signaled by the main program to tell the select thread to enter
-     the stopped state. */
+     the stopped state.  */
   HANDLE stop_select;
   /* Signaled by the main program to tell the select thread to
      exit.  */
@@ -516,7 +517,8 @@ console_select_thread (void *arg)
 	  wait_events[0] = state->stop_select;
 	  wait_events[1] = h;
 
-	  event_index = WaitForMultipleObjects (2, wait_events, FALSE, INFINITE);
+	  event_index = WaitForMultipleObjects (2, wait_events,
+						FALSE, INFINITE);
 
 	  if (event_index == WAIT_OBJECT_0
 	      || WaitForSingleObject (state->stop_select, 0) == WAIT_OBJECT_0)
@@ -652,7 +654,8 @@ file_select_thread (void *arg)
     {
       select_thread_wait (state);
 
-      if (SetFilePointer (h, 0, NULL, FILE_CURRENT) == INVALID_SET_FILE_POINTER)
+      if (SetFilePointer (h, 0, NULL, FILE_CURRENT)
+	  == INVALID_SET_FILE_POINTER)
 	SetEvent (state->except_event);
       else
 	SetEvent (state->read_event);
@@ -837,7 +840,7 @@ pipe_windows_open (struct serial *scb, const char *name)
   back_to = make_cleanup_freeargv (argv);
 
   if (! argv[0] || argv[0][0] == '\0')
-    error ("missing child command");
+    error (_("missing child command"));
 
   ps = make_pipe_state ();
   make_cleanup (cleanup_pipe_state, ps);
@@ -864,10 +867,10 @@ pipe_windows_open (struct serial *scb, const char *name)
            all the same information here, plus err_msg provided by
            pex_run, so we just raise the error here.  */
         if (err)
-          error ("error starting child process '%s': %s: %s",
+          error (_("error starting child process '%s': %s: %s"),
                  name, err_msg, safe_strerror (err));
         else
-          error ("error starting child process '%s': %s",
+          error (_("error starting child process '%s': %s"),
                  name, err_msg);
       }
   }

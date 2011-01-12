@@ -1,6 +1,6 @@
 /* Target-dependent code for Analog Devices Blackfin processor, for GDB.
 
-   Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010
+   Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    Contributed by Analog Devices, Inc.
@@ -581,7 +581,8 @@ bfin_reg_to_regnum (struct gdbarch *gdbarch, int reg)
    the breakpoint should be inserted.  */
 
 static const unsigned char *
-bfin_breakpoint_from_pc (struct gdbarch *gdbarch, CORE_ADDR *pcptr, int *lenptr)
+bfin_breakpoint_from_pc (struct gdbarch *gdbarch,
+			 CORE_ADDR *pcptr, int *lenptr)
 {
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   unsigned short iw;

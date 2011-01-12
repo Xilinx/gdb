@@ -1,7 +1,7 @@
 /* Intel 387 floating point stuff.
 
    Copyright (C) 1988, 1989, 1991, 1992, 1993, 1994, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010
+   2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -253,7 +253,8 @@ i387_print_float_info (struct gdbarch *gdbarch, struct ui_file *file,
 	  break;
 	}
 
-      get_frame_register (frame, (fpreg + 8 - top) % 8 + I387_ST0_REGNUM (tdep),
+      get_frame_register (frame,
+			  (fpreg + 8 - top) % 8 + I387_ST0_REGNUM (tdep),
 			  raw);
 
       fputs_filtered ("0x", file);
@@ -287,7 +288,8 @@ i387_print_float_info (struct gdbarch *gdbarch, struct ui_file *file,
    needs any special handling.  */
 
 int
-i387_convert_register_p (struct gdbarch *gdbarch, int regnum, struct type *type)
+i387_convert_register_p (struct gdbarch *gdbarch, int regnum,
+			 struct type *type)
 {
   if (i386_fp_regnum_p (gdbarch, regnum))
     {
@@ -957,7 +959,7 @@ i387_collect_xsave (const struct regcache *regcache, int regnum,
       gdb_byte raw[I386_MAX_REGISTER_SIZE];
       gdb_byte *xstate_bv_p = XSAVE_XSTATE_BV_ADDR (regs);
       unsigned int xstate_bv = 0;
-      /* The supported bits in `xstat_bv' are 1 byte. */
+      /* The supported bits in `xstat_bv' are 1 byte.  */
       unsigned int clear_bv = (~(*xstate_bv_p)) & tdep->xcr0;
       gdb_byte *p;
 

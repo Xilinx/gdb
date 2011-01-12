@@ -2,7 +2,7 @@
 
    Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
    1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009, 2010 Free Software Foundation, Inc.
+   2008, 2009, 2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -51,7 +51,7 @@
 #include "arch-utils.h"
 
 #ifdef TUI
-#include "tui/tui.h"		/* For tui_active et.al.   */
+#include "tui/tui.h"		/* For tui_active et al.   */
 #endif
 
 #if defined(__MINGW32__) && !defined(PRINTF_HAS_LONG_LONG)
@@ -61,7 +61,8 @@
 # define USE_PRINTF_I64 0
 #endif
 
-extern int asm_demangle;	/* Whether to demangle syms in asm printouts */
+extern int asm_demangle;	/* Whether to demangle syms in asm
+				   printouts.  */
 
 struct format_data
   {
@@ -108,8 +109,9 @@ static void
 show_max_symbolic_offset (struct ui_file *file, int from_tty,
 			  struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file, _("\
-The largest offset that will be printed in <symbol+1234> form is %s.\n"),
+  fprintf_filtered (file,
+		    _("The largest offset that will be "
+		      "printed in <symbol+1234> form is %s.\n"),
 		    value);
 }
 
@@ -120,8 +122,8 @@ static void
 show_print_symbol_filename (struct ui_file *file, int from_tty,
 			    struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file, _("\
-Printing of source filename and line number with <symbol> is %s.\n"),
+  fprintf_filtered (file, _("Printing of source filename and "
+			    "line number with <symbol> is %s.\n"),
 		    value);
 }
 
@@ -151,10 +153,10 @@ struct display
     /* Program space associated with `block'.  */
     struct program_space *pspace;
 
-    /* Innermost block required by this expression when evaluated */
+    /* Innermost block required by this expression when evaluated.  */
     struct block *block;
 
-    /* Status of this display (enabled or disabled) */
+    /* Status of this display (enabled or disabled).  */
     int enabled_p;
   };
 
@@ -165,13 +167,13 @@ static struct display *display_chain;
 
 static int display_number;
 
-/* Prototypes for exported functions. */
+/* Prototypes for exported functions.  */
 
 void output_command (char *, int);
 
 void _initialize_printcmd (void);
 
-/* Prototypes for local functions. */
+/* Prototypes for local functions.  */
 
 static void do_one_display (struct display *);
 
@@ -260,7 +262,8 @@ decode_format (char **string_ptr, int oformat, int osize)
 	val.size = osize ? 'b' : osize;
 	break;
       case 's':
-	/* Display strings with byte size chars unless explicitly specified.  */
+	/* Display strings with byte size chars unless explicitly
+	   specified.  */
 	val.size = '\0';
 	break;
 
@@ -617,11 +620,11 @@ print_address_symbolic (struct gdbarch *gdbarch, CORE_ADDR addr,
 }
 
 /* Given an address ADDR return all the elements needed to print the
-   address in a symbolic form. NAME can be mangled or not depending
+   address in a symbolic form.  NAME can be mangled or not depending
    on DO_DEMANGLE (and also on the asm_demangle global variable,
-   manipulated via ''set print asm-demangle''). Return 0 in case of
-   success, when all the info in the OUT paramters is valid. Return 1
-   otherwise. */
+   manipulated via ''set print asm-demangle'').  Return 0 in case of
+   success, when all the info in the OUT paramters is valid.  Return 1
+   otherwise.  */
 int
 build_address_symbolic (struct gdbarch *gdbarch,
 			CORE_ADDR addr,  /* IN */
@@ -855,8 +858,8 @@ do_examine (struct format_data fmt, struct gdbarch *gdbarch, CORE_ADDR addr)
       else
         {
 	  if (size != '\0' && size != 'b')
-	    warning (_("Unable to display strings with size '%c', using 'b' \
-instead."), size);
+	    warning (_("Unable to display strings with "
+		       "size '%c', using 'b' instead."), size);
 	  size = 'b';
 	  val_type = builtin_type (next_gdbarch)->builtin_int8;
         }
@@ -902,7 +905,7 @@ instead."), size);
 	     the address stored in LAST_EXAMINE_VALUE.  FIXME: Should
 	     the disassembler be modified so that LAST_EXAMINE_VALUE
 	     is left with the byte sequence from the last complete
-	     instruction fetched from memory? */
+	     instruction fetched from memory?  */
 	  last_examine_value = value_at_lazy (val_type, next_address);
 
 	  if (last_examine_value)
@@ -1187,7 +1190,7 @@ address_info (char *exp, int from_tty)
   struct obj_section *section;
   CORE_ADDR load_addr, context_pc = 0;
   int is_a_field_of_this;	/* C++: lookup_symbol sets this to nonzero
-				   if exp is a field of `this'. */
+				   if exp is a field of `this'.  */
 
   if (exp == 0)
     error (_("Argument required."));
@@ -1273,7 +1276,8 @@ address_info (char *exp, int from_tty)
 	 Unfortunately DWARF 2 stores the frame-base (instead of the
 	 function) location in a function's symbol.  Oops!  For the
 	 moment enable this when/where applicable.  */
-      SYMBOL_COMPUTED_OPS (sym)->describe_location (sym, context_pc, gdb_stdout);
+      SYMBOL_COMPUTED_OPS (sym)->describe_location (sym, context_pc,
+						    gdb_stdout);
       break;
 
     case LOC_REGISTER:
@@ -1450,7 +1454,7 @@ x_command (char *exp, int from_tty)
     last_size = fmt.size;
   last_format = fmt.format;
 
-  /* Set a couple of internal variables if appropriate. */
+  /* Set a couple of internal variables if appropriate.  */
   if (last_examine_value)
     {
       /* Make last address examined available to the user as $_.  Use
@@ -1631,7 +1635,7 @@ undisplay_command (char *args, int from_tty)
 
 /* Display a single auto-display.  
    Do nothing if the display cannot be printed in the current context,
-   or if the display is disabled. */
+   or if the display is disabled.  */
 
 static void
 do_one_display (struct display *d)
@@ -1793,8 +1797,9 @@ disable_current_display (void)
   if (current_display_number >= 0)
     {
       disable_display (current_display_number);
-      fprintf_unfiltered (gdb_stderr, _("\
-Disabling display %d to avoid infinite recursion.\n"),
+      fprintf_unfiltered (gdb_stderr,
+			  _("Disabling display %d to "
+			    "avoid infinite recursion.\n"),
 			  current_display_number);
     }
   current_display_number = -1;
@@ -1984,7 +1989,7 @@ ui_printf (char *arg, struct ui_file *stream)
   if (s == 0)
     error_no_arg (_("format-control string and values to print"));
 
-  /* Skip white space before format string */
+  /* Skip white space before format string.  */
   while (*s == ' ' || *s == '\t')
     s++;
 
@@ -2036,7 +2041,7 @@ ui_printf (char *arg, struct ui_file *stream)
 	      *f++ = '"';
 	      break;
 	    default:
-	      /* ??? TODO: handle other escape sequences */
+	      /* ??? TODO: handle other escape sequences.  */
 	      error (_("Unrecognized escape character \\%c in format string."),
 		     c);
 	    }
@@ -2258,7 +2263,8 @@ ui_printf (char *arg, struct ui_file *stream)
 	    }
 
 	  if (bad)
-	    error (_("Inappropriate modifiers to format specifier '%c' in printf"),
+	    error (_("Inappropriate modifiers to "
+		     "format specifier '%c' in printf"),
 		   *f);
 
 	  f++;
@@ -2804,7 +2810,7 @@ Use \"set variable\" for variables with names identical to set subcommands.\n\
 \nWith a subcommand, this command modifies parts of the gdb environment.\n\
 You can see these environment settings with the \"show\" command."));
 
-  /* "call" is the same as "set", but handy for dbx users to call fns. */
+  /* "call" is the same as "set", but handy for dbx users to call fns.  */
   c = add_com ("call", class_vars, call_command, _("\
 Call a function in the program.\n\
 The argument is the function name and arguments, in the notation of the\n\

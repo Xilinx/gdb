@@ -1,6 +1,6 @@
 /* General python/gdb code
 
-   Copyright (C) 2008, 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -436,7 +436,8 @@ gdbpy_solib_name (PyObject *self, PyObject *args)
 static PyObject *
 gdbpy_decode_line (PyObject *self, PyObject *args)
 {
-  struct symtabs_and_lines sals = { NULL, 0 }; /* Initialize to appease gcc.  */
+  struct symtabs_and_lines sals = { NULL, 0 }; /* Initialize to
+						  appease gcc.  */
   struct symtab_and_line sal;
   char *arg = NULL;
   char *copy = NULL;
@@ -960,7 +961,8 @@ Enables or disables printing of Python stack traces."),
   /* The casts to (char*) are for python 2.4.  */
   PyModule_AddStringConstant (gdb_module, "VERSION", (char*) version);
   PyModule_AddStringConstant (gdb_module, "HOST_CONFIG", (char*) host_name);
-  PyModule_AddStringConstant (gdb_module, "TARGET_CONFIG", (char*) target_name);
+  PyModule_AddStringConstant (gdb_module, "TARGET_CONFIG",
+			      (char*) target_name);
 
   /* gdb.parameter ("data-directory") doesn't necessarily exist when the python
      script below is run (depending on order of _initialize_* functions).
@@ -1119,6 +1121,9 @@ static PyMethodDef GdbMethods[] =
   { "objfiles", gdbpy_objfiles, METH_NOARGS,
     "Return a sequence of all loaded objfiles." },
 
+  { "newest_frame", gdbpy_newest_frame, METH_NOARGS,
+    "newest_frame () -> gdb.Frame.\n\
+Return the newest frame object." },
   { "selected_frame", gdbpy_selected_frame, METH_NOARGS,
     "selected_frame () -> gdb.Frame.\n\
 Return the selected frame object." },

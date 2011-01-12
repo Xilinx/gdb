@@ -1,6 +1,6 @@
 /* GNU/Linux on ARM native support.
    Copyright (C) 1999, 2000, 2001, 2002, 2004, 2005, 2006, 2007, 2008, 2009,
-   2010 Free Software Foundation, Inc.
+   2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -36,7 +36,7 @@
 #include <sys/utsname.h>
 #include <sys/procfs.h>
 
-/* Prototypes for supply_gregset etc. */
+/* Prototypes for supply_gregset etc.  */
 #include "gregset.h"
 
 /* Defines ps_err_e, struct ps_prochandle.  */
@@ -72,7 +72,7 @@
 static int arm_linux_has_wmmx_registers;
 
 /* The number of 64-bit VFP registers we have (expect this to be 0,
-   16, or 32). */
+   16, or 32).  */
 static int arm_linux_vfp_register_count;
 
 extern int arm_apcs_32;

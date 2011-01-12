@@ -1,7 +1,7 @@
 /* Declarations for value printing routines for GDB, the GNU debugger.
 
    Copyright (C) 1986, 1988, 1989, 1991, 1992, 1993, 1994, 2000, 2005, 2007,
-   2008, 2009, 2010 Free Software Foundation, Inc.
+   2008, 2009, 2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -50,7 +50,7 @@ struct value_print_options
   /* Maximum number of chars to print for a string pointer value or vector
      contents, or UINT_MAX for no limit.  Note that "set print elements 0"
      stores UINT_MAX in print_max, which displays in a show command as
-     "unlimited". */
+     "unlimited".  */
   unsigned int print_max;
 
   /* Print repeat counts if there are more than this many repetitions
@@ -111,7 +111,7 @@ extern void get_formatted_print_options (struct value_print_options *opts,
 
 extern void maybe_print_array_index (struct type *index_type, LONGEST index,
                                      struct ui_file *stream,
-				     const struct value_print_options *options);
+				     const struct value_print_options *);
 
 extern void val_print_array_elements (struct type *, const gdb_byte *,
 				      CORE_ADDR, struct ui_file *, int,

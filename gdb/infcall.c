@@ -2,7 +2,7 @@
 
    Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
    1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009, 2010 Free Software Foundation, Inc.
+   2008, 2009, 2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -77,8 +77,9 @@ static void
 show_coerce_float_to_double_p (struct ui_file *file, int from_tty,
 			       struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file, _("\
-Coercion of floats to doubles when calling functions is %s.\n"),
+  fprintf_filtered (file,
+		    _("Coercion of floats to doubles "
+		      "when calling functions is %s.\n"),
 		    value);
 }
 
@@ -87,15 +88,16 @@ Coercion of floats to doubles when calling functions is %s.\n"),
    the stack and restore the context to what as it was before the
    call.
 
-   The default is to stop in the frame where the signal was received. */
+   The default is to stop in the frame where the signal was received.  */
 
 int unwind_on_signal_p = 0;
 static void
 show_unwind_on_signal_p (struct ui_file *file, int from_tty,
 			 struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file, _("\
-Unwinding of stack if a signal is received while in a call dummy is %s.\n"),
+  fprintf_filtered (file,
+		    _("Unwinding of stack if a signal is "
+		      "received while in a call dummy is %s.\n"),
 		    value);
 }
 
@@ -119,8 +121,9 @@ show_unwind_on_terminating_exception_p (struct ui_file *file, int from_tty,
 					const char *value)
 
 {
-  fprintf_filtered (file, _("\
-Unwind stack if a C++ exception is unhandled while in a call dummy is %s.\n"),
+  fprintf_filtered (file,
+		    _("Unwind stack if a C++ exception is "
+		      "unhandled while in a call dummy is %s.\n"),
 		    value);
 }
 
@@ -261,7 +264,7 @@ find_function_addr (struct value *function, struct type **retval_type)
   else if (code == TYPE_CODE_INT)
     {
       /* Handle the case of functions lacking debugging info.
-         Their values are characters since their addresses are char */
+         Their values are characters since their addresses are char.  */
       if (TYPE_LENGTH (ftype) == 1)
 	funaddr = value_as_address (value_addr (function));
       else
@@ -370,7 +373,7 @@ run_inferior_call (struct thread_info *call_thread, CORE_ADDR real_pc)
 
   disable_watchpoints_before_interactive_call_start ();
 
-  /* We want stop_registers, please... */
+  /* We want stop_registers, please...  */
   call_thread->control.proceed_to_finish = 1;
 
   if (target_can_async_p ())
@@ -433,7 +436,7 @@ cleanup_delete_std_terminate_breakpoint (void *ignore)
    May fail to return, if a breakpoint or signal is hit
    during the execution of the function.
 
-   ARGS is modified to contain coerced values. */
+   ARGS is modified to contain coerced values.  */
 
 struct value *
 call_function_by_hand (struct value *function, int nargs, struct value **args)
@@ -546,7 +549,7 @@ call_function_by_hand (struct value *function, int nargs, struct value **args)
 	 If the generic dummy frame ends up empty (because nothing is
 	 pushed) GDB won't be able to correctly perform back traces.
 	 If a target is having trouble with backtraces, first thing to
-	 do is add FRAME_ALIGN() to the architecture vector. If that
+	 do is add FRAME_ALIGN() to the architecture vector.  If that
 	 fails, try dummy_id().
 
          If the ABI specifies a "Red Zone" (see the doco) the code
@@ -679,7 +682,7 @@ call_function_by_hand (struct value *function, int nargs, struct value **args)
 
   /* Reserve space for the return structure to be written on the
      stack, if necessary.  Make certain that the value is correctly
-     aligned. */
+     aligned.  */
 
   if (struct_return || lang_struct_return)
     {
@@ -697,7 +700,7 @@ call_function_by_hand (struct value *function, int nargs, struct value **args)
       else
 	{
 	  /* Stack grows upward.  Align the frame, allocate space, and
-             then again, re-align the frame??? */
+             then again, re-align the frame???  */
 	  if (gdbarch_frame_align_p (gdbarch))
 	    sp = gdbarch_frame_align (gdbarch, sp);
 	  struct_addr = sp;
@@ -822,8 +825,7 @@ call_function_by_hand (struct value *function, int nargs, struct value **args)
       switch (e.reason)
 	{
 	case RETURN_ERROR:
-	  throw_error (e.error, _("\
-%s\n\
+	  throw_error (e.error, _("%s\n\
 An error occurred while in a function called from GDB.\n\
 Evaluation of the expression containing the function\n\
 (%s) will be abandoned.\n\
@@ -851,10 +853,10 @@ When the function is done executing, GDB will silently stop."),
          but it will get garbage collected the next time the program is
          run anyway.  */
 
-      error (_("\
-The program being debugged exited while in a function called from GDB.\n\
-Evaluation of the expression containing the function\n\
-(%s) will be abandoned."),
+      error (_("The program being debugged exited while in a function "
+	       "called from GDB.\n"
+	       "Evaluation of the expression containing the function\n"
+	       "(%s) will be abandoned."),
 	     name);
     }
 
@@ -896,11 +898,11 @@ When the function is done executing, GDB will silently stop."),
 	{
 	  /* We stopped inside the FUNCTION because of a random
 	     signal.  Further execution of the FUNCTION is not
-	     allowed. */
+	     allowed.  */
 
 	  if (unwind_on_signal_p)
 	    {
-	      /* The user wants the context restored. */
+	      /* The user wants the context restored.  */
 
 	      /* We must get back to the frame we were before the
 		 dummy call.  */
@@ -1079,7 +1081,8 @@ The default is to stop in the frame where the signal was received."),
   add_setshow_boolean_cmd ("unwind-on-terminating-exception", no_class,
 			   &unwind_on_terminating_exception_p, _("\
 Set unwinding of stack if std::terminate is called while in call dummy."), _("\
-Show unwinding of stack if std::terminate() is called while in a call dummy."), _("\
+Show unwinding of stack if std::terminate() is called while in a call dummy."),
+			   _("\
 The unwind on terminating exception flag lets the user determine\n\
 what gdb should do if a std::terminate() call is made from the\n\
 default exception handler.  If set, gdb unwinds the stack and restores\n\

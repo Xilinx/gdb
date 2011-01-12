@@ -1,7 +1,7 @@
 /* libthread_db assisted debugging support, generic parts.
 
    Copyright (C) 1999, 2000, 2001, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-   2010 Free Software Foundation, Inc.
+   2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -503,7 +503,8 @@ verbose_dlsym (void *handle, const char *name)
 {
   void *sym = dlsym (handle, name);
   if (sym == NULL)
-    warning (_("Symbol \"%s\" not found in libthread_db: %s"), name, dlerror ());
+    warning (_("Symbol \"%s\" not found in libthread_db: %s"),
+	     name, dlerror ());
   return sym;
 }
 
@@ -659,7 +660,8 @@ try_thread_db_load_1 (struct thread_db_info *info)
   err = info->td_init_p ();
   if (err != TD_OK)
     {
-      warning (_("Cannot initialize libthread_db: %s"), thread_db_err_str (err));
+      warning (_("Cannot initialize libthread_db: %s"),
+	       thread_db_err_str (err));
       return 0;
     }
 
@@ -698,7 +700,8 @@ try_thread_db_load_1 (struct thread_db_info *info)
   if (info->td_ta_map_id2thr_p == NULL)
     return 0;
 
-  info->td_ta_map_lwp2thr_p = verbose_dlsym (info->handle, "td_ta_map_lwp2thr");
+  info->td_ta_map_lwp2thr_p = verbose_dlsym (info->handle,
+					     "td_ta_map_lwp2thr");
   if (info->td_ta_map_lwp2thr_p == NULL)
     return 0;
 
@@ -861,8 +864,7 @@ thread_db_load_search (void)
 }
 
 /* Attempt to load and initialize libthread_db.
-   Return 1 on success.
- */
+   Return 1 on success.  */
 
 static int
 thread_db_load (void)
@@ -1704,7 +1706,7 @@ _initialize_thread_db (void)
      executable -- there could be mutiple versions of glibc,
      compiled with LinuxThreads or NPTL, and until there is
      a running inferior, we can't tell which libthread_db is
-     the correct one to load. */
+     the correct one to load.  */
 
   libthread_db_search_path = xstrdup (LIBTHREAD_DB_SEARCH_PATH);
 

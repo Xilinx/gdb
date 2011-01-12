@@ -1,6 +1,7 @@
 /* Routines for name->symbol lookups in GDB.
    
-   Copyright (C) 2003, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2007, 2008, 2009, 2010, 2011
+   Free Software Foundation, Inc.
 
    Contributed by David Carlton <carlton@bactrian.org> and by Kealia,
    Inc.
@@ -82,9 +83,7 @@
 
    * Define a function dict_<op> that looks up <op> in the dict_vector
    and calls the appropriate function.  Add a declaration for
-   dict_<op> to dictionary.h.
-   
-*/
+   dict_<op> to dictionary.h.  */
 
 /* An enum representing the various implementations of dictionaries.
    Used only for debugging.  */
@@ -539,7 +538,8 @@ dict_iter_match_first (const struct dictionary *dict,
 		       const char *name, symbol_compare_ftype *compare,
 		       struct dict_iterator *iterator)
 {
-  return (DICT_VECTOR (dict))->iter_match_first (dict, name, compare, iterator);
+  return (DICT_VECTOR (dict))->iter_match_first (dict, name,
+						 compare, iterator);
 }
 
 struct symbol *

@@ -2,7 +2,7 @@
 
    Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
    1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009, 2010 Free Software Foundation, Inc.
+   2008, 2009, 2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -286,7 +286,7 @@ extern void set_value_optimized_out (struct value *value, int val);
 extern int value_entirely_optimized_out (const struct value *value);
 
 /* Set or return field indicating whether a variable is initialized or
-   not, based on debugging information supplied by the compiler. 
+   not, based on debugging information supplied by the compiler.
    1 = initialized; 0 = uninitialized.  */
 extern int value_initialized (struct value *);
 extern void set_value_initialized (struct value *, int);

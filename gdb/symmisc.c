@@ -1,8 +1,8 @@
 /* Do various things to symbol tables (other than lookup), for GDB.
 
    Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2007, 2008, 2009, 2010,
+   2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -109,7 +109,7 @@ free_symtab (struct symtab *s)
   if (s->free_func != NULL)
     s->free_func (s);
 
-  /* Free source-related stuff */
+  /* Free source-related stuff.  */
   if (s->line_charpos != NULL)
     xfree (s->line_charpos);
   if (s->fullname != NULL)
@@ -335,7 +335,8 @@ dump_symtab_1 (struct objfile *objfile, struct symtab *symtab,
   fprintf_filtered (outfile, "Read from object file %s (", objfile->name);
   gdb_print_host_address (objfile, outfile);
   fprintf_filtered (outfile, ")\n");
-  fprintf_filtered (outfile, "Language: %s\n", language_str (symtab->language));
+  fprintf_filtered (outfile, "Language: %s\n",
+		    language_str (symtab->language));
 
   /* First print the line table.  */
   l = LINETABLE (symtab);
@@ -351,7 +352,7 @@ dump_symtab_1 (struct objfile *objfile, struct symtab *symtab,
 	}
     }
   /* Now print the block info, but only for primary symtabs since we will
-     print lots of duplicate info otherwise. */
+     print lots of duplicate info otherwise.  */
   if (symtab->primary)
     {
       fprintf_filtered (outfile, "\nBlockvector:\n\n");
@@ -448,8 +449,8 @@ maintenance_print_symbols (char *args, int from_tty)
 
   if (args == NULL)
     {
-      error (_("\
-Arguments missing: an output file name and an optional symbol file name"));
+      error (_("Arguments missing: an output file name "
+	       "and an optional symbol file name"));
     }
   argv = gdb_buildargv (args);
   cleanups = make_cleanup_freeargv (argv);
@@ -457,7 +458,7 @@ Arguments missing: an output file name and an optional symbol file name"));
   if (argv[0] != NULL)
     {
       filename = argv[0];
-      /* If a second arg is supplied, it is a source file name to match on */
+      /* If a second arg is supplied, it is a source file name to match on.  */
       if (argv[1] != NULL)
 	{
 	  symname = argv[1];
@@ -668,7 +669,8 @@ maintenance_print_msymbols (char *args, int from_tty)
 
   if (args == NULL)
     {
-      error (_("print-msymbols takes an output file name and optional symbol file name"));
+      error (_("print-msymbols takes an output file "
+	       "name and optional symbol file name"));
     }
   argv = gdb_buildargv (args);
   cleanups = make_cleanup_freeargv (argv);
@@ -676,7 +678,7 @@ maintenance_print_msymbols (char *args, int from_tty)
   if (argv[0] != NULL)
     {
       filename = argv[0];
-      /* If a second arg is supplied, it is a source file name to match on */
+      /* If a second arg is supplied, it is a source file name to match on.  */
       if (argv[1] != NULL)
 	{
 	  symname = xfullpath (argv[1]);
@@ -697,8 +699,8 @@ maintenance_print_msymbols (char *args, int from_tty)
   immediate_quit++;
   ALL_PSPACES (pspace)
     ALL_PSPACE_OBJFILES (pspace, objfile)
-      if (symname == NULL
-	  || (!stat (objfile->name, &obj_st) && sym_st.st_ino == obj_st.st_ino))
+      if (symname == NULL || (!stat (objfile->name, &obj_st)
+			      && sym_st.st_ino == obj_st.st_ino))
 	dump_msymbols (objfile, outfile);
   immediate_quit--;
   fprintf_filtered (outfile, "\n\n");
@@ -764,12 +766,15 @@ maintenance_info_symtabs (char *regexp, int from_tty)
 			       symtab->dirname ? symtab->dirname : "(null)");
 	      printf_filtered ("	  fullname %s\n",
 			       symtab->fullname ? symtab->fullname : "(null)");
-	      printf_filtered ("	  blockvector ((struct blockvector *) %s)%s\n",
+	      printf_filtered ("	  "
+			       "blockvector ((struct blockvector *) %s)%s\n",
 			       host_address_to_string (symtab->blockvector),
 			       symtab->primary ? " (primary)" : "");
-	      printf_filtered ("	  linetable ((struct linetable *) %s)\n",
+	      printf_filtered ("	  "
+			       "linetable ((struct linetable *) %s)\n",
 			       host_address_to_string (symtab->linetable));
-	      printf_filtered ("	  debugformat %s\n", symtab->debugformat);
+	      printf_filtered ("	  debugformat %s\n",
+			       symtab->debugformat);
 	      printf_filtered ("	}\n");
 	    }
 	}
@@ -795,7 +800,7 @@ block_depth (struct block *block)
 }
 
 
-/* Do early runtime initializations. */
+/* Do early runtime initializations.  */
 void
 _initialize_symmisc (void)
 {

@@ -1,6 +1,6 @@
 /* Definitions for targets which report shared library events.
 
-   Copyright (C) 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -391,7 +391,8 @@ Could not relocate shared library \"%s\": wrong number of ALLOC sections"),
 		      gdb_assert (so->addr_low <= so->addr_high);
 		      found_range = 1;
 		    }
-		  so->lm_info->offsets->offsets[i] = section_bases[bases_index];
+		  so->lm_info->offsets->offsets[i]
+		    = section_bases[bases_index];
 		  bases_index++;
 		}
 	      if (!found_range)
@@ -478,7 +479,8 @@ solib_target_in_dynsym_resolve_code (CORE_ADDR pc)
 
 struct target_so_ops solib_target_so_ops;
 
-extern initialize_file_ftype _initialize_solib_target; /* -Wmissing-prototypes */
+/* -Wmissing-prototypes */
+extern initialize_file_ftype _initialize_solib_target;
 
 void
 _initialize_solib_target (void)
