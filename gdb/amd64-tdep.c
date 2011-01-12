@@ -44,6 +44,8 @@
 
 #include "features/i386/amd64.c"
 #include "features/i386/amd64-avx.c"
+#include "features/i386/intel32.c"
+#include "features/i386/intel32-avx.c"
 
 /* Note that the AMD64 architecture was previously known as x86-64.
    The latter is (forever) engraved into the canonical system name as
@@ -2368,7 +2370,13 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   tdep->sizeof_fpregset = I387_SIZEOF_FXSAVE;
 
   if (! tdesc_has_registers (tdesc))
-    tdesc = tdesc_amd64;
+    {
+      if (info.abfd != NULL
+	  && info.bfd_arch_info->bits_per_address == 32)
+	tdesc = tdesc_intel32;
+      else
+	tdesc = tdesc_amd64;
+    }
   tdep->tdesc = tdesc;
 
   tdep->num_core_regs = AMD64_NUM_GREGS + I387_NUM_REGS;
@@ -2489,6 +2497,8 @@ _initialize_amd64_tdep (void)
 {
   initialize_tdesc_amd64 ();
   initialize_tdesc_amd64_avx ();
+  initialize_tdesc_intel32 ();
+  initialize_tdesc_intel32_avx ();
 }
 
 

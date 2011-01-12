@@ -708,16 +708,23 @@ amd64_linux_siginfo_fixup (struct siginfo *native, gdb_byte *inf, int direction)
    Value of CS segment register:
      1. 64bit process: 0x33.
      2. 32bit process: 0x23.
+
+   Value of DS segment register:
+     1. LP64 process: 0x0.
+     2. ILP32 process: 0x2b.
  */
 
 #define AMD64_LINUX_USER64_CS	0x33
+#define AMD64_LINUX_ILP32_DS	0x2b
 
 static const struct target_desc *
 amd64_linux_read_description (struct target_ops *ops)
 {
   unsigned long cs;
+  unsigned long ds;
   int tid;
   int is_64bit;
+  int is_ilp32;
   static uint64_t xcr0;
 
   /* GNU/Linux LWP ID's are process ID's.  */
@@ -733,6 +740,15 @@ amd64_linux_read_description (struct target_ops *ops)
     perror_with_name (_("Couldn't get CS register"));
 
   is_64bit = cs == AMD64_LINUX_USER64_CS;
+
+  /* Get DS register.  */
+  errno = 0;
+  ds = ptrace (PTRACE_PEEKUSER, tid,
+	       offsetof (struct user_regs_struct, ds), 0);
+  if (errno != 0)
+    perror_with_name (_("Couldn't get DS register"));
+
+  is_ilp32 = ds == AMD64_LINUX_ILP32_DS;
 
   if (have_ptrace_getregset == -1)
     {
@@ -761,14 +777,24 @@ amd64_linux_read_description (struct target_ops *ops)
       && (xcr0 & I386_XSTATE_AVX_MASK) == I386_XSTATE_AVX_MASK)
     {
       if (is_64bit)
-	return tdesc_amd64_avx_linux;
+	{
+	  if (is_ilp32)
+	    return tdesc_intel32_avx_linux;
+	  else
+	    return tdesc_amd64_avx_linux;
+	}
       else
 	return tdesc_i386_avx_linux;
     }
   else
     {
       if (is_64bit)
-	return tdesc_amd64_linux;
+	{
+	  if (is_ilp32)
+	    return tdesc_intel32_linux;
+	  else
+	    return tdesc_amd64_linux;
+	}
       else
 	return tdesc_i386_linux;
     }

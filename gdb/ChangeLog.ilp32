@@ -1,3 +1,48 @@
+2011-01-12  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-linux-nat.c (AMD64_LINUX_ILP32_DS): New.
+	(amd64_linux_read_description): Check DS segment register for
+	ILP32 process.
+
+	* amd64-linux-tdep.c: Include features/i386/intel32-linux.c
+	and features/i386/intel32-avx-linux.c.
+	(amd64_linux_init_abi): Check bits_per_address for ILP32 process.
+	(_initialize_amd64_linux_tdep): Call
+	initialize_tdesc_intel32_linux and
+	initialize_tdesc_intel32_avx_linux.
+
+	* amd64-linux-tdep.h (tdesc_intel32_linux): New.
+	(tdesc_intel32_avx_linux): Likewise.
+
+	* amd64-tdep.c: Include features/i386/intel32.c and
+	features/i386/intel32-avx.c.
+	(amd64_init_abi): Check bits_per_address for ILP32 process.
+	(_initialize_amd64_tdep): Call initialize_tdesc_intel32 and
+	initialize_tdesc_intel32_avx.
+
+	* features/Makefile (WHICH): Add i386/intel32, i386/intel32-linux,
+	i386/intel32-avx and i386/intel32-avx-linux.
+	(i386/intel32-expedite): New.
+	(i386/intel32-linux-expedite): Likewise.
+	(i386/intel32-avx-expedite): Likewise.
+	(i386/intel32-avx-linux-expedite): Likewise.
+	($(outdir)/i386/intel32.dat): Likewise.
+	($(outdir)/i386/intel32-avx.dat): Likewise.
+	($(outdir)/i386/intel32-avx-linux.dat): Likewise.
+
+	* features/i386/intel32-avx-linux.c: New.
+	* features/i386/intel32-avx-linux.xml: Likewise.
+	* features/i386/intel32-avx.c: Likewise.
+	* features/i386/intel32-avx.xml: Likewise.
+	* features/i386/intel32-linux.c: Likewise.
+	* features/i386/intel32-linux.xml: Likewise.
+	* features/i386/intel32.c: Likewise.
+	* features/i386/intel32.xml: Likewise.
+	* regformats/i386/intel32-avx-linux.dat: Likewise.
+	* regformats/i386/intel32-avx.dat: Likewise.
+	* regformats/i386/intel32-linux.dat: Likewise.
+	* regformats/i386/intel32.dat: Likewise.
+
 2009-10-06  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* amd64-linux-nat.c (ps_get_thread_area): Check i386_isa

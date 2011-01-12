@@ -42,6 +42,8 @@
 
 #include "features/i386/amd64-linux.c"
 #include "features/i386/amd64-avx-linux.c"
+#include "features/i386/intel32-linux.c"
+#include "features/i386/intel32-avx-linux.c"
 
 /* The syscall's XML filename for i386.  */
 #define XML_SYSCALL_FILENAME_AMD64 "syscalls/amd64-linux.xml"
@@ -1303,7 +1305,13 @@ amd64_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   set_gdbarch_num_regs (gdbarch, AMD64_LINUX_NUM_REGS);
 
   if (! tdesc_has_registers (tdesc))
-    tdesc = tdesc_amd64_linux;
+    {
+      if (info.abfd != NULL
+	  && info.bfd_arch_info->bits_per_address == 32)
+	tdesc = tdesc_intel32_linux;
+      else
+	tdesc = tdesc_amd64_linux;
+    }
   tdep->tdesc = tdesc;
 
   feature = tdesc_find_feature (tdesc, "org.gnu.gdb.i386.linux");
@@ -1549,4 +1557,6 @@ _initialize_amd64_linux_tdep (void)
   /* Initialize the Linux target description.  */
   initialize_tdesc_amd64_linux ();
   initialize_tdesc_amd64_avx_linux ();
+  initialize_tdesc_intel32_linux ();
+  initialize_tdesc_intel32_avx_linux ();
 }
