@@ -1332,8 +1332,12 @@ amd64_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   tdep->xsave_xcr0_offset = I386_LINUX_XSAVE_XCR0_OFFSET;
 
   /* GNU/Linux uses SVR4-style shared libraries.  */
-  set_solib_svr4_fetch_link_map_offsets
-    (gdbarch, svr4_lp64_fetch_link_map_offsets);
+  if (tdesc_architecture (tdesc)->bits_per_address == 32)
+    set_solib_svr4_fetch_link_map_offsets
+      (gdbarch, svr4_ilp32_fetch_link_map_offsets);
+  else
+    set_solib_svr4_fetch_link_map_offsets
+      (gdbarch, svr4_lp64_fetch_link_map_offsets);
 
   /* Add the %orig_rax register used for syscall restarting.  */
   set_gdbarch_write_pc (gdbarch, amd64_linux_write_pc);

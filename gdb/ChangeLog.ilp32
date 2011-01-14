@@ -1,5 +1,10 @@
 2011-01-14  H.J. Lu  <hongjiu.lu@intel.com>
 
+	* amd64-linux-tdep.c (amd64_linux_init_abi): Use
+	svr4_ilp32_fetch_link_map_offsets for 32bit.
+
+2011-01-14  H.J. Lu  <hongjiu.lu@intel.com>
+
 	* amd64-linux-nat.c (ps_get_thread_area): Check bits_per_word
 	instead of i386_isa.
 	(amd64_linux_siginfo_fixup): Likewise.
