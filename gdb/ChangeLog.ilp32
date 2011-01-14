@@ -1,3 +1,23 @@
+2011-01-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-linux-nat.c (ps_get_thread_area): Check bits_per_word
+	instead of i386_isa.
+	(amd64_linux_siginfo_fixup): Likewise.
+	* amd64-nat.c (amd64_native_gregset_reg_offset): Likewise.
+	(amd64_supply_native_gregset): Likewise.
+	(amd64_collect_native_gregset): Likewise.
+
+	* amd64-tdep.c (amd64_init_abi): Don't set isa.  Call
+	tdesc_architecture instead of using info.abfd.
+	(amd64_supply_fxsave): Check bits_per_word instead of i386_isa.
+	(amd64_collect_fxsave): Likewise.
+
+	* i386-tdep.c (i386_isa): Removed.
+	(i386_gdbarch_init): Don't set i386_isa.
+
+	* i386-tdep.h (i386_isa): Removed.
+	(gdbarch_tdep): Remove isa.
+
 2011-01-12  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* amd64-linux-nat.c (AMD64_LINUX_ILP32_DS): New.

@@ -60,7 +60,7 @@ amd64_native_gregset_reg_offset (struct gdbarch *gdbarch, int regnum)
 
   gdb_assert (regnum >= 0);
 
-  if (i386_isa (gdbarch) == ISA_I386)
+  if (gdbarch_bfd_arch_info (gdbarch)->bits_per_word == 32)
     {
       reg_offset = amd64_native_gregset32_reg_offset;
       num_regs = amd64_native_gregset32_num_regs;
@@ -97,7 +97,7 @@ amd64_supply_native_gregset (struct regcache *regcache,
   int num_regs = amd64_native_gregset64_num_regs;
   int i;
 
-  if (i386_isa (gdbarch) == ISA_I386)
+  if (gdbarch_bfd_arch_info (gdbarch)->bits_per_word == 32)
     num_regs = amd64_native_gregset32_num_regs;
 
   if (num_regs > gdbarch_num_regs (gdbarch))
@@ -128,7 +128,7 @@ amd64_collect_native_gregset (const struct regcache *regcache,
   int num_regs = amd64_native_gregset64_num_regs;
   int i;
 
-  if (i386_isa (gdbarch) == ISA_I386)
+  if (gdbarch_bfd_arch_info (gdbarch)->bits_per_word == 32)
     {
       num_regs = amd64_native_gregset32_num_regs;
 

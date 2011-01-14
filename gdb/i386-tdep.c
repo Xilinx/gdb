@@ -2356,14 +2356,6 @@ i386_return_value (struct gdbarch *gdbarch, struct type *func_type,
 
   return RETURN_VALUE_REGISTER_CONVENTION;
 }
-
-/* ISA.  */
-extern enum i386_isa
-i386_isa (struct gdbarch *gdbarch)
-{
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
-  return tdep->isa;
-}
 
 
 struct type *
@@ -6907,8 +6899,6 @@ i386_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   /* Allocate space for the new architecture.  */
   tdep = XCALLOC (1, struct gdbarch_tdep);
   gdbarch = gdbarch_alloc (&info, tdep);
-
-  tdep->isa = ISA_I386;
 
   /* General-purpose registers.  */
   tdep->gregset = NULL;

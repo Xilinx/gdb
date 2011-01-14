@@ -2406,11 +2406,8 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   tdep->st0_regnum = AMD64_ST0_REGNUM;
   tdep->num_xmm_regs = 16;
 
-  tdep->isa = ISA_AMD64;
-
   /* This is what all the fuss is about.  */
-  if (info.abfd != NULL
-      && info.bfd_arch_info->bits_per_address == 32)
+  if (tdesc_architecture (tdesc)->bits_per_address == 32)
     {
       set_gdbarch_long_bit (gdbarch, 32);
       set_gdbarch_ptr_bit (gdbarch, 32);
@@ -2523,7 +2520,8 @@ amd64_supply_fxsave (struct regcache *regcache, int regnum,
 
   i387_supply_fxsave (regcache, regnum, fxsave);
 
-  if (fxsave && i386_isa (gdbarch) == ISA_AMD64)
+  if (fxsave
+      && gdbarch_bfd_arch_info (gdbarch)->bits_per_word == 64)
     {
       const gdb_byte *regs = fxsave;
 
@@ -2573,7 +2571,7 @@ amd64_collect_fxsave (const struct regcache *regcache, int regnum,
 
   i387_collect_fxsave (regcache, regnum, fxsave);
 
-  if (i386_isa (gdbarch) == ISA_AMD64)
+  if (gdbarch_bfd_arch_info (gdbarch)->bits_per_word == 64)
     {
       if (regnum == -1 || regnum == I387_FISEG_REGNUM (tdep))
 	regcache_raw_collect (regcache, I387_FISEG_REGNUM (tdep), regs + 12);

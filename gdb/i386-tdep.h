@@ -53,13 +53,6 @@ enum struct_return
   reg_struct_return		/* Return "short" structures in registers.  */
 };
 
-/* ISA.  */
-enum i386_isa
-{
-  ISA_I386,			/* i386		*/
-  ISA_AMD64			/* AMD64	*/
-};
-
 /* Register classes as defined in the AMD x86-64 psABI.  */
 
 enum amd64_reg_class
@@ -77,8 +70,6 @@ enum amd64_reg_class
 /* i386 architecture specific information.  */
 struct gdbarch_tdep
 {
-  enum i386_isa isa;
-
   /* General-purpose registers.  */
   struct regset *gregset;
   int *gregset_reg_offset;
@@ -309,9 +300,6 @@ enum record_i386_regnum
 
 /* Types for i386-specific registers.  */
 extern struct type *i387_ext_type (struct gdbarch *gdbarch);
-
-/* ISA.  */
-extern enum i386_isa i386_isa (struct gdbarch *gdbarch);
 
 /* Checks of different pseudo-registers.  */
 extern int i386_byte_regnum_p (struct gdbarch *gdbarch, int regnum);
