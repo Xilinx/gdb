@@ -1,9 +1,6 @@
-/* Handle SOM shared libraries for GDB, the GNU Debugger.
+/* This testcase is part of GDB, the GNU debugger.
 
-   Copyright (C) 2004, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
-
-   This file is part of GDB.
+   Copyright 2011 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,19 +15,26 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#ifndef SOLIB_SOM_H
-#define SOLIB_SOM_H
+#include <wchar.h>
 
-struct objfile;
-struct section_offsets;
-struct gdbarch;
+void
+do_nothing (wchar_t *c)
+{
+}
 
-extern int hpux_major_release;
+int
+main (void)
+{
+  wchar_t narrow = 97;
+  wchar_t single = 0xbeef;
+  wchar_t simple[] = L"facile";
+  wchar_t difficile[] = { 0xdead, 0xbeef, 0xfeed, 0xface};
+  wchar_t mixed[] = {L'f', 0xdead, L'a', L'c', 0xfeed, 0xface};
 
-void som_solib_select (struct gdbarch *gdbarch);
-
-int som_solib_section_offsets (struct objfile *objfile,
-			       struct section_offsets *offsets);
-
-#endif
+  do_nothing (&narrow); /* START */
+  do_nothing (&single);
+  do_nothing (simple);
+  do_nothing (difficile);
+  do_nothing (mixed);
+}
 

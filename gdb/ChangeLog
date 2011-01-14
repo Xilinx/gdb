@@ -1,3 +1,56 @@
+2011-01-14  Yao Qi  <yao@codesourcery.com>
+
+	* arm-tdep.c (arm_register_reggroup_p): FPS register is in
+	save_reggroup, restore_reggroup and all_reggroup.
+
+2011-01-14  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-valprint. (ada_printchar): Use the correct type length
+	in call to ada_emit_char.
+	* c-valprint.c (c_val_print): Remove cast in call to LA_PRINT_CHAR.
+
+2011-01-14  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* solib-som.h (hpux_major_release): Declare variable here.
+	* solib-som.c:  Remove <sys/utsname.h> header.
+	(DEFAULT_HPUX_MAJOR_RELEASE): New macro.
+	(hpux_major_release): Make global, change default value to
+	DEFAULT_HPUX_MAJOR_RELEASE.
+	(get_hpux_major_release): Simply return HPUX_MAJOR_RELEASE. 
+	* hppa-hpux-nat.c: Add <sys/utsname.h> include.
+	Add "solib-som.h" header.
+	(set_hpux_major_release): New function.
+	(_initialize_hppa_hpux_nat): Call set_hpux_major_release.
+
+2011-01-14  Mike Frysinger  <vapier@gentoo.org>
+
+	* configure.tgt (*-*-uclinux*): Match more Linux os targets
+
+2011-01-14  Joel Brobecker  <brobecker@adacore.com>
+
+	* ia64-hpux-nat.c (ia64_hpux_fetch_register): Remove trailing
+	new-line at end of warning message.
+	(ia64_hpux_store_register): Remove trailing new-line at end of
+	error message.
+	* ia64-hpux-tdep.c: Rephrase comment.
+	* solib-ia64-hpux.c (struct dld_info): Change type of field
+	dld_flags from "long long" to ULONGEST.
+
+2011-01-14  Pedro Alves  <pedro@codesourcery.com>
+
+	* target.h (deprecated_child_ops): Delete declaration.
+	* target.c (deprecated_child_ops): Delete definition.
+
+2011-01-14  Pedro Alves  <pedro@codesourcery.com>
+
+	* Makefile.in (hpux-thread.o): Delete rule.
+	* configure.ac: Don't check for HPUX DCE threads support.
+	* configure, config.in: Regenerate.
+	* hppa-hpux-nat.c (child_suppress_run): Delete.
+	(hppa_hpux_child_can_run): Delete.
+	(_initialize_hppa_hpux_nat): Don't override to_can_run.
+	* hpux-thread.c: Delete.
+
 2011-01-13  Joel Brobecker  <brobecker@adacore.com>
 
 	* hpux-thread.c (hpux_pid_to_str): Delete.
