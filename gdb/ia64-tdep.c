@@ -290,16 +290,22 @@ floatformat_valid (const struct floatformat *fmt, const void *from)
   return 1;
 }
 
-static const struct floatformat floatformat_ia64_ext =
+static const struct floatformat floatformat_ia64_ext_little =
 {
   floatformat_little, 82, 0, 1, 17, 65535, 0x1ffff, 18, 64,
-  floatformat_intbit_yes, "floatformat_ia64_ext", floatformat_valid, NULL
+  floatformat_intbit_yes, "floatformat_ia64_ext_little", floatformat_valid, NULL
+};
+
+static const struct floatformat floatformat_ia64_ext_big =
+{
+  floatformat_big, 82, 46, 47, 17, 65535, 0x1ffff, 64, 64,
+  floatformat_intbit_yes, "floatformat_ia64_ext_big", floatformat_valid
 };
 
 static const struct floatformat *floatformats_ia64_ext[2] =
 {
-  &floatformat_ia64_ext,
-  &floatformat_ia64_ext
+  &floatformat_ia64_ext_big,
+  &floatformat_ia64_ext_little
 };
 
 static struct type *
@@ -2446,7 +2452,7 @@ ia64_is_fpreg (int uw_regnum)
 {
   return unw_is_fpreg (uw_regnum);
 }
-  
+
 /* Libunwind callback accessor function for general registers.  */
 static int
 ia64_access_reg (unw_addr_space_t as, unw_regnum_t uw_regnum, unw_word_t *val, 
@@ -2484,7 +2490,7 @@ ia64_access_reg (unw_addr_space_t as, unw_regnum_t uw_regnum, unw_word_t *val,
 	bsp = extract_unsigned_integer (buf, 8, byte_order);
 	get_frame_register (this_frame, IA64_CFM_REGNUM, buf);
 	cfm = extract_unsigned_integer (buf, 8, byte_order);
-	sof = (cfm & 0x7f);
+	sof = gdbarch_tdep (gdbarch)->size_of_register_frame (this_frame, cfm);
 	*val = ia64_rse_skip_regs (bsp, -sof);
 	break;
 
@@ -3171,6 +3177,15 @@ ia64_use_struct_convention (struct type *type)
   return TYPE_LENGTH (type) > 32;
 }
 
+/* Return non-zero if TYPE is a structure or union type.  */
+
+static int
+ia64_struct_type_p (const struct type *type)
+{
+  return (TYPE_CODE (type) == TYPE_CODE_STRUCT
+          || TYPE_CODE (type) == TYPE_CODE_UNION);
+}
+
 static void
 ia64_extract_return_value (struct type *type, struct regcache *regcache,
 			   gdb_byte *valbuf)
@@ -3194,6 +3209,21 @@ ia64_extract_return_value (struct type *type, struct regcache *regcache,
 	  offset += TYPE_LENGTH (float_elt_type);
 	  regnum++;
 	}
+    }
+  else if (!ia64_struct_type_p (type) && TYPE_LENGTH (type) < 8)
+    {
+      /* This is an integral value, and its size is less than 8 bytes.
+         These values are LSB-aligned, so extract the relevant bytes,
+         and copy them into VALBUF.  */
+      /* brobecker/2005-12-30: Actually, all integral values are LSB aligned,
+	 so I suppose we should also add handling here for integral values
+	 whose size is greater than 8.  But I wasn't able to create such
+	 a type, neither in C nor in Ada, so not worrying about these yet.  */
+      enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
+      ULONGEST val;
+
+      regcache_cooked_read_unsigned (regcache, IA64_GR8_REGNUM, &val);
+      store_unsigned_integer (valbuf, TYPE_LENGTH (type), byte_order, val);
     }
   else
     {
@@ -3390,7 +3420,8 @@ slot_alignment_is_next_even (struct type *t)
    d_un.d_ptr value is the global pointer.  */
 
 static CORE_ADDR
-ia64_find_global_pointer (struct gdbarch *gdbarch, CORE_ADDR faddr)
+ia64_find_global_pointer_from_dynamic_section (struct gdbarch *gdbarch,
+					       CORE_ADDR faddr)
 {
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   struct obj_section *faddr_sect;
@@ -3446,6 +3477,24 @@ ia64_find_global_pointer (struct gdbarch *gdbarch, CORE_ADDR faddr)
 	}
     }
   return 0;
+}
+
+/* Attempt to find (and return) the global pointer for the given
+   function.  We first try the find_global_pointer_from_solib routine
+   from the gdbarch tdep vector, if provided.  And if that does not
+   work, then we try ia64_find_global_pointer_from_dynamic_section.  */
+
+static CORE_ADDR
+ia64_find_global_pointer (struct gdbarch *gdbarch, CORE_ADDR faddr)
+{
+  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  CORE_ADDR addr = 0;
+
+  if (tdep->find_global_pointer_from_solib)
+    addr = tdep->find_global_pointer_from_solib (gdbarch, faddr);
+  if (addr == 0)
+    addr = ia64_find_global_pointer_from_dynamic_section (gdbarch, faddr);
+  return addr;
 }
 
 /* Given a function's address, attempt to find (and return) the
@@ -3587,12 +3636,53 @@ ia64_frame_align (struct gdbarch *gdbarch, CORE_ADDR sp)
   return sp & ~0xfLL;
 }
 
+/* The default "allocate_new_rse_frame" ia64_infcall_ops routine for ia64.  */
+
+static void
+ia64_allocate_new_rse_frame (struct regcache *regcache, ULONGEST bsp, int sof)
+{
+  ULONGEST cfm, pfs, new_bsp;
+
+  regcache_cooked_read_unsigned (regcache, IA64_CFM_REGNUM, &cfm);
+
+  new_bsp = rse_address_add (bsp, sof);
+  regcache_cooked_write_unsigned (regcache, IA64_BSP_REGNUM, new_bsp);
+
+  regcache_cooked_read_unsigned (regcache, IA64_PFS_REGNUM, &pfs);
+  pfs &= 0xc000000000000000LL;
+  pfs |= (cfm & 0xffffffffffffLL);
+  regcache_cooked_write_unsigned (regcache, IA64_PFS_REGNUM, pfs);
+
+  cfm &= 0xc000000000000000LL;
+  cfm |= sof;
+  regcache_cooked_write_unsigned (regcache, IA64_CFM_REGNUM, cfm);
+}
+
+/* The default "store_argument_in_slot" ia64_infcall_ops routine for
+   ia64.  */
+
+static void
+ia64_store_argument_in_slot (struct regcache *regcache, CORE_ADDR bsp,
+			     int slotnum, gdb_byte *buf)
+{
+  write_memory (rse_address_add (bsp, slotnum), buf, 8);
+}
+
+/* The default "set_function_addr" ia64_infcall_ops routine for ia64.  */
+
+static void
+ia64_set_function_addr (struct regcache *regcache, CORE_ADDR func_addr)
+{
+  /* Nothing needed.  */
+}
+
 static CORE_ADDR
 ia64_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		      struct regcache *regcache, CORE_ADDR bp_addr,
 		      int nargs, struct value **args, CORE_ADDR sp,
 		      int struct_return, CORE_ADDR struct_addr)
 {
+  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   int argno;
   struct value *arg;
@@ -3600,7 +3690,7 @@ ia64_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   int len, argoffset;
   int nslots, rseslots, memslots, slotnum, nfuncargs;
   int floatreg;
-  ULONGEST bsp, cfm, pfs, new_bsp;
+  ULONGEST bsp;
   CORE_ADDR funcdescaddr, pc, global_pointer;
   CORE_ADDR func_addr = find_function_addr (function, NULL);
 
@@ -3627,20 +3717,8 @@ ia64_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   memslots = nslots - rseslots;
 
   /* Allocate a new RSE frame.  */
-  regcache_cooked_read_unsigned (regcache, IA64_CFM_REGNUM, &cfm);
-
   regcache_cooked_read_unsigned (regcache, IA64_BSP_REGNUM, &bsp);
-  new_bsp = rse_address_add (bsp, rseslots);
-  regcache_cooked_write_unsigned (regcache, IA64_BSP_REGNUM, new_bsp);
-
-  regcache_cooked_read_unsigned (regcache, IA64_PFS_REGNUM, &pfs);
-  pfs &= 0xc000000000000000LL;
-  pfs |= (cfm & 0xffffffffffffLL);
-  regcache_cooked_write_unsigned (regcache, IA64_PFS_REGNUM, pfs);
-
-  cfm &= 0xc000000000000000LL;
-  cfm |= rseslots;
-  regcache_cooked_write_unsigned (regcache, IA64_CFM_REGNUM, cfm);
+  tdep->infcall_ops.allocate_new_rse_frame (regcache, bsp, rseslots);
   
   /* We will attempt to find function descriptors in the .opd segment,
      but if we can't we'll construct them ourselves.  That being the
@@ -3680,7 +3758,8 @@ ia64_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 				  find_func_descr (regcache, faddr,
 						   &funcdescaddr));
 	  if (slotnum < rseslots)
-	    write_memory (rse_address_add (bsp, slotnum), val_buf, 8);
+	    tdep->infcall_ops.store_argument_in_slot (regcache, bsp,
+						      slotnum, val_buf);
 	  else
 	    write_memory (sp + 16 + 8 * (slotnum - rseslots), val_buf, 8);
 	  slotnum++;
@@ -3699,11 +3778,34 @@ ia64_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 	  char val_buf[8];
 
 	  memset (val_buf, 0, 8);
-	  memcpy (val_buf, value_contents (arg) + argoffset,
-		  (len > 8) ? 8 : len);
+          if (!ia64_struct_type_p (type) && len < 8)
+            {
+              /* Integral types are LSB-aligned, so we have to be careful
+                 to insert the argument on the correct side of the buffer.
+                 This is why we use store_unsigned_integer.  */
+              store_unsigned_integer
+                (val_buf, 8, byte_order,
+                 extract_unsigned_integer (value_contents (arg), len,
+					   byte_order));
+            }
+          else
+            {
+              /* This is either an 8bit integral type, or an aggregate.
+                 For 8bit integral type, there is no problem, we just
+                 copy the value over.
+
+                 For aggregates, the only potentially tricky portion
+                 is to write the last one if it is less than 8 bytes.
+                 In this case, the data is Byte0-aligned.  Happy news,
+                 this means that we don't need to differentiate the
+                 handling of 8byte blocks and less-than-8bytes blocks.  */
+              memcpy (val_buf, value_contents (arg) + argoffset,
+                      (len > 8) ? 8 : len);
+            }
 
 	  if (slotnum < rseslots)
-	    write_memory (rse_address_add (bsp, slotnum), val_buf, 8);
+	    tdep->infcall_ops.store_argument_in_slot (regcache, bsp,
+						      slotnum, val_buf);
 	  else
 	    write_memory (sp + 16 + 8 * (slotnum - rseslots), val_buf, 8);
 
@@ -3744,12 +3846,26 @@ ia64_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   if (global_pointer != 0)
     regcache_cooked_write_unsigned (regcache, IA64_GR1_REGNUM, global_pointer);
 
+  /* The following is not necessary on HP-UX, because we're using
+     a dummy code sequence pushed on the stack to make the call, and
+     this sequence doesn't need b0 to be set in order for our dummy
+     breakpoint to be hit.  Nonetheless, this doesn't interfere, and
+     it's needed for other OSes, so we do this unconditionaly.  */
   regcache_cooked_write_unsigned (regcache, IA64_BR0_REGNUM, bp_addr);
 
   regcache_cooked_write_unsigned (regcache, sp_regnum, sp);
 
+  tdep->infcall_ops.set_function_addr (regcache, func_addr);
+
   return sp;
 }
+
+static const struct ia64_infcall_ops ia64_infcall_ops =
+{
+  ia64_allocate_new_rse_frame,
+  ia64_store_argument_in_slot,
+  ia64_set_function_addr
+};
 
 static struct frame_id
 ia64_dummy_id (struct gdbarch *gdbarch, struct frame_info *this_frame)
@@ -3796,6 +3912,14 @@ ia64_print_insn (bfd_vma memaddr, struct disassemble_info *info)
   return print_insn_ia64 (memaddr, info);
 }
 
+/* The default "size_of_register_frame" gdbarch_tdep routine for ia64.  */
+
+static int
+ia64_size_of_register_frame (struct frame_info *this_frame, ULONGEST cfm)
+{
+  return (cfm & 0x7f);
+}
+
 static struct gdbarch *
 ia64_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 {
@@ -3809,6 +3933,8 @@ ia64_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   tdep = xzalloc (sizeof (struct gdbarch_tdep));
   gdbarch = gdbarch_alloc (&info, tdep);
+
+  tdep->size_of_register_frame = ia64_size_of_register_frame;
 
   /* According to the ia64 specs, instructions that store long double
      floats in memory use a long-double format different than that
@@ -3860,6 +3986,7 @@ ia64_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   /* Settings for calling functions in the inferior.  */
   set_gdbarch_push_dummy_call (gdbarch, ia64_push_dummy_call);
+  tdep->infcall_ops = ia64_infcall_ops;
   set_gdbarch_frame_align (gdbarch, ia64_frame_align);
   set_gdbarch_dummy_id (gdbarch, ia64_dummy_id);
 

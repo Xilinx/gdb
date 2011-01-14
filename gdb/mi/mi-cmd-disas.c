@@ -40,21 +40,24 @@
    FILENAME: The name of the file where we want disassemble from.
    LINE: The line around which we want to disassemble. It will
    disassemble the function that contins that line.
-   HOW_MANY: Number of disassembly lines to display. In mixed mode, it
+   HOW_MANY: Number of disassembly lines to display. With source, it
    is the number of disassembly lines only, not counting the source
    lines.  
 
    always required:
 
-   MODE: 0 or 1 for disassembly only, or mixed source and disassembly,
-   respectively. */
+   MODE: 0 -- disassembly.
+         1 -- disassembly and source.
+         2 -- disassembly and opcodes.
+         3 -- disassembly, source and opcodes.
+*/
 void
 mi_cmd_disassemble (char *command, char **argv, int argc)
 {
   struct gdbarch *gdbarch = get_current_arch ();
   CORE_ADDR start;
 
-  int mixed_source_and_assembly;
+  int mode, disasm_flags;
   struct symtab *s;
 
   /* Which options have we processed ... */
@@ -91,7 +94,7 @@ mi_cmd_disassemble (char *command, char **argv, int argc)
      encountered. */
   while (1)
     {
-      int opt = mi_getopt ("mi_cmd_disassemble", argc, argv, opts,
+      int opt = mi_getopt ("-data-disassemble", argc, argv, opts,
 			   &optind, &optarg);
       if (opt < 0)
 	break;
@@ -128,17 +131,24 @@ mi_cmd_disassemble (char *command, char **argv, int argc)
   if (!((line_seen && file_seen && num_seen && !start_seen && !end_seen)
 	|| (line_seen && file_seen && !num_seen && !start_seen && !end_seen)
 	|| (!line_seen && !file_seen && !num_seen && start_seen && end_seen)))
-    error (_("mi_cmd_disassemble: Usage: ( [-f filename -l linenum [-n "
-	     "howmany]] | [-s startaddr -e endaddr]) [--] mixed_mode."));
+    error (_("-data-disassemble: Usage: ( [-f filename -l linenum [-n "
+	     "howmany]] | [-s startaddr -e endaddr]) [--] mode."));
 
   if (argc != 1)
-    error (_("mi_cmd_disassemble: Usage: [-f filename -l linenum "
-	     "[-n howmany]] [-s startaddr -e endaddr] [--] mixed_mode."));
+    error (_("-data-disassemble: Usage: [-f filename -l linenum "
+	     "[-n howmany]] [-s startaddr -e endaddr] [--] mode."));
 
-  mixed_source_and_assembly = atoi (argv[0]);
-  if ((mixed_source_and_assembly != 0) && (mixed_source_and_assembly != 1))
-    error (_("mi_cmd_disassemble: Mixed_mode argument must be 0 or 1."));
+  mode = atoi (argv[0]);
+  if (mode < 0 || mode > 3)
+    error (_("-data-disassemble: Mode argument must be 0, 1, 2, or 3."));
 
+  /* Convert the mode into a set of disassembly flags */
+
+  disasm_flags = 0;
+  if (mode & 0x1)
+    disasm_flags |= DISASSEMBLY_SOURCE;
+  if (mode & 0x2)
+    disasm_flags |= DISASSEMBLY_RAW_INSN;
 
   /* We must get the function beginning and end where line_num is
      contained. */
@@ -147,16 +157,16 @@ mi_cmd_disassemble (char *command, char **argv, int argc)
     {
       s = lookup_symtab (file_string);
       if (s == NULL)
-	error (_("mi_cmd_disassemble: Invalid filename."));
+	error (_("-data-disassemble: Invalid filename."));
       if (!find_line_pc (s, line_num, &start))
-	error (_("mi_cmd_disassemble: Invalid line number"));
+	error (_("-data-disassemble: Invalid line number"));
       if (find_pc_partial_function (start, NULL, &low, &high) == 0)
-	error (_("mi_cmd_disassemble: "
+	error (_("-data-disassemble: "
 		 "No function contains specified address"));
     }
 
   gdb_disassembly (gdbarch, uiout,
   		   file_string,
-		   mixed_source_and_assembly? DISASSEMBLY_SOURCE : 0,
+  		   disasm_flags,
 		   how_many, low, high);
 }

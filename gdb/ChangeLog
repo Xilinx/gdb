@@ -1,3 +1,209 @@
+2011-01-13  Joel Brobecker  <brobecker@adacore.com>
+
+	* hpux-thread.c (hpux_pid_to_str): Delete.
+
+2011-01-13  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-valprint.c (ada_emit_char): Remove strange code.
+	Check that c is <= UCHAR_MAX before passing it to isascii.
+	(char_at): Do not assume that TYPE_LEN is either 1 or 2.
+
+2011-01-13  Joel Brobecker  <brobecker@adacore.com>
+
+	* top.c (input_from_terminal_p): Restrict the use of interactive_mode
+	to the case where instream is stdin.
+
+2011-01-13  Joel Brobecker  <brobecker@adacore.com>
+
+	* ia64-tdep.h (struct regcache): Forward declare.
+	(struct ia64_infcall_ops): New struct type.
+	(struct gdbarch_tdep): New fields "find_global_pointer_from_solib"
+	and "infcall_ops".
+	* ia64-tdep.c (ia64_find_global_pointer_from_dynamic_section):
+	Renames ia64_find_global_pointer.
+	(ia64_find_global_pointer, ia64_allocate_new_rse_frame)
+	(ia64_store_argument_in_slot, ia64_set_function_addr: New function.
+	(ia64_push_dummy_call): Adjust to use the new tdep ia64_infocall_ops
+	methods.
+	(ia64_infcall_ops): New static global constant.
+	(ia64_gdbarch_init): Set tdep->infcall_ops.
+	* ia64-hpux-nat.c (ia64_hpux_xfer_solib_got): New function.
+	(ia64_hpux_xfer_partial): Add TARGET_OBJECT_HPUX_SOLIB_GOT handing.
+	* ia64-hpux-tdep.c: Include "regcache.h", "gdbcore.h" and "inferior.h".
+	(ia64_hpux_dummy_code): New static global constant.
+	(ia64_hpux_push_dummy_code, ia64_hpux_allocate_new_rse_frame)
+	(ia64_hpux_store_argument_in_slot, ia64_hpux_set_function_addr)
+	(ia64_hpux_dummy_id, ia64_hpux_find_global_pointer_from_solib):
+	New function.
+	(ia64_hpux_infcall_ops): New static global constant.
+	(ia64_hpux_init_abi): Install gdbarch and tdep methods needed
+	for inferior function calls to work properly on ia64-hpux.
+
+2011-01-13  Joel Brobecker  <brobecker@adacore.com>
+
+	* target.h (enum target_object): Add TARGET_OBJECT_HPUX_UREGS.
+	* ia64-tdep.h (struct frame_info): forward declaration.
+	(struct gdbarch_tdep): Add field size_of_register_frame.
+	* ia64-tdep.c (ia64_access_reg): Use tdep->size_of_register_frame
+	to determine the size of the register frame.
+	(ia64_size_of_register_frame): New function.
+	(ia64_gdbarch_init): Set tdep->size_of_register_frame.
+	* ia64-hpux-tdep.c: Include "target.h" and "frame.h".
+	(IA64_HPUX_UREG_REASON): New macro.
+	(ia64_hpux_stopped_in_syscall, ia64_hpux_size_of_register_frame):
+	New functions.
+	(ia64_hpux_init_abi): Set tdep->size_of_register_frame.
+	* ia64-hpux-nat.c (ia64_hpux_xfer_uregs): New function.
+	(ia64_hpux_xfer_partial): Add handling of TARGET_OBJECT_HPUX_UREGS
+	objects.
+
+2011-01-13  Joel Brobecker  <brobecker@adacore.com>
+
+	Add support for ia64-hpux.
+	* config/ia64/hpux.mh, ia64-hpux-nat.c, ia64-hpux-tdep.c,
+	ia64-hpux-tdep.h, solib-ia64-hpux.c, solib-ia64-hpux.h: New files.
+
+	* configure.host: Add handling for ia64-hpux hosts.  Add associated
+	floatformats.
+	* configure.tgt: Add handling for ia64-hpux targets.
+	* Makefile.in (ALL_64_TARGET_OBS): Add ia64-hpux-tdep.o.
+	(HFILES_NO_SRCDIR): Add ia64-hpux-tdep.h.
+	(ALLDEPFILES): Add ia64-hpux-nat.c ia64-hpux-tdep.c.
+
+2011-01-13  Joel Brobecker  <brobecker@adacore.com>
+
+	[ttrace] Compute thread list immediately after attach.
+	* inf_ttrace_attach (inf_ttrace_create_threads_after_attach):
+	New subprogram.
+	(inf_ttrace_attach): Use it.
+
+2011-01-13  Joel Brobecker  <brobecker@adacore.com>
+
+	* libunwind-frame.c (libunwind_frame_cache): Do not return NULL
+	if we could not determine the frame's function address.  Instead,
+	use the frame's PC, and then continue.
+
+2011-01-13  Joel Brobecker  <brobecker@adacore.com>
+
+	* libunwind-frame.c (__LITTLE_ENDIAN, __BIG_ENDIAN): Define if
+	not already defined.
+
+2011-01-13  Joel Brobecker  <brobecker@adacore.com>
+
+	* ia64-tdep.c (ia64_struct_type_p): New function.
+	(ia64_extract_return_value): Handle integral values that are
+	less than 8 bytes long.
+	(ia64_push_dummy_call): Likewise.
+
+2011-01-13  Joel Brobecker  <brobecker@adacore.com>
+
+	* ia64-tdep.c (floatformat_ia64_ext_little): Renames
+	floatformat_ia64_ext.
+	(floatformat_ia64_ext_big): New static const.
+	(floatformats_ia64_ext): Set first entry to &floatformat_ia64_ext_big.
+
+2011-01-12  Tom Tromey  <tromey@redhat.com>
+
+	* mi/mi-symbol-cmds.c (mi_cmd_symbol_list_lines): Fix error
+	messages.
+	* mi/mi-main.c (mi_cmd_thread_select): Fix error messages.
+	(mi_cmd_thread_list_ids): Likewise.
+	(mi_cmd_data_list_changed_registers): Likewise.
+	(mi_cmd_data_list_register_values): Likewise.
+	(mi_cmd_data_write_register_values): Likewise.
+	(mi_cmd_data_evaluate_expression): Likewise.
+	(mi_cmd_data_read_memory): Likewise.
+	(mi_cmd_data_read_memory_bytes): Likewise.
+	(mi_cmd_data_write_memory): Likewise.
+	(mi_cmd_enable_timings): Likewise.
+	* mi/mi-interp.c (mi_cmd_interpreter_exec): Fix error messages.
+	* mi/mi-cmd-var.c (mi_cmd_var_create): Fix error messages.
+	(mi_cmd_var_delete): Likewise.
+	(mi_cmd_var_set_format): Likewise.
+	(mi_cmd_var_show_format): Likewise.
+	(mi_cmd_var_info_num_children): Likewise.
+	(mi_cmd_var_list_children): Likewise.
+	(mi_cmd_var_info_type): Likewise.
+	(mi_cmd_var_info_expression): Likewise.
+	(mi_cmd_var_show_attributes): Likewise.
+	(mi_cmd_var_assign): Likewise.
+	(mi_cmd_var_update): Likewise.
+	(mi_cmd_enable_pretty_printing): Likewise.
+	(mi_cmd_var_set_update_range): Likewise.
+	* mi/mi-cmd-target.c (mi_cmd_target_file_get): Fix error
+	messages.
+	(mi_cmd_target_file_put): Likewise.
+	(mi_cmd_target_file_delete): Likewise.
+	* mi/mi-cmd-stack.c (mi_cmd_stack_list_frames): Fix error
+	messages.
+	(mi_cmd_stack_info_depth): Likewise.
+	(mi_cmd_stack_list_locals): Likewise.
+	(mi_cmd_stack_list_args): Likewise.
+	(mi_cmd_stack_select_frame): Likewise.
+	(mi_cmd_stack_select_frame): Likewise.
+	(mi_cmd_stack_info_frame): Likewise.
+	* mi/mi-cmd-file.c (mi_cmd_file_list_exec_source_file): Fix error
+	messages.
+	(mi_cmd_file_list_exec_source_files): Likewise.
+	* mi/mi-cmd-env.c (mi_cmd_env_pwd): Fix error messages.
+	(mi_cmd_env_cd): Likewise.
+	(mi_cmd_env_path): Likewise.
+	(mi_cmd_env_dir): Likewise.
+	(mi_cmd_inferior_tty_show): Likewise.
+	* mi/mi-cmd-disas.c (mi_cmd_disassemble): Fix error messages.
+	* mi/mi-cmd-break.c (mi_cmd_break_insert): Fix error messages.
+	(mi_cmd_break_watch): Likewise.
+
+2011-01-12  Thiago Jung Bauermann  <bauerman@br.ibm.com>
+
+	* ppc-linux-nat.c (booke_cmp_hw_point): Fix whitespace.
+	(ppc_linux_insert_hw_breakpoint): Likewise.
+	(ppc_linux_remove_hw_breakpoint): Likewise.
+	(ppc_linux_insert_watchpoint): Likewise.
+
+2011-01-12  Andrew Burgess  <aburgess@broadcom.com>
+	    Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	PR fortran/11104 and DWARF unbound arrays detection.
+	* dwarf2read.c (read_subrange_type): Set zero length on unspecified
+	upper bound.  Set TYPE_HIGH_BOUND_UNDEFINED if not language_ada on
+	unspecified upper bound.
+	* eval.c (evaluate_subexp_standard) <multi_f77_subscript>: Remove
+	variables array_size_array, tmp_type and offset_item.  New variable
+	array.  Remove call to f77_get_upperbound.  New variables array_type
+	and index.  Call value_subscripted_rvalue for each dimenasion.  Remove
+	the final call to deprecated_set_value_type.
+
+2011-01-12  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Make value allocations more lazy.
+	* ada-lang.c (coerce_unspec_val_to_type): Use allocate_value_lazy
+	instead of allocate_value and set_value_lazy when possible.
+	* dwarf2loc.c (dwarf2_evaluate_loc_desc_full): Use allocate_value_lazy 
+	instead of allocate_value and set_value_lazy.
+	* findvar.c (value_of_register_lazy): Likewise.
+	(read_var_value): Remove V preallocation, call just check_typedef in
+	advance.  Move allocate_value to LOC_CONST, LOC_LABEL, 
+	LOC_CONST_BYTES.  Use allocate_value_lazy in LOC_STATIC, LOC_ARG,
+	LOC_REF_ARG, LOC_LOCAL, LOC_BLOCK.  Set ADDR instead of
+	set_value_address and break in LOC_BLOCK.  Use allocate_value_lazy and
+	remove lval_memory set in LOC_REGPARM_ADDR.  Use allocate_value_lazy
+	in LOC_UNRESOLVED and LOC_OPTIMIZED_OUT.  Add setting lval_memory at
+	the end, remove set_value_lazy there.
+	* valarith.c (value_subscripted_rvalue): Use allocate_value_lazy
+	instead of allocate_value and set_value_lazy when possible.
+	* valops.c (value_fetch_lazy): Do nop for value_optimized_out VAL.
+	* value.c (allocate_computed_value): Use allocate_value_lazy instead
+	of allocate_value and set_value_lazy.
+	(value_from_contents_and_address): Use allocate_value_lazy instead of
+	allocate_value and set_value_lazy when possible.
+
+2011-01-12  Andrew Burgess  <aburgess@broadcom.com>
+
+	* disasm.c (dump_insns): Support dumping opcodes for MI.
+	* mi/mi-cmd-disas.c (mi_cmd_disassemble): Allow mode to control
+	dumping of instruction opcodes.
+
 2011-01-09  Robert Millan  <rmh@gnu.org>  (tiny patch)
 
 	* configure.tgt: Detect GNU/kFreeBSD and set `gdb_osabi'
