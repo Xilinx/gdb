@@ -42,8 +42,8 @@ initialize_tdesc_intel32_avx_linux (void)
   tdesc_create_reg (feature, "rdx", 3, 1, NULL, 64, "int64");
   tdesc_create_reg (feature, "rsi", 4, 1, NULL, 64, "int64");
   tdesc_create_reg (feature, "rdi", 5, 1, NULL, 64, "int64");
-  tdesc_create_reg (feature, "rbp", 6, 1, NULL, 64, "data_ptr");
-  tdesc_create_reg (feature, "rsp", 7, 1, NULL, 64, "data_ptr");
+  tdesc_create_reg (feature, "rbp", 6, 1, NULL, 64, "int64");
+  tdesc_create_reg (feature, "rsp", 7, 1, NULL, 64, "int64");
   tdesc_create_reg (feature, "r8", 8, 1, NULL, 64, "int64");
   tdesc_create_reg (feature, "r9", 9, 1, NULL, 64, "int64");
   tdesc_create_reg (feature, "r10", 10, 1, NULL, 64, "int64");
@@ -52,7 +52,7 @@ initialize_tdesc_intel32_avx_linux (void)
   tdesc_create_reg (feature, "r13", 13, 1, NULL, 64, "int64");
   tdesc_create_reg (feature, "r14", 14, 1, NULL, 64, "int64");
   tdesc_create_reg (feature, "r15", 15, 1, NULL, 64, "int64");
-  tdesc_create_reg (feature, "rip", 16, 1, NULL, 64, "code_ptr");
+  tdesc_create_reg (feature, "rip", 16, 1, NULL, 64, "uint64");
   tdesc_create_reg (feature, "eflags", 17, 1, NULL, 32, "i386_eflags");
   tdesc_create_reg (feature, "cs", 18, 1, NULL, 32, "int32");
   tdesc_create_reg (feature, "ss", 19, 1, NULL, 32, "int32");

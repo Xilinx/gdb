@@ -254,8 +254,10 @@ struct lwp_info
 
 extern struct inferior_list all_lwps;
 
+extern int linux_is_64bit;
+
 char *linux_child_pid_to_exec_file (int pid);
-int elf_64_file_p (const char *file);
+int elf_64_file_p (const char *file, unsigned int *);
 
 void linux_attach_lwp (unsigned long pid);
 struct lwp_info *find_lwp_pid (ptid_t ptid);

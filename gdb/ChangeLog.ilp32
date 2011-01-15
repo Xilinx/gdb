@@ -1,5 +1,30 @@
 2011-01-15  H.J. Lu  <hongjiu.lu@intel.com>
 
+	* features/Makefile ($(outdir)/i386/intel32.dat): Replace
+	i386/64bit-core.xml with i386/intel32-core.xml.
+	($(outdir)/i386/intel32-linux.dat): Likewise.
+	($(outdir)/i386/intel32-avx.dat): Likewise.
+	($(outdir)/i386/intel32-avx-linux.dat): Likewise.
+
+	* features/i386/intel32-avx-linux.c: Regenerated.
+	* features/i386/intel32-avx.c: Likewise.
+	* features/i386/intel32-linux.c: Likewise.
+	* features/i386/intel32.c: Likewise.
+	* regformats/i386/intel32-avx-linux.dat: Likewise.
+	* regformats/i386/intel32-avx.dat: Likewise.
+	* regformats/i386/intel32-linux.dat: Likewise.
+	* regformats/i386/intel32.dat: Likewise.
+
+	* features/i386/intel32-avx-linux.xml: Replace 64bit-core.xml
+	with intel32-core.xml.
+	* features/i386/intel32-avx.xml: Likewise.
+	* features/i386/intel32-linux.xml: Likewise.
+	* features/i386/intel32.xml: Likewise.
+
+	* features/i386/intel32-core.xml: New.
+
+2011-01-15  H.J. Lu  <hongjiu.lu@intel.com>
+
 	* features/i386/intel32-avx-linux.xml: Use Intel32.
 	* features/i386/intel32-avx.xml: Likewise.
 	* features/i386/intel32-linux.xml: Likewise.
@@ -59,6 +84,7 @@
 	(i386/intel32-avx-expedite): Likewise.
 	(i386/intel32-avx-linux-expedite): Likewise.
 	($(outdir)/i386/intel32.dat): Likewise.
+	($(outdir)/i386/intel32-linux.dat): Likewise.
 	($(outdir)/i386/intel32-avx.dat): Likewise.
 	($(outdir)/i386/intel32-avx-linux.dat): Likewise.
 

@@ -114,10 +114,10 @@ $(outdir)/i386/i386-mmx-linux.dat: i386/32bit-core.xml i386/32bit-linux.xml
 $(outdir)/i386/amd64-avx.dat: i386/64bit-core.xml i386/64bit-avx.xml
 $(outdir)/i386/amd64-avx-linux.dat: i386/64bit-core.xml i386/64bit-avx.xml \
 				    i386/64bit-linux.xml
-$(outdir)/i386/intel32.dat: i386/64bit-core.xml i386/64bit-sse.xml
-$(outdir)/i386/intel32-linux.dat: i386/64bit-core.xml i386/64bit-sse.xml \
+$(outdir)/i386/intel32.dat: i386/intel32-core.xml i386/64bit-sse.xml
+$(outdir)/i386/intel32-linux.dat: i386/intel32-core.xml i386/64bit-sse.xml \
 				  i386/64bit-linux.xml
-$(outdir)/i386/intel32-avx.dat: i386/64bit-core.xml i386/64bit-avx.xml
-$(outdir)/i386/intel32-avx-linux.dat: i386/64bit-core.xml \
+$(outdir)/i386/intel32-avx.dat: i386/intel32-core.xml i386/64bit-avx.xml
+$(outdir)/i386/intel32-avx-linux.dat: i386/intel32-core.xml \
 				      i386/64bit-avx.xml \
 				      i386/64bit-linux.xml

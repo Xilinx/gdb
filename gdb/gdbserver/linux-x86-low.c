@@ -40,6 +40,10 @@ void init_registers_i386_avx_linux (void);
 void init_registers_amd64_avx_linux (void);
 /* Defined in auto-generated file i386-mmx-linux.c.  */
 void init_registers_i386_mmx_linux (void);
+/* Defined in auto-generated file intel32-linux.c.  */
+void init_registers_intel32_linux (void);
+/* Defined in auto-generated file intel32-avx-linux.c.  */
+void init_registers_intel32_avx_linux (void);
 
 static unsigned char jump_insn[] = { 0xe9, 0, 0, 0, 0 };
 
@@ -954,8 +958,10 @@ x86_linux_update_xmltarget (void)
 #ifdef __x86_64__
   if (num_xmm_registers == 8)
     init_registers_i386_linux ();
-  else
+  else if (linux_is_64bit)
     init_registers_amd64_linux ();
+  else
+    init_registers_intel32_linux ();
 #else
     {
 # ifdef HAVE_PTRACE_GETFPXREGS
@@ -1050,8 +1056,10 @@ x86_linux_update_xmltarget (void)
 	  /* I386 has 8 xmm regs.  */
 	  if (num_xmm_registers == 8)
 	    init_registers_i386_avx_linux ();
-	  else
+	  else if (linux_is_64bit)
 	    init_registers_amd64_avx_linux ();
+	  else
+	    init_registers_intel32_avx_linux ();
 #else
 	  init_registers_i386_avx_linux ();
 #endif
@@ -1097,7 +1105,8 @@ x86_arch_setup (void)
 #ifdef __x86_64__
   int pid = pid_of (get_thread_lwp (current_inferior));
   char *file = linux_child_pid_to_exec_file (pid);
-  int use_64bit = elf_64_file_p (file);
+  unsigned int machine;
+  int use_64bit = elf_64_file_p (file, &machine);
 
   free (file);
 
@@ -1107,7 +1116,7 @@ x86_arch_setup (void)
 	 but "that can't happen" if we've gotten this far.
 	 Fall through and assume this is a 32-bit program.  */
     }
-  else if (use_64bit)
+  else if (machine == EM_X86_64)
     {
       /* Amd64 doesn't have HAVE_LINUX_USRREGS.  */
       the_low_target.num_regs = -1;
@@ -1118,6 +1127,7 @@ x86_arch_setup (void)
       /* Amd64 has 16 xmm regs.  */
       num_xmm_registers = 16;
 
+      linux_is_64bit = use_64bit;
       x86_linux_update_xmltarget ();
       return;
     }

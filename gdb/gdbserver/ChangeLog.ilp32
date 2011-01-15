@@ -1,0 +1,31 @@
+2011-01-15  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* Makefile.in (clean): Also remove intel32.c intel32-linux.c
+	intel32-avx.c intel32-avx-linux.c.
+	(intel32.o): New.
+	(intel32.c): Likewise.
+	(intel32-linux.o): Likewise.
+	(intel32-linux.c): Likewise.
+	(intel32-avx.o): Likewise.
+	(intel32-avx.c): Likewise.
+	(intel32-avx-linux.o): Likewise.
+	(intel32-avx-linux.c): Likewise.
+
+	* configure.srv (srv_amd64_regobj): Add intel32.o intel32-avx.o.
+	(srv_amd64_linux_regobj): Add intel32-linux.o intel32-avx-linux.o.
+	(srv_i386_64bit_xmlfiles): Add i386/intel32-core.xml.
+	(srv_amd64_xmlfiles): Add i386/intel32.xml i386/intel32-avx.xml.
+	(srv_amd64_linux_xmlfiles): Add i386/intel32-linux.xml
+	i386/intel32-avx-linux.xml.
+
+	* linux-low.c (linux_is_64bit): New.
+	(elf_64_header_p): Also return the e_machine field.
+	(elf_64_file_p): Likewise.
+
+	* linux-low.h (linux_is_64bit): New.
+	(elf_64_file_p): Add a pointer to unsigned int.
+
+	* linux-x86-low.c (init_registers_intel32_linux): New.
+	(init_registers_intel32_avx_linux): Likwise.
+	(x86_linux_update_xmltarget): Check linux_is_64bit.
+	(x86_arch_setup): Check EM_X86_64.  Set linux_is_64bit.

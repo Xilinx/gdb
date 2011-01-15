@@ -133,6 +133,9 @@ int stopping_threads;
 /* FIXME make into a target method?  */
 int using_threads = 1;
 
+/* Is this process 64bit?  */
+int linux_is_64bit;
+
 /* True if we're presently stabilizing threads (moving them out of
    jump pads).  */
 static int stabilizing_threads;
@@ -245,13 +248,19 @@ linux_child_pid_to_exec_file (int pid)
 /* Return non-zero if HEADER is a 64-bit ELF file.  */
 
 static int
-elf_64_header_p (const Elf64_Ehdr *header)
+elf_64_header_p (const Elf64_Ehdr *header, unsigned int *machine)
 {
-  return (header->e_ident[EI_MAG0] == ELFMAG0
-          && header->e_ident[EI_MAG1] == ELFMAG1
-          && header->e_ident[EI_MAG2] == ELFMAG2
-          && header->e_ident[EI_MAG3] == ELFMAG3
-          && header->e_ident[EI_CLASS] == ELFCLASS64);
+  if (header->e_ident[EI_MAG0] == ELFMAG0
+      && header->e_ident[EI_MAG1] == ELFMAG1
+      && header->e_ident[EI_MAG2] == ELFMAG2
+      && header->e_ident[EI_MAG3] == ELFMAG3)
+    {
+      *machine = header->e_machine;
+      return header->e_ident[EI_CLASS] == ELFCLASS64;
+
+    }
+  *machine = EM_NONE;
+  return -1;
 }
 
 /* Return non-zero if FILE is a 64-bit ELF file,
@@ -259,7 +268,7 @@ elf_64_header_p (const Elf64_Ehdr *header)
    and -1 if the file is not accessible or doesn't exist.  */
 
 int
-elf_64_file_p (const char *file)
+elf_64_file_p (const char *file, unsigned int *machine)
 {
   Elf64_Ehdr header;
   int fd;
@@ -275,7 +284,7 @@ elf_64_file_p (const char *file)
     }
   close (fd);
 
-  return elf_64_header_p (&header);
+  return elf_64_header_p (&header, machine);
 }
 
 static void
