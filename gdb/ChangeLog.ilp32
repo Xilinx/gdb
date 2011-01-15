@@ -1,3 +1,10 @@
+2011-01-15  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* features/i386/intel32-avx-linux.xml: Use Intel32.
+	* features/i386/intel32-avx.xml: Likewise.
+	* features/i386/intel32-linux.xml: Likewise.
+	* features/i386/intel32.xml: Likewise.
+
 2011-01-14  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* amd64-linux-tdep.c (amd64_linux_init_abi): Use
