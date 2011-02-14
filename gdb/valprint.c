@@ -260,7 +260,7 @@ scalar_type_p (struct type *type)
 static int
 valprint_check_validity (struct ui_file *stream,
 			 struct type *type,
-			 int offset,
+			 int embedded_offset,
 			 const struct value *val)
 {
   CHECK_TYPEDEF (type);
@@ -269,17 +269,23 @@ valprint_check_validity (struct ui_file *stream,
       && TYPE_CODE (type) != TYPE_CODE_STRUCT
       && TYPE_CODE (type) != TYPE_CODE_ARRAY)
     {
-      if (! value_bits_valid (val, TARGET_CHAR_BIT * offset,
-			      TARGET_CHAR_BIT * TYPE_LENGTH (type)))
+      if (!value_bits_valid (val, TARGET_CHAR_BIT * embedded_offset,
+			     TARGET_CHAR_BIT * TYPE_LENGTH (type)))
 	{
-	  fprintf_filtered (stream, _("<value optimized out>"));
+	  val_print_optimized_out (stream);
 	  return 0;
 	}
 
-      if (value_bits_synthetic_pointer (val, TARGET_CHAR_BIT * offset,
+      if (value_bits_synthetic_pointer (val, TARGET_CHAR_BIT * embedded_offset,
 					TARGET_CHAR_BIT * TYPE_LENGTH (type)))
 	{
 	  fputs_filtered (_("<synthetic pointer>"), stream);
+	  return 0;
+	}
+
+      if (!value_bytes_available (val, embedded_offset, TYPE_LENGTH (type)))
+	{
+	  val_print_unavailable (stream);
 	  return 0;
 	}
     }
@@ -287,20 +293,46 @@ valprint_check_validity (struct ui_file *stream,
   return 1;
 }
 
-/* Print using the given LANGUAGE the data of type TYPE located at VALADDR
-   (within GDB), which came from the inferior at address ADDRESS, onto
-   stdio stream STREAM according to OPTIONS.
+void
+val_print_optimized_out (struct ui_file *stream)
+{
+  fprintf_filtered (stream, _("<optimized out>"));
+}
 
-   If the data are a string pointer, returns the number of string characters
-   printed.
+void
+val_print_unavailable (struct ui_file *stream)
+{
+  fprintf_filtered (stream, _("<unavailable>"));
+}
 
-   FIXME:  The data at VALADDR is in target byte order.  If gdb is ever
-   enhanced to be able to debug more than the single target it was compiled
-   for (specific CPU type and thus specific target byte ordering), then
-   either the print routines are going to have to take this into account,
-   or the data is going to have to be passed into here already converted
-   to the host byte ordering, whichever is more convenient.  */
+void
+val_print_invalid_address (struct ui_file *stream)
+{
+  fprintf_filtered (stream, _("<invalid address>"));
+}
 
+/* Print using the given LANGUAGE the data of type TYPE located at
+   VALADDR + EMBEDDED_OFFSET (within GDB), which came from the
+   inferior at address ADDRESS + EMBEDDED_OFFSET, onto stdio stream
+   STREAM according to OPTIONS.  VAL is the whole object that came
+   from ADDRESS.  VALADDR must point to the head of VAL's contents
+   buffer.
+
+   The language printers will pass down an adjusted EMBEDDED_OFFSET to
+   further helper subroutines as subfields of TYPE are printed.  In
+   such cases, VALADDR is passed down unadjusted, as well as VAL, so
+   that VAL can be queried for metadata about the contents data being
+   printed, using EMBEDDED_OFFSET as an offset into VAL's contents
+   buffer.  For example: "has this field been optimized out", or "I'm
+   printing an object while inspecting a traceframe; has this
+   particular piece of data been collected?".
+
+   RECURSE indicates the amount of indentation to supply before
+   continuation lines; this amount is roughly twice the value of
+   RECURSE.
+
+   If the data is printed as a string, returns the number of string
+   characters printed.  */
 
 int
 val_print (struct type *type, const gdb_byte *valaddr, int embedded_offset,
@@ -378,7 +410,7 @@ value_check_printable (struct value *val, struct ui_file *stream)
 
   if (value_entirely_optimized_out (val))
     {
-      fprintf_filtered (stream, _("<value optimized out>"));
+      val_print_optimized_out (stream);
       return 0;
     }
 
@@ -508,6 +540,49 @@ val_print_type_code_flags (struct type *type, const gdb_byte *valaddr,
 	}
     }
   fputs_filtered ("]", stream);
+
+/* Print a scalar of data of type TYPE, pointed to in GDB by VALADDR,
+   according to OPTIONS and SIZE on STREAM.  Format i is not supported
+   at this level.
+
+   This is how the elements of an array or structure are printed
+   with a format.  */
+}
+
+void
+val_print_scalar_formatted (struct type *type,
+			    const gdb_byte *valaddr, int embedded_offset,
+			    const struct value *val,
+			    const struct value_print_options *options,
+			    int size,
+			    struct ui_file *stream)
+{
+  gdb_assert (val != NULL);
+  gdb_assert (valaddr == value_contents_for_printing_const (val));
+
+  /* If we get here with a string format, try again without it.  Go
+     all the way back to the language printers, which may call us
+     again.  */
+  if (options->format == 's')
+    {
+      struct value_print_options opts = *options;
+      opts.format = 0;
+      opts.deref_ref = 0;
+      val_print (type, valaddr, embedded_offset, 0, stream, 0, val, &opts,
+		 current_language);
+      return;
+    }
+
+  /* A scalar object that does not have all bits available can't be
+     printed, because all bits contribute to its representation.  */
+  if (!value_bits_valid (val, TARGET_CHAR_BIT * embedded_offset,
+			      TARGET_CHAR_BIT * TYPE_LENGTH (type)))
+    val_print_optimized_out (stream);
+  else if (!value_bytes_available (val, embedded_offset, TYPE_LENGTH (type)))
+    val_print_unavailable (stream);
+  else
+    print_scalar_formatted (valaddr + embedded_offset, type,
+			    options, size, stream);
 }
 
 /* Print a number according to FORMAT which is one of d,u,x,o,b,h,w,g.
@@ -1108,7 +1183,8 @@ maybe_print_array_index (struct type *index_type, LONGEST index,
    perhaps we should try to use that notation when appropriate.  */
 
 void
-val_print_array_elements (struct type *type, const gdb_byte *valaddr,
+val_print_array_elements (struct type *type,
+			  const gdb_byte *valaddr, int embedded_offset,
 			  CORE_ADDR address, struct ui_file *stream,
 			  int recurse,
 			  const struct value *val,
@@ -1171,8 +1247,12 @@ val_print_array_elements (struct type *type, const gdb_byte *valaddr,
 
       rep1 = i + 1;
       reps = 1;
-      while ((rep1 < len) &&
-	     !memcmp (valaddr + i * eltlen, valaddr + rep1 * eltlen, eltlen))
+      while (rep1 < len
+	     && value_available_contents_eq (val,
+					     embedded_offset + i * eltlen,
+					     val,
+					     embedded_offset + rep1 * eltlen,
+					     eltlen))
 	{
 	  ++reps;
 	  ++rep1;
@@ -1180,8 +1260,9 @@ val_print_array_elements (struct type *type, const gdb_byte *valaddr,
 
       if (reps > options->repeat_count_threshold)
 	{
-	  val_print (elttype, valaddr + i * eltlen, 0, address + i * eltlen,
-		     stream, recurse + 1, val, options, current_language);
+	  val_print (elttype, valaddr, embedded_offset + i * eltlen,
+		     address, stream, recurse + 1, val, options,
+		     current_language);
 	  annotate_elt_rep (reps);
 	  fprintf_filtered (stream, " <repeats %u times>", reps);
 	  annotate_elt_rep_end ();
@@ -1191,7 +1272,8 @@ val_print_array_elements (struct type *type, const gdb_byte *valaddr,
 	}
       else
 	{
-	  val_print (elttype, valaddr + i * eltlen, 0, address + i * eltlen,
+	  val_print (elttype, valaddr, embedded_offset + i * eltlen,
+		     address,
 		     stream, recurse + 1, val, options, current_language);
 	  annotate_elt ();
 	  things_printed++;

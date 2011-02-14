@@ -38,7 +38,7 @@
 #include "cp-support.h"
 #include "dfp.h"
 #include "user-regs.h"
-
+#include "tracepoint.h"
 #include <errno.h>
 #include "gdb_string.h"
 #include "gdb_assert.h"
@@ -652,8 +652,10 @@ value_reinterpret_cast (struct type *type, struct value *arg)
 
 static int
 dynamic_cast_check_1 (struct type *desired_type,
-		      const bfd_byte *contents,
+		      const gdb_byte *valaddr,
+		      int embedded_offset,
 		      CORE_ADDR address,
+		      struct value *val,
 		      struct type *search_type,
 		      CORE_ADDR arg_addr,
 		      struct type *arg_type,
@@ -663,25 +665,25 @@ dynamic_cast_check_1 (struct type *desired_type,
 
   for (i = 0; i < TYPE_N_BASECLASSES (search_type) && result_count < 2; ++i)
     {
-      int offset = baseclass_offset (search_type, i, contents, address);
+      int offset = baseclass_offset (search_type, i, valaddr, embedded_offset,
+				     address, val);
 
-      if (offset == -1)
-	error (_("virtual baseclass botch"));
       if (class_types_same_p (desired_type, TYPE_BASECLASS (search_type, i)))
 	{
-	  if (address + offset >= arg_addr
-	      && address + offset < arg_addr + TYPE_LENGTH (arg_type))
+	  if (address + embedded_offset + offset >= arg_addr
+	      && address + embedded_offset + offset < arg_addr + TYPE_LENGTH (arg_type))
 	    {
 	      ++result_count;
 	      if (!*result)
 		*result = value_at_lazy (TYPE_BASECLASS (search_type, i),
-					 address + offset);
+					 address + embedded_offset + offset);
 	    }
 	}
       else
 	result_count += dynamic_cast_check_1 (desired_type,
-					      contents + offset,
-					      address + offset,
+					      valaddr,
+					      embedded_offset + offset,
+					      address, val,
 					      TYPE_BASECLASS (search_type, i),
 					      arg_addr,
 					      arg_type,
@@ -697,8 +699,10 @@ dynamic_cast_check_1 (struct type *desired_type,
 
 static int
 dynamic_cast_check_2 (struct type *desired_type,
-		      const bfd_byte *contents,
+		      const gdb_byte *valaddr,
+		      int embedded_offset,
 		      CORE_ADDR address,
+		      struct value *val,
 		      struct type *search_type,
 		      struct value **result)
 {
@@ -711,20 +715,20 @@ dynamic_cast_check_2 (struct type *desired_type,
       if (! BASETYPE_VIA_PUBLIC (search_type, i))
 	continue;
 
-      offset = baseclass_offset (search_type, i, contents, address);
-      if (offset == -1)
-	error (_("virtual baseclass botch"));
+      offset = baseclass_offset (search_type, i, valaddr, embedded_offset,
+				 address, val);
       if (class_types_same_p (desired_type, TYPE_BASECLASS (search_type, i)))
 	{
 	  ++result_count;
 	  if (*result == NULL)
 	    *result = value_at_lazy (TYPE_BASECLASS (search_type, i),
-				     address + offset);
+				     address + embedded_offset + offset);
 	}
       else
 	result_count += dynamic_cast_check_2 (desired_type,
-					      contents + offset,
-					      address + offset,
+					      valaddr,
+					      embedded_offset + offset,
+					      address, val,
 					      TYPE_BASECLASS (search_type, i),
 					      result);
     }
@@ -822,7 +826,9 @@ value_dynamic_cast (struct type *type, struct value *arg)
 	return tem;
       result = NULL;
       if (dynamic_cast_check_1 (TYPE_TARGET_TYPE (resolved_type),
-				value_contents (tem), value_address (tem),
+				value_contents_for_printing (tem),
+				value_embedded_offset (tem),
+				value_address (tem), tem,
 				rtti_type, addr,
 				arg_type,
 				&result) == 1)
@@ -834,7 +840,9 @@ value_dynamic_cast (struct type *type, struct value *arg)
   result = NULL;
   if (is_public_ancestor (arg_type, rtti_type)
       && dynamic_cast_check_2 (TYPE_TARGET_TYPE (resolved_type),
-			       value_contents (tem), value_address (tem),
+			       value_contents_for_printing (tem),
+			       value_embedded_offset (tem),
+			       value_address (tem), tem,
 			       rtti_type, &result) == 1)
     return value_cast (type,
 		       is_ref ? value_ref (result) : value_addr (result));
@@ -917,18 +925,10 @@ get_value_at (struct type *type, CORE_ADDR addr, int lazy)
   if (TYPE_CODE (check_typedef (type)) == TYPE_CODE_VOID)
     error (_("Attempt to dereference a generic pointer."));
 
-  if (lazy)
-    {
-      val = allocate_value_lazy (type);
-    }
-  else
-    {
-      val = allocate_value (type);
-      read_memory (addr, value_contents_all_raw (val), TYPE_LENGTH (type));
-    }
+  val = value_from_contents_and_address (type, NULL, addr);
 
-  VALUE_LVAL (val) = lval_memory;
-  set_value_address (val, addr);
+  if (!lazy)
+    value_fetch_lazy (val);
 
   return val;
 }
@@ -989,11 +989,7 @@ value_fetch_lazy (struct value *val)
       enum bfd_endian byte_order = gdbarch_byte_order (get_type_arch (type));
       struct value *parent = value_parent (val);
       LONGEST offset = value_offset (val);
-      LONGEST num = unpack_bits_as_long (value_type (val),
-					 (value_contents_for_printing (parent)
-					  + offset),
-					 value_bitpos (val),
-					 value_bitsize (val));
+      LONGEST num;
       int length = TYPE_LENGTH (type);
 
       if (!value_bits_valid (val,
@@ -1001,7 +997,17 @@ value_fetch_lazy (struct value *val)
 			     value_bitsize (val)))
 	error (_("value has been optimized out"));
 
-      store_signed_integer (value_contents_raw (val), length, byte_order, num);
+      if (!unpack_value_bits_as_long (value_type (val),
+				      value_contents_for_printing (parent),
+				      offset,
+				      value_bitpos (val),
+				      value_bitsize (val), parent, &num))
+	mark_value_bytes_unavailable (val,
+				      value_embedded_offset (val),
+				      length);
+      else
+	store_signed_integer (value_contents_raw (val), length,
+			      byte_order, num);
     }
   else if (VALUE_LVAL (val) == lval_memory)
     {
@@ -1009,12 +1015,8 @@ value_fetch_lazy (struct value *val)
       int length = TYPE_LENGTH (check_typedef (value_enclosing_type (val)));
 
       if (length)
-	{
-	  if (value_stack (val))
-	    read_stack (addr, value_contents_all_raw (val), length);
-	  else
-	    read_memory (addr, value_contents_all_raw (val), length);
-	}
+	read_value_memory (val, 0, value_stack (val),
+			   addr, value_contents_all_raw (val), length);
     }
   else if (VALUE_LVAL (val) == lval_register)
     {
@@ -1050,12 +1052,16 @@ value_fetch_lazy (struct value *val)
       if (value_lazy (new_val))
 	value_fetch_lazy (new_val);
 
-      /* If the register was not saved, mark it unavailable.  */
+      /* If the register was not saved, mark it optimized out.  */
       if (value_optimized_out (new_val))
 	set_value_optimized_out (val, 1);
       else
-	memcpy (value_contents_raw (val), value_contents (new_val),
-		TYPE_LENGTH (type));
+	{
+	  set_value_lazy (val, 0);
+	  value_contents_copy (val, value_embedded_offset (val),
+			       new_val, value_embedded_offset (new_val),
+			       TYPE_LENGTH (type));
+	}
 
       if (frame_debug)
 	{
@@ -1113,6 +1119,89 @@ value_fetch_lazy (struct value *val)
   return 0;
 }
 
+void
+read_value_memory (struct value *val, int embedded_offset,
+		   int stack, CORE_ADDR memaddr,
+		   gdb_byte *buffer, size_t length)
+{
+  if (length)
+    {
+      VEC(mem_range_s) *available_memory;
+
+      if (get_traceframe_number () < 0
+	  || !traceframe_available_memory (&available_memory, memaddr, length))
+	{
+	  if (stack)
+	    read_stack (memaddr, buffer, length);
+	  else
+	    read_memory (memaddr, buffer, length);
+	}
+      else
+	{
+	  struct target_section_table *table;
+	  struct cleanup *old_chain;
+	  CORE_ADDR unavail;
+	  mem_range_s *r;
+	  int i;
+
+	  /* Fallback to reading from read-only sections.  */
+	  table = target_get_section_table (&exec_ops);
+	  available_memory =
+	    section_table_available_memory (available_memory,
+					    memaddr, length,
+					    table->sections,
+					    table->sections_end);
+
+	  old_chain = make_cleanup (VEC_cleanup(mem_range_s),
+				    &available_memory);
+
+	  normalize_mem_ranges (available_memory);
+
+	  /* Mark which bytes are unavailable, and read those which
+	     are available.  */
+
+	  unavail = memaddr;
+
+	  for (i = 0;
+	       VEC_iterate (mem_range_s, available_memory, i, r);
+	       i++)
+	    {
+	      if (mem_ranges_overlap (r->start, r->length,
+				      memaddr, length))
+		{
+		  CORE_ADDR lo1, hi1, lo2, hi2;
+		  CORE_ADDR start, end;
+
+		  /* Get the intersection window.  */
+		  lo1 = memaddr;
+		  hi1 = memaddr + length;
+		  lo2 = r->start;
+		  hi2 = r->start + r->length;
+		  start = max (lo1, lo2);
+		  end = min (hi1, hi2);
+
+		  gdb_assert (end - memaddr <= length);
+
+		  if (start > unavail)
+		    mark_value_bytes_unavailable (val,
+						  (embedded_offset
+						   + unavail - memaddr),
+						  start - unavail);
+		  unavail = end;
+
+		  read_memory (start, buffer + start - memaddr, end - start);
+		}
+	    }
+
+	  if (unavail != memaddr + length)
+	    mark_value_bytes_unavailable (val,
+					  embedded_offset + unavail - memaddr,
+					  (memaddr + length) - unavail);
+
+	  do_cleanups (old_chain);
+	}
+    }
+}
 
 /* Store the contents of FROMVAL into the location of TOVAL.
    Return a new value with the location of TOVAL and contents of FROMVAL.  */
@@ -1242,6 +1331,7 @@ value_assign (struct value *toval, struct value *fromval)
 		int offset = value_offset (parent) + value_offset (toval);
 		int changed_len;
 		gdb_byte buffer[sizeof (LONGEST)];
+		int optim, unavail;
 
 		changed_len = (value_bitpos (toval)
 			       + value_bitsize (toval)
@@ -1375,11 +1465,12 @@ value_repeat (struct value *arg1, int count)
 
   val = allocate_repeat_value (value_enclosing_type (arg1), count);
 
-  read_memory (value_address (arg1),
-	       value_contents_all_raw (val),
-	       TYPE_LENGTH (value_enclosing_type (val)));
   VALUE_LVAL (val) = lval_memory;
   set_value_address (val, value_address (arg1));
+
+  read_value_memory (val, 0, value_stack (val), value_address (val),
+		     value_contents_all_raw (val),
+		     TYPE_LENGTH (value_enclosing_type (val)));
 
   return val;
 }
@@ -1688,9 +1779,8 @@ value_ind (struct value *arg1)
   return 0;			/* For lint -- never reached.  */
 }
 
-/* Create a value for an array by allocating space in GDB, copying
-   copying the data into that space, and then setting up an array
-   value.
+/* Create a value for an array by allocating space in GDB, copying the
+   data into that space, and then setting up an array value.
 
    The array bounds are set from LOWBOUND and HIGHBOUND, and the array
    is populated from the values passed in ELEMVEC.
@@ -1732,11 +1822,8 @@ value_array (int lowbound, int highbound, struct value **elemvec)
     {
       val = allocate_value (arraytype);
       for (idx = 0; idx < nelem; idx++)
-	{
-	  memcpy (value_contents_all_raw (val) + (idx * typelength),
-		  value_contents_all (elemvec[idx]),
-		  typelength);
-	}
+	value_contents_copy (val, idx * typelength, elemvec[idx], 0,
+			     typelength);
       return val;
     }
 
@@ -1745,9 +1832,7 @@ value_array (int lowbound, int highbound, struct value **elemvec)
 
   val = allocate_value (arraytype);
   for (idx = 0; idx < nelem; idx++)
-    memcpy (value_contents_writeable (val) + (idx * typelength),
-	    value_contents_all (elemvec[idx]),
-	    typelength);
+    value_contents_copy (val, idx * typelength, elemvec[idx], 0, typelength);
   return val;
 }
 
@@ -1999,12 +2084,10 @@ search_struct_field (const char *name, struct value *arg1, int offset,
 	  struct value *v2;
 
 	  boffset = baseclass_offset (type, i,
-				      value_contents (arg1) + offset,
-				      value_address (arg1)
-				      + value_embedded_offset (arg1)
-				      + offset);
-	  if (boffset == -1)
-	    error (_("virtual baseclass botch"));
+				      value_contents_for_printing (arg1),
+				      value_embedded_offset (arg1) + offset,
+				      value_address (arg1),
+				      arg1);
 
 	  /* The virtual base class pointer might have been clobbered
 	     by the user program.  Make sure that it still points to a
@@ -2126,10 +2209,13 @@ search_struct_method (const char *name, struct value **arg1p,
   for (i = TYPE_N_BASECLASSES (type) - 1; i >= 0; i--)
     {
       int base_offset;
+      int skip = 0;
+      int this_offset;
 
       if (BASETYPE_VIA_VIRTUAL (type, i))
 	{
 	  struct type *baseclass = check_typedef (TYPE_BASECLASS (type, i));
+	  struct value *base_val;
 	  const gdb_byte *base_valaddr;
 
 	  /* The virtual base class pointer might have been
@@ -2139,19 +2225,28 @@ search_struct_method (const char *name, struct value **arg1p,
 	  if (offset < 0 || offset >= TYPE_LENGTH (type))
 	    {
 	      gdb_byte *tmp = alloca (TYPE_LENGTH (baseclass));
+	      CORE_ADDR address = value_address (*arg1p);
 
-	      if (target_read_memory (value_address (*arg1p) + offset,
+	      if (target_read_memory (address + offset,
 				      tmp, TYPE_LENGTH (baseclass)) != 0)
 		error (_("virtual baseclass botch"));
-	      base_valaddr = tmp;
+
+	      base_val = value_from_contents_and_address (baseclass,
+							  tmp,
+							  address + offset);
+	      base_valaddr = value_contents_for_printing (base_val);
+	      this_offset = 0;
 	    }
 	  else
-	    base_valaddr = value_contents (*arg1p) + offset;
+	    {
+	      base_val = *arg1p;
+	      base_valaddr = value_contents_for_printing (*arg1p);
+	      this_offset = offset;
+	    }
 
 	  base_offset = baseclass_offset (type, i, base_valaddr,
-					  value_address (*arg1p) + offset);
-	  if (base_offset == -1)
-	    error (_("virtual baseclass botch"));
+					  this_offset, value_address (base_val),
+					  base_val);
 	}
       else
 	{
@@ -2329,12 +2424,10 @@ find_method_list (struct value **argp, const char *method,
 
       if (BASETYPE_VIA_VIRTUAL (type, i))
 	{
-	  base_offset = value_offset (*argp) + offset;
 	  base_offset = baseclass_offset (type, i,
-					  value_contents (*argp) + base_offset,
-					  value_address (*argp) + base_offset);
-	  if (base_offset == -1)
-	    error (_("virtual baseclass botch"));
+					  value_contents_for_printing (*argp),
+					  value_offset (*argp) + offset,
+					  value_address (*argp), *argp);
 	}
       else /* Non-virtual base, simply use bit position from debug
 	      info.  */
@@ -3097,7 +3190,7 @@ compare_parameters (struct type *t1, struct type *t2, int skip_artificial)
 {
   int start = 0;
 
-  if (TYPE_FIELD_ARTIFICIAL (t1, 0))
+  if (TYPE_NFIELDS (t1) > 0 && TYPE_FIELD_ARTIFICIAL (t1, 0))
     ++start;
 
   /* If skipping artificial fields, find the first real field
@@ -3634,9 +3727,8 @@ value_slice (struct value *array, int lowbound, int length)
       else
 	{
 	  slice = allocate_value (slice_type);
-	  memcpy (value_contents_writeable (slice),
-		  value_contents (array) + offset,
-		  TYPE_LENGTH (slice_type));
+	  value_contents_copy (slice, 0, array, offset,
+			       TYPE_LENGTH (slice_type));
 	}
 
       set_value_component_location (slice, array);

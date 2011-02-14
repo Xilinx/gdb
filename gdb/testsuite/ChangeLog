@@ -1,3 +1,241 @@
+2011-02-14  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.trace/unavailable.cc (class Base, class Middle, class
+	Derived): New types.
+	(derived_unavail, derived_partial, derived_whole): New globals.
+	(virtual_partial): New global.
+	(virtualp): Point at virtual_partial.
+	* gdb.trace/unavailable.exp (gdb_collect_globals_test): Add tests
+	related to unavailable vptr.
+
+2011-02-14  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.trace/unavailable.cc (a, b, c): New globals.
+	(main): Set and clear them.
+	* gdb.trace/unavailable.exp (gdb_collect_globals_test): Collect
+	`a' and `c', and check that `b' isn't collected, although `a' and
+	`c' are.
+
+2011-02-14  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.trace/unavailable.cc (struct Virtual): New.
+	(virtualp): New global pointer.
+	* gdb.trace/unavailable.exp (gdb_collect_globals_test): Test
+	printing a pointer to an object whose type has a vtable, with
+	print object on.
+
+2011-02-14  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.trace/unavailable.exp (gdb_collect_globals_test): Test that
+	value repeat handles unavailableness.
+
+2011-02-14  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.trace/unavailable.exp (gdb_collect_globals_test): Add new
+	tests for building arrays from unavailable values, subscripting
+	non-memory rvalue unvailable arrays, and accessing fields or
+	baseclasses of non-lazy unavailable values,
+	* gdb.trace/unavailable.cc (small_struct, small_struct_b): New
+	struct types.
+	(g_smallstruct, g_smallstruct_b): New globals.
+
+2011-02-14  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.trace/unavailable.cc, gdb.trace/unavailable.exp: New files.
+
+2011-02-13  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix const/volatile qualifiers of C++ types, PR c++/12328.
+	* gdb.cp/overload-const.exp: New file.
+	* gdb.cp/overload-const.cc: New file.
+
+2011-02-08  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* gdb.opencl/callfuncs.cl: New file.
+	* gdb.opencl/callfuncs.exp: New test.
+	* gdb.opencl/Makefile.in (EXECUTABLES): Add callfuncs.
+
+2011-02-08  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* gdb.arch/altivec-abi.c (vec_func): Make use of intv_on_stack_f
+	when computing result.
+	* gdb.arch/altivec-abi.exp: Update expected results.
+
+2011-02-07  Thiago Jung Bauermann  <bauerman@br.ibm.com>
+
+	* gdb.base/break-interp.exp: Remove ${objdir} from test messages.
+	* gdb.base/jit.exp: Likewise.
+	* gdb.base/pie-execl.exp: Likewise.
+	* gdb.base/solib-nodir.exp: Likewise.
+	* gdb.base/solib-overlap.exp: Likewise.
+
+2011-02-07  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.trace/collection.c (global_pieces): New.
+	* gdb.trace/collection.exp (gdb_collect_global_in_pieces_test):
+	New procedure.
+	(gdb_trace_collection_test): Call it.
+
+2011-02-04  Sami Wagiaalla  <swagiaal@redhat.com>
+
+	* gdb.python/py-evthreads.c: New file.
+	* gdb.python/py-evthreads.exp: New file.
+	* gdb.python/py-events.py: New file.
+	* gdb.python/py-events.exp: New file.
+	* gdb.python/py-events.c: New file.
+
+2011-02-04 David Daney <ddaney@caviumnetworks.com>
+
+	* gdb.base/catch-syscall.exp: Enable for mips*-linux*.
+
+2011-02-03  Andrew Burgess  <aburgess@broadcom.com>
+
+	* gdb.base/disasm-end-cu-1.c, gdb.base/disasm-end-cu-2.c,
+	gdb.base/disasm-end-cu.exp: New test for disassembling over the
+	boundary between two compilation units.
+
+2011-02-02  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.cp/virtbase.cc (VirtualBase, VirtualMiddleA, VirtualMiddleB)
+	(Virtual): New structs.
+	(virtual_o, virtual_middle_b): New globals.
+	* gdb.cp/virtbase.exp: New tests.
+
+2011-01-31  Paul Pluzhnikov  <ppluzhnikov@google.com>
+
+	* gdb.base/jit.exp: New file.
+	* gdb.base/jit-main.c: New file.
+	* gdb.base/jit-solib.c: New file.
+
+2011-01-31  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* gdb.opencl/convs_casts.exp: Use tbreak instead of break to
+	proceed to initial kernel entry point.
+	* gdb.opencl/datatypes.exp: Likewise.
+	* gdb.opencl/operators.exp: Likewise.
+	* gdb.opencl/vec_comps.exp: Likewise.
+
+2011-01-31  Sami Wagiaalla  <swagiaal@redhat.com>
+
+	* gdb.cp/nsnested.cc: New.
+	* gdb.cp/nsnested.exp: New.
+	* gdb.cp/nsnoimports.exp: New.
+	* gdb.cp/nsnoimports.cc: New.
+
+2011-01-31  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.base/interact.exp: Add extra tests that verify that
+	the value of the interactive-mode setting does not change
+	after the script is sourced.
+
+2011-01-29  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.cp/noparam.exp: New file.
+	* gdb.cp/noparam.cc: New file.
+
+2011-01-28  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.trace/tfile.exp: Test that with no traceframe selected,
+	there's no stack or registers.
+
+2011-01-26  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.python/py-prettyprint.exp (run_lang_tests): Ensure no blank
+	space before string output.  Add test for "set print pretty off"
+	case.
+
+2011-01-25  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.base/frame-args.exp: Adjust.
+	* gdb.dwarf2/dw2-noloc.exp: Adjust.
+	* gdb.dwarf2/dw2-inline-param.exp: Adjust.
+	* gdb.dwarf2/pieces.exp: Adjust.
+	* gdb.opt/clobbered-registers-O2.exp: Adjust.
+	* gdb.opt/inline-locals.exp: Adjust.
+	* gdb.threads/fork-child-threads.exp: Adjust.
+
+2011-01-25  Ken Werner  <ken.werner@de.ibm.com>
+
+	* gdb.opencl/convs_casts.cl: Move program scope variables into the
+	OpenCL kernel function. Add a comment as marker. Add address space
+	qualifiers for the remaining program scope variables.
+	* gdb.opencl/datatypes.cl: Likewise.
+	* gdb.opencl/operators.cl: Likewise.
+	* gdb.opencl/vec_comps.cl: Likewise.
+	* gdb.opencl/convs_casts.exp: Replace gdb_test_multiple by gdb_test.
+	Add breakpoint at the marker comment.
+	* gdb.opencl/datatypes.exp: Likewise.
+	* gdb.opencl/operators.exp: Likewise.
+	* gdb.opencl/vec_comps.exp: Likewise.
+
+2011-01-24  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.base/printcmds.c (some_struct): New struct and instance.
+	* gdb.base/printcmds.exp (test_print_repeats_embedded_array): New
+	procedure.
+	<global scope>: Call it.
+
+2011-01-21  Ken Werner  <ken.werner@de.ibm.com>
+
+	* lib/opencl.exp (skip_opencl_tests): Add missing compile_flags
+	argument to the gdb_compile_opencl_hostapp call.
+
+2011-01-19  Yao Qi  <yao@codesourcery.com>
+
+	* lib/dwarf.exp (dwarf2_support): Change supported targets to a
+	positve list.
+
+2011-01-19  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.asm/asm-source.exp: Replace ARM target triplet with a
+	canonical form.
+	Remove "xscale-*-*"
+	* gdb.xml/tdesc-regs.exp: Likewise.
+	* gdb.python/py-section-script.exp: Replace ARM target triplet
+	with canonical form.
+	Match arm*-*-symbianelf*.
+	* gdb.base/dup-sect.exp: Likewise.
+	* lib/dwarf.exp: New.
+	* gdb.dwarf2/callframecfa.exp: Check dwarf2 support by routine
+	dwarf2_support.
+	* gdb.dwarf2/dup-psym.exp: Likewise.
+	* gdb.dwarf2/dw2-ada-ffffffff.exp: Likewise.
+	* gdb.dwarf2/dw2-anonymous-func.exp: Likewise.
+	* gdb.dwarf2/dw2-bad-parameter-type.exp: Likewise.
+	* gdb.dwarf2/dw2-basic.exp: Likewise.
+	* gdb.dwarf2/dw2-compressed.exp: Likewise.
+	* gdb.dwarf2/dw2-const.exp: Likewise.
+	* gdb.dwarf2/dw2-cp-infcall-ref-static.exp: Likewise.
+	* gdb.dwarf2/dw2-cu-size.exp: Likewise.
+	* gdb.dwarf2/dw2-double-set-die-type.exp: Likewise.
+	* gdb.dwarf2/dw2-empty-namespace.exp: Likewise.
+	* gdb.dwarf2/dw2-filename.exp: Likewise.
+	* gdb.dwarf2/dw2-inheritance.exp: Likewise.
+	* gdb.dwarf2/dw2-inline-param.exp: Likewise.
+	* gdb.dwarf2/dw2-intercu.exp: Likewise.
+	* gdb.dwarf2/dw2-intermix.exp: Likewise.
+	* gdb.dwarf2/dw2-modula2-self-type.exp: Likewise.
+	* gdb.dwarf2/dw2-noloc.exp: Likewise.
+	* gdb.dwarf2/dw2-op-call.exp: Likewise.
+	* gdb.dwarf2/dw2-producer.exp: Likewise.
+	* gdb.dwarf2/dw2-ranges.exp: Likewise.
+	* gdb.dwarf2/dw2-ref-missing-frame.exp: Likewise.
+	* gdb.dwarf2/dw2-stack-boundary.exp: Likewise.
+	* gdb.dwarf2/dw2-strp.exp: Likewise.
+	* gdb.dwarf2/dw2-unresolved.exp: Likewise.
+	* gdb.dwarf2/implptr.exp: Likewise.
+	* gdb.dwarf2/mac-fileno.exp: Likewise.
+	* gdb.dwarf2/member-ptr-forwardref.exp: Likewise.
+	* gdb.dwarf2/pieces.exp: Likewise.
+	* gdb.dwarf2/pr11465.exp: Likewise.
+	* gdb.dwarf2/valop.exp: Likewise.
+	* gdb.dwarf2/watch-notconst.exp: Likewise.
+	* gdb.mi/dw2-ref-missing-frame.exp: Likewise.
+
+2011-01-19  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.python/py-infthread.exp: Add thread tests.
+
 2011-01-14  Joel Brobecker  <brobecker@adacore.com>
 
 	* gdb.base/wchar.c, gdb.base/wchar.exp: New testcases.

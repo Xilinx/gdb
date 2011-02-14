@@ -375,6 +375,7 @@ execute_gdb_command (PyObject *self, PyObject *args, PyObject *kw)
       char *copy = xstrdup (arg);
       struct cleanup *cleanup = make_cleanup (xfree, copy);
 
+      prevent_dont_repeat ();
       if (to_string)
 	result = execute_command_to_string (copy, from_tty);
       else
@@ -407,16 +408,9 @@ gdbpy_solib_name (PyObject *self, PyObject *args)
 {
   char *soname;
   PyObject *str_obj;
-#ifdef PY_LONG_LONG
-  unsigned PY_LONG_LONG pc;
-  /* To be compatible with Python 2.4 the format strings are not const.  */
-  char *format = "K";
-#else
-  unsigned long pc;
-  char *format = "k";
-#endif
+  gdb_py_longest pc;
 
-  if (!PyArg_ParseTuple (args, format, &pc))
+  if (!PyArg_ParseTuple (args, GDB_PY_LL_ARG, &pc))
     return NULL;
 
   soname = solib_name_from_address (current_program_space, pc);
@@ -1002,6 +996,16 @@ Enables or disables printing of Python stack traces."),
   gdbpy_initialize_thread ();
   gdbpy_initialize_inferior ();
   gdbpy_initialize_events ();
+
+  gdbpy_initialize_eventregistry ();
+  gdbpy_initialize_py_events ();
+  gdbpy_initialize_event ();
+  gdbpy_initialize_stop_event ();
+  gdbpy_initialize_signal_event ();
+  gdbpy_initialize_breakpoint_event ();
+  gdbpy_initialize_continue_event ();
+  gdbpy_initialize_exited_event ();
+  gdbpy_initialize_thread_event ();
 
   PyRun_SimpleString ("import gdb");
   PyRun_SimpleString ("gdb.pretty_printers = []");

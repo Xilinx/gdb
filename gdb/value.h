@@ -273,6 +273,12 @@ extern const gdb_byte *value_contents_all (struct value *);
    plan to check the validity manually.  */
 extern const gdb_byte *value_contents_for_printing (struct value *value);
 
+/* Like value_contents_for_printing, but accepts a constant value
+   pointer.  Unlike value_contents_for_printing however, the pointed
+   value must _not_ be lazy.  */
+extern const gdb_byte *
+  value_contents_for_printing_const (const struct value *value);
+
 extern int value_fetch_lazy (struct value *val);
 extern int value_contents_equal (struct value *val1, struct value *val2);
 
@@ -308,7 +314,7 @@ extern enum lval_type *deprecated_value_lval_hack (struct value *);
    lval == lval_register, return the byte offset into the registers
    structure.  Otherwise, return 0.  The returned address
    includes the offset, if any.  */
-extern CORE_ADDR value_address (struct value *);
+extern CORE_ADDR value_address (const struct value *);
 
 /* Like value_address, except the result does not include value's
    offset.  */
@@ -354,6 +360,60 @@ extern int value_bits_valid (const struct value *value,
 extern int value_bits_synthetic_pointer (const struct value *value,
 					 int offset, int length);
 
+/* Given a value, determine whether the contents bytes starting at
+   OFFSET and extending for LENGTH bytes are available.  This returns
+   nonzero if all bytes in the given range are available, zero if any
+   byte is unavailable.  */
+
+extern int value_bytes_available (const struct value *value,
+				  int offset, int length);
+
+/* Like value_bytes_available, but return false if any byte in the
+   whole object is unavailable.  */
+extern int value_entirely_available (struct value *value);
+
+/* Mark VALUE's content bytes starting at OFFSET and extending for
+   LENGTH bytes as unavailable.  */
+
+extern void mark_value_bytes_unavailable (struct value *value,
+					  int offset, int length);
+
+/* Compare LENGTH bytes of VAL1's contents starting at OFFSET1 with
+   LENGTH bytes of VAL2's contents starting at OFFSET2.  Returns true
+   iff the set of available contents match.  Unavailable contents
+   compare equal with unavailable contents, and different with any
+   available byte.  For example, if 'x's represent an unavailable
+   byte, and 'V' and 'Z' represent different available bytes, in a
+   value with length 16:
+
+   offset:   0   4   8   12  16
+   contents: xxxxVVVVxxxxVVZZ
+
+   then:
+
+   value_available_contents_eq(val, 0, val, 8, 6) => 1
+   value_available_contents_eq(val, 0, val, 4, 4) => 1
+   value_available_contents_eq(val, 0, val, 8, 8) => 0
+   value_available_contents_eq(val, 4, val, 12, 2) => 1
+   value_available_contents_eq(val, 4, val, 12, 4) => 0
+   value_available_contents_eq(val, 3, val, 4, 4) => 0
+*/
+
+extern int value_available_contents_eq (const struct value *val1, int offset1,
+					const struct value *val2, int offset2,
+					int length);
+
+/* Read LENGTH bytes of memory starting at MEMADDR into BUFFER, which
+   is (or will be copied to) VAL's contents buffer offset by
+   EMBEDDED_OFFSET (that is, to &VAL->contents[EMBEDDED_OFFSET]).
+   Marks value contents ranges as unavailable if the corresponding
+   memory is likewise unavailable.  STACK indicates whether the memory
+   is known to be stack memory.  */
+
+extern void read_value_memory (struct value *val, int offset,
+			       int stack, CORE_ADDR memaddr,
+			       gdb_byte *buffer, size_t length);
+
 
 
 #include "symtab.h"
@@ -374,11 +434,25 @@ extern LONGEST unpack_long (struct type *type, const gdb_byte *valaddr);
 extern DOUBLEST unpack_double (struct type *type, const gdb_byte *valaddr,
 			       int *invp);
 extern CORE_ADDR unpack_pointer (struct type *type, const gdb_byte *valaddr);
-LONGEST unpack_bits_as_long (struct type *field_type, const gdb_byte *valaddr,
-			     int bitpos, int bitsize);
+
+extern int unpack_value_bits_as_long (struct type *field_type,
+				      const gdb_byte *valaddr,
+				      int embedded_offset, int bitpos,
+				      int bitsize,
+				      const struct value *original_value,
+				      LONGEST *result);
+
 extern LONGEST unpack_field_as_long (struct type *type,
 				     const gdb_byte *valaddr,
 				     int fieldno);
+extern int unpack_value_field_as_long (struct type *type, const gdb_byte *valaddr,
+				int embedded_offset, int fieldno,
+				const struct value *val, LONGEST *result);
+
+extern struct value *value_field_bitfield (struct type *type, int fieldno,
+					   const gdb_byte *valaddr,
+					   int embedded_offset,
+					   const struct value *val);
 
 extern void pack_long (gdb_byte *buf, struct type *type, LONGEST num);
 
@@ -422,6 +496,12 @@ extern struct value *read_var_value (struct symbol *var,
 extern struct value *allocate_value (struct type *type);
 extern struct value *allocate_value_lazy (struct type *type);
 extern void allocate_value_contents (struct value *value);
+extern void value_contents_copy (struct value *dst, int dst_offset,
+				 struct value *src, int src_offset,
+				 int length);
+extern void value_contents_copy_raw (struct value *dst, int dst_offset,
+				     struct value *src, int src_offset,
+				     int length);
 
 extern struct value *allocate_repeat_value (struct type *type, int count);
 

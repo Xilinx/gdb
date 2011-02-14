@@ -324,8 +324,8 @@ struct bp_location
      bp_loc_other.  */
   CORE_ADDR address;
 
-  /* For hardware watchpoints, the size of data ad ADDRESS being
-     watches.  */
+  /* For hardware watchpoints, the size of the memory region being
+     watched.  */
   int length;
 
   /* Type of hardware watchpoint.  */
@@ -1063,6 +1063,12 @@ extern void enable_breakpoint (struct breakpoint *);
 extern void breakpoint_set_commands (struct breakpoint *b, 
 				     struct command_line *commands);
 
+extern void breakpoint_set_silent (struct breakpoint *b, int silent);
+
+extern void breakpoint_set_thread (struct breakpoint *b, int thread);
+
+extern void breakpoint_set_task (struct breakpoint *b, int task);
+
 /* Clear the "inserted" flag in all breakpoints.  */
 extern void mark_breakpoints_out (void);
 
@@ -1076,6 +1082,8 @@ extern struct breakpoint *create_solib_event_breakpoint (struct gdbarch *,
 
 extern struct breakpoint *create_thread_event_breakpoint (struct gdbarch *,
 							  CORE_ADDR);
+
+extern void remove_jit_event_breakpoints (void);
 
 extern void remove_solib_event_breakpoints (void);
 
@@ -1140,9 +1148,6 @@ extern int catch_syscall_enabled (void);
    Returns 0 if not, greater than 0 if we are.  */
 extern int catching_syscall_number (int syscall_number);
 
-/* Tell a breakpoint to be quiet.  */
-extern void make_breakpoint_silent (struct breakpoint *);
-
 /* Return a tracepoint with the given number if found.  */
 extern struct breakpoint *get_tracepoint (int num);
 
@@ -1183,5 +1188,7 @@ extern void end_rbreak_breakpoints (void);
    to every breakpoint.  */
 extern struct breakpoint *iterate_over_breakpoints (int (*) (struct breakpoint *,
 							     void *), void *);
+
+extern int user_breakpoint_p (struct breakpoint *);
 
 #endif /* !defined (BREAKPOINT_H) */

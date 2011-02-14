@@ -1,3 +1,97 @@
+2011-02-14  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin-dis.c: Add whitespace/parenthesis where needed.
+
+2011-02-14  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin-dis.c (decode_LoopSetup_0): Return when reg is greater
+	than 7.
+
+2011-02-13  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
+
+	* configure: Regenerate.
+
+2011-02-13  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin-dis.c (decode_dsp32alu_0): Fix typo with A1 reg.
+
+2011-02-13  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin-dis.c (decode_dsp32mult_0): Add 1 to dst for mac1.  Output
+	dregs only when P is set, and dregs_lo otherwise.
+
+2011-02-13  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin-dis.c (decode_dsp32alu_0): Delete BYTEOP2M code.
+
+2011-02-12  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin-dis.c (decode_pseudoDEBUG_0): Add space after PRNT.
+
+2011-02-12  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin-dis.c (machine_registers): Delete REG_GP.
+	(reg_names): Delete "GP".
+	(decode_allregs): Change REG_GP to REG_LASTREG.
+
+2011-02-12  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin.h (M_S2RND, M_T, M_W32, M_FU, M_TFU, M_IS, M_ISS2, M_IH,
+	M_IU): Define.
+	(is_macmod_pmove, is_macmod_hmove): New functions.
+
+2011-02-11  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin-dis.c (reg_names): Add const.
+	(decode_dregs_lo, decode_dregs_hi, decode_dregs, decode_dregs_byte,
+	decode_pregs, decode_iregs, decode_mregs, decode_dpregs, decode_gregs,
+	decode_regs, decode_regs_lo, decode_regs_hi, decode_statbits,
+	decode_counters, decode_allregs): Likewise.
+
+2011-02-09  Michael Snyder  <msnyder@vmware.com>
+
+	* i386-dis.c (OP_J): Parenthesize expression to prevent 
+	truncated addresses.
+	(print_insn): Fix indentation off-by-one.
+
+2011-02-01  Nick Clifton  <nickc@redhat.com>
+
+	* po/da.po: Updated Danish translation.
+
+2011-01-21  Dave Murphy  <davem@devkitpro.org>
+
+	* ppc-opc.c (NON32, NO371): Remove PPC_OPCODE_PPCPS.
+
+2011-01-18  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (sIbT): New.
+	(b_T_mode): Likewise.
+	(dis386): Replace sIb with sIbT on "pushT".
+	(x86_64_table): Replace sIb with Ib on "aam" and "aad".
+	(OP_sI): Handle b_T_mode.  Properly sign-extend byte.
+
+2011-01-18  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* i386-init.h: Regenerated.
+	* i386-tbl.h: Regenerated
+
+2011-01-17  Quentin Neill  <quentin.neill@amd.com>
+
+	* i386-dis.c (REG_XOP_TBM_01): New.
+	(REG_XOP_TBM_02): New.
+	(reg_table): Add REG_XOP_TBM_01 and REG_XOP_TBM_02 tables.
+	(xop_table): Redirect to REG_XOP_TBM_01 and REG_XOP_TBM_02
+	entries, and add bextr instruction.
+
+	* i386-gen.c (cpu_flag_init): Add CPU_TBM_FLAGS, CpuTBM.
+	(cpu_flags): Add CpuTBM.
+
+	* i386-opc.h (CpuTBM) New.
+	(i386_cpu_flags): Add bit cputbm.
+
+	* i386-opc.tbl: Add bextr, blcfill, blci, blcic, blcmsk,
+	blcs, blsfill, blsic, t1mskc, and tzmsk.
+
 2011-01-12  DJ Delorie  <dj@redhat.com>
 
 	* rx-dis.c (print_insn_rx): Support RX_Operand_TwoReg.

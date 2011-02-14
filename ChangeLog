@@ -1,3 +1,100 @@
+2011-02-13  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
+
+	Import from Libtool and gnulib:
+
+	2011-01-27  Gerald Pfeifer  <gerald@pfeifer.com>
+
+	Prepare for supporting FreeBSD 10.
+	* config.rpath: Remove handling of freebsd1* which soon would
+	match FreeBSD 10.0.
+
+	2011-01-20  Gerald Pfeifer  <gerald@pfeifer.com>  (tiny change)
+
+	Remove support for FreeBSD 1.x.
+	* libtool.m4 (_LT_LINKER_SHLIBS)
+	(_LT_SYS_DYNAMIC_LINKER): Remove handling of freebsd1* which
+	soon would incorrectly match FreeBSD 10.0.
+
+2011-02-12  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
+
+	PR binutils/12283
+	* MAINTAINERS (mkinstalldirs): Comes from Automake.
+	(move-if-change): Comes from gnulib.
+	* move-if-change: Import version from gnulib.
+
+2011-02-12  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
+
+	Sync from GCC:
+
+	2011-02-12  Alexandre Oliva  <aoliva@redhat.com>
+
+	PR lto/47225
+	* Makefile.def (lto-plugin): Double dash for enable-shared.
+	(configure-gcc): Depend on all-lto-plugin.
+	* Makefile.in: Rebuilt.
+
+	2011-02-11  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
+
+	* configure.ac: Remove extra bracket.
+	* configure: Regenerate.
+
+	2011-02-06  Kai Tietz  <kai.tietz@onevision.com>
+
+	PR lto/47225
+	* Makefile.def: Add dependency for install-gcc
+	on install-lto-plugin.
+	* Makfile.in: Regenerated
+
+	2011-01-25  Jakub Jelinek  <jakub@redhat.com>
+
+	* configure.ac: If with_ppl is no, move setting with_cloog=no
+	after CLOOG_REQUESTED check.
+	* configure: Regenerated.
+
+	2011-01-25  Sebastian Pop  <sebastian.pop@amd.com>
+
+	* configure.ac: Call AC_MSG_ERROR when PPL 0.11 is not present and
+	CLooG has been requested.
+	* configure: Regenerated.
+
+	2011-01-25  Sebastian Pop  <sebastian.pop@amd.com>
+
+	* configure: Regenerated.
+	* configure.ac: Check for version 0.11 (or later revision) of PPL.
+
+	2011-01-25  Tobias Grosser  <grosser@fim.uni-passau.de>
+
+	* configure: Regenerated.
+	* configure.ac: Use CLOOG_CHECK_VERSION(0,16,1).
+
+	2011-01-07  Jan Hubicka  <jh@suse.cz>
+
+	PR lto/47225
+	* Makefile.in: Regenerate.
+	* Makefile.def (lto-plugin): Always pass enable-shared to the plugin
+	configure.
+
+2011-01-31  Alexandre Oliva  <aoliva@redhat.com>
+
+	PR libgcj/44341
+	* configure.ac: Discard --with-* flags for host when configuring
+	target libraries for cross build.
+	* configure: Rebuilt.
+
+2011-01-21  Andreas Schwab  <schwab@redhat.com>
+
+	Sync from GCC:
+
+	2011-01-21  Andreas Schwab  <schwab@redhat.com>
+
+	* configure.ac: Use AS_HELP_STRING throughout.
+	* configure: Regenerate.
+
+	2011-01-18  Jie Zhang  <jie.zhang@analog.com>
+
+	* configure.ac (bfin-*-*): Remove gdb from noconfigdirs.
+	* configure: Regenerate.
+
 2010-12-10  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
 
 	* ltmain.sh (relink): Use absolute path when hardcoding with -L.

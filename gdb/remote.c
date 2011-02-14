@@ -1205,6 +1205,7 @@ enum {
   PACKET_qXfer_osdata,
   PACKET_qXfer_threads,
   PACKET_qXfer_statictrace_read,
+  PACKET_qXfer_traceframe_info,
   PACKET_qGetTIBAddr,
   PACKET_qGetTLSAddr,
   PACKET_qSupported,
@@ -1351,6 +1352,10 @@ static ptid_t any_thread_ptid;
 
 static ptid_t general_thread;
 static ptid_t continue_thread;
+
+/* This the traceframe which we last selected on the remote system.
+   It will be -1 if no traceframe is selected.  */
+static int remote_traceframe_number = -1;
 
 /* Find out if the stub attached to PID (and hence GDB should offer to
    detach instead of killing it when bailing out).  */
@@ -2505,13 +2510,14 @@ start_thread (struct gdb_xml_parser *parser,
 
   struct thread_item item;
   char *id;
+  struct gdb_xml_value *attr;
 
-  id = VEC_index (gdb_xml_value_s, attributes, 0)->value;
+  id = xml_find_attribute (attributes, "id")->value;
   item.ptid = read_ptid (id, NULL);
 
-  if (VEC_length (gdb_xml_value_s, attributes) > 1)
-    item.core = *(ULONGEST *) VEC_index (gdb_xml_value_s,
-					 attributes, 1)->value;
+  attr = xml_find_attribute (attributes, "core");
+  if (attr != NULL)
+    item.core = *(ULONGEST *) attr->value;
   else
     item.core = -1;
 
@@ -2595,25 +2601,16 @@ remote_threads_info (struct target_ops *ops)
 					 TARGET_OBJECT_THREADS, NULL);
 
       struct cleanup *back_to = make_cleanup (xfree, xml);
+
       if (xml && *xml)
 	{
-	  struct gdb_xml_parser *parser;
 	  struct threads_parsing_context context;
-	  struct cleanup *clear_parsing_context;
 
-	  context.items = 0;
-	  /* Note: this parser cleanup is already guarded by BACK_TO
-	     above.  */
-	  parser = gdb_xml_create_parser_and_cleanup (_("threads"),
-						      threads_elements,
-						      &context);
+	  context.items = NULL;
+	  make_cleanup (clear_threads_parsing_context, &context);
 
-	  gdb_xml_use_dtd (parser, "threads.dtd");
-
-	  clear_parsing_context
-	    = make_cleanup (clear_threads_parsing_context, &context);
-
-	  if (gdb_xml_parse (parser, xml) == 0)
+	  if (gdb_xml_parse_quick (_("threads"), "threads.dtd",
+				   threads_elements, xml, &context) == 0)
 	    {
 	      int i;
 	      struct thread_item *item;
@@ -2640,8 +2637,6 @@ remote_threads_info (struct target_ops *ops)
 		    }
 		}
 	    }
-
-	  do_cleanups (clear_parsing_context);
 	}
 
       do_cleanups (back_to);
@@ -3693,6 +3688,8 @@ static struct protocol_feature remote_protocol_features[] = {
     PACKET_qXfer_osdata },
   { "qXfer:threads:read", PACKET_DISABLE, remote_supported_packet,
     PACKET_qXfer_threads },
+  { "qXfer:traceframe-info:read", PACKET_DISABLE, remote_supported_packet,
+    PACKET_qXfer_traceframe_info },
   { "QPassSignals", PACKET_DISABLE, remote_supported_packet,
     PACKET_QPassSignals },
   { "QStartNoAckMode", PACKET_DISABLE, remote_supported_packet,
@@ -4009,6 +4006,7 @@ remote_open_1 (char *name, int from_tty,
 
   general_thread = not_sent_ptid;
   continue_thread = not_sent_ptid;
+  remote_traceframe_number = -1;
 
   /* Probe for ability to use "ThreadInfo" query, as required.  */
   use_threadinfo_query = 1;
@@ -5777,6 +5775,28 @@ fetch_registers_using_g (struct regcache *regcache)
   process_g_packet (regcache);
 }
 
+/* Make the remote selected traceframe match GDB's selected
+   traceframe.  */
+
+static void
+set_remote_traceframe (void)
+{
+  int newnum;
+
+  if (remote_traceframe_number == get_traceframe_number ())
+    return;
+
+  /* Avoid recursion, remote_trace_find calls us again.  */
+  remote_traceframe_number = get_traceframe_number ();
+
+  newnum = target_trace_find (tfind_number,
+			      get_traceframe_number (), 0, 0, NULL);
+
+  /* Should not happen.  If it does, all bets are off.  */
+  if (newnum != get_traceframe_number ())
+    warning (_("could not set remote traceframe"));
+}
+
 static void
 remote_fetch_registers (struct target_ops *ops,
 			struct regcache *regcache, int regnum)
@@ -5784,6 +5804,7 @@ remote_fetch_registers (struct target_ops *ops,
   struct remote_arch_state *rsa = get_remote_arch_state ();
   int i;
 
+  set_remote_traceframe ();
   set_general_thread (inferior_ptid);
 
   if (regnum >= 0)
@@ -5941,6 +5962,7 @@ remote_store_registers (struct target_ops *ops,
   struct remote_arch_state *rsa = get_remote_arch_state ();
   int i;
 
+  set_remote_traceframe ();
   set_general_thread (inferior_ptid);
 
   if (regnum >= 0)
@@ -6367,7 +6389,7 @@ remote_write_bytes_aux (const char *header, CORE_ADDR memaddr,
    Returns number of bytes transferred, or 0 (setting errno) for
    error.  Only transfer a single packet.  */
 
-int
+static int
 remote_write_bytes (CORE_ADDR memaddr, const gdb_byte *myaddr, int len)
 {
   char *packet_format = 0;
@@ -6402,19 +6424,14 @@ remote_write_bytes (CORE_ADDR memaddr, const gdb_byte *myaddr, int len)
 
    Returns number of bytes transferred, or 0 for error.  */
 
-/* NOTE: cagney/1999-10-18: This function (and its siblings in other
-   remote targets) shouldn't attempt to read the entire buffer.
-   Instead it should read a single packet worth of data and then
-   return the byte size of that packet to the caller.  The caller (its
-   caller and its callers caller ;-) already contains code for
-   handling partial reads.  */
-
-int
+static int
 remote_read_bytes (CORE_ADDR memaddr, gdb_byte *myaddr, int len)
 {
   struct remote_state *rs = get_remote_state ();
   int max_buf_size;		/* Max size of packet output buffer.  */
-  int origlen;
+  char *p;
+  int todo;
+  int i;
 
   if (len <= 0)
     return 0;
@@ -6423,56 +6440,37 @@ remote_read_bytes (CORE_ADDR memaddr, gdb_byte *myaddr, int len)
   /* The packet buffer will be large enough for the payload;
      get_memory_packet_size ensures this.  */
 
-  origlen = len;
-  while (len > 0)
+  /* Number if bytes that will fit.  */
+  todo = min (len, max_buf_size / 2);
+
+  /* Construct "m"<memaddr>","<len>".  */
+  memaddr = remote_address_masked (memaddr);
+  p = rs->buf;
+  *p++ = 'm';
+  p += hexnumstr (p, (ULONGEST) memaddr);
+  *p++ = ',';
+  p += hexnumstr (p, (ULONGEST) todo);
+  *p = '\0';
+  putpkt (rs->buf);
+  getpkt (&rs->buf, &rs->buf_size, 0);
+  if (rs->buf[0] == 'E'
+      && isxdigit (rs->buf[1]) && isxdigit (rs->buf[2])
+      && rs->buf[3] == '\0')
     {
-      char *p;
-      int todo;
-      int i;
-
-      todo = min (len, max_buf_size / 2);	/* num bytes that will fit.  */
-
-      /* construct "m"<memaddr>","<len>" */
-      /* sprintf (rs->buf, "m%lx,%x", (unsigned long) memaddr, todo); */
-      memaddr = remote_address_masked (memaddr);
-      p = rs->buf;
-      *p++ = 'm';
-      p += hexnumstr (p, (ULONGEST) memaddr);
-      *p++ = ',';
-      p += hexnumstr (p, (ULONGEST) todo);
-      *p = '\0';
-
-      putpkt (rs->buf);
-      getpkt (&rs->buf, &rs->buf_size, 0);
-
-      if (rs->buf[0] == 'E'
-	  && isxdigit (rs->buf[1]) && isxdigit (rs->buf[2])
-	  && rs->buf[3] == '\0')
-	{
-	  /* There is no correspondance between what the remote
-	     protocol uses for errors and errno codes.  We would like
-	     a cleaner way of representing errors (big enough to
-	     include errno codes, bfd_error codes, and others).  But
-	     for now just return EIO.  */
-	  errno = EIO;
-	  return 0;
-	}
-
-      /* Reply describes memory byte by byte,
-         each byte encoded as two hex characters.  */
-
-      p = rs->buf;
-      if ((i = hex2bin (p, myaddr, todo)) < todo)
-	{
-	  /* Reply is short.  This means that we were able to read
-	     only part of what we wanted to.  */
-	  return i + (origlen - len);
-	}
-      myaddr += todo;
-      memaddr += todo;
-      len -= todo;
+      /* There is no correspondance between what the remote protocol
+	 uses for errors and errno codes.  We would like a cleaner way
+	 of representing errors (big enough to include errno codes,
+	 bfd_error codes, and others).  But for now just return
+	 EIO.  */
+      errno = EIO;
+      return 0;
     }
-  return origlen;
+  /* Reply describes memory byte by byte, each byte encoded as two hex
+     characters.  */
+  p = rs->buf;
+  i = hex2bin (p, myaddr, todo);
+  /* Return what we have.  Let higher layers handle partial reads.  */
+  return i;
 }
 
 
@@ -6533,6 +6531,7 @@ remote_xfer_memory (CORE_ADDR mem_addr, gdb_byte *buffer, int mem_len,
 {
   int res;
 
+  set_remote_traceframe ();
   set_general_thread (inferior_ptid);
 
   if (should_write)
@@ -8115,6 +8114,7 @@ remote_xfer_partial (struct target_ops *ops, enum target_object object,
   char *p2;
   char query_type;
 
+  set_remote_traceframe ();
   set_general_thread (inferior_ptid);
 
   rs = get_remote_state ();
@@ -8245,6 +8245,11 @@ remote_xfer_partial (struct target_ops *ops, enum target_object object,
       return remote_read_qxfer (ops, "threads", annex, readbuf, offset, len,
 				&remote_protocol_packets[PACKET_qXfer_threads]);
 
+    case TARGET_OBJECT_TRACEFRAME_INFO:
+      gdb_assert (annex == NULL);
+      return remote_read_qxfer
+	(ops, "traceframe-info", annex, readbuf, offset, len,
+	 &remote_protocol_packets[PACKET_qXfer_traceframe_info]);
     default:
       return -1;
     }
@@ -9998,6 +10003,12 @@ remote_trace_find (enum trace_find_type type, int num,
   char *p, *reply;
   int target_frameno = -1, target_tracept = -1;
 
+  /* Lookups other than by absolute frame number depend on the current
+     trace selected, so make sure it is correct on the remote end
+     first.  */
+  if (type != tfind_number)
+    set_remote_traceframe ();
+
   p = rs->buf;
   strcpy (p, "QTFrame:");
   p = strchr (p, '\0');
@@ -10035,6 +10046,8 @@ remote_trace_find (enum trace_find_type type, int num,
 	target_frameno = (int) strtol (p, &reply, 16);
 	if (reply == p)
 	  error (_("Unable to parse trace frame number"));
+	/* Don't update our remote traceframe number cache on failure
+	   to select a remote traceframe.  */
 	if (target_frameno == -1)
 	  return -1;
 	break;
@@ -10055,6 +10068,8 @@ remote_trace_find (enum trace_find_type type, int num,
       }
   if (tpp)
     *tpp = target_tracept;
+
+  remote_traceframe_number = target_frameno;
   return target_frameno;
 }
 
@@ -10064,6 +10079,8 @@ remote_get_trace_state_variable_value (int tsvnum, LONGEST *val)
   struct remote_state *rs = get_remote_state ();
   char *reply;
   ULONGEST uval;
+
+  set_remote_traceframe ();
 
   sprintf (rs->buf, "qTV:%x", tsvnum);
   putpkt (rs->buf);
@@ -10191,6 +10208,26 @@ remote_set_circular_trace_buffer (int val)
     error (_("Bogus reply from target: %s"), reply);
 }
 
+static struct traceframe_info *
+remote_traceframe_info (void)
+{
+  char *text;
+
+  text = target_read_stralloc (&current_target,
+			       TARGET_OBJECT_TRACEFRAME_INFO, NULL);
+  if (text != NULL)
+    {
+      struct traceframe_info *info;
+      struct cleanup *back_to = make_cleanup (xfree, text);
+
+      info = parse_traceframe_info (text);
+      do_cleanups (back_to);
+      return info;
+    }
+
+  return NULL;
+}
+
 static void
 init_remote_ops (void)
 {
@@ -10282,6 +10319,7 @@ Specify the serial device it is connected to\n\
     = remote_static_tracepoint_marker_at;
   remote_ops.to_static_tracepoint_markers_by_strid
     = remote_static_tracepoint_markers_by_strid;
+  remote_ops.to_traceframe_info = remote_traceframe_info;
 }
 
 /* Set up the extended remote vector by making a copy of the standard
@@ -10703,6 +10741,10 @@ Show the maximum size of the address (in bits) in a memory packet."), NULL,
 
   add_packet_config_cmd (&remote_protocol_packets[PACKET_qXfer_siginfo_write],
                          "qXfer:siginfo:write", "write-siginfo-object", 0);
+
+  add_packet_config_cmd
+    (&remote_protocol_packets[PACKET_qXfer_traceframe_info],
+     "qXfer:trace-frame-info:read", "traceframe-info", 0);
 
   add_packet_config_cmd (&remote_protocol_packets[PACKET_qGetTLSAddr],
 			 "qGetTLSAddr", "get-thread-local-storage-address",

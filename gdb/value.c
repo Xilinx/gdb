@@ -39,7 +39,7 @@
 #include "objfiles.h"
 #include "valprint.h"
 #include "cli/cli-decode.h"
-
+#include "exceptions.h"
 #include "python/python.h"
 
 #include "tracepoint.h"
@@ -62,6 +62,110 @@ struct internal_function
   /* User data for the handler.  */
   void *cookie;
 };
+
+/* Defines an [OFFSET, OFFSET + LENGTH) range.  */
+
+struct range
+{
+  /* Lowest offset in the range.  */
+  int offset;
+
+  /* Length of the range.  */
+  int length;
+};
+
+typedef struct range range_s;
+
+DEF_VEC_O(range_s);
+
+/* Returns true if the ranges defined by [offset1, offset1+len1) and
+   [offset2, offset2+len2) overlap.  */
+
+static int
+ranges_overlap (int offset1, int len1,
+		int offset2, int len2)
+{
+  ULONGEST h, l;
+
+  l = max (offset1, offset2);
+  h = min (offset1 + len1, offset2 + len2);
+  return (l < h);
+}
+
+/* Returns true if the first argument is strictly less than the
+   second, useful for VEC_lower_bound.  We keep ranges sorted by
+   offset and coalesce overlapping and contiguous ranges, so this just
+   compares the starting offset.  */
+
+static int
+range_lessthan (const range_s *r1, const range_s *r2)
+{
+  return r1->offset < r2->offset;
+}
+
+/* Returns true if RANGES contains any range that overlaps [OFFSET,
+   OFFSET+LENGTH).  */
+
+static int
+ranges_contain (VEC(range_s) *ranges, int offset, int length)
+{
+  range_s what;
+  int i;
+
+  what.offset = offset;
+  what.length = length;
+
+  /* We keep ranges sorted by offset and coalesce overlapping and
+     contiguous ranges, so to check if a range list contains a given
+     range, we can do a binary search for the position the given range
+     would be inserted if we only considered the starting OFFSET of
+     ranges.  We call that position I.  Since we also have LENGTH to
+     care for (this is a range afterall), we need to check if the
+     _previous_ range overlaps the I range.  E.g.,
+
+         R
+         |---|
+       |---|    |---|  |------| ... |--|
+       0        1      2            N
+
+       I=1
+
+     In the case above, the binary search would return `I=1', meaning,
+     this OFFSET should be inserted at position 1, and the current
+     position 1 should be pushed further (and before 2).  But, `0'
+     overlaps with R.
+
+     Then we need to check if the I range overlaps the I range itself.
+     E.g.,
+
+              R
+              |---|
+       |---|    |---|  |-------| ... |--|
+       0        1      2             N
+
+       I=1
+  */
+
+  i = VEC_lower_bound (range_s, ranges, &what, range_lessthan);
+
+  if (i > 0)
+    {
+      struct range *bef = VEC_index (range_s, ranges, i - 1);
+
+      if (ranges_overlap (bef->offset, bef->length, offset, length))
+	return 1;
+    }
+
+  if (i < VEC_length (range_s, ranges))
+    {
+      struct range *r = VEC_index (range_s, ranges, i);
+
+      if (ranges_overlap (r->offset, r->length, offset, length))
+	return 1;
+    }
+
+  return 0;
+}
 
 static struct cmd_list_element *functionlist;
 
@@ -206,6 +310,11 @@ struct value
      valid if lazy is nonzero.  */
   gdb_byte *contents;
 
+  /* Unavailable ranges in CONTENTS.  We mark unavailable ranges,
+     rather than available, since the common and default case is for a
+     value to be available.  This is filled in at value read time.  */
+  VEC(range_s) *unavailable;
+
   /* The number of references to this value.  When a value is created,
      the value chain holds a reference, so REFERENCE_COUNT is 1.  If
      release_value is called, this value is removed from the chain but
@@ -213,6 +322,293 @@ struct value
      The caller must arrange for a call to value_free later.  */
   int reference_count;
 };
+
+int
+value_bytes_available (const struct value *value, int offset, int length)
+{
+  gdb_assert (!value->lazy);
+
+  return !ranges_contain (value->unavailable, offset, length);
+}
+
+int
+value_entirely_available (struct value *value)
+{
+  /* We can only tell whether the whole value is available when we try
+     to read it.  */
+  if (value->lazy)
+    value_fetch_lazy (value);
+
+  if (VEC_empty (range_s, value->unavailable))
+    return 1;
+  return 0;
+}
+
+void
+mark_value_bytes_unavailable (struct value *value, int offset, int length)
+{
+  range_s newr;
+  int i;
+
+  /* Insert the range sorted.  If there's overlap or the new range
+     would be contiguous with an existing range, merge.  */
+
+  newr.offset = offset;
+  newr.length = length;
+
+  /* Do a binary search for the position the given range would be
+     inserted if we only considered the starting OFFSET of ranges.
+     Call that position I.  Since we also have LENGTH to care for
+     (this is a range afterall), we need to check if the _previous_
+     range overlaps the I range.  E.g., calling R the new range:
+
+       #1 - overlaps with previous
+
+	   R
+	   |-...-|
+	 |---|     |---|  |------| ... |--|
+	 0         1      2            N
+
+	 I=1
+
+     In the case #1 above, the binary search would return `I=1',
+     meaning, this OFFSET should be inserted at position 1, and the
+     current position 1 should be pushed further (and become 2).  But,
+     note that `0' overlaps with R, so we want to merge them.
+
+     A similar consideration needs to be taken if the new range would
+     be contiguous with the previous range:
+
+       #2 - contiguous with previous
+
+	    R
+	    |-...-|
+	 |--|       |---|  |------| ... |--|
+	 0          1      2            N
+
+	 I=1
+
+     If there's no overlap with the previous range, as in:
+
+       #3 - not overlapping and not contiguous
+
+	       R
+	       |-...-|
+	  |--|         |---|  |------| ... |--|
+	  0            1      2            N
+
+	 I=1
+
+     or if I is 0:
+
+       #4 - R is the range with lowest offset
+
+	  R
+	 |-...-|
+	         |--|       |---|  |------| ... |--|
+	         0          1      2            N
+
+	 I=0
+
+     ... we just push the new range to I.
+
+     All the 4 cases above need to consider that the new range may
+     also overlap several of the ranges that follow, or that R may be
+     contiguous with the following range, and merge.  E.g.,
+
+       #5 - overlapping following ranges
+
+	  R
+	 |------------------------|
+	         |--|       |---|  |------| ... |--|
+	         0          1      2            N
+
+	 I=0
+
+       or:
+
+	    R
+	    |-------|
+	 |--|       |---|  |------| ... |--|
+	 0          1      2            N
+
+	 I=1
+
+  */
+
+  i = VEC_lower_bound (range_s, value->unavailable, &newr, range_lessthan);
+  if (i > 0)
+    {
+      struct range *bef = VEC_index (range_s, value->unavailable, i - 1);
+
+      if (ranges_overlap (bef->offset, bef->length, offset, length))
+	{
+	  /* #1 */
+	  ULONGEST l = min (bef->offset, offset);
+	  ULONGEST h = max (bef->offset + bef->length, offset + length);
+
+	  bef->offset = l;
+	  bef->length = h - l;
+	  i--;
+	}
+      else if (offset == bef->offset + bef->length)
+	{
+	  /* #2 */
+	  bef->length += length;
+	  i--;
+	}
+      else
+	{
+	  /* #3 */
+	  VEC_safe_insert (range_s, value->unavailable, i, &newr);
+	}
+    }
+  else
+    {
+      /* #4 */
+      VEC_safe_insert (range_s, value->unavailable, i, &newr);
+    }
+
+  /* Check whether the ranges following the one we've just added or
+     touched can be folded in (#5 above).  */
+  if (i + 1 < VEC_length (range_s, value->unavailable))
+    {
+      struct range *t;
+      struct range *r;
+      int removed = 0;
+      int next = i + 1;
+
+      /* Get the range we just touched.  */
+      t = VEC_index (range_s, value->unavailable, i);
+      removed = 0;
+
+      i = next;
+      for (; VEC_iterate (range_s, value->unavailable, i, r); i++)
+	if (r->offset <= t->offset + t->length)
+	  {
+	    ULONGEST l, h;
+
+	    l = min (t->offset, r->offset);
+	    h = max (t->offset + t->length, r->offset + r->length);
+
+	    t->offset = l;
+	    t->length = h - l;
+
+	    removed++;
+	  }
+	else
+	  {
+	    /* If we couldn't merge this one, we won't be able to
+	       merge following ones either, since the ranges are
+	       always sorted by OFFSET.  */
+	    break;
+	  }
+
+      if (removed != 0)
+	VEC_block_remove (range_s, value->unavailable, next, removed);
+    }
+}
+
+/* Find the first range in RANGES that overlaps the range defined by
+   OFFSET and LENGTH, starting at element POS in the RANGES vector,
+   Returns the index into RANGES where such overlapping range was
+   found, or -1 if none was found.  */
+
+static int
+find_first_range_overlap (VEC(range_s) *ranges, int pos,
+			  int offset, int length)
+{
+  range_s *r;
+  int i;
+
+  for (i = pos; VEC_iterate (range_s, ranges, i, r); i++)
+    if (ranges_overlap (r->offset, r->length, offset, length))
+      return i;
+
+  return -1;
+}
+
+int
+value_available_contents_eq (const struct value *val1, int offset1,
+			     const struct value *val2, int offset2,
+			     int length)
+{
+  int org_len = length;
+  int org_offset1 = offset1;
+  int org_offset2 = offset2;
+  int idx1 = 0, idx2 = 0;
+  int prev_avail;
+
+  /* This routine is used by printing routines, where we should
+     already have read the value.  Note that we only know whether a
+     value chunk is available if we've tried to read it.  */
+  gdb_assert (!val1->lazy && !val2->lazy);
+
+  /* The offset from either ORG_OFFSET1 or ORG_OFFSET2 where the
+     available contents we haven't compared yet start.  */
+  prev_avail = 0;
+
+  while (length > 0)
+    {
+      range_s *r1, *r2;
+      ULONGEST l1, h1;
+      ULONGEST l2, h2;
+
+      idx1 = find_first_range_overlap (val1->unavailable, idx1,
+				       offset1, length);
+      idx2 = find_first_range_overlap (val2->unavailable, idx2,
+				       offset2, length);
+
+      /* The usual case is for both values to be completely available.  */
+      if (idx1 == -1 && idx2 == -1)
+	return (memcmp (val1->contents + org_offset1 + prev_avail,
+			val2->contents + org_offset2 + prev_avail,
+			org_len - prev_avail) == 0);
+      /* The contents only match equal if the available set matches as
+	 well.  */
+      else if (idx1 == -1 || idx2 == -1)
+	return 0;
+
+      gdb_assert (idx1 != -1 && idx2 != -1);
+
+      r1 = VEC_index (range_s, val1->unavailable, idx1);
+      r2 = VEC_index (range_s, val2->unavailable, idx2);
+
+      /* Get the unavailable windows intersected by the incoming
+	 ranges.  The first and last ranges that overlap the argument
+	 range may be wider than said incoming arguments ranges.  */
+      l1 = max (offset1, r1->offset);
+      h1 = min (offset1 + length, r1->offset + r1->length);
+
+      l2 = max (offset2, r2->offset);
+      h2 = min (offset2 + length, r2->offset + r2->length);
+
+      /* Make them relative to the respective start offsets, so we can
+	 compare them for equality.  */
+      l1 -= offset1;
+      h1 -= offset1;
+
+      l2 -= offset2;
+      h2 -= offset2;
+
+      /* Different availability, no match.  */
+      if (l1 != l2 || h1 != h2)
+	return 0;
+
+      /* Compare the _available_ contents.  */
+      if (memcmp (val1->contents + org_offset1 + prev_avail,
+		  val2->contents + org_offset2 + prev_avail,
+		  l2 - prev_avail) != 0)
+	return 0;
+
+      prev_avail += h1;
+      length -= h1;
+      offset1 += h1;
+      offset2 += h1;
+    }
+
+  return 1;
+}
 
 /* Prototypes for local functions.  */
 
@@ -420,10 +816,17 @@ value_enclosing_type (struct value *value)
 }
 
 static void
-require_not_optimized_out (struct value *value)
+require_not_optimized_out (const struct value *value)
 {
   if (value->optimized_out)
     error (_("value has been optimized out"));
+}
+
+static void
+require_available (const struct value *value)
+{
+  if (!VEC_empty (range_s, value->unavailable))
+    throw_error (NOT_AVAILABLE_ERROR, _("value is not available"));
 }
 
 const gdb_byte *
@@ -435,11 +838,77 @@ value_contents_for_printing (struct value *value)
 }
 
 const gdb_byte *
+value_contents_for_printing_const (const struct value *value)
+{
+  gdb_assert (!value->lazy);
+  return value->contents;
+}
+
+const gdb_byte *
 value_contents_all (struct value *value)
 {
   const gdb_byte *result = value_contents_for_printing (value);
   require_not_optimized_out (value);
+  require_available (value);
   return result;
+}
+
+/* Copy LENGTH bytes of SRC value's contents starting at SRC_OFFSET,
+   into DST value's contents, starting at DST_OFFSET.  If unavailable
+   contents are being copied from SRC, the corresponding DST contents
+   are marked unavailable accordingly.  Neither DST nor SRC may be
+   lazy values.  */
+
+void
+value_contents_copy_raw (struct value *dst, int dst_offset,
+			 struct value *src, int src_offset, int length)
+{
+  range_s *r;
+  int i;
+
+  /* A lazy DST would make that this copy operation useless, since as
+     soon as DST's contents were un-lazied (by a later value_contents
+     call, say), the contents would be overwritten.  A lazy SRC would
+     mean we'd be copying garbage.  */
+  gdb_assert (!dst->lazy && !src->lazy);
+
+  /* Copy the data.  */
+  memcpy (value_contents_all_raw (dst) + dst_offset,
+	  value_contents_all_raw (src) + src_offset,
+	  length);
+
+  /* Copy the meta-data, adjusted.  */
+  for (i = 0; VEC_iterate (range_s, src->unavailable, i, r); i++)
+    {
+      ULONGEST h, l;
+
+      l = max (r->offset, src_offset);
+      h = min (r->offset + r->length, src_offset + length);
+
+      if (l < h)
+	mark_value_bytes_unavailable (dst,
+				      dst_offset + (l - src_offset),
+				      h - l);
+    }
+}
+
+/* Copy LENGTH bytes of SRC value's contents starting at SRC_OFFSET
+   byte, into DST value's contents, starting at DST_OFFSET.  If
+   unavailable contents are being copied from SRC, the corresponding
+   DST contents are marked unavailable accordingly.  DST must not be
+   lazy.  If SRC is lazy, it will be fetched now.  If SRC is not valid
+   (is optimized out), an error is thrown.  */
+
+void
+value_contents_copy (struct value *dst, int dst_offset,
+		     struct value *src, int src_offset, int length)
+{
+  require_not_optimized_out (src);
+
+  if (src->lazy)
+    value_fetch_lazy (src);
+
+  value_contents_copy_raw (dst, dst_offset, src, src_offset, length);
 }
 
 int
@@ -471,6 +940,7 @@ value_contents (struct value *value)
 {
   const gdb_byte *result = value_contents_writeable (value);
   require_not_optimized_out (value);
+  require_available (value);
   return result;
 }
 
@@ -528,7 +998,7 @@ value_entirely_optimized_out (const struct value *value)
 int
 value_bits_valid (const struct value *value, int offset, int length)
 {
-  if (value == NULL || !value->optimized_out)
+  if (!value->optimized_out)
     return 1;
   if (value->lval != lval_computed
       || !value->location.computed.funcs->check_validity)
@@ -541,7 +1011,7 @@ int
 value_bits_synthetic_pointer (const struct value *value,
 			      int offset, int length)
 {
-  if (value == NULL || value->lval != lval_computed
+  if (value->lval != lval_computed
       || !value->location.computed.funcs->check_synthetic_pointer)
     return 0;
   return value->location.computed.funcs->check_synthetic_pointer (value,
@@ -596,7 +1066,7 @@ deprecated_value_lval_hack (struct value *value)
 }
 
 CORE_ADDR
-value_address (struct value *value)
+value_address (const struct value *value)
 {
   if (value->lval == lval_internalvar
       || value->lval == lval_internalvar_component)
@@ -696,6 +1166,7 @@ value_free (struct value *val)
 	}
 
       xfree (val->contents);
+      VEC_free (range_s, val->unavailable);
     }
   xfree (val);
 }
@@ -826,6 +1297,7 @@ value_copy (struct value *arg)
 	      TYPE_LENGTH (value_enclosing_type (arg)));
 
     }
+  val->unavailable = VEC_copy (range_s, arg->unavailable);
   val->parent = arg->parent;
   if (val->parent)
     value_incref (val->parent);
@@ -1043,9 +1515,6 @@ struct internalvar
       /* The variable holds an integer value.  */
       INTERNALVAR_INTEGER,
 
-      /* The variable holds a pointer value.  */
-      INTERNALVAR_POINTER,
-
       /* The variable holds a GDB-provided string.  */
       INTERNALVAR_STRING,
 
@@ -1076,13 +1545,6 @@ struct internalvar
 	  struct type *type;
 	  LONGEST val;
         } integer;
-
-      /* A pointer value used with INTERNALVAR_POINTER.  */
-      struct
-        {
-	  struct type *type;
-	  CORE_ADDR val;
-        } pointer;
 
       /* A string value used with INTERNALVAR_STRING.  */
       char *string;
@@ -1235,10 +1697,6 @@ value_of_internalvar (struct gdbarch *gdbarch, struct internalvar *var)
 	val = value_from_longest (var->u.integer.type, var->u.integer.val);
       break;
 
-    case INTERNALVAR_POINTER:
-      val = value_from_pointer (var->u.pointer.type, var->u.pointer.val);
-      break;
-
     case INTERNALVAR_STRING:
       val = value_cstring (var->u.string, strlen (var->u.string),
 			   builtin_type (gdbarch)->builtin_char);
@@ -1288,15 +1746,24 @@ value_of_internalvar (struct gdbarch *gdbarch, struct internalvar *var)
 int
 get_internalvar_integer (struct internalvar *var, LONGEST *result)
 {
-  switch (var->kind)
+  if (var->kind == INTERNALVAR_INTEGER)
     {
-    case INTERNALVAR_INTEGER:
       *result = var->u.integer.val;
       return 1;
-
-    default:
-      return 0;
     }
+
+  if (var->kind == INTERNALVAR_VALUE)
+    {
+      struct type *type = check_typedef (value_type (var->u.value));
+
+      if (TYPE_CODE (type) == TYPE_CODE_INT)
+	{
+	  *result = value_as_long (var->u.value);
+	  return 1;
+	}
+    }
+
+  return 0;
 }
 
 static int
@@ -1361,18 +1828,6 @@ set_internalvar (struct internalvar *var, struct value *val)
       get_internalvar_function (VALUE_INTERNALVAR (val),
 				&new_data.fn.function);
       /* Copies created here are never canonical.  */
-      break;
-
-    case TYPE_CODE_INT:
-      new_kind = INTERNALVAR_INTEGER;
-      new_data.integer.type = value_type (val);
-      new_data.integer.val = value_as_long (val);
-      break;
-
-    case TYPE_CODE_PTR:
-      new_kind = INTERNALVAR_POINTER;
-      new_data.pointer.type = value_type (val);
-      new_data.pointer.val = value_as_address (val);
       break;
 
     default:
@@ -1571,12 +2026,6 @@ preserve_one_internalvar (struct internalvar *var, struct objfile *objfile,
       if (var->u.integer.type && TYPE_OBJFILE (var->u.integer.type) == objfile)
 	var->u.integer.type
 	  = copy_type_recursive (objfile, var->u.integer.type, copied_types);
-      break;
-
-    case INTERNALVAR_POINTER:
-      if (TYPE_OBJFILE (var->u.pointer.type) == objfile)
-	var->u.pointer.type
-	  = copy_type_recursive (objfile, var->u.pointer.type, copied_types);
       break;
 
     case INTERNALVAR_VALUE:
@@ -2035,8 +2484,8 @@ value_primitive_field (struct value *arg1, int offset,
   else if (fieldno < TYPE_N_BASECLASSES (arg_type))
     {
       /* This field is actually a base subobject, so preserve the
-         entire object's contents for later references to virtual
-         bases, etc.  */
+	 entire object's contents for later references to virtual
+	 bases, etc.  */
 
       /* Lazy register values with offsets are not supported.  */
       if (VALUE_LVAL (arg1) == lval_register && value_lazy (arg1))
@@ -2047,8 +2496,8 @@ value_primitive_field (struct value *arg1, int offset,
       else
 	{
 	  v = allocate_value (value_enclosing_type (arg1));
-	  memcpy (value_contents_all_raw (v), value_contents_all_raw (arg1),
-		  TYPE_LENGTH (value_enclosing_type (arg1)));
+	  value_contents_copy_raw (v, 0, arg1, 0,
+				   TYPE_LENGTH (value_enclosing_type (arg1)));
 	}
       v->type = type;
       v->offset = value_offset (arg1);
@@ -2069,9 +2518,9 @@ value_primitive_field (struct value *arg1, int offset,
       else
 	{
 	  v = allocate_value (type);
-	  memcpy (value_contents_raw (v),
-		  value_contents_raw (arg1) + offset,
-		  TYPE_LENGTH (type));
+	  value_contents_copy_raw (v, value_embedded_offset (v),
+				   arg1, value_embedded_offset (arg1) + offset,
+				   TYPE_LENGTH (type));
 	}
       v->offset = (value_offset (arg1) + offset
 		   + value_embedded_offset (arg1));
@@ -2154,30 +2603,24 @@ value_fn_field (struct value **arg1p, struct fn_field *f,
 }
 
 
-/* Unpack a bitfield of the specified FIELD_TYPE, from the anonymous
-   object at VALADDR.  The bitfield starts at BITPOS bits and contains
-   BITSIZE bits.
 
-   Extracting bits depends on endianness of the machine.  Compute the
-   number of least significant bits to discard.  For big endian machines,
-   we compute the total number of bits in the anonymous object, subtract
-   off the bit count from the MSB of the object to the MSB of the
-   bitfield, then the size of the bitfield, which leaves the LSB discard
-   count.  For little endian machines, the discard count is simply the
-   number of bits from the LSB of the anonymous object to the LSB of the
-   bitfield.
+/* Helper function for both unpack_value_bits_as_long and
+   unpack_bits_as_long.  See those functions for more details on the
+   interface; the only difference is that this function accepts either
+   a NULL or a non-NULL ORIGINAL_VALUE.  */
 
-   If the field is signed, we also do sign extension.  */
-
-LONGEST
-unpack_bits_as_long (struct type *field_type, const gdb_byte *valaddr,
-		     int bitpos, int bitsize)
+static int
+unpack_value_bits_as_long_1 (struct type *field_type, const gdb_byte *valaddr,
+			     int embedded_offset, int bitpos, int bitsize,
+			     const struct value *original_value,
+			     LONGEST *result)
 {
   enum bfd_endian byte_order = gdbarch_byte_order (get_type_arch (field_type));
   ULONGEST val;
   ULONGEST valmask;
   int lsbcount;
   int bytes_read;
+  int read_offset;
 
   /* Read the minimum number of bytes required; there may not be
      enough bytes to read an entire ULONGEST.  */
@@ -2187,7 +2630,14 @@ unpack_bits_as_long (struct type *field_type, const gdb_byte *valaddr,
   else
     bytes_read = TYPE_LENGTH (field_type);
 
-  val = extract_unsigned_integer (valaddr + bitpos / 8,
+  read_offset = bitpos / 8;
+
+  if (original_value != NULL
+      && !value_bytes_available (original_value, embedded_offset + read_offset,
+				 bytes_read))
+    return 0;
+
+  val = extract_unsigned_integer (valaddr + embedded_offset + read_offset,
 				  bytes_read, byte_order);
 
   /* Extract bits.  See comment above.  */
@@ -2213,20 +2663,118 @@ unpack_bits_as_long (struct type *field_type, const gdb_byte *valaddr,
 	    }
 	}
     }
-  return (val);
+
+  *result = val;
+  return 1;
 }
 
-/* Unpack a field FIELDNO of the specified TYPE, from the anonymous object at
-   VALADDR.  See unpack_bits_as_long for more details.  */
+/* Unpack a bitfield of the specified FIELD_TYPE, from the object at
+   VALADDR + EMBEDDED_OFFSET, and store the result in *RESULT.
+   VALADDR points to the contents of ORIGINAL_VALUE, which must not be
+   NULL.  The bitfield starts at BITPOS bits and contains BITSIZE
+   bits.
 
-LONGEST
-unpack_field_as_long (struct type *type, const gdb_byte *valaddr, int fieldno)
+   Returns false if the value contents are unavailable, otherwise
+   returns true, indicating a valid value has been stored in *RESULT.
+
+   Extracting bits depends on endianness of the machine.  Compute the
+   number of least significant bits to discard.  For big endian machines,
+   we compute the total number of bits in the anonymous object, subtract
+   off the bit count from the MSB of the object to the MSB of the
+   bitfield, then the size of the bitfield, which leaves the LSB discard
+   count.  For little endian machines, the discard count is simply the
+   number of bits from the LSB of the anonymous object to the LSB of the
+   bitfield.
+
+   If the field is signed, we also do sign extension.  */
+
+int
+unpack_value_bits_as_long (struct type *field_type, const gdb_byte *valaddr,
+			   int embedded_offset, int bitpos, int bitsize,
+			   const struct value *original_value,
+			   LONGEST *result)
+{
+  gdb_assert (original_value != NULL);
+
+  return unpack_value_bits_as_long_1 (field_type, valaddr, embedded_offset,
+				      bitpos, bitsize, original_value, result);
+
+}
+
+/* Unpack a field FIELDNO of the specified TYPE, from the object at
+   VALADDR + EMBEDDED_OFFSET.  VALADDR points to the contents of
+   ORIGINAL_VALUE.  See unpack_value_bits_as_long for more
+   details.  */
+
+static int
+unpack_value_field_as_long_1 (struct type *type, const gdb_byte *valaddr,
+			      int embedded_offset, int fieldno,
+			      const struct value *val, LONGEST *result)
 {
   int bitpos = TYPE_FIELD_BITPOS (type, fieldno);
   int bitsize = TYPE_FIELD_BITSIZE (type, fieldno);
   struct type *field_type = TYPE_FIELD_TYPE (type, fieldno);
 
-  return unpack_bits_as_long (field_type, valaddr, bitpos, bitsize);
+  return unpack_value_bits_as_long_1 (field_type, valaddr, embedded_offset,
+				      bitpos, bitsize, val,
+				      result);
+}
+
+/* Unpack a field FIELDNO of the specified TYPE, from the object at
+   VALADDR + EMBEDDED_OFFSET.  VALADDR points to the contents of
+   ORIGINAL_VALUE, which must not be NULL.  See
+   unpack_value_bits_as_long for more details.  */
+
+int
+unpack_value_field_as_long (struct type *type, const gdb_byte *valaddr,
+			    int embedded_offset, int fieldno,
+			    const struct value *val, LONGEST *result)
+{
+  gdb_assert (val != NULL);
+
+  return unpack_value_field_as_long_1 (type, valaddr, embedded_offset,
+				       fieldno, val, result);
+}
+
+/* Unpack a field FIELDNO of the specified TYPE, from the anonymous
+   object at VALADDR.  See unpack_value_bits_as_long for more details.
+   This function differs from unpack_value_field_as_long in that it
+   operates without a struct value object.  */
+
+LONGEST
+unpack_field_as_long (struct type *type, const gdb_byte *valaddr, int fieldno)
+{
+  LONGEST result;
+
+  unpack_value_field_as_long_1 (type, valaddr, 0, fieldno, NULL, &result);
+  return result;
+}
+
+/* Return a new value with type TYPE, which is FIELDNO field of the
+   object at VALADDR + EMBEDDEDOFFSET.  VALADDR points to the contents
+   of VAL.  If the VAL's contents required to extract the bitfield
+   from are unavailable, the new value is correspondingly marked as
+   unavailable.  */
+
+struct value *
+value_field_bitfield (struct type *type, int fieldno,
+		      const gdb_byte *valaddr,
+		      int embedded_offset, const struct value *val)
+{
+  LONGEST l;
+
+  if (!unpack_value_field_as_long (type, valaddr, embedded_offset, fieldno,
+				   val, &l))
+    {
+      struct type *field_type = TYPE_FIELD_TYPE (type, fieldno);
+      struct value *retval = allocate_value (field_type);
+      mark_value_bytes_unavailable (retval, 0, TYPE_LENGTH (field_type));
+      return retval;
+    }
+  else
+    {
+      return value_from_longest (TYPE_FIELD_TYPE (type, fieldno), l);
+    }
 }
 
 /* Modify the value of a bitfield.  ADDR points to a block of memory in

@@ -113,7 +113,7 @@ extern void maybe_print_array_index (struct type *index_type, LONGEST index,
                                      struct ui_file *stream,
 				     const struct value_print_options *);
 
-extern void val_print_array_elements (struct type *, const gdb_byte *,
+extern void val_print_array_elements (struct type *, const gdb_byte *, int,
 				      CORE_ADDR, struct ui_file *, int,
 				      const struct value *,
 				      const struct value_print_options *,
@@ -125,6 +125,13 @@ extern void val_print_type_code_int (struct type *, const gdb_byte *,
 extern void val_print_type_code_flags (struct type *type,
 				       const gdb_byte *valaddr,
 				       struct ui_file *stream);
+
+extern void val_print_scalar_formatted (struct type *,
+					const gdb_byte *, int,
+					const struct value *,
+					const struct value_print_options *,
+					int,
+					struct ui_file *);
 
 extern void print_binary_chars (struct ui_file *, const gdb_byte *,
 				unsigned int, enum bfd_endian);
@@ -144,5 +151,11 @@ extern void print_char_chars (struct ui_file *, struct type *,
 int read_string (CORE_ADDR addr, int len, int width, unsigned int fetchlimit,
 		 enum bfd_endian byte_order, gdb_byte **buffer,
 		 int *bytes_read);
+
+extern void val_print_optimized_out (struct ui_file *stream);
+
+extern void val_print_unavailable (struct ui_file *stream);
+
+extern void val_print_invalid_address (struct ui_file *stream);
 
 #endif

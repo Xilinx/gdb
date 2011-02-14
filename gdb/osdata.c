@@ -68,7 +68,7 @@ osdata_start_osdata (struct gdb_xml_parser *parser,
   if (data->osdata)
     gdb_xml_error (parser, _("Seen more than on osdata element"));
 
-  type = VEC_index (gdb_xml_value_s, attributes, 0)->value;
+  type = xml_find_attribute (attributes, "type")->value;
   osdata = XZALLOC (struct osdata);
   osdata->type = xstrdup (type);
   data->osdata = osdata;
@@ -95,7 +95,7 @@ osdata_start_column (struct gdb_xml_parser *parser,
                     void *user_data, VEC(gdb_xml_value_s) *attributes)
 {
   struct osdata_parsing_data *data = user_data;
-  const char *name = VEC_index (gdb_xml_value_s, attributes, 0)->value;
+  const char *name = xml_find_attribute (attributes, "name")->value;
 
   data->property_name = xstrdup (name);
 }
@@ -168,23 +168,21 @@ const struct gdb_xml_element osdata_elements[] = {
 struct osdata *
 osdata_parse (const char *xml)
 {
-  struct gdb_xml_parser *parser;
-  struct cleanup *before_deleting_result, *back_to;
+  struct cleanup *back_to;
   struct osdata_parsing_data data = { NULL };
 
-  back_to = make_cleanup (null_cleanup, NULL);
-  parser = gdb_xml_create_parser_and_cleanup (_("osdata"),
-                                             osdata_elements, &data);
-  gdb_xml_use_dtd (parser, "osdata.dtd");
+  back_to = make_cleanup (clear_parsing_data, &data);
 
-  before_deleting_result = make_cleanup (clear_parsing_data, &data);
-
-  if (gdb_xml_parse (parser, xml) == 0)
-    /* Parsed successfully, don't need to delete the result.  */
-    discard_cleanups (before_deleting_result);
+  if (gdb_xml_parse_quick (_("osdata"), "osdata.dtd",
+			   osdata_elements, xml, &data) == 0)
+    {
+      /* Parsed successfully, don't need to delete the result.  */
+      discard_cleanups (back_to);
+      return data.osdata;
+    }
 
   do_cleanups (back_to);
-  return data.osdata;
+  return NULL;
 }
 #endif
 

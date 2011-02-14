@@ -1,6 +1,6 @@
 /* PowerPC64-specific support for 64-bit ELF.
    Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010 Free Software Foundation, Inc.
+   2009, 2010, 2011 Free Software Foundation, Inc.
    Written by Linus Nordberg, Swox AB <info@swox.com>,
    based on elf32-ppc.c by Ian Lance Taylor.
    Largely rewritten by Alan Modra.
@@ -7907,7 +7907,7 @@ ppc64_elf_edit_toc (struct bfd_link_info *info)
       asection *toc, *sec;
       Elf_Internal_Shdr *symtab_hdr;
       Elf_Internal_Sym *local_syms;
-      Elf_Internal_Rela *relstart, *rel;
+      Elf_Internal_Rela *relstart, *rel, *toc_relocs;
       unsigned long *skip, *drop;
       unsigned char *used;
       unsigned char *keep, last, some_unused;
@@ -7922,6 +7922,7 @@ ppc64_elf_edit_toc (struct bfd_link_info *info)
 	  || elf_discarded_section (toc))
 	continue;
 
+      toc_relocs = NULL;
       local_syms = NULL;
       symtab_hdr = &elf_symtab_hdr (ibfd);
 
@@ -8017,12 +8018,12 @@ ppc64_elf_edit_toc (struct bfd_link_info *info)
 	  && toc->reloc_count != 0)
 	{
 	  /* Read toc relocs.  */
-	  relstart = _bfd_elf_link_read_relocs (ibfd, toc, NULL, NULL,
-						info->keep_memory);
-	  if (relstart == NULL)
+	  toc_relocs = _bfd_elf_link_read_relocs (ibfd, toc, NULL, NULL,
+						  info->keep_memory);
+	  if (toc_relocs == NULL)
 	    goto error_ret;
 
-	  for (rel = relstart; rel < relstart + toc->reloc_count; ++rel)
+	  for (rel = toc_relocs; rel < toc_relocs + toc->reloc_count; ++rel)
 	    {
 	      enum elf_ppc64_reloc_type r_type;
 	      unsigned long r_symndx;
@@ -8039,6 +8040,10 @@ ppc64_elf_edit_toc (struct bfd_link_info *info)
 	      if (!get_sym_h (&h, &sym, &sym_sec, NULL, &local_syms,
 			      r_symndx, ibfd))
 		goto error_ret;
+
+	      if (sym_sec == NULL
+		  || elf_discarded_section (sym_sec))
+		continue;
 
 	      if (!SYMBOL_CALLS_LOCAL (info, h))
 		continue;
@@ -8078,11 +8083,8 @@ ppc64_elf_edit_toc (struct bfd_link_info *info)
 		}
 
 	      skip[rel->r_offset >> 3]
-		|= can_optimize | ((rel - relstart) << 2);
+		|= can_optimize | ((rel - toc_relocs) << 2);
 	    }
-
-	  if (elf_section_data (toc)->relocs != relstart)
-	    free (relstart);
 	}
 
       if (skip == NULL)
@@ -8099,6 +8101,9 @@ ppc64_elf_edit_toc (struct bfd_link_info *info)
 	      && relstart != NULL
 	      && elf_section_data (sec)->relocs != relstart)
 	    free (relstart);
+	  if (toc_relocs != NULL
+	      && elf_section_data (toc)->relocs != toc_relocs)
+	    free (toc_relocs);
 	  if (skip != NULL)
 	    free (skip);
 	  return FALSE;
@@ -8338,7 +8343,7 @@ ppc64_elf_edit_toc (struct bfd_link_info *info)
 		  else if ((skip[val >> 3] & can_optimize) != 0)
 		    {
 		      Elf_Internal_Rela *tocrel
-			= elf_section_data (toc)->relocs + (skip[val >> 3] >> 2);
+			= toc_relocs + (skip[val >> 3] >> 2);
 		      unsigned long tsym = ELF64_R_SYM (tocrel->r_info);
 
 		      switch (r_type)
@@ -8372,34 +8377,35 @@ ppc64_elf_edit_toc (struct bfd_link_info *info)
 
 	  /* We shouldn't have local or global symbols defined in the TOC,
 	     but handle them anyway.  */
-	  for (sym = local_syms;
-	       sym < local_syms + symtab_hdr->sh_info;
-	       ++sym)
-	    if (sym->st_value != 0
-		&& bfd_section_from_elf_index (ibfd, sym->st_shndx) == toc)
-	      {
-		unsigned long i;
+	  if (local_syms != NULL)
+	    for (sym = local_syms;
+		 sym < local_syms + symtab_hdr->sh_info;
+		 ++sym)
+	      if (sym->st_value != 0
+		  && bfd_section_from_elf_index (ibfd, sym->st_shndx) == toc)
+		{
+		  unsigned long i;
 
-		if (sym->st_value > toc->rawsize)
-		  i = toc->rawsize >> 3;
-		else
-		  i = sym->st_value >> 3;
+		  if (sym->st_value > toc->rawsize)
+		    i = toc->rawsize >> 3;
+		  else
+		    i = sym->st_value >> 3;
 
-		if ((skip[i] & (ref_from_discarded | can_optimize)) != 0)
-		  {
-		    if (local_toc_syms)
-		      (*_bfd_error_handler)
-			(_("%s defined on removed toc entry"),
-			 bfd_elf_sym_name (ibfd, symtab_hdr, sym, NULL));
-		    do
-		      ++i;
-		    while ((skip[i] & (ref_from_discarded | can_optimize)));
-		    sym->st_value = (bfd_vma) i << 3;
-		  }
+		  if ((skip[i] & (ref_from_discarded | can_optimize)) != 0)
+		    {
+		      if (local_toc_syms)
+			(*_bfd_error_handler)
+			  (_("%s defined on removed toc entry"),
+			   bfd_elf_sym_name (ibfd, symtab_hdr, sym, NULL));
+		      do
+			++i;
+		      while ((skip[i] & (ref_from_discarded | can_optimize)));
+		      sym->st_value = (bfd_vma) i << 3;
+		    }
 
-		sym->st_value -= skip[i];
-		symtab_hdr->contents = (unsigned char *) local_syms;
-	      }
+		  sym->st_value -= skip[i];
+		  symtab_hdr->contents = (unsigned char *) local_syms;
+		}
 
 	  /* Adjust any global syms defined in this toc input section.  */
 	  if (toc_inf.global_toc_syms)
@@ -8417,15 +8423,9 @@ ppc64_elf_edit_toc (struct bfd_link_info *info)
 	      Elf_Internal_Rela *wrel;
 	      bfd_size_type sz;
 
-	      /* Read toc relocs.  */
-	      relstart = _bfd_elf_link_read_relocs (ibfd, toc, NULL, NULL,
-						    TRUE);
-	      if (relstart == NULL)
-		goto error_ret;
-
 	      /* Remove unused toc relocs, and adjust those we keep.  */
-	      wrel = relstart;
-	      for (rel = relstart; rel < relstart + toc->reloc_count; ++rel)
+	      wrel = toc_relocs;
+	      for (rel = toc_relocs; rel < toc_relocs + toc->reloc_count; ++rel)
 		if ((skip[rel->r_offset >> 3]
 		     & (ref_from_discarded | can_optimize)) == 0)
 		  {
@@ -8438,12 +8438,15 @@ ppc64_elf_edit_toc (struct bfd_link_info *info)
 					    &local_syms, NULL, NULL))
 		  goto error_ret;
 
-	      toc->reloc_count = wrel - relstart;
+	      elf_section_data (toc)->relocs = toc_relocs;
+	      toc->reloc_count = wrel - toc_relocs;
 	      rel_hdr = _bfd_elf_single_rel_hdr (toc);
 	      sz = rel_hdr->sh_entsize;
 	      rel_hdr->sh_size = toc->reloc_count * sz;
 	    }
 	}
+      else if (elf_section_data (toc)->relocs != toc_relocs)
+	free (toc_relocs);
 
       if (local_syms != NULL
 	  && symtab_hdr->contents != (unsigned char *) local_syms)
@@ -10580,14 +10583,28 @@ ppc64_elf_next_input_section (struct bfd_link_info *info, asection *isec)
 	  if (elf_gp (isec->owner) != 0)
 	    htab->toc_curr = elf_gp (isec->owner);
 	}
-      else if (!isec->call_check_done
-	       && toc_adjusting_stub_needed (info, isec) < 0)
-	return FALSE;
+      else
+	{
+	  if (!isec->call_check_done
+	      && toc_adjusting_stub_needed (info, isec) < 0)
+	    return FALSE;
+	  /* If we make a local call from this section, ie. a branch
+	     without a following nop, then we have no place to put a
+	     toc restoring insn.  We must use the same toc group as
+	     the callee.
+	     Testing makes_toc_func_call actually tests for *any*
+	     calls to functions that need a good toc pointer.  A more
+	     precise test would be better, as this one will set
+	     incorrect values for pasted .init/.fini fragments.
+	     (Fixed later in check_pasted_section.)  */
+	  if (isec->makes_toc_func_call
+	      && elf_gp (isec->owner) != 0)
+	    htab->toc_curr = elf_gp (isec->owner);
+	}
     }
 
   /* Functions that don't use the TOC can belong in any TOC group.
-     Use the last TOC base.  This happens to make _init and _fini
-     pasting work, because the fragments generally don't use the TOC.  */
+     Use the last TOC base.  */
   htab->stub_group[isec->id].toc_off = htab->toc_curr;
   return TRUE;
 }
@@ -10614,6 +10631,15 @@ check_pasted_section (struct bfd_link_info *info, const char *name)
 	    else if (toc_off != htab->stub_group[i->id].toc_off)
 	      return FALSE;
 	  }
+
+      if (toc_off == 0)
+	for (i = o->map_head.s; i != NULL; i = i->map_head.s)
+	  if (i->makes_toc_func_call)
+	    {
+	      toc_off = htab->stub_group[i->id].toc_off;
+	      break;
+	    }
+
       /* Make sure the whole pasted function uses the same toc offset.  */
       if (toc_off != 0)
 	for (i = o->map_head.s; i != NULL; i = i->map_head.s)

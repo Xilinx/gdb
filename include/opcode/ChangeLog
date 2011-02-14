@@ -1,3 +1,17 @@
+2011-02-12  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin-dis.c (M_S2RND, M_T, M_W32, M_FU, M_TFU, M_IS, M_ISS2,
+	M_IH, M_IU): Delete.
+
+2011-02-11  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin.h: Add OPCODE_BFIN_H ifdef multiple include protection.
+
+2011-02-04  Bernd Schmidt  <bernds@codesourcery.com>
+
+	* tic6x-opcode-table.h (cmtl, ll, sl): Available on C64XP.
+	* tic6x.h (TIC6X_INSN_ATOMIC): Remove.
+
 2010-12-31  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
 
 	PR gas/11395

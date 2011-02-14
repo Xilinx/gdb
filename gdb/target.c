@@ -634,6 +634,7 @@ update_current_target (void)
       /* Do not inherit to_find_new_threads.  */
       /* Do not inherit to_pid_to_str.  */
       INHERIT (to_extra_thread_info, t);
+      INHERIT (to_thread_name, t);
       INHERIT (to_stop, t);
       /* Do not inherit to_xfer_partial.  */
       INHERIT (to_rcmd, t);
@@ -680,6 +681,7 @@ update_current_target (void)
       INHERIT (to_set_permissions, t);
       INHERIT (to_static_tracepoint_marker_at, t);
       INHERIT (to_static_tracepoint_markers_by_strid, t);
+      INHERIT (to_traceframe_info, t);
       INHERIT (to_magic, t);
       /* Do not inherit to_memory_map.  */
       /* Do not inherit to_flash_erase.  */
@@ -804,6 +806,9 @@ update_current_target (void)
   de_fault (to_extra_thread_info,
 	    (char *(*) (struct thread_info *))
 	    return_zero);
+  de_fault (to_thread_name,
+	    (char *(*) (struct thread_info *))
+	    return_zero);
   de_fault (to_stop,
 	    (void (*) (ptid_t))
 	    target_ignore);
@@ -885,6 +890,9 @@ update_current_target (void)
 	    return_zero);
   de_fault (to_static_tracepoint_markers_by_strid,
 	    (VEC(static_tracepoint_marker_p) * (*) (const char *))
+	    tcomplain);
+  de_fault (to_traceframe_info,
+	    (struct traceframe_info * (*) (void))
 	    tcomplain);
 #undef de_fault
 
@@ -1263,6 +1271,82 @@ target_section_by_addr (struct target_ops *target, CORE_ADDR addr)
   return NULL;
 }
 
+/* Read memory from the live target, even if currently inspecting a
+   traceframe.  The return is the same as that of target_read.  */
+
+static LONGEST
+target_read_live_memory (enum target_object object,
+			 ULONGEST memaddr, gdb_byte *myaddr, LONGEST len)
+{
+  int ret;
+  struct cleanup *cleanup;
+
+  /* Switch momentarily out of tfind mode so to access live memory.
+     Note that this must not clear global state, such as the frame
+     cache, which must still remain valid for the previous traceframe.
+     We may be _building_ the frame cache at this point.  */
+  cleanup = make_cleanup_restore_traceframe_number ();
+  set_traceframe_number (-1);
+
+  ret = target_read (current_target.beneath, object, NULL,
+		     myaddr, memaddr, len);
+
+  do_cleanups (cleanup);
+  return ret;
+}
+
+/* Using the set of read-only target sections of OPS, read live
+   read-only memory.  Note that the actual reads start from the
+   top-most target again.  */
+
+static LONGEST
+memory_xfer_live_readonly_partial (struct target_ops *ops,
+				   enum target_object object,
+				   gdb_byte *readbuf, ULONGEST memaddr,
+				   LONGEST len)
+{
+  struct target_section *secp;
+  struct target_section_table *table;
+
+  secp = target_section_by_addr (ops, memaddr);
+  if (secp != NULL
+      && (bfd_get_section_flags (secp->bfd, secp->the_bfd_section)
+	  & SEC_READONLY))
+    {
+      struct target_section *p;
+      ULONGEST memend = memaddr + len;
+
+      table = target_get_section_table (ops);
+
+      for (p = table->sections; p < table->sections_end; p++)
+	{
+	  if (memaddr >= p->addr)
+	    {
+	      if (memend <= p->endaddr)
+		{
+		  /* Entire transfer is within this section.  */
+		  return target_read_live_memory (object, memaddr,
+						  readbuf, len);
+		}
+	      else if (memaddr >= p->endaddr)
+		{
+		  /* This section ends before the transfer starts.  */
+		  continue;
+		}
+	      else
+		{
+		  /* This section overlaps the transfer.  Just do half.  */
+		  len = p->endaddr - memaddr;
+		  return target_read_live_memory (object, memaddr,
+						  readbuf, len);
+		}
+	    }
+	}
+    }
+
+  return 0;
+}
+
 /* Perform a partial memory transfer.
    For docs see target.h, to_xfer_partial.  */
 
@@ -1318,6 +1402,59 @@ memory_xfer_partial (struct target_ops *ops, enum target_object object,
 						    table->sections,
 						    table->sections_end,
 						    NULL);
+	}
+    }
+
+  /* If reading unavailable memory in the context of traceframes, and
+     this address falls within a read-only section, fallback to
+     reading from live memory.  */
+  if (readbuf != NULL && get_traceframe_number () != -1)
+    {
+      VEC(mem_range_s) *available;
+
+      /* If we fail to get the set of available memory, then the
+	 target does not support querying traceframe info, and so we
+	 attempt reading from the traceframe anyway (assuming the
+	 target implements the old QTro packet then).  */
+      if (traceframe_available_memory (&available, memaddr, len))
+	{
+	  struct cleanup *old_chain;
+
+	  old_chain = make_cleanup (VEC_cleanup(mem_range_s), &available);
+
+	  if (VEC_empty (mem_range_s, available)
+	      || VEC_index (mem_range_s, available, 0)->start != memaddr)
+	    {
+	      /* Don't read into the traceframe's available
+		 memory.  */
+	      if (!VEC_empty (mem_range_s, available))
+		{
+		  LONGEST oldlen = len;
+
+		  len = VEC_index (mem_range_s, available, 0)->start - memaddr;
+		  gdb_assert (len <= oldlen);
+		}
+
+	      do_cleanups (old_chain);
+
+	      /* This goes through the topmost target again.  */
+	      res = memory_xfer_live_readonly_partial (ops, object,
+						       readbuf, memaddr, len);
+	      if (res > 0)
+		return res;
+
+	      /* No use trying further, we know some memory starting
+		 at MEMADDR isn't available.  */
+	      return -1;
+	    }
+
+	  /* Don't try to read more than how much is available, in
+	     case the target implements the deprecated QTro packet to
+	     cater for older GDBs (the target's knowledge of read-only
+	     sections may be outdated by now).  */
+	  len = VEC_index (mem_range_s, available, 0)->length;
+
+	  do_cleanups (old_chain);
 	}
     }
 
@@ -1410,7 +1547,7 @@ memory_xfer_partial (struct target_ops *ops, enum target_object object,
     }
   while (ops != NULL);
 
-  if (readbuf && !show_memory_breakpoints)
+  if (res > 0 && readbuf != NULL && !show_memory_breakpoints)
     breakpoint_restore_shadows (readbuf, memaddr, reg_len);
 
   /* Make sure the cache gets updated no matter what - if we are writing
@@ -2405,6 +2542,20 @@ target_pid_to_str (ptid_t ptid)
     }
 
   return normal_pid_to_str (ptid);
+}
+
+char *
+target_thread_name (struct thread_info *info)
+{
+  struct target_ops *t;
+
+  for (t = current_target.beneath; t != NULL; t = t->beneath)
+    {
+      if (t->to_thread_name != NULL)
+	return (*t->to_thread_name) (info);
+    }
+
+  return NULL;
 }
 
 void

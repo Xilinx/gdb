@@ -1,6 +1,6 @@
 /* Print i386 instructions for GDB, the GNU debugger.
    Copyright 1988, 1989, 1991, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
+   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
@@ -252,6 +252,7 @@ fetch_data (struct disassemble_info *info, bfd_byte *addr)
 #define Rm { OP_R, m_mode }
 #define Ib { OP_I, b_mode }
 #define sIb { OP_sI, b_mode }	/* sign extened byte */
+#define sIbT { OP_sI, b_T_mode } /* sign extened byte like 'T' */
 #define Iv { OP_I, v_mode }
 #define sIv { OP_sI, v_mode } 
 #define Iq { OP_I, q_mode }
@@ -414,6 +415,8 @@ enum
   b_mode = 1,
   /* byte operand with operand swapped */
   b_swap_mode,
+  /* byte operand, sign extend like 'T' suffix */
+  b_T_mode,
   /* operand size depends on prefixes */
   v_mode,
   /* operand size depends on prefixes with operand swapped */
@@ -601,7 +604,9 @@ enum
   REG_VEX_0FAE,
   REG_VEX_0F38F3,
   REG_XOP_LWPCB,
-  REG_XOP_LWP
+  REG_XOP_LWP,
+  REG_XOP_TBM_01,
+  REG_XOP_TBM_02
 };
 
 enum
@@ -1788,7 +1793,7 @@ static const struct dis386 dis386[] = {
   /* 68 */
   { "pushT",		{ sIv } },
   { "imulS",		{ Gv, Ev, Iv } },
-  { "pushT",		{ sIb } },
+  { "pushT",		{ sIbT } },
   { "imulS",		{ Gv, Ev, sIb } },
   { "ins{b|}",		{ Ybr, indirDX } },
   { X86_64_TABLE (X86_64_6D) },
@@ -2778,6 +2783,27 @@ static const struct dis386 reg_table[][8] = {
   {
     { "lwpins", { { OP_LWP_E, 0 }, Ed, Iq } },
     { "lwpval",	{ { OP_LWP_E, 0 }, Ed, Iq } },
+  },
+  /* REG_XOP_TBM_01 */
+  {
+    { Bad_Opcode },
+    { "blcfill",	{ { OP_LWP_E, 0 }, Ev } },
+    { "blsfill",	{ { OP_LWP_E, 0 }, Ev } },
+    { "blcs",	{ { OP_LWP_E, 0 }, Ev } },
+    { "tzmsk",	{ { OP_LWP_E, 0 }, Ev } },
+    { "blcic",	{ { OP_LWP_E, 0 }, Ev } },
+    { "blsic",	{ { OP_LWP_E, 0 }, Ev } },
+    { "t1mskc",	{ { OP_LWP_E, 0 }, Ev } },
+  },
+  /* REG_XOP_TBM_02 */
+  {
+    { Bad_Opcode },
+    { "blcmsk",	{ { OP_LWP_E, 0 }, Ev } },
+    { Bad_Opcode },
+    { Bad_Opcode },
+    { Bad_Opcode },
+    { Bad_Opcode },
+    { "blci",	{ { OP_LWP_E, 0 }, Ev } },
   },
 };
 
@@ -5521,12 +5547,12 @@ static const struct dis386 x86_64_table[][2] = {
 
   /* X86_64_D4 */
   {
-    { "aam", { sIb } },
+    { "aam", { Ib } },
   },
 
   /* X86_64_D5 */
   {
-    { "aad", { sIb } },
+    { "aad", { Ib } },
   },
 
   /* X86_64_EA */
@@ -6459,7 +6485,7 @@ static const struct dis386 xop_table[][256] = {
     { Bad_Opcode },
     { Bad_Opcode },
     /* 10 */
-    { Bad_Opcode },
+    { "bextr",	{ Gv, Ev, Iq } },
     { Bad_Opcode },
     { Bad_Opcode },
     { Bad_Opcode },
@@ -6733,8 +6759,8 @@ static const struct dis386 xop_table[][256] = {
   {
     /* 00 */
     { Bad_Opcode },
-    { Bad_Opcode },
-    { Bad_Opcode },
+    { REG_TABLE (REG_XOP_TBM_01) },
+    { REG_TABLE (REG_XOP_TBM_02) },
     { Bad_Opcode },
     { Bad_Opcode },
     { Bad_Opcode },
@@ -7041,7 +7067,7 @@ static const struct dis386 xop_table[][256] = {
     { Bad_Opcode },
     { Bad_Opcode },
     /* 10 */
-    { Bad_Opcode },
+    { "bextr",	{ Gv, Ev, Iq } },
     { Bad_Opcode },
     { REG_TABLE (REG_XOP_LWP) },
     { Bad_Opcode },
@@ -11676,9 +11702,9 @@ print_insn (bfd_vma pc, disassemble_info *info)
       modrm.rm = *codep & 7;
     }
 
-   need_vex = 0;
-   need_vex_reg = 0;
-   vex_w_done = 0;
+  need_vex = 0;
+  need_vex_reg = 0;
+  vex_w_done = 0;
 
   if (dp->name == NULL && dp->op[0].bytemode == FLOATCODE)
     {
@@ -13708,10 +13734,32 @@ OP_sI (int bytemode, int sizeflag)
   switch (bytemode)
     {
     case b_mode:
+    case b_T_mode:
       FETCH_DATA (the_info, codep + 1);
       op = *codep++;
       if ((op & 0x80) != 0)
 	op -= 0x100;
+      if (bytemode == b_T_mode)
+	{
+	  if (address_mode != mode_64bit
+	      || !(sizeflag & DFLAG))
+	    {
+	      if (sizeflag & DFLAG)
+		op &= 0xffffffff;
+	      else
+		op &= 0xffff;
+	  }
+	}
+      else
+	{
+	  if (!(rex & REX_W))
+	    {
+	      if (sizeflag & DFLAG)
+		op &= 0xffffffff;
+	      else
+		op &= 0xffff;
+	    }
+	}
       break;
     case v_mode:
       if (sizeflag & DFLAG)
@@ -13769,7 +13817,7 @@ OP_J (int bytemode, int sizeflag)
       oappend (INTERNAL_DISASSEMBLER_ERROR);
       return;
     }
-  disp = ((start_pc + codep - start_codep + disp) & mask) | segment;
+  disp = ((start_pc + (codep - start_codep) + disp) & mask) | segment;
   set_op (disp, 0);
   print_operand_value (scratchbuf, 1, disp);
   oappend (scratchbuf);

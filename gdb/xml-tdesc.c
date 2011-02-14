@@ -152,7 +152,7 @@ tdesc_start_target (struct gdb_xml_parser *parser,
 		    const struct gdb_xml_element *element,
 		    void *user_data, VEC(gdb_xml_value_s) *attributes)
 {
-  char *version = VEC_index (gdb_xml_value_s, attributes, 0)->value;
+  char *version = xml_find_attribute (attributes, "version")->value;
 
   if (strcmp (version, "1.0") != 0)
     gdb_xml_error (parser,
@@ -168,7 +168,7 @@ tdesc_start_feature (struct gdb_xml_parser *parser,
 		     void *user_data, VEC(gdb_xml_value_s) *attributes)
 {
   struct tdesc_parsing_data *data = user_data;
-  char *name = VEC_index (gdb_xml_value_s, attributes, 0)->value;
+  char *name = xml_find_attribute (attributes, "name")->value;
 
   data->current_feature = tdesc_create_feature (data->tdesc, name);
 }
@@ -233,7 +233,7 @@ tdesc_start_union (struct gdb_xml_parser *parser,
 		   void *user_data, VEC(gdb_xml_value_s) *attributes)
 {
   struct tdesc_parsing_data *data = user_data;
-  char *id = VEC_index (gdb_xml_value_s, attributes, 0)->value;
+  char *id = xml_find_attribute (attributes, "id")->value;
 
   data->current_type = tdesc_create_union (data->current_feature, id);
   data->current_type_size = 0;
@@ -249,18 +249,19 @@ tdesc_start_struct (struct gdb_xml_parser *parser,
 		   void *user_data, VEC(gdb_xml_value_s) *attributes)
 {
   struct tdesc_parsing_data *data = user_data;
-  char *id = VEC_index (gdb_xml_value_s, attributes, 0)->value;
+  char *id = xml_find_attribute (attributes, "id")->value;
   struct tdesc_type *type;
+  struct gdb_xml_value *attr;
 
   type = tdesc_create_struct (data->current_feature, id);
   data->current_type = type;
   data->current_type_size = 0;
   data->current_type_is_flags = 0;
 
-  if (VEC_length (gdb_xml_value_s, attributes) > 1)
+  attr = xml_find_attribute (attributes, "size");
+  if (attr != NULL)
     {
-      int size = (int) * (ULONGEST *)
-	VEC_index (gdb_xml_value_s, attributes, 1)->value;
+      int size = (int) * (ULONGEST *) attr->value;
 
       tdesc_set_struct_size (type, size);
       data->current_type_size = size;
@@ -273,9 +274,9 @@ tdesc_start_flags (struct gdb_xml_parser *parser,
 		   void *user_data, VEC(gdb_xml_value_s) *attributes)
 {
   struct tdesc_parsing_data *data = user_data;
-  char *id = VEC_index (gdb_xml_value_s, attributes, 0)->value;
+  char *id = xml_find_attribute (attributes, "id")->value;
   int length = (int) * (ULONGEST *)
-    VEC_index (gdb_xml_value_s, attributes, 1)->value;
+    xml_find_attribute (attributes, "size")->value;
   struct tdesc_type *type;
 
   type = tdesc_create_flags (data->current_feature, id, length);
@@ -294,28 +295,28 @@ tdesc_start_field (struct gdb_xml_parser *parser,
 		   void *user_data, VEC(gdb_xml_value_s) *attributes)
 {
   struct tdesc_parsing_data *data = user_data;
-  int ix = 0, length;
-  struct gdb_xml_value *attrs = VEC_address (gdb_xml_value_s, attributes);
+  struct gdb_xml_value *attr;
   struct tdesc_type *field_type;
   char *field_name, *field_type_id;
   int start, end;
 
-  length = VEC_length (gdb_xml_value_s, attributes);
+  field_name = xml_find_attribute (attributes, "name")->value;
 
-  field_name = attrs[ix++].value;
-
-  if (ix < length && strcmp (attrs[ix].name, "type") == 0)
-    field_type_id = attrs[ix++].value;
+  attr = xml_find_attribute (attributes, "type");
+  if (attr != NULL)
+    field_type_id = attr->value;
   else
     field_type_id = NULL;
 
-  if (ix < length && strcmp (attrs[ix].name, "start") == 0)
-    start = * (ULONGEST *) attrs[ix++].value;
+  attr = xml_find_attribute (attributes, "start");
+  if (attr != NULL)
+    start = * (ULONGEST *) attr->value;
   else
     start = -1;
 
-  if (ix < length && strcmp (attrs[ix].name, "end") == 0)
-    end = * (ULONGEST *) attrs[ix++].value;
+  attr = xml_find_attribute (attributes, "end");
+  if (attr != NULL)
+    end = * (ULONGEST *) attr->value;
   else
     end = -1;
 
@@ -505,7 +506,6 @@ tdesc_parse_xml (const char *document, xml_fetch_another fetcher,
 		 void *fetcher_baton)
 {
   struct cleanup *back_to, *result_cleanup;
-  struct gdb_xml_parser *parser;
   struct tdesc_parsing_data data;
   struct tdesc_xml_cache *cache;
   char *expanded_text;
@@ -531,16 +531,14 @@ tdesc_parse_xml (const char *document, xml_fetch_another fetcher,
       }
 
   back_to = make_cleanup (null_cleanup, NULL);
-  parser = gdb_xml_create_parser_and_cleanup (_("target description"),
-					      tdesc_elements, &data);
-  gdb_xml_use_dtd (parser, "gdb-target.dtd");
 
   memset (&data, 0, sizeof (struct tdesc_parsing_data));
   data.tdesc = allocate_target_description ();
   result_cleanup = make_cleanup_free_target_description (data.tdesc);
   make_cleanup (xfree, expanded_text);
 
-  if (gdb_xml_parse (parser, expanded_text) == 0)
+  if (gdb_xml_parse_quick (_("target description"), "gdb-target.dtd",
+			   tdesc_elements, expanded_text, &data) == 0)
     {
       /* Parsed successfully.  */
       struct tdesc_xml_cache new_cache;
