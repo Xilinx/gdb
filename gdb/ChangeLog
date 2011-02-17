@@ -1,3 +1,171 @@
+2011-02-17  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2loc.h (dwarf2_compile_expr_to_ax): Declare.
+	* dwarf2loc.c (dwarf2_compile_expr_to_ax): Rename from
+	compile_dwarf_to_ax.  No longer static.  Call
+	dwarf2_compile_cfa_to_ax.
+	(locexpr_tracepoint_var_ref): Update.
+	(loclist_tracepoint_var_ref): Update.
+	* dwarf2-frame.h (dwarf2_compile_cfa_to_ax): Declare.
+	* dwarf2-frame.c (execute_cfa_program): Remove 'this_frame'
+	argument; add 'gdbarch' and 'pc'.
+	(dwarf2_compile_cfa_to_ax): New function.
+	(dwarf2_frame_cache): Update.
+
+2011-02-17  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-lang.c (ada_type_of_array): Fix the size of the array
+	in the case of an unconstrained packed array.
+
+2011-02-17  Yao Qi  <yao@codesourcery.com>
+
+	* common/Makefile.in: Add more targets for make.
+
+2011-02-16  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2loc.c (unimplemented): Fix typo.
+
+2011-02-16  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2loc.c (unimplemented): Handle unnamed opcodes.
+	(compile_dwarf_to_ax) <default>: Use unimplemented.
+	<DW_OP_deref>: Update.
+	(disassemble_dwarf_expression): Update.
+	* dwarf2read.c (dwarf_stack_op_name): Remove 'def' argument.
+	(decode_locdesc): Update.
+	* dwarf2expr.h (dwarf_stack_op_name): Update.
+
+2011-02-16  Tom Tromey  <tromey@redhat.com>
+
+	* ax.h (struct aop_map) <name>: Now const.
+
+2011-02-16  Tom Tromey  <tromey@redhat.com>
+
+	* ax-gdb.c.c (gen_expr) <UNOP_MEMVAL>: Handle value kinds other
+	than axs_rvalue.
+
+2011-02-16  Yao Qi  <yao@codesourcery.com>
+
+	* infrun.c (get_displaced_step_closure_by_addr): New.
+	* inferior.h: Declare it.
+	* arm-tdep.c: (arm_pc_is_thumb): Call
+	get_displaced_step_closure_by_addr.  Adjust MEMADDR if it
+	returns non-NULL.
+
+2011-02-16  Pedro Alves  <pedro@codesourcery.com>
+	    Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	gdb/
+	* tracepoint.c (memrange_sortmerge): Fix list A's end calculation.
+
+2011-02-16  Pedro Alves  <pedro@codesourcery.com>
+	    Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* value.c (value_contents_copy_raw): Extend describing comment.
+	Assert that the destination contents we're overwriting are wholly
+	available.
+	(value_contents_copy): Extend describing comment.
+
+2011-02-16  Pedro Alves  <pedro@codesourcery.com>
+	    Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* value.c (value_available_contents_eq): Remove redundant local
+	variables.  Fix available contents comparision.
+	* value.h (value_available_contents_eq): Extend describing
+	comment.
+
+2011-02-16  Yao Qi  <yao@codesourcery.com>
+
+	* thread.c (info_threads_command): Add missing i18n markup and remove
+	trailing newline.
+
+2011-02-15  Paul Pluzhnikov  <ppluzhnikov@google.com>
+
+	* breakpoint.c (longjmp_names): New variable.
+	(struct breakpoint_objfile_data): New type.
+	(breakpoint_objfile_key): New variable.
+	(msym_not_found): New variable.
+	(msym_not_found_p): New predicate.
+	(get_breakpoint_objfile_data): New function.
+	(create_overlay_event_breakpoint): Check per-objfile cache for
+	symbols first.
+	(create_longjmp_master_breakpoint): Likewise.
+	(create_std_terminate_master_breakpoint): Likewise.
+	(create_exception_master_breakpoint): Likewise.
+	(_initialize_breakpoint): Register per-objfile data key.
+
+2011-02-15  Paul Pluzhnikov  <ppluzhnikov@google.com>
+
+	* breakpoint.c ((create_overlay_event_breakpoint): Const-propagate
+	parameter value.
+	(create_longjmp_master_breakpoint): Loop over longjmp names.
+	(create_std_terminate_master_breakpoint): Const-propagate parameter
+	value.
+	(update_breakpoints_after_exec): Adjust.
+	(breakpoint_re_set): Adjust.
+
+2011-02-15  Michael Snyder  <msnyder@vmware.com>
+
+	* thread.c (info_threads_command): Process arg as thread id,
+	or list of thread ids.
+	(thread_find_command): New command.
+	(_initialize_thread): Document argument for info threads.
+	Document 'thread find' command.
+	* NEWS: Document new command "thread find".
+
+2011-02-15  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* Makefile.in (ACLOCAL_AMFLAGS): Add `-I ../config'.
+	* aclocal.m4: Regenerated with aclocal-1.11.1.
+	* common/configure: Regenerate with autoconf-2.64.
+
+2011-02-15  Ken Werner  <ken.werner@de.ibm.com>
+
+	* opencl-lang.c (build_opencl_types): Set the size of the built-in
+	bool data type to a size of one byte.
+
+2011-02-15  Pedro Alves  <pedro@codesourcery.com>
+	    Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* target.c (memory_xfer_live_readonly_partial): Document where to
+	look for interface description.
+
+2011-02-15  Yao Qi  <yao@codesourcery.com>
+
+	PR tdep/12352
+	* arm-tdep.c (copy_ldr_str_ldrb_strb): Replace PC with SP in
+	order to store PC value on stack instead of text section.
+
+2011-02-15  Thiago Jung Bauermann  <bauerman@br.ibm.com>
+
+	* rs6000-tdep.c (IS_EFP_PSEUDOREG): Use correct constant for
+	the EFP register set size.
+	(efpr_pseudo_register_read): Use regcache_raw_read_part to read
+	data from the VMX register.
+	(efpr_pseudo_register_write): Use regcache_raw_write_part to read
+	and write data from/to the VMX register.
+
+2011-02-14  Michael Snyder  <msnyder@vmware.com>
+
+	* command.h (enum command_class): New class 'no_set_class', for
+	"show" commands without a corresponding "set" command.
+	* value.c (_initialize_values): Use 'no_set_class' for "show values".
+	* copying.c (_initialize_copying): Ditto for "show copying" and
+	"show warranty".
+	* cli/cli-cmds.c (init_cli_cmds): Ditto for "show commands" and
+	"show version".
+	* cli/cli-setshow.c (cmd_show_list): Skip "show" commands for
+	which there is no corresponding "set" command (eg. "show copying").
+
+2011-02-14  Pedro Alves  <pedro@codesourcery.com>
+	    Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* exec.c (section_table_available_memory): Change `len' parameter
+	type to ULONGEST.
+	* exec.h (section_table_available_memory): Ditto.
+	* value.h (read_value_memory): Rename the `offset' parameter to
+	`embedded_offset'.
+
 2011-02-14  Pedro Alves  <pedro@codesourcery.com>
 	    Jan Kratochvil  <jan.kratochvil@redhat.com>
 
@@ -318,6 +486,10 @@
 
 	* Makefile.in (CLEANDIRS): Remove duplicated common dir.
 
+2011-02-11  Yao Qi  <yao@codesourcery.com>
+
+	* common/Makefile.in: Add copyright header.
+
 2011-02-11  Pedro Alves  <pedro@codesourcery.com>
 
 	* infrun.c (proceed): Move switching out and in of tfind mode from
@@ -330,6 +502,15 @@
 	libcommon.a.
 	* configure.ac: Add common to sub dir.
 	* configure: Regenerate.
+
+2011-02-11  Yao Qi  <yao@codesourcery.com>
+
+	Build libcommon.a.
+
+	* common/Makefile.in: New.
+	* common/configure.ac: New.
+	* common/aclocal.m4: New.
+	* common/configure: Generate.
 
 2011-02-10  Pedro Alves  <pedro@codesourcery.com>
 

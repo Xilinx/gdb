@@ -533,20 +533,12 @@ value_available_contents_eq (const struct value *val1, int offset1,
 			     const struct value *val2, int offset2,
 			     int length)
 {
-  int org_len = length;
-  int org_offset1 = offset1;
-  int org_offset2 = offset2;
   int idx1 = 0, idx2 = 0;
-  int prev_avail;
 
   /* This routine is used by printing routines, where we should
      already have read the value.  Note that we only know whether a
      value chunk is available if we've tried to read it.  */
   gdb_assert (!val1->lazy && !val2->lazy);
-
-  /* The offset from either ORG_OFFSET1 or ORG_OFFSET2 where the
-     available contents we haven't compared yet start.  */
-  prev_avail = 0;
 
   while (length > 0)
     {
@@ -561,9 +553,9 @@ value_available_contents_eq (const struct value *val1, int offset1,
 
       /* The usual case is for both values to be completely available.  */
       if (idx1 == -1 && idx2 == -1)
-	return (memcmp (val1->contents + org_offset1 + prev_avail,
-			val2->contents + org_offset2 + prev_avail,
-			org_len - prev_avail) == 0);
+	return (memcmp (val1->contents + offset1,
+			val2->contents + offset2,
+			length) == 0);
       /* The contents only match equal if the available set matches as
 	 well.  */
       else if (idx1 == -1 || idx2 == -1)
@@ -596,12 +588,11 @@ value_available_contents_eq (const struct value *val1, int offset1,
 	return 0;
 
       /* Compare the _available_ contents.  */
-      if (memcmp (val1->contents + org_offset1 + prev_avail,
-		  val2->contents + org_offset2 + prev_avail,
-		  l2 - prev_avail) != 0)
+      if (memcmp (val1->contents + offset1,
+		  val2->contents + offset2,
+		  l1) != 0)
 	return 0;
 
-      prev_avail += h1;
       length -= h1;
       offset1 += h1;
       offset2 += h1;
@@ -853,11 +844,15 @@ value_contents_all (struct value *value)
   return result;
 }
 
-/* Copy LENGTH bytes of SRC value's contents starting at SRC_OFFSET,
-   into DST value's contents, starting at DST_OFFSET.  If unavailable
-   contents are being copied from SRC, the corresponding DST contents
-   are marked unavailable accordingly.  Neither DST nor SRC may be
-   lazy values.  */
+/* Copy LENGTH bytes of SRC value's (all) contents
+   (value_contents_all) starting at SRC_OFFSET, into DST value's (all)
+   contents, starting at DST_OFFSET.  If unavailable contents are
+   being copied from SRC, the corresponding DST contents are marked
+   unavailable accordingly.  Neither DST nor SRC may be lazy
+   values.
+
+   It is assumed the contents of DST in the [DST_OFFSET,
+   DST_OFFSET+LENGTH) range are wholly available.  */
 
 void
 value_contents_copy_raw (struct value *dst, int dst_offset,
@@ -871,6 +866,11 @@ value_contents_copy_raw (struct value *dst, int dst_offset,
      call, say), the contents would be overwritten.  A lazy SRC would
      mean we'd be copying garbage.  */
   gdb_assert (!dst->lazy && !src->lazy);
+
+  /* The overwritten DST range gets unavailability ORed in, not
+     replaced.  Make sure to remember to implement replacing if it
+     turns out actually necessary.  */
+  gdb_assert (value_bytes_available (dst, dst_offset, length));
 
   /* Copy the data.  */
   memcpy (value_contents_all_raw (dst) + dst_offset,
@@ -892,12 +892,16 @@ value_contents_copy_raw (struct value *dst, int dst_offset,
     }
 }
 
-/* Copy LENGTH bytes of SRC value's contents starting at SRC_OFFSET
-   byte, into DST value's contents, starting at DST_OFFSET.  If
-   unavailable contents are being copied from SRC, the corresponding
-   DST contents are marked unavailable accordingly.  DST must not be
-   lazy.  If SRC is lazy, it will be fetched now.  If SRC is not valid
-   (is optimized out), an error is thrown.  */
+/* Copy LENGTH bytes of SRC value's (all) contents
+   (value_contents_all) starting at SRC_OFFSET byte, into DST value's
+   (all) contents, starting at DST_OFFSET.  If unavailable contents
+   are being copied from SRC, the corresponding DST contents are
+   marked unavailable accordingly.  DST must not be lazy.  If SRC is
+   lazy, it will be fetched now.  If SRC is not valid (is optimized
+   out), an error is thrown.
+
+   It is assumed the contents of DST in the [DST_OFFSET,
+   DST_OFFSET+LENGTH) range are wholly available.  */
 
 void
 value_contents_copy (struct value *dst, int dst_offset,
@@ -3074,7 +3078,7 @@ A few convenience variables are given values automatically:\n\
 \"$__\" holds the contents of the last address examined with \"x\"."),
 	   &showlist);
 
-  add_cmd ("values", no_class, show_values, _("\
+  add_cmd ("values", no_set_class, show_values, _("\
 Elements of value history around item number IDX (or last ten)."),
 	   &showlist);
 
