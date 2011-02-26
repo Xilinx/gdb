@@ -62,6 +62,7 @@
 #include "jit.h"
 #include "xml-syscall.h"
 #include "parser-defs.h"
+#include "cli/cli-utils.h"
 
 /* readline include files */
 #include "readline/readline.h"
@@ -132,7 +133,8 @@ static void breakpoints_info (char *, int);
 
 static void watchpoints_info (char *, int);
 
-static int breakpoint_1 (int, int, int (*) (const struct breakpoint *));
+static int breakpoint_1 (char *, int, 
+			 int (*) (const struct breakpoint *));
 
 static int breakpoint_cond_eval (void *);
 
@@ -141,8 +143,6 @@ static void cleanup_executing_breakpoints (void *);
 static void commands_command (char *, int);
 
 static void condition_command (char *, int);
-
-static int get_number_trailer (char **, int);
 
 typedef enum
   {
@@ -184,8 +184,6 @@ static void catch_exception_command_1 (enum exception_event_kind ex_event,
 				       char *arg, int tempflag, int from_tty);
 
 static void tcatch_command (char *arg, int from_tty);
-
-static void ep_skip_leading_whitespace (char **s);
 
 static void detach_single_step_breakpoints (void);
 
@@ -553,164 +551,6 @@ int default_breakpoint_line;
 struct program_space *default_breakpoint_pspace;
 
 
-/* *PP is a string denoting a breakpoint.  Get the number of the
-   breakpoint.  Advance *PP after the string and any trailing
-   whitespace.
-
-   Currently the string can either be a number or "$" followed by the
-   name of a convenience variable.  Making it an expression wouldn't
-   work well for map_breakpoint_numbers (e.g. "4 + 5 + 6").
-
-   If the string is a NULL pointer, that denotes the last breakpoint.
-   
-   TRAILER is a character which can be found after the number; most
-   commonly this is `-'.  If you don't want a trailer, use \0.  */
-
-static int
-get_number_trailer (char **pp, int trailer)
-{
-  int retval = 0;	/* default */
-  char *p = *pp;
-
-  if (p == NULL)
-    /* Empty line means refer to the last breakpoint.  */
-    return breakpoint_count;
-  else if (*p == '$')
-    {
-      /* Make a copy of the name, so we can null-terminate it
-         to pass to lookup_internalvar().  */
-      char *varname;
-      char *start = ++p;
-      LONGEST val;
-
-      while (isalnum (*p) || *p == '_')
-	p++;
-      varname = (char *) alloca (p - start + 1);
-      strncpy (varname, start, p - start);
-      varname[p - start] = '\0';
-      if (get_internalvar_integer (lookup_internalvar (varname), &val))
-	retval = (int) val;
-      else
-	{
-	  printf_filtered (_("Convenience variable must "
-			     "have integer value.\n"));
-	  retval = 0;
-	}
-    }
-  else
-    {
-      if (*p == '-')
-	++p;
-      while (*p >= '0' && *p <= '9')
-	++p;
-      if (p == *pp)
-	/* There is no number here.  (e.g. "cond a == b").  */
-	{
-	  /* Skip non-numeric token.  */
-	  while (*p && !isspace((int) *p))
-	    ++p;
-	  /* Return zero, which caller must interpret as error.  */
-	  retval = 0;
-	}
-      else
-	retval = atoi (*pp);
-    }
-  if (!(isspace (*p) || *p == '\0' || *p == trailer))
-    {
-      /* Trailing junk: return 0 and let caller print error msg.  */
-      while (!(isspace (*p) || *p == '\0' || *p == trailer))
-	++p;
-      retval = 0;
-    }
-  while (isspace (*p))
-    p++;
-  *pp = p;
-  return retval;
-}
-
-
-/* Like get_number_trailer, but don't allow a trailer.  */
-int
-get_number (char **pp)
-{
-  return get_number_trailer (pp, '\0');
-}
-
-/* Parse a number or a range.
-   A number will be of the form handled by get_number.
-   A range will be of the form <number1> - <number2>, and 
-   will represent all the integers between number1 and number2,
-   inclusive.
-
-   While processing a range, this fuction is called iteratively;
-   At each call it will return the next value in the range.
-
-   At the beginning of parsing a range, the char pointer PP will
-   be advanced past <number1> and left pointing at the '-' token.
-   Subsequent calls will not advance the pointer until the range
-   is completed.  The call that completes the range will advance
-   pointer PP past <number2>.  */
-
-int 
-get_number_or_range (char **pp)
-{
-  static int last_retval, end_value;
-  static char *end_ptr;
-  static int in_range = 0;
-
-  if (**pp != '-')
-    {
-      /* Default case: pp is pointing either to a solo number, 
-	 or to the first number of a range.  */
-      last_retval = get_number_trailer (pp, '-');
-      if (**pp == '-')
-	{
-	  char **temp;
-
-	  /* This is the start of a range (<number1> - <number2>).
-	     Skip the '-', parse and remember the second number,
-	     and also remember the end of the final token.  */
-
-	  temp = &end_ptr; 
-	  end_ptr = *pp + 1; 
-	  while (isspace ((int) *end_ptr))
-	    end_ptr++;	/* skip white space */
-	  end_value = get_number (temp);
-	  if (end_value < last_retval) 
-	    {
-	      error (_("inverted range"));
-	    }
-	  else if (end_value == last_retval)
-	    {
-	      /* Degenerate range (number1 == number2).  Advance the
-		 token pointer so that the range will be treated as a
-		 single number.  */ 
-	      *pp = end_ptr;
-	    }
-	  else
-	    in_range = 1;
-	}
-    }
-  else if (! in_range)
-    error (_("negative value"));
-  else
-    {
-      /* pp points to the '-' that betokens a range.  All
-	 number-parsing has already been done.  Return the next
-	 integer value (one greater than the saved previous value).
-	 Do not advance the token pointer 'pp' until the end of range
-	 is reached.  */
-
-      if (++last_retval == end_value)
-	{
-	  /* End of range reached; advance token pointer.  */
-	  *pp = end_ptr;
-	  in_range = 0;
-	}
-    }
-  return last_retval;
-}
-
 /* Return the breakpoint with the specified number, or NULL
    if the number does not refer to an existing breakpoint.  */
 
@@ -1374,11 +1214,6 @@ update_watchpoint (struct breakpoint *b, int reparse)
   if (!watchpoint_in_thread_scope (b))
     return;
 
-  /* We don't free locations.  They are stored in the bp_location array
-     and update_global_location_list will eventually delete them and
-     remove breakpoints if needed.  */
-  b->loc = NULL;
-
   if (b->disposition == disp_del_at_next_stop)
     return;
  
@@ -1389,7 +1224,15 @@ update_watchpoint (struct breakpoint *b, int reparse)
     within_current_scope = 1;
   else
     {
-      struct frame_info *fi;
+      struct frame_info *fi = get_current_frame ();
+      struct gdbarch *frame_arch = get_frame_arch (fi);
+      CORE_ADDR frame_pc = get_frame_pc (fi);
+
+      /* If we're in a function epilogue, unwinding may not work
+	 properly, so do not attempt to recreate locations at this
+	 point.  See similar comments in watchpoint_check.  */
+      if (gdbarch_in_function_epilogue_p (frame_arch, frame_pc))
+	return;
 
       /* Save the current frame's ID so we can restore it after
          evaluating the watchpoint expression on its own frame.  */
@@ -1404,6 +1247,11 @@ update_watchpoint (struct breakpoint *b, int reparse)
       if (within_current_scope)
 	select_frame (fi);
     }
+
+  /* We don't free locations.  They are stored in the bp_location array
+     and update_global_location_list will eventually delete them and
+     remove breakpoints if needed.  */
+  b->loc = NULL;
 
   if (within_current_scope && reparse)
     {
@@ -5255,7 +5103,7 @@ user_breakpoint_p (struct breakpoint *b)
    breakpoints listed.  */
 
 static int
-breakpoint_1 (int bnum, int allflag, 
+breakpoint_1 (char *args, int allflag, 
 	      int (*filter) (const struct breakpoint *))
 {
   struct breakpoint *b;
@@ -5272,28 +5120,36 @@ breakpoint_1 (int bnum, int allflag,
      required for address fields.  */
   nr_printable_breakpoints = 0;
   ALL_BREAKPOINTS (b)
-    if (bnum == -1
-	|| bnum == b->number)
-      {
-	/* If we have a filter, only list the breakpoints it accepts.  */
-	if (filter && !filter (b))
-	  continue;
-	
-	if (allflag || user_breakpoint_p (b))
-	  {
-	    int addr_bit, type_len;
+    {
+      /* If we have a filter, only list the breakpoints it accepts.  */
+      if (filter && !filter (b))
+	continue;
 
-	    addr_bit = breakpoint_address_bits (b);
-	    if (addr_bit > print_address_bits)
-	      print_address_bits = addr_bit;
+      /* If we have an "args" string, it is a list of breakpoints to 
+	 accept.  Skip the others.  */
+      if (args != NULL && *args != '\0')
+	{
+	  if (allflag && parse_and_eval_long (args) != b->number)
+	    continue;
+	  if (!allflag && !number_is_in_list (args, b->number))
+	    continue;
+	}
 
-	    type_len = strlen (bptype_string (b->type));
-	    if (type_len > print_type_col_width)
-	      print_type_col_width = type_len;
+      if (allflag || user_breakpoint_p (b))
+	{
+	  int addr_bit, type_len;
 
-	    nr_printable_breakpoints++;
-	  }
-      }
+	  addr_bit = breakpoint_address_bits (b);
+	  if (addr_bit > print_address_bits)
+	    print_address_bits = addr_bit;
+
+	  type_len = strlen (bptype_string (b->type));
+	  if (type_len > print_type_col_width)
+	    print_type_col_width = type_len;
+
+	  nr_printable_breakpoints++;
+	}
+    }
 
   if (opts.addressprint)
     bkpttbl_chain 
@@ -5322,16 +5178,16 @@ breakpoint_1 (int bnum, int allflag,
     annotate_field (3);
   ui_out_table_header (uiout, 3, ui_left, "enabled", "Enb");	/* 4 */
   if (opts.addressprint)
-	{
-	  if (nr_printable_breakpoints > 0)
-	    annotate_field (4);
-	  if (print_address_bits <= 32)
-	    ui_out_table_header (uiout, 10, ui_left, 
-				 "addr", "Address");		/* 5 */
-	  else
-	    ui_out_table_header (uiout, 18, ui_left, 
-				 "addr", "Address");		/* 5 */
-	}
+    {
+      if (nr_printable_breakpoints > 0)
+	annotate_field (4);
+      if (print_address_bits <= 32)
+	ui_out_table_header (uiout, 10, ui_left, 
+			     "addr", "Address");		/* 5 */
+      else
+	ui_out_table_header (uiout, 18, ui_left, 
+			     "addr", "Address");		/* 5 */
+    }
   if (nr_printable_breakpoints > 0)
     annotate_field (5);
   ui_out_table_header (uiout, 40, ui_noalign, "what", "What");	/* 6 */
@@ -5340,22 +5196,34 @@ breakpoint_1 (int bnum, int allflag,
     annotate_breakpoints_table ();
 
   ALL_BREAKPOINTS (b)
-  {
-    QUIT;
-    if (bnum == -1
-	|| bnum == b->number)
-      {
-	/* If we have a filter, only list the breakpoints it accepts.  */
-	if (filter && !filter (b))
-	  continue;
-	
-	/* We only print out user settable breakpoints unless the
-	   allflag is set.  */
-	if (allflag || user_breakpoint_p (b))
-	  print_one_breakpoint (b, &last_loc, print_address_bits, allflag);
-      }
-  }
-  
+    {
+      QUIT;
+      /* If we have a filter, only list the breakpoints it accepts.  */
+      if (filter && !filter (b))
+	continue;
+
+      /* If we have an "args" string, it is a list of breakpoints to 
+	 accept.  Skip the others.  */
+
+      if (args != NULL && *args != '\0')
+	{
+	  if (allflag)	/* maintenance info breakpoint */
+	    {
+	      if (parse_and_eval_long (args) != b->number)
+		continue;
+	    }
+	  else		/* all others */
+	    {
+	      if (!number_is_in_list (args, b->number))
+		continue;
+	    }
+	}
+      /* We only print out user settable breakpoints unless the
+	 allflag is set.  */
+      if (allflag || user_breakpoint_p (b))
+	print_one_breakpoint (b, &last_loc, print_address_bits, allflag);
+    }
+
   do_cleanups (bkpttbl_chain);
 
   if (nr_printable_breakpoints == 0)
@@ -5364,12 +5232,12 @@ breakpoint_1 (int bnum, int allflag,
 	 empty list.  */
       if (!filter)
 	{
-	  if (bnum == -1)
+	  if (args == NULL || *args == '\0')
 	    ui_out_message (uiout, 0, "No breakpoints or watchpoints.\n");
 	  else
 	    ui_out_message (uiout, 0, 
-			    "No breakpoint or watchpoint number %d.\n",
-			    bnum);
+			    "No breakpoint or watchpoint matching '%s'.\n",
+			    args);
 	}
     }
   else
@@ -5405,46 +5273,31 @@ default_collect_info (void)
 }
   
 static void
-breakpoints_info (char *bnum_exp, int from_tty)
+breakpoints_info (char *args, int from_tty)
 {
-  int bnum = -1;
-
-  if (bnum_exp)
-    bnum = parse_and_eval_long (bnum_exp);
-
-  breakpoint_1 (bnum, 0, NULL);
+  breakpoint_1 (args, 0, NULL);
 
   default_collect_info ();
 }
 
 static void
-watchpoints_info (char *wpnum_exp, int from_tty)
+watchpoints_info (char *args, int from_tty)
 {
-  int wpnum = -1, num_printed;
-
-  if (wpnum_exp)
-    wpnum = parse_and_eval_long (wpnum_exp);
-
-  num_printed = breakpoint_1 (wpnum, 0, is_watchpoint);
+  int num_printed = breakpoint_1 (args, 0, is_watchpoint);
 
   if (num_printed == 0)
     {
-      if (wpnum == -1)
+      if (args == NULL || *args == '\0')
 	ui_out_message (uiout, 0, "No watchpoints.\n");
       else
-	ui_out_message (uiout, 0, "No watchpoint number %d.\n", wpnum);
+	ui_out_message (uiout, 0, "No watchpoint matching '%s'.\n", args);
     }
 }
 
 static void
-maintenance_info_breakpoints (char *bnum_exp, int from_tty)
+maintenance_info_breakpoints (char *args, int from_tty)
 {
-  int bnum = -1;
-
-  if (bnum_exp)
-    bnum = parse_and_eval_long (bnum_exp);
-
-  breakpoint_1 (bnum, 1, NULL);
+  breakpoint_1 (args, 1, NULL);
 
   default_collect_info ();
 }
@@ -7380,12 +7233,9 @@ create_breakpoint_sal (struct gdbarch *gdbarch,
 		  char *marker_str;
 		  int i;
 
-		  while (*p == ' ' || *p == '\t')
-		    p++;
+		  p = skip_spaces (p);
 
-		  endp = p;
-		  while (*endp != ' ' && *endp != '\t' && *endp != '\0')
-		    endp++;
+		  endp = skip_to_space (p);
 
 		  marker_str = savestring (p, endp - p);
 		  b->static_trace_marker_id = marker_str;
@@ -7780,13 +7630,9 @@ find_condition_and_thread (char *tok, CORE_ADDR pc,
       char *cond_start = NULL;
       char *cond_end = NULL;
 
-      while (*tok == ' ' || *tok == '\t')
-	tok++;
+      tok = skip_spaces (tok);
       
-      end_tok = tok;
-      
-      while (*end_tok != ' ' && *end_tok != '\t' && *end_tok != '\000')
-	end_tok++;
+      end_tok = skip_to_space (tok);
       
       toklen = end_tok - tok;
       
@@ -7845,12 +7691,9 @@ decode_static_tracepoint_spec (char **arg_p)
   char *marker_str;
   int i;
 
-  while (*p == ' ' || *p == '\t')
-    p++;
+  p = skip_spaces (p);
 
-  endp = p;
-  while (*endp != ' ' && *endp != '\t' && *endp != '\0')
-    endp++;
+  endp = skip_to_space (p);
 
   marker_str = savestring (p, endp - p);
   old_chain = make_cleanup (xfree, marker_str);
@@ -8615,13 +8458,8 @@ watch_command_1 (char *arg, int accessflag, int from_tty,
   else if (val != NULL)
     release_value (val);
 
-  tok = arg;
-  while (*tok == ' ' || *tok == '\t')
-    tok++;
-  end_tok = tok;
-
-  while (*end_tok != ' ' && *end_tok != '\t' && *end_tok != '\000')
-    end_tok++;
+  tok = skip_spaces (arg);
+  end_tok = skip_to_space (tok);
 
   toklen = end_tok - tok;
   if (toklen >= 1 && strncmp (tok, "if", toklen) == 0)
@@ -8905,7 +8743,7 @@ watch_maybe_just_location (char *arg, int accessflag, int from_tty)
       && (check_for_argument (&arg, "-location", sizeof ("-location") - 1)
 	  || check_for_argument (&arg, "-l", sizeof ("-l") - 1)))
     {
-      ep_skip_leading_whitespace (&arg);
+      arg = skip_spaces (arg);
       just_location = 1;
     }
 
@@ -9062,15 +8900,6 @@ until_break_command (char *arg, int from_tty, int anywhere)
     do_cleanups (old_chain);
 }
 
-static void
-ep_skip_leading_whitespace (char **s)
-{
-  if ((s == NULL) || (*s == NULL))
-    return;
-  while (isspace (**s))
-    *s += 1;
-}
-
 /* This function attempts to parse an optional "if <cond>" clause
    from the arg string.  If one is not found, it returns NULL.
 
@@ -9092,7 +8921,7 @@ ep_parse_optional_if_clause (char **arg)
 
   /* Skip any extra leading whitespace, and record the start of the
      condition string.  */
-  ep_skip_leading_whitespace (arg);
+  *arg = skip_spaces (*arg);
   cond_string = *arg;
 
   /* Assume that the condition occupies the remainder of the arg
@@ -9127,7 +8956,7 @@ catch_fork_command_1 (char *arg, int from_tty,
 
   if (!arg)
     arg = "";
-  ep_skip_leading_whitespace (&arg);
+  arg = skip_spaces (arg);
 
   /* The allowed syntax is:
      catch [v]fork
@@ -9171,7 +9000,7 @@ catch_exec_command_1 (char *arg, int from_tty,
 
   if (!arg)
     arg = "";
-  ep_skip_leading_whitespace (&arg);
+  arg = skip_spaces (arg);
 
   /* The allowed syntax is:
      catch exec
@@ -9321,7 +9150,7 @@ catch_exception_command_1 (enum exception_event_kind ex_event, char *arg,
 
   if (!arg)
     arg = "";
-  ep_skip_leading_whitespace (&arg);
+  arg = skip_spaces (arg);
 
   cond_string = ep_parse_optional_if_clause (&arg);
 
@@ -9507,11 +9336,11 @@ catch_syscall_command_1 (char *arg, int from_tty,
   /* Checking if the feature if supported.  */
   if (gdbarch_get_syscall_number_p (gdbarch) == 0)
     error (_("The feature 'catch syscall' is not supported on \
-this architeture yet."));
+this architecture yet."));
 
   tempflag = get_cmd_context (command) == CATCH_TEMPORARY;
 
-  ep_skip_leading_whitespace (&arg);
+  arg = skip_spaces (arg);
 
   /* We need to do this first "dummy" translation in order
      to get the syscall XML file loaded or, most important,
@@ -11687,21 +11516,18 @@ create_tracepoint_from_upload (struct uploaded_tp *utp)
    omitted.  */
 
 static void
-tracepoints_info (char *tpnum_exp, int from_tty)
+tracepoints_info (char *args, int from_tty)
 {
-  int tpnum = -1, num_printed;
+  int num_printed;
 
-  if (tpnum_exp)
-    tpnum = parse_and_eval_long (tpnum_exp);
-
-  num_printed = breakpoint_1 (tpnum, 0, is_tracepoint);
+  num_printed = breakpoint_1 (args, 0, is_tracepoint);
 
   if (num_printed == 0)
     {
-      if (tpnum == -1)
+      if (args == NULL || *args == '\0')
 	ui_out_message (uiout, 0, "No tracepoints.\n");
       else
-	ui_out_message (uiout, 0, "No tracepoint number %d.\n", tpnum);
+	ui_out_message (uiout, 0, "No tracepoint matching '%s'.\n", args);
     }
 
   default_collect_info ();
@@ -12391,7 +12217,7 @@ breakpoint set."));
     }
 
   add_info ("breakpoints", breakpoints_info, _("\
-Status of user-settable breakpoints, or breakpoint number NUMBER.\n\
+Status of specified breakpoints (all user-settable breakpoints if no argument).\n\
 The \"Type\" column indicates one of:\n\
 \tbreakpoint     - normal breakpoint\n\
 \twatchpoint     - watchpoint\n\
@@ -12539,9 +12365,7 @@ the memory to which it refers."));
   set_cmd_completer (c, expression_completer);
 
   add_info ("watchpoints", watchpoints_info, _("\
-Status of watchpoints, or watchpoint number NUMBER."));
-
-
+Status of specified watchpoints (all watchpoints if no argument)."));
 
   /* XXX: cagney/2005-02-23: This should be a boolean, and should
      respond to changes - contrary to the description.  */
@@ -12607,7 +12431,7 @@ Do \"help tracepoints\" for info on other tracepoint commands."));
   set_cmd_completer (c, location_completer);
 
   add_info ("tracepoints", tracepoints_info, _("\
-Status of tracepoints, or tracepoint number NUMBER.\n\
+Status of specified tracepoints (all tracepoints if no argument).\n\
 Convenience variable \"$tpnum\" contains the number of the\n\
 last tracepoint set."));
 

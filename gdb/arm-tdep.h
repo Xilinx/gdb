@@ -284,9 +284,8 @@ enum pc_write_style
 };
 
 extern void
-  arm_process_displaced_insn (struct gdbarch *gdbarch, uint32_t insn,
-			      CORE_ADDR from, CORE_ADDR to,
-			      struct regcache *regs,
+  arm_process_displaced_insn (struct gdbarch *gdbarch, CORE_ADDR from,
+			      CORE_ADDR to, struct regcache *regs,
 			      struct displaced_step_closure *dsc);
 extern void
   arm_displaced_init_closure (struct gdbarch *gdbarch, CORE_ADDR from,
@@ -309,6 +308,10 @@ extern struct displaced_step_closure *
 extern void arm_displaced_step_fixup (struct gdbarch *,
 				      struct displaced_step_closure *,
 				      CORE_ADDR, CORE_ADDR, struct regcache *);
+
+/* Is the instruction at the given memory address a Thumb or ARM
+   instruction?  */
+extern int arm_pc_is_thumb (struct gdbarch *, CORE_ADDR);
 
 /* Functions exported from armbsd-tdep.h.  */
 

@@ -1,3 +1,350 @@
+2011-02-25  Michael Snyder  <msnyder@vmware.com>
+
+	* arm-tdep.c: Fix typos in comments.
+	* bsd-uthread.c: Ditto.
+	* completer.c: Ditto.
+	* corelow.c: Ditto.
+	* cp-namespace.c: Ditto.
+	* cp-support.c: Ditto.
+	* cris-tdep.c: Ditto.
+	* dbxread.c: Ditto.
+	* dwarf2read.c: Ditto.
+	* frame.h: Ditto.
+	* gdbtypes.h: Ditto.
+	* inferior.h: Ditto.
+	* mdebugread.c: Ditto.
+	* mips-tdep.c: Ditto.
+	* ppc-linux-nat.c: Ditto.
+	* ppc-linux-tdep.c: Ditto.
+	* printcmd.c: Ditto.
+	* sol-thread.c: Ditto.
+	* solib-frv.c: Ditto.
+	* solist.h: Ditto.
+	* sparc64-tdep.c: Ditto.
+	* spu-tdep.c: Ditto.
+	* stabsread.c: Ditto.
+	* symfile.c: Ditto.
+	* valops.c: Ditto.
+	* varobj.c: Ditto.
+	* vax-nat.c: Ditto.
+	* python/py-block.c: Ditto.
+	* python/py-symbol.c: Ditto.
+	* python/py-symtab.c: Ditto.
+	* python/py-value.c: Ditto.
+	* tui/tui-win.c: Ditto.
+
+2011-02-25  Michael Snyder  <msnyder@vmware.com>
+
+	* inferior.c (print_inferior): Accept a string instead of an int
+	for requested_inferiors, and use get_number_or_range to parse it.
+	(info_inferiors_command): Pass args string to print_inferior.
+	(initialize_inferiors): Change help string for info inferiors.
+	* inferior.h (print_inferior): Export prototype change.
+
+2011-02-25  Tom Tromey  <tromey@redhat.com>
+
+	* common/ax.def (invalid2): Set to 0x31.
+
+2011-02-25  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* dwarf2loc.c (disassemble_dwarf_expression) <DW_OP_breg[0-9]+>: Use
+	L and plongest.
+	(disassemble_dwarf_expression) <DW_OP_bregx>: Drop variable offset,
+	use L and plongest.
+	(disassemble_dwarf_expression) <DW_OP_fbreg>: Use L and plongest.
+
+2011-02-24  Michael Snyder  <msnyder@vmware.com>
+
+	* Makefile.in (clean): Make clean should remove generated files
+	observer.h and observer.inc.
+
+2011-02-24  Joel Brobecker  <brobecker@adacore.com>
+
+	Revert the following patch (not approved yet):
+	2011-02-21  Hui Zhu  <teawater@gmail.com>
+	* Makefile.in (HFILES_NO_SRCDIR): Add printcmd.h.
+	* ax-gdb.c (gen_printf_expr_callback): New function.
+	* ax-gdb.h (gen_printf_expr_callback): Forward declare.
+	* ax-general.c (ax_memcpy): New function.
+	(ax_print): Handle "printf".
+	(ax_reqs): Ditto.
+	* ax.h (ax_memcpy): Forward declare.
+	* common/ax.def (invalid2): Removed.
+	(printf): New entry.
+	* printcmd.c (printcmd.h): New include.
+	(string_printf): New function.
+	(ui_printf): Removed.
+	(printf_command): Remove static.  Call string_printf.
+	(eval_command): Call string_printf.
+	* printcmd.h: New file.
+	* tracepoint.c (validate_actionline,
+	encode_actions_1): handle printf_command.
+
+2011-02-23  Tom Tromey  <tromey@redhat.com>
+
+	* ax-general.c (ax_pick): Add missing newline.
+
+2011-02-23  Michael Snyder  <msnyder@vmware.com>
+
+	* breakpoint.c (breakpoint_1): Change first argument from an int
+	to a char pointer, so that the function now accepts a list of
+	breakpoints rather than just one.  Use new function 
+	'number_is_in_list' to implement.
+	(breakpoints_info): Pass char * instead of int to breakpoint_1.
+	(watchpoints_info): Ditto.
+	(tracepoints_info): Ditto.
+	(maintenance_info_breakpoints): Ditto.
+	(_initialize_breakpoint): Update help strings to reflect the fact
+	that these functions can now take more than one argument.
+	* cli/cli-utils.c (number_is_in_list): New function.
+	* cli/cli-utils.h (number_is_in_list): Export.
+
+2011-02-23  Michael Snyder  <msnyder@vmware.com>
+
+	* memattr.c (mem_enable_command): Use get_number_or_range.
+	(mem_disable_command): Ditto.
+	(mem_delete_command): Ditto.
+	(_initialize_mem): Tweak usage message to reflect multiple
+	arguments.
+
+2011-02-22  Doug Evans  <dje@google.com>
+
+	Add gdb.lookup_global_symbol python function.
+	* NEWS: Add entry.
+	* python/py-symbol.c (gdbpy_lookup_global_symbol): New function.
+	* python/python-internal.h (gdbpy_lookup_global_symbol): Declare it.
+	* python/python.c (GdbMethods): Add entry for lookup_global_symbol.
+
+2011-02-22  Tom Tromey  <tromey@redhat.com>
+
+	* language.c (language_class_name_from_physname): Rename
+	'curr_language' argument to 'lang'; use in body.
+
+2011-02-22  Michael Snyder  <msnyder@vmware.com>
+
+	* cli/cli-utils.c (number_is_in_list): Check for zero return.
+
+2011-02-22  Pedro Alves  <pedro@codesourcery.com>
+
+	* frame-unwind.h: Fix comment to mention the this frame, not the
+	next.
+
+2011-02-22  Tom Tromey  <tromey@redhat.com>
+
+	* symfile.c (auto_solib_limit): Remove.
+	* symfile.h (auto_solib_limit): Remove.
+
+2011-02-22  Joel Brobecker  <brobecker@adacore.com>
+
+	* Makefile.in (INSTALLED_LIBS): Delete.  Update comment.
+
+2011-02-21  Michael Snyder  <msnyder@vmware.com>
+
+	* gdbthread.h (print_thread_info): Change prototype.
+	* thread.c (print_thread_info): Accept char* instead of int for
+	requested_threads argument.  Use new function number_is_in_list
+	to determine which threads to list.
+	(info_threads_command): Pass char* to print_thread_info.
+	* cli/cli-utils.c (number_is_in_list): New function.
+	* cli/cli-utils.h (number_is_in_list): Export.
+	* mi/mi-main.c (mi_cmd_thread_info): Pass char* to 
+	print_thread_info.
+	(print_one_inferior): Ditto.
+	(mi_cmd_list_thread_groups): Ditto.
+
+2011-02-21  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* common/Makefile.in (CFLAGS): New.
+	(COMPILE): Add $(CFLAGS).
+
+2011-02-21  Tom Tromey  <tromey@redhat.com>
+
+	* breakpoint.c (catch_syscall_command_1): Fix typo.
+
+2011-02-21  Tom Tromey  <tromey@redhat.com>
+
+	* reverse.c: Include cli-utils.h.
+	* printcmd.c: Include cli-utils.h.
+	(string_printf): Use skip_spaces.
+	* cli/cli-utils.h: New file.
+	* cli/cli-utils.c: New file.
+	* cli/cli-dump.h (skip_spaces): Move to cli-utils.h.
+	* cli/cli-dump.c (skip_spaces): Move to cli-utils.c.
+	* breakpoint.h (get_number, get_number_or_range): Move to
+	cli-utils.h.
+	* breakpoint.c: Include cli-utils.h.
+	(get_number_trailer, get_number, get_number_or_range)
+	(ep_skip_leading_whitespace): Move to cli-utils.c.
+	(create_breakpoint_sal, find_condition_and_thread)
+	(decode_static_tracepoint_spec, watch_command_1)
+	(watch_maybe_just_location, ep_parse_optional_if_clause)
+	(catch_fork_command_1, catch_exec_command_1)
+	(catch_syscall_command_1): Use skip_spaces, skip_to_space.
+	* Makefile.in (SUBDIR_CLI_OBS): Add cli-utils.o.
+	(SUBDIR_CLI_SRCS): Add cli-utils.c.
+	(HFILES_NO_SRCDIR): Add cli-utils.h.
+	(cli-utils.o): New target.
+
+2011-02-18  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* remote.c (remote_close): Reset INFERIOR_PTID to NULL_PTID
+	before calling discard_all_inferiors.
+
+2011-02-21  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* opencl-lang.c (STRUCT_OCL_TYPE): Remove.
+	(struct builtin_opencl_type): Remove.
+	(builtin_opencl_type): Change return type to "struct type **".
+	(lookup_opencl_vector_type): Update caller.
+	(opencl_language_arch_info): Copy primitive type vector from gdbarch.
+	(build_opencl_types): Install plain array of "struct type *"
+	instead of "struct builtin_opencl_type".
+
+2011-02-21  Matthew Gretton-Dann <matthew.gretton-dann@arm.com>
+	    Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* arm-linux-nat.c: Include "observer.h" and "gdbthread.h".
+	(PTRACE_GETHBPREGS, PTRACE_SETHBPREGS): Define.
+	(struct arm_linux_hwbp_cap): New type.
+	(arm_linux_get_hwbp_cap): New function.
+	(arm_linux_get_hw_breakpoint_count): Likewise.
+	(arm_linux_get_hw_watchpoint_count): Likewise.
+	(arm_linux_can_use_hw_breakpoint): Likewise.
+	(arm_hwbp_type): New type.
+	(arm_hwbp_control_t): Likewise.
+	(struct arm_linux_hw_breakpoint): Likewise.
+	(struct arm_linux_thread_points): Likewise.
+	(arm_threads): New global variable.
+	(arm_linux_find_breakpoints_by_tid): New function.
+	(arm_hwbp_control_initialize): Likewise.
+	(arm_hwbp_control_is_enabled): Likewise.
+	(arm_hwbp_control_disable): Likewise.
+	(arm_linux_hw_breakpoint_initialize): Likewise.
+	(arm_linux_get_hwbp_type): Likewise.
+	(arm_linux_hw_watchpoint_initialize): Likewise.
+	(arm_linux_hw_breakpoint_equal): Likewise.
+	(arm_linux_insert_hw_breakpoint1): Likewise.
+	(arm_linux_remove_hw_breakpoint1): Likewise.
+	(arm_linux_insert_hw_breakpoint): Likewise.
+	(arm_linux_remove_hw_breakpoint): Likewise.
+	(arm_linux_region_ok_for_hw_watchpoint): Likewise.
+	(arm_linux_insert_watchpoint): Likewise.
+	(arm_linux_remove_watchpoint): Likewise.
+	(arm_linux_stopped_data_address): Likewise.
+	(arm_linux_stopped_by_watchpoint): Likewise.
+	(arm_linux_watchpoint_addr_within_range): Likewise.
+	(arm_linux_new_thread): Likewise.
+	(arm_linux_thread_exit): Likewise.
+	(_initialize_arm_linux_nat): Install hardware breakpoint/watchpoint
+	related target callbacks.  Register arm_linux_new_thread and
+	arm_linux_thread_exit.
+	* arm-tdep.h (arm_pc_is_thumb): Add prototype.
+	* arm-tdep.c (arm_pc_is_thumb): Make global.
+	(arm_gdbarch_init): Call set_gdbarch_have_nonsteppable_watchpoint.
+
+2011-02-21  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* breakpoint.c (update_watchpoint): Do not attempt to recreate
+	per-frame locations while within a function epilogue.
+
+2011-02-21  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* ser-mingw.c (ser_windows_close): Reformat comment to better conform
+	to GNU coding standards.
+
+2011-02-21  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	Allow use of mingw native on Windows 95 OS.
+	* ser-mingw.c (CancelIo): New macro for dynamically loaded DLL entry.
+	(ser_windows_close): Only call CancelIo if function exists.
+	(_initialize_ser_windows): Use LoadLirary/GetProcAddress
+	to check for existence of CancelIo function in kernel32 DLL.
+
+2011-02-21  Hui Zhu  <teawater@gmail.com>
+
+	* Makefile.in (HFILES_NO_SRCDIR): Add printcmd.h.
+	* ax-gdb.c (gen_printf_expr_callback): New function.
+	* ax-gdb.h (gen_printf_expr_callback): Forward declare.
+	* ax-general.c (ax_memcpy): New function.
+	(ax_print): Handle "printf".
+	(ax_reqs): Ditto.
+	* ax.h (ax_memcpy): Forward declare.
+	* common/ax.def (invalid2): Removed.
+	(printf): New entry.
+	* printcmd.c (printcmd.h): New include.
+	(string_printf): New function.
+	(ui_printf): Removed.
+	(printf_command): Remove static.  Call string_printf.
+	(eval_command): Call string_printf.
+	* printcmd.h: New file.
+	* tracepoint.c (validate_actionline,
+	encode_actions_1): handle printf_command.
+
+2011-02-19  Michael Snyder  <msnyder@vmware.com>
+
+	* reverse.c (delete_one_bookmark): Argument is now bookmark
+	id rather than pointer to bookmark struct.
+	(delete_bookmark_command): Use get_number_or_range.
+	(goto_bookmark_command): Parse with get_number instead of strtoul.
+	(bookmark_1): New function.  Print info for one bookmark.
+	(bookmarks_info): Use get_number_or_range and bookmark_1.
+
+2011-02-18  Michael Snyder  <msnyder@vmware.com>
+
+	* thread.c (info_threads_command): Re-implement using 
+	get_number_or_range.
+	(thread_apply_command): Ditto.
+
+2011-02-18  Tom Tromey  <tromey@redhat.com>
+
+	* common/ax.def: New file.
+	* ax.h (enum agent_op): Use ax.def.
+	* ax-general.c (aop_map): Use ax.def.
+
+2011-02-18  Tom Tromey  <tromey@redhat.com>
+
+	* ax-general.c (aop_map): Add pick and rot.
+	* dwarf2loc.c (compile_dwarf_to_ax) <DW_OP_over>: Reimplement.
+	<DW_OP_rot>: Implement.
+	* ax.h (enum agent_op) <aop_pick, aop_rot>: New constants.
+	(ax_pick): Declare.
+	* ax-general.c (ax_pick): New function.
+
+2011-02-18  Tom Tromey  <tromey@redhat.com>
+
+	* Makefile.in (HFILES_NO_SRCDIR): Don't mention ada-operator.inc.
+
+2011-02-18  Jan Kratochvil  <jan.kratochvil@redhat.com>
+	    Tom Tromey  <tromey@redhat.com>
+
+	* cp-support.c (make_symbol_overload_list_namespace): Do not call
+	make_symbol_overload_list_block with NULL BLOCK.
+	* valarith.c (unop_user_defined_p): Resolve also TYPE_CODE_TYPEDEF.
+
+2011-02-18  Pedro Alves  <pedro@codesourcery.com>
+
+	* breakpoint.c (get_number_trailer): No longer accept a NULL PP.
+	* breakpoint.h (get_number_or_range): Declare.
+	* printcmd.c (ALL_DISPLAYS): Declare.
+	(delete_display): Reimplement taking a display pointer.
+	(undisplay_command): Accept a range of displays to delete, using
+	get_number_or_range.
+
+2011-02-18  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* c-valprint.c (c_val_print): Add embedded_offset to address
+	for arrays of unspecified length.
+	* p-valprint.c (pascal_val_print): Likewise.
+
+2011-02-18  Yao Qi  <yao@codesourcery.com>
+
+	* gdb/arm-tdep.c (arm_displaced_step_copy_insn): Move code to ...
+	(arm_process_displaced_insn): .. here. Remove parameter INSN.
+	(thumb_process_displaced_insn): New.
+	* gdb/arm-linux-tdep.c (arm_linux_displaced_step_copy_insn): Update
+	call to arm_process_displaced_insn.
+	* gdb/arm-tdep.h : Update declaration of arm_process_displaced_insn.
+
 2011-02-17  Tom Tromey  <tromey@redhat.com>
 
 	* dwarf2loc.h (dwarf2_compile_expr_to_ax): Declare.

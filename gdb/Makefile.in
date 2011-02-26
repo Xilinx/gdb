@@ -193,12 +193,12 @@ SUBDIR_CLI_OBS = \
 	cli-dump.o \
 	cli-decode.o cli-script.o cli-cmds.o cli-setshow.o \
 	cli-logging.o \
-	cli-interp.o
+	cli-interp.o cli-utils.o
 SUBDIR_CLI_SRCS = \
 	cli/cli-dump.c \
 	cli/cli-decode.c cli/cli-script.c cli/cli-cmds.c cli/cli-setshow.c \
 	cli/cli-logging.c \
-	cli/cli-interp.c
+	cli/cli-interp.c cli/cli-utils.c
 SUBDIR_CLI_DEPS =
 SUBDIR_CLI_LDFLAGS=
 SUBDIR_CLI_CFLAGS=
@@ -468,13 +468,8 @@ INTERNAL_LDFLAGS = $(CFLAGS) $(GLOBAL_CFLAGS) $(MH_LDFLAGS) $(LDFLAGS) $(CONFIG_
 # it doesn't work, then refer to libiberty.
 
 # Libraries and corresponding dependencies for compiling gdb.
-# {X,T}M_CLIBS, defined in *config files, have host- and target-dependent libs.
+# XM_CLIBS, defined in *config files, have host-dependent libs.
 # LIBIBERTY appears twice on purpose.
-# If you have the Cygnus libraries installed,
-# you can use 'CLIBS=$(INSTALLED_LIBS)' 'CDEPS='
-INSTALLED_LIBS=-lbfd -lreadline -lopcodes -liberty -ldecnumber \
-	$(XM_CLIBS) $(NAT_CLIBS) $(GDBTKLIBS) @LIBS@ @PYTHON_LIBS@ \
-	-lintl -liberty $(LIBGNU)
 CLIBS = $(SIM) $(READLINE) $(OPCODES) $(BFD) $(INTL) $(LIBIBERTY) $(LIBDECNUMBER) \
 	$(XM_CLIBS) $(NAT_CLIBS) $(GDBTKLIBS) @LIBS@ @PYTHON_LIBS@ \
 	$(LIBEXPAT) \
@@ -767,7 +762,7 @@ exec.h m32r-tdep.h osabi.h gdbcore.h solib-som.h \
 i386bsd-nat.h xml-support.h xml-tdesc.h alphabsd-tdep.h gdb_obstack.h \
 ia64-tdep.h ada-lang.h varobj.h frv-tdep.h nto-tdep.h serial.h \
 c-lang.h d-lang.h frame.h event-loop.h block.h cli/cli-setshow.h	\
-cli/cli-decode.h cli/cli-cmds.h cli/cli-dump.h \
+cli/cli-decode.h cli/cli-cmds.h cli/cli-dump.h cli/cli-utils.h \
 cli/cli-script.h macrotab.h symtab.h version.h gnulib/wchar.in.h \
 gnulib/string.in.h gnulib/str-two-way.h \
 gnulib/stdint.in.h remote.h gdb.h sparc-nat.h gdbserver/win32-low.h \
@@ -812,7 +807,7 @@ config/rs6000/nm-rs6000.h top.h bsd-kvm.h gdb-stabs.h reggroups.h \
 annotate.h sim-regno.h dictionary.h dfp.h main.h frame-unwind.h	\
 remote-fileio.h i386-linux-tdep.h vax-tdep.h objc-lang.h \
 sentinel-frame.h bcache.h symfile.h windows-tdep.h linux-tdep.h \
-gdb_usleep.h jit.h xml-syscall.h ada-operator.inc microblaze-tdep.h \
+gdb_usleep.h jit.h xml-syscall.h microblaze-tdep.h \
 psymtab.h psympriv.h progspace.h bfin-tdep.h ia64-hpux-tdep.h
 
 # Header files that already have srcdir in them, or which are in objdir.
@@ -1242,7 +1237,7 @@ tags: TAGS
 clean mostlyclean: $(CONFIG_CLEAN)
 	@$(MAKE) $(FLAGS_TO_PASS) DO=clean "DODIRS=$(CLEANDIRS)" subdir_do
 	rm -f *.o *.a $(ADD_FILES) *~ init.c-tmp init.l-tmp version.c-tmp
-	rm -f init.c version.c
+	rm -f init.c version.c observer.h observer.inc
 	rm -f gdb$(EXEEXT) core make.log
 	rm -f gdb[0-9]$(EXEEXT)
 	rm -f test-cp-name-parser$(EXEEXT)
@@ -1754,6 +1749,10 @@ cli-script.o: $(srcdir)/cli/cli-script.c
 
 cli-setshow.o: $(srcdir)/cli/cli-setshow.c
 	$(COMPILE) $(srcdir)/cli/cli-setshow.c
+	$(POSTCOMPILE)
+
+cli-utils.o: $(srcdir)/cli/cli-utils.c
+	$(COMPILE) $(srcdir)/cli/cli-utils.c
 	$(POSTCOMPILE)
 
 

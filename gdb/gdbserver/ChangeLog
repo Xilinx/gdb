@@ -1,3 +1,30 @@
+2011-02-24  Joel Brobecker  <brobecker@adacore.com>
+
+	Revert the following patch (not approved yet):
+	2011-02-21  Hui Zhu  <teawater@gmail.com>
+	* tracepoint.c (tp_printf): New function.
+	(eval_agent_expr): Handle gdb_agent_op_printf.
+
+2011-02-21  Hui Zhu  <teawater@gmail.com>
+
+	* tracepoint.c (tp_printf): New function.
+	(eval_agent_expr): Handle gdb_agent_op_printf.
+
+2011-02-18  Tom Tromey  <tromey@redhat.com>
+
+	* Makefile.in (tracepoint-ipa.o): Depend on ax.def.
+	(tracepoint.o): Likewise.
+	* tracepoint.c (enum gdb_agent_op): Use ax.def.
+	(gdb_agent_op_names): Likewise.
+
+2011-02-18  Tom Tromey  <tromey@redhat.com>
+
+	* tracepoint.c (enum gdb_agent_op) <gdb_agent_op_pick,
+	gdb_agent_op_rot>: New constants.
+	(gdb_agent_op_names): Add pick and roll.
+	(eval_agent_expr) <gdb_agent_op_pick, gdb_agent_op_rot>: New
+	cases.
+
 2011-02-15  Jan Kratochvil  <jan.kratochvil@redhat.com>
 
 	* aclocal.m4: Regenerated with aclocal-1.11.1.

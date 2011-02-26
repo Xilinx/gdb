@@ -1740,7 +1740,7 @@ dwarf2_compile_expr_to_ax (struct agent_expr *expr, struct axs_value *loc,
 
 	case DW_OP_pick:
 	  offset = *op_ptr++;
-	  unimplemented (op);
+	  ax_pick (expr, offset);
 	  break;
 	  
 	case DW_OP_swap:
@@ -1748,31 +1748,11 @@ dwarf2_compile_expr_to_ax (struct agent_expr *expr, struct axs_value *loc,
 	  break;
 
 	case DW_OP_over:
-	  /* We can't directly support DW_OP_over, but GCC emits it as
-	     part of a sequence to implement signed modulus.  As a
-	     hack, we recognize this sequence.  Note that if GCC ever
-	     generates a branch to the middle of this sequence, then
-	     we will die somehow.  */
-	  if (op_end - op_ptr >= 4
-	      && op_ptr[0] == DW_OP_over
-	      && op_ptr[1] == DW_OP_div
-	      && op_ptr[2] == DW_OP_mul
-	      && op_ptr[3] == DW_OP_minus)
-	    {
-	      /* Sign extend the operands.  */
-	      ax_ext (expr, addr_size_bits);
-	      ax_simple (expr, aop_swap);
-	      ax_ext (expr, addr_size_bits);
-	      ax_simple (expr, aop_swap);
-	      ax_simple (expr, aop_rem_signed);
-	      op_ptr += 4;
-	    }
-	  else
-	    unimplemented (op);
+	  ax_pick (expr, 1);
 	  break;
 
 	case DW_OP_rot:
-	  unimplemented (op);
+	  ax_simple (expr, aop_rot);
 	  break;
 
 	case DW_OP_deref:
@@ -2450,27 +2430,23 @@ disassemble_dwarf_expression (struct ui_file *stream,
 	case DW_OP_breg29:
 	case DW_OP_breg30:
 	case DW_OP_breg31:
-	  data = read_sleb128 (data, end, &ul);
-	  fprintf_filtered (stream, " %s [$%s]", pulongest (ul),
+	  data = read_sleb128 (data, end, &l);
+	  fprintf_filtered (stream, " %s [$%s]", plongest (l),
 			    gdbarch_register_name (arch, op - DW_OP_breg0));
 	  break;
 
 	case DW_OP_bregx:
-	  {
-	    ULONGEST offset;
-
-	    data = read_uleb128 (data, end, &ul);
-	    data = read_sleb128 (data, end, &offset);
-	    fprintf_filtered (stream, " register %s [$%s] offset %s",
-			      pulongest (ul),
-			      gdbarch_register_name (arch, (int) ul),
-			      pulongest (offset));
-	  }
+	  data = read_uleb128 (data, end, &ul);
+	  data = read_sleb128 (data, end, &l);
+	  fprintf_filtered (stream, " register %s [$%s] offset %s",
+			    pulongest (ul),
+			    gdbarch_register_name (arch, (int) ul),
+			    plongest (l));
 	  break;
 
 	case DW_OP_fbreg:
-	  data = read_sleb128 (data, end, &ul);
-	  fprintf_filtered (stream, " %s", pulongest (ul));
+	  data = read_sleb128 (data, end, &l);
+	  fprintf_filtered (stream, " %s", plongest (l));
 	  break;
 
 	case DW_OP_xderef_size:

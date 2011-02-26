@@ -3438,12 +3438,12 @@ optionally be surrounded by spaces.
 
 @kindex info breakpoints
 @cindex @code{$_} and @code{info breakpoints}
-@item info breakpoints @r{[}@var{n}@r{]}
-@itemx info break @r{[}@var{n}@r{]}
+@item info breakpoints @r{[}@var{n}@dots{}@r{]}
+@itemx info break @r{[}@var{n}@dots{}@r{]}
 Print a table of all breakpoints, watchpoints, and catchpoints set and
 not deleted.  Optional argument @var{n} means print information only
-about the specified breakpoint (or watchpoint or catchpoint).  For
-each breakpoint, following columns are printed:
+about the specified breakpoint(s) (or watchpoint(s) or catchpoint(s)).
+For each breakpoint, following columns are printed:
 
 @table @emph
 @item Breakpoint Numbers
@@ -3763,8 +3763,8 @@ by the program.
 Set a watchpoint that will break when @var{expr} is either read from
 or written into by the program.
 
-@kindex info watchpoints @r{[}@var{n}@r{]}
-@item info watchpoints
+@kindex info watchpoints @r{[}@var{n}@dots{}@r{]}
+@item info watchpoints @r{[}@var{n}@dots{}@r{]}
 This command prints a list of watchpoints, using the same format as
 @code{info break} (@pxref{Set Breaks}).
 @end table
@@ -10283,10 +10283,10 @@ tracepoint hit.
 @subsection Listing Tracepoints
 
 @table @code
-@kindex info tracepoints
-@kindex info tp
+@kindex info tracepoints @r{[}@var{n}@dots{}@r{]}
+@kindex info tp @r{[}@var{n}@dots{}@r{]}
 @cindex information about tracepoints
-@item info tracepoints @r{[}@var{num}@r{]}
+@item info tracepoints @r{[}@var{num}@dots{}@r{]}
 Display information about the tracepoint @var{num}.  If you don't
 specify a tracepoint number, displays information about all the
 tracepoints defined so far.  The format is similar to that used for
@@ -22823,7 +22823,7 @@ The following symbol-related functions are available in the @code{gdb}
 module:
 
 @findex gdb.lookup_symbol
-@defun lookup_symbol name [block] [domain]
+@defun lookup_symbol name @r{[}block@r{]} @r{[}domain@r{]}
 This function searches for a symbol by name.  The search scope can be
 restricted to the parameters defined in the optional domain and block
 arguments.
@@ -22831,10 +22831,33 @@ arguments.
 @var{name} is the name of the symbol.  It must be a string.  The
 optional @var{block} argument restricts the search to symbols visible
 in that @var{block}.  The @var{block} argument must be a
-@code{gdb.Block} object.  The optional @var{domain} argument restricts
+@code{gdb.Block} object.  If omitted, the block for the current frame
+is used.  The optional @var{domain} argument restricts
 the search to the domain type.  The @var{domain} argument must be a
 domain constant defined in the @code{gdb} module and described later
 in this chapter.
+
+The result is a tuple of two elements.
+The first element is a @code{gdb.Symbol} object or @code{None} if the symbol
+is not found.
+If the symbol is found, the second element is @code{True} if the symbol
+is a field of a method's object (e.g., @code{this} in C@t{++}),
+otherwise it is @code{False}.
+If the symbol is not found, the second element is @code{False}.
+@end defun
+
+@findex gdb.lookup_global_symbol
+@defun lookup_global_symbol name @r{[}domain@r{]}
+This function searches for a global symbol by name.
+The search scope can be restricted to by the domain argument.
+
+@var{name} is the name of the symbol.  It must be a string.
+The optional @var{domain} argument restricts the search to the domain type.
+The @var{domain} argument must be a domain constant defined in the @code{gdb}
+module and described later in this chapter.
+
+The result is a @code{gdb.Symbol} object or @code{None} if the symbol
+is not found.
 @end defun
 
 A @code{gdb.Symbol} object has the following attributes:

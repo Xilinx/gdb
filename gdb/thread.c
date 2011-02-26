@@ -44,6 +44,7 @@
 #include "annotate.h"
 #include "cli/cli-decode.h"
 #include "gdb_regex.h"
+#include "cli/cli-utils.h"
 
 /* Definition of struct thread_info exported to gdbthread.h.  */
 
@@ -755,7 +756,7 @@ finish_thread_state_cleanup (void *arg)
 }
 
 /* Prints the list of threads and their details on UIOUT.
-   This is a version of 'info_thread_command' suitable for
+   This is a version of 'info_threads_command' suitable for
    use from MI.
    If REQUESTED_THREAD is not -1, it's the GDB id of the thread
    that should be printed.  Otherwise, all threads are
@@ -766,7 +767,7 @@ finish_thread_state_cleanup (void *arg)
    is printed if it belongs to the specified process.  Otherwise,
    an error is raised.  */
 void
-print_thread_info (struct ui_out *uiout, int requested_thread, int pid)
+print_thread_info (struct ui_out *uiout, char *requested_threads, int pid)
 {
   struct thread_info *tp;
   ptid_t current_ptid;
@@ -791,7 +792,7 @@ print_thread_info (struct ui_out *uiout, int requested_thread, int pid)
 
       for (tp = thread_list; tp; tp = tp->next)
 	{
-	  if (requested_thread != -1 && tp->num != requested_thread)
+	  if (!number_is_in_list (requested_threads, tp->num))
 	    continue;
 
 	  if (pid != -1 && PIDGET (tp->ptid) != pid)
@@ -805,10 +806,11 @@ print_thread_info (struct ui_out *uiout, int requested_thread, int pid)
 
       if (n_threads == 0)
 	{
-	  if (requested_thread == -1)
+	  if (requested_threads == NULL || *requested_threads == '\0')
 	    ui_out_message (uiout, 0, _("No threads.\n"));
 	  else
-	    ui_out_message (uiout, 0, _("No thread %d.\n"), requested_thread);
+	    ui_out_message (uiout, 0, _("No threads match '%s'.\n"),
+			    requested_threads);
 	  do_cleanups (old_chain);
 	  return;
 	}
@@ -827,12 +829,12 @@ print_thread_info (struct ui_out *uiout, int requested_thread, int pid)
       struct cleanup *chain2;
       int core;
 
-      if (requested_thread != -1 && tp->num != requested_thread)
+      if (!number_is_in_list (requested_threads, tp->num))
 	continue;
 
       if (pid != -1 && PIDGET (tp->ptid) != pid)
 	{
-	  if (requested_thread != -1)
+	  if (requested_threads != NULL && *requested_threads != '\0')
 	    error (_("Requested thread not found in requested process"));
 	  continue;
 	}
@@ -935,7 +937,7 @@ print_thread_info (struct ui_out *uiout, int requested_thread, int pid)
      the "info threads" command.  */
   do_cleanups (old_chain);
 
-  if (pid == -1 && requested_thread == -1)
+  if (pid == -1 && requested_threads == NULL)
     {
       gdb_assert (current_thread != -1
 		  || !thread_list
@@ -966,43 +968,7 @@ No selected thread.  See `help thread'.\n");
 static void
 info_threads_command (char *arg, int from_tty)
 {
-  int tid = -1;
-
-  if (arg == NULL || *arg == '\0')
-    {
-      print_thread_info (uiout, -1, -1);
-      return;
-    }
-
-  while (arg != NULL && *arg != '\0')
-    {
-      int tmp_tid = strtol (arg, &arg, 0);
-      unsigned int highrange;
-
-      if (tmp_tid <= 0)
-	error (_("invalid thread id %d"), tmp_tid);
-
-      tid = tmp_tid;
-      print_thread_info (uiout, tid, -1);
-
-      while (*arg == ' ' || *arg == '\t')
-	++arg;
-
-      if (*arg == '-')
-	{
-	  /* Do a range of threads.  Must be in ascending order.  */
-	  ++arg;	/* Skip the hyphen.  */
-	  highrange = strtoul (arg, &arg, 0);
-	  if (highrange < tid)
-	    error (_("inverted range"));
-
-	  /* Do the threads in the range (first one already done).  */
-	  while (tid < highrange)
-	    {
-	      print_thread_info (uiout, ++tid, -1);
-	    }
-	}
-    }
+  print_thread_info (uiout, arg, -1);
 }
 
 /* Switch from one thread to another.  */
@@ -1232,7 +1198,6 @@ static void
 thread_apply_command (char *tidlist, int from_tty)
 {
   char *cmd;
-  char *p;
   struct cleanup *old_chain;
   char *saved_cmd;
 
@@ -1251,51 +1216,29 @@ thread_apply_command (char *tidlist, int from_tty)
   while (tidlist < cmd)
     {
       struct thread_info *tp;
-      int start, end;
+      int start;
+      char *p = tidlist;
 
-      start = strtol (tidlist, &p, 10);
-      if (p == tidlist)
-	error (_("Error parsing %s"), tidlist);
-      tidlist = p;
-
-      while (*tidlist == ' ' || *tidlist == '\t')
-	tidlist++;
-
-      if (*tidlist == '-')	/* Got a range of IDs?  */
-	{
-	  tidlist++;		/* Skip the - */
-	  end = strtol (tidlist, &p, 10);
-	  if (p == tidlist)
-	    error (_("Error parsing %s"), tidlist);
-	  tidlist = p;
-
-	  while (*tidlist == ' ' || *tidlist == '\t')
-	    tidlist++;
-	}
-      else
-	end = start;
+      start = get_number_or_range (&tidlist);
 
       make_cleanup_restore_current_thread ();
 
-      for (; start <= end; start++)
+      tp = find_thread_id (start);
+
+      if (!tp)
+	warning (_("Unknown thread %d."), start);
+      else if (!thread_alive (tp))
+	warning (_("Thread %d has terminated."), start);
+      else
 	{
-	  tp = find_thread_id (start);
+	  switch_to_thread (tp->ptid);
 
-	  if (!tp)
-	    warning (_("Unknown thread %d."), start);
-	  else if (!thread_alive (tp))
-	    warning (_("Thread %d has terminated."), start);
-	  else
-	    {
-	      switch_to_thread (tp->ptid);
+	  printf_filtered (_("\nThread %d (%s):\n"), tp->num,
+			   target_pid_to_str (inferior_ptid));
+	  execute_command (cmd, from_tty);
 
-	      printf_filtered (_("\nThread %d (%s):\n"), tp->num,
-			       target_pid_to_str (inferior_ptid));
-	      execute_command (cmd, from_tty);
-
-	      /* Restore exact command used previously.  */
-	      strcpy (cmd, saved_cmd);
-	    }
+	  /* Restore exact command used previously.  */
+	  strcpy (cmd, saved_cmd);
 	}
     }
 

@@ -1,3 +1,35 @@
+2011-02-24  Joel Brobecker  <brobecker@adacore.com>
+
+	Revert the following patch (code patch was not approved):
+	2011-02-21  Hui Zhu  <teawater@gmail.com>
+	* agentexpr.texi (bytecode descriptions): add printf.
+	* gdb.texinfo (tracepoint action lists): add printf.
+
+2011-02-23  Doug Evans  <dje@google.com>
+
+	* gdb.texinfo (Symbols In Python): Fix mention of C++, use C@t{++}.
+
+2011-02-23  Michael Snyder  <msnyder@vmware.com>
+
+	* gdb.texinfo (Set Breaks): Add @dots{} to arguments of info break.
+	(Set Watchpoints): Add @dots{} to argument of info watchpoints.
+	(Listing Tracepoints): Add @dots{} to argument of info tracepoints.
+
+2011-02-22  Doug Evans  <dje@google.com>
+
+	* gdb.texinfo (Symbols In Python): Document lookup_global_symbol.
+	Clarify behaviour of lookup_symbol when `block' argument is omitted,
+	add description of result, fix @defun formatting.
+
+2011-02-21  Hui Zhu  <teawater@gmail.com>
+
+	* agentexpr.texi (Bytecode Descriptions): Add printf.
+	* gdb.texinfo (Tracepoint Action Lists): Add printf.
+
+2011-02-18  Tom Tromey  <tromey@redhat.com>
+
+	* agentexpr.texi (Bytecode Descriptions): Document pick and rot.
+
 2011-02-14  Michael Snyder  <msnyder@vmware.com>
 
 	* gdb.texinfo (threads): Document argument for "info threads" cmd.

@@ -363,7 +363,7 @@ static CORE_ADDR arm_get_next_pc_raw (struct frame_info *frame,
    function.  This function should be called for addresses unrelated to
    any executing frame; otherwise, prefer arm_frame_is_thumb.  */
 
-static int
+int
 arm_pc_is_thumb (struct gdbarch *gdbarch, CORE_ADDR memaddr)
 {
   struct obj_section *sec;
@@ -6833,16 +6833,22 @@ decode_svc_copro (struct gdbarch *gdbarch, uint32_t insn, CORE_ADDR to,
     return copy_undef (gdbarch, insn, dsc);  /* Possibly unreachable.  */
 }
 
+static void
+thumb_process_displaced_insn (struct gdbarch *gdbarch, CORE_ADDR from,
+			      CORE_ADDR to, struct regcache *regs,
+			      struct displaced_step_closure *dsc)
+{
+  error (_("Displaced stepping is only supported in ARM mode"));
+}
+
 void
-arm_process_displaced_insn (struct gdbarch *gdbarch, uint32_t insn,
-			    CORE_ADDR from, CORE_ADDR to,
-			    struct regcache *regs,
+arm_process_displaced_insn (struct gdbarch *gdbarch, CORE_ADDR from,
+			    CORE_ADDR to, struct regcache *regs,
 			    struct displaced_step_closure *dsc)
 {
   int err = 0;
-
-  if (!displaced_in_arm_mode (regs))
-    error (_("Displaced stepping is only supported in ARM mode"));
+  enum bfd_endian byte_order_for_code = gdbarch_byte_order_for_code (gdbarch);
+  uint32_t insn;
 
   /* Most displaced instructions use a 1-instruction scratch space, so set this
      here and override below if/when necessary.  */
@@ -6851,6 +6857,15 @@ arm_process_displaced_insn (struct gdbarch *gdbarch, uint32_t insn,
   dsc->scratch_base = to;
   dsc->cleanup = NULL;
   dsc->wrote_to_pc = 0;
+
+  if (!displaced_in_arm_mode (regs))
+    return thumb_process_displaced_insn (gdbarch, from, to, regs, dsc);
+
+  insn = read_memory_unsigned_integer (from, 4, byte_order_for_code);
+  if (debug_displaced)
+    fprintf_unfiltered (gdb_stdlog, "displaced: stepping insn %.8lx "
+			"at %.8lx\n", (unsigned long) insn,
+			(unsigned long) from);
 
   if ((insn & 0xf0000000) == 0xf0000000)
     err = decode_unconditional (gdbarch, insn, regs, dsc);
@@ -6922,15 +6937,7 @@ arm_displaced_step_copy_insn (struct gdbarch *gdbarch,
 {
   struct displaced_step_closure *dsc
     = xmalloc (sizeof (struct displaced_step_closure));
-  enum bfd_endian byte_order_for_code = gdbarch_byte_order_for_code (gdbarch);
-  uint32_t insn = read_memory_unsigned_integer (from, 4, byte_order_for_code);
-
-  if (debug_displaced)
-    fprintf_unfiltered (gdb_stdlog, "displaced: stepping insn %.8lx "
-			"at %.8lx\n", (unsigned long) insn,
-			(unsigned long) from);
-
-  arm_process_displaced_insn (gdbarch, insn, from, to, regs, dsc);
+  arm_process_displaced_insn (gdbarch, from, to, regs, dsc);
   arm_displaced_init_closure (gdbarch, from, to, dsc);
 
   return dsc;
@@ -7148,8 +7155,9 @@ arm_extract_return_value (struct type *type, struct regcache *regs,
 	   || TYPE_CODE (type) == TYPE_CODE_REF
 	   || TYPE_CODE (type) == TYPE_CODE_ENUM)
     {
-      /* If the the type is a plain integer, then the access is
-	 straight-forward.  Otherwise we have to play around a bit more.  */
+      /* If the type is a plain integer, then the access is
+	 straight-forward.  Otherwise we have to play around a bit
+	 more.  */
       int len = TYPE_LENGTH (type);
       int regno = ARM_A1_REGNUM;
       ULONGEST tmp;
@@ -8545,6 +8553,9 @@ arm_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
      binaries are always marked.  */
   if (tdep->arm_abi == ARM_ABI_AUTO)
     tdep->arm_abi = ARM_ABI_APCS;
+
+  /* Watchpoints are not steppable.  */
+  set_gdbarch_have_nonsteppable_watchpoint (gdbarch, 1);
 
   /* We used to default to FPA for generic ARM, but almost nobody
      uses that now, and we now provide a way for the user to force

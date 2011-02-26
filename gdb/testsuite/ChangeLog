@@ -1,3 +1,151 @@
+2011-02-26  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.python/py-frame.exp: Simplify the initialization phase
+	using prepare_for_testing.
+
+2011-02-25  Michael Snyder  <msnyder@vmware.com>
+
+	* gdb.multi/base.exp: Add tests for info inferiors with args.
+
+2011-02-25  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.dwarf2/dw2-ranges.S: Rename to ...
+	* gdb.dwarf2/dw2-ranges.c: ... here, convert it to C.
+	* gdb.dwarf2/dw2-ranges.exp: Skip the testcase on !$gcc_compiled.
+	Rename srcfile, srcfile2 and srcfile3, new asmfile, asmfile2 and
+	asmfile3.  Comment the STABS (#3) file compilation.  Compile
+	everything through assembler.  Provide KFAIL for symtab/12497.
+	* gdb.dwarf2/dw2-ranges2.S: Rename to ...
+	* gdb.dwarf2/dw2-ranges2.c: ... here, convert it to C.
+	* gdb.dwarf2/dw2-ranges3.S: Rename to ...
+	* gdb.dwarf2/dw2-ranges3.c: ... here, convert it to C.
+
+2011-02-24  Michael Snyder  <msnyder@vmware.com>
+
+	* gdb.base/break.exp: Remove debugging 'printf' accidentally
+	left behind in previous check-in.
+
+2011-02-23  Michael Snyder  <msnyder@vmware.com>
+
+	* gdb.base/break.exp: Add tests for "info break" with arguments.
+	* gdb.trace/infotrace.exp: Update patterns for error and help.
+	* gdb.base/completion.exp: Update pattern.
+	* gdb.base/ena-dis-br.exp: Update pattern.
+	* gdb.base/help.exp: Update patterns.
+
+2011-02-23  Michael Snyder  <msnyder@vmware.com>
+
+	* gdb.base/memattr.exp: New test.
+	* gdb.base/memattr.c: Test load for memattr.exp.
+
+2011-02-22  Doug Evans  <dje@google.com>
+
+	* gdb.python/py-symbol.exp: Test lookup_global_symbol.
+
+2011-02-22  Michael Snyder  <msnyder@vmware.com>
+
+	* Makefile.in: Make more clean.
+	* gdb.ada/Makefile.in: Ditto.
+	* gdb.arch/Makefile.in: Ditto.
+	* gdb.asm/Makefile.in: Ditto.
+	* gdb.base/Makefile.in: Ditto.
+	* gdb.cp/Makefile.in: Ditto.
+	* gdb.dwarf2/Makefile.in: Ditto.
+	* gdb.java/Makefile.in: Ditto.
+	* gdb.mi/Makefile.in: Ditto.
+	* gdb.modula2/Makefile.in: Ditto.
+	* gdb.python/Makefile.in: Ditto.
+	* gdb.server/Makefile.in: Ditto.
+	* gdb.stabs/Makefile.in: Ditto.
+	* gdb.threads/Makefile.in: Ditto.
+	* gdb.trace/Makefile.in: Ditto.
+
+2011-02-22  Michael Snyder  <msnyder@vmware.com>
+
+	* gdb.threads/thread-find.exp: Add tests for bad input to 
+	info threads.
+
+2011-02-22  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.python/py-breakpoint.exp: Fix the expected output of
+	one of the "maint info breakpoints" tests to accept the output
+	generated on platforms that do not have hardware watchpoints.
+
+2011-02-22  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.python/py-breakpoint.exp: Remove unnecessary call to
+	clean_restart.  Be a little stricter in the expected output
+	for one of the tests.  Fix a typo in one of the comments.
+
+2011-02-22  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.python/py-block.exp: Simplify using prepare_for_testing.
+	Delete variable binfile, no longer use.  Add or modify test
+	comments to make them unique.
+
+2011-02-21  Michael Snyder  <msnyder@vmware.com>
+
+	* Makefile.in: Update for make clean.
+	* gdb.ada/Makefile.in: Ditto.
+	* gdb.arch/Makefile.in: Ditto.
+	* gdb.asm/Makefile.in: Ditto.
+	* gdb.base/Makefile.in: Ditto.
+	* gdb.cp/Makefile.in: Ditto.
+	* gdb.dwarf2/Makefile.in: Ditto.
+	* gdb.java/Makefile.in: Ditto.
+	* gdb.mi/Makefile.in: Ditto.
+	* gdb.modula2/Makefile.in: Ditto.
+	* gdb.python/Makefile.in: Ditto.
+	* gdb.server/Makefile.in: Ditto.
+	* gdb.stabs/Makefile.in: Ditto.
+	* gdb.threads/Makefile.in: Ditto.
+	* gdb.trace/Makefile.in: Ditto.
+
+2011-02-21  Michael Snyder  <msnyder@vmware.com>
+
+	* gdb.threads/thread-find.exp: Update patterns for changes in
+	output of "info threads" command.
+
+2011-02-21  Matthew Gretton-Dann <matthew.gretton-dann@arm.com>
+	    Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* lib/gdb.exp (skip_hw_breakpoint_tests): Add arm*-*-* target.
+	(skip_hw_watchpoint_tests): Likewise.
+	(skip_hw_watchpoint_multi_tests): Likewise.
+
+2011-02-21  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* lib/gdb.exp (skip_hw_breakpoint_tests): New procedure.
+	(skip_hw_watchpoint_tests): Likewise.
+	(skip_hw_watchpoint_multi_tests): Likewise.
+	(skip_hw_watchpoint_access_tests): Likewise.
+
+	* gdb.base/hbreak.exp: Use appropriate skip_hw_..._tests checks.
+	* gdb.base/pr11022.exp: Likewise.
+	* gdb.base/watch-read.exp: Likewise.
+	* gdb.base/watch_thread_num.exp: Likewise.
+	* gdb.base/watchpoint-hw-hit-once.exp: Likewise.
+	* gdb.base/watchpoint-hw.exp: Likewise.
+	* gdb.base/watchpoint.exp: Likewise.
+	* gdb.threads/local-watch-wrong-thread.exp: Likewise.
+	* gdb.threads/watchthreads-reorder.exp: Likewise.
+	* gdb.threads/watchthreads.exp: Likewise.
+	* gdb.threads/watchthreads2.exp: Likewise.
+
+2011-02-21  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.ada/packed_array.exp: Add xfail for "print u_var" if
+	the debugger is unable to find the array bounds.
+
+2011-02-18  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.cp/typedef-operator.exp: New file.
+	* gdb.cp/typedef-operator.cc: New file.
+
+2011-02-17  Michael Snyder  <msnyder@vmware.com>
+
+	* gdb.threads/thread-find.exp: Fix regular expressions.
+
 2011-02-17  Joel Brobecker  <brobecker@adacore.com>
 
 	* gdb.ada/packed_array: Expand testcase to test printing of
@@ -9,11 +157,12 @@
 
 2011-02-16  Pedro Alves  <pedro@codesourcery.com>
 
-	* collection.c (globalarr3): New global.
+	* gdb.trace/collection.c (globalarr3): New global.
 	(main): Initialize it before collecting, and and clear it
 	afterwards.
-	* collection.exp (gdb_collect_globals_test): Test collecting with
-	'{type} addr', where the addr expression is not an rvalue.
+	* gdb.trace/collection.exp (gdb_collect_globals_test): Test
+	collecting with '{type} addr', where the addr expression is not an
+	rvalue.
 
 2011-02-16  Ken Werner  <ken.werner@de.ibm.com>
 
@@ -24,11 +173,11 @@
 
 2011-02-16  Pedro Alves  <pedro@codesourcery.com>
 
-	* collection.c (globalarr2): New global.
+	* gdb.trace/collection.c (globalarr2): New global.
 	(main): Initialize it before collecting, and and clear it
 	afterwards.
-	* collection.exp (gdb_collect_globals_test): Test collecting
-	overlapping memory ranges.
+	* gdb.trace/collection.exp (gdb_collect_globals_test): Test
+	collecting overlapping memory ranges.
 
 2011-02-15  Michael Snyder  <msnyder@vmware.com>
 

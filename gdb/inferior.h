@@ -142,7 +142,7 @@ extern int step_stop_if_no_debug;
 
 /* If set, the inferior should be controlled in non-stop mode.  In
    this mode, each thread is controlled independently.  Execution
-   commands apply only to the the selected thread by default, and stop
+   commands apply only to the selected thread by default, and stop
    events stop only the thread that had the event -- the other threads
    are kept running freely.  */
 extern int non_stop;
@@ -615,12 +615,6 @@ extern struct inferior *
 extern struct inferior *iterate_over_inferiors (int (*) (struct inferior *,
 							 void *),
 						void *);
-
-/* Prints the list of inferiors and their details on UIOUT.
-
-   If REQUESTED_INFERIOR is not -1, it's the GDB id of the inferior
-   that should be printed.  Otherwise, all inferiors are printed.  */
-extern void print_inferior (struct ui_out *uiout, int requested_inferior);
 
 /* Returns true if the inferior list is not empty.  */
 extern int have_inferiors (void);
