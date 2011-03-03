@@ -1,3 +1,30 @@
+2011-03-02  Bernd Schmidt  <bernds@codesourcery.com>
+
+        * elflink.c (is_reloc_section): Remove function.
+        (get_dynamic_reloc_section_name): Construct string manually.
+
+2011-02-28  Kai Tietz  <kai.tietz@onevision.com>
+
+	* archive.c (_bfd_find_nested_archive): Use filename_(n)cmp.
+	(adjust_relative_path): Likewise.
+	(_bfd_construct_extended_name_table): Likewise.
+	* corefile.c (generic_core_file_matches_executable_p): Likewise.
+	* elf32-bfin.c (bfinfdpic_relocate_section): Likewise.
+	* elf32-frv.c (elf32_frv_relocate_section): Likewise.
+	* elf32-spu.c (sort_bfds): Likewise.
+	(spu_elf_auto_overlay): Likewise.
+	* syms.c (_bfd_stab_section_find_nearest_line): Likewise.
+	* xcofflink.c (xcoff_set_import_path): Likewise.
+	* xtensa-isa.c (xtensa_regfile_lookup): Likewise.
+	(xtensa_regfile_lookup_shortname): Likewise.
+
+2011-02-28  Alan Modra  <amodra@gmail.com>
+
+	PR 12513
+	* archive.c (bfd_slurp_bsd_armap_f2): Sanity check parsed_size and
+	stringsize.  Properly sanity check symdef_count.  Remove redundant
+	bfd_release.
+
 2011-02-25  Rafael Ávila de Espíndola <respindola@mozilla.com>
 
 	* plugin.c (bfd_plugin_object_p): Correctly set the filesize

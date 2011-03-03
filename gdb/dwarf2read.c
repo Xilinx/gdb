@@ -2172,8 +2172,8 @@ dw2_get_file_names (struct objfile *objfile,
   if (this_cu->from_debug_types)
     info_ptr += 8 /*signature*/ + cu.header.offset_size;
   init_cu_die_reader (&reader_specs, &cu);
-  info_ptr = read_full_die (&reader_specs, &comp_unit_die, info_ptr,
-			    &has_children);
+  read_full_die (&reader_specs, &comp_unit_die, info_ptr,
+		 &has_children);
 
   lh = NULL;
   slot = NULL;
@@ -3837,25 +3837,25 @@ add_partial_symbol (struct partial_die_info *pdi, struct dwarf2_cu *cu)
              of the global scope.  But in Ada, we want to be able to access
              nested procedures globally.  So all Ada subprograms are stored
              in the global scope.  */
-	  /*prim_record_minimal_symbol (actual_name, pdi->lowpc + baseaddr,
+	  /* prim_record_minimal_symbol (actual_name, pdi->lowpc + baseaddr,
 	     mst_text, objfile); */
-	  psym = add_psymbol_to_list (actual_name, strlen (actual_name),
-				      built_actual_name,
-				      VAR_DOMAIN, LOC_BLOCK,
-				      &objfile->global_psymbols,
-				      0, pdi->lowpc + baseaddr,
-				      cu->language, objfile);
+	  add_psymbol_to_list (actual_name, strlen (actual_name),
+			       built_actual_name,
+			       VAR_DOMAIN, LOC_BLOCK,
+			       &objfile->global_psymbols,
+			       0, pdi->lowpc + baseaddr,
+			       cu->language, objfile);
 	}
       else
 	{
-	  /*prim_record_minimal_symbol (actual_name, pdi->lowpc + baseaddr,
+	  /* prim_record_minimal_symbol (actual_name, pdi->lowpc + baseaddr,
 	     mst_file_text, objfile); */
-	  psym = add_psymbol_to_list (actual_name, strlen (actual_name),
-				      built_actual_name,
-				      VAR_DOMAIN, LOC_BLOCK,
-				      &objfile->static_psymbols,
-				      0, pdi->lowpc + baseaddr,
-				      cu->language, objfile);
+	  add_psymbol_to_list (actual_name, strlen (actual_name),
+			       built_actual_name,
+			       VAR_DOMAIN, LOC_BLOCK,
+			       &objfile->static_psymbols,
+			       0, pdi->lowpc + baseaddr,
+			       cu->language, objfile);
 	}
       break;
     case DW_TAG_constant:
@@ -3866,10 +3866,9 @@ add_partial_symbol (struct partial_die_info *pdi, struct dwarf2_cu *cu)
 	  list = &objfile->global_psymbols;
 	else
 	  list = &objfile->static_psymbols;
-	psym = add_psymbol_to_list (actual_name, strlen (actual_name),
-				    built_actual_name, VAR_DOMAIN, LOC_STATIC,
-				    list, 0, 0, cu->language, objfile);
-
+	add_psymbol_to_list (actual_name, strlen (actual_name),
+			     built_actual_name, VAR_DOMAIN, LOC_STATIC,
+			     list, 0, 0, cu->language, objfile);
       }
       break;
     case DW_TAG_variable:
@@ -3901,12 +3900,12 @@ add_partial_symbol (struct partial_die_info *pdi, struct dwarf2_cu *cu)
 	     table building.  */
 
 	  if (pdi->locdesc || pdi->has_type)
-	    psym = add_psymbol_to_list (actual_name, strlen (actual_name),
-					built_actual_name,
-					VAR_DOMAIN, LOC_STATIC,
-					&objfile->global_psymbols,
-					0, addr + baseaddr,
-					cu->language, objfile);
+	    add_psymbol_to_list (actual_name, strlen (actual_name),
+				 built_actual_name,
+				 VAR_DOMAIN, LOC_STATIC,
+				 &objfile->global_psymbols,
+				 0, addr + baseaddr,
+				 cu->language, objfile);
 	}
       else
 	{
@@ -3917,14 +3916,14 @@ add_partial_symbol (struct partial_die_info *pdi, struct dwarf2_cu *cu)
 		xfree (actual_name);
 	      return;
 	    }
-	  /*prim_record_minimal_symbol (actual_name, addr + baseaddr,
+	  /* prim_record_minimal_symbol (actual_name, addr + baseaddr,
 	     mst_file_data, objfile); */
-	  psym = add_psymbol_to_list (actual_name, strlen (actual_name),
-				      built_actual_name,
-				      VAR_DOMAIN, LOC_STATIC,
-				      &objfile->static_psymbols,
-				      0, addr + baseaddr,
-				      cu->language, objfile);
+	  add_psymbol_to_list (actual_name, strlen (actual_name),
+			       built_actual_name,
+			       VAR_DOMAIN, LOC_STATIC,
+			       &objfile->static_psymbols,
+			       0, addr + baseaddr,
+			       cu->language, objfile);
 	}
       break;
     case DW_TAG_typedef:
@@ -4850,7 +4849,7 @@ dwarf2_compute_name (char *name, struct die_info *die, struct dwarf2_cu *cu,
 	      xfree (prefixed_name);
 	    }
 	  else
-	    fputs_unfiltered (name ? name : "", buf);
+	    fputs_unfiltered (name, buf);
 
 	  /* Template parameters may be specified in the DIE's DW_AT_name, or
 	     as children with DW_TAG_template_type_param or
@@ -6425,7 +6424,6 @@ dwarf2_add_typedef (struct field_info *fip, struct die_info *die,
 		    struct dwarf2_cu *cu)
 {
   struct objfile *objfile = cu->objfile;
-  struct gdbarch *gdbarch = get_objfile_arch (objfile);
   struct typedef_field_list *new_field;
   struct attribute *attr;
   struct typedef_field *fp;
@@ -7590,7 +7588,6 @@ static void
 read_namespace (struct die_info *die, struct dwarf2_cu *cu)
 {
   struct objfile *objfile = cu->objfile;
-  const char *name;
   int is_anonymous;
 
   /* Add a symbol associated to this if we haven't seen the namespace
@@ -7604,7 +7601,7 @@ read_namespace (struct die_info *die, struct dwarf2_cu *cu)
       type = read_type_die (die, cu);
       new_symbol (die, type, cu);
 
-      name = namespace_name (die, &is_anonymous, cu);
+      namespace_name (die, &is_anonymous, cu);
       if (is_anonymous)
 	{
 	  const char *previous_prefix = determine_prefix (die, cu);
@@ -8186,7 +8183,6 @@ read_base_type (struct die_info *die, struct dwarf2_cu *cu)
 static struct type *
 read_subrange_type (struct die_info *die, struct dwarf2_cu *cu)
 {
-  struct gdbarch *gdbarch = get_objfile_arch (cu->objfile);
   struct type *base_type;
   struct type *range_type;
   struct attribute *attr;
@@ -14327,11 +14323,10 @@ dwarf_decode_macros (struct line_header *lh, unsigned int offset,
           {
             unsigned int bytes_read;
             int constant;
-            char *string;
 
             constant = read_unsigned_leb128 (abfd, mac_ptr, &bytes_read);
             mac_ptr += bytes_read;
-            string = read_direct_string (abfd, mac_ptr, &bytes_read);
+            read_direct_string (abfd, mac_ptr, &bytes_read);
             mac_ptr += bytes_read;
 
             /* We don't recognize any vendor extensions.  */

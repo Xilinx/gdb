@@ -191,6 +191,7 @@ const struct mips_opcode mips_builtin_opcodes[] =
    instruction name anyhow.  */
 /* name,    args,	match,	    mask,	pinfo,          	pinfo2,		membership */
 {"pref",    "k,o(b)",   0xcc000000, 0xfc000000, RD_b,           	0,		I4_32|G3	},
+{"pref",    "k,A(b)",	0,    (int) M_PREF_AB,	INSN_MACRO,		0,		I4_32|G3	},
 {"prefx",   "h,t(b)",	0x4c00000f, 0xfc0007ff, RD_b|RD_t|FP_S,		0,		I4_33	},
 {"nop",     "",         0x00000000, 0xffffffff, 0,              	INSN2_ALIAS,	I1      }, /* sll */
 {"ssnop",   "",         0x00000040, 0xffffffff, 0,              	INSN2_ALIAS,	I1	}, /* sll */
@@ -296,7 +297,7 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"alni.ob", "X,Y,Z,O",	0x78000018, 0xff00003f,	WR_D|RD_S|RD_T|FP_D,	0,		MX|SB1	},
 {"alni.ob", "D,S,T,%",	0x48000018, 0xff00003f,	WR_D|RD_S|RD_T, 	0,		N54	},
 {"alni.qh", "X,Y,Z,O",	0x7800001a, 0xff00003f,	WR_D|RD_S|RD_T|FP_D,	0,		MX	},
-{"alnv.ps", "D,V,T,s",	0x4c00001e, 0xfc00003f,	WR_D|RD_S|RD_T|FP_D,	0,		I5_33	},
+{"alnv.ps", "D,V,T,s",	0x4c00001e, 0xfc00003f,	WR_D|RD_S|RD_T|RD_s|FP_D, 0,		I5_33	},
 {"alnv.ob", "X,Y,Z,s",	0x78000019, 0xfc00003f,	WR_D|RD_S|RD_T|RD_s|FP_D, 0,		MX|SB1	},
 {"alnv.qh", "X,Y,Z,s",	0x7800001b, 0xfc00003f,	WR_D|RD_S|RD_T|RD_s|FP_D, 0,		MX	},
 {"and",     "d,v,t",	0x00000024, 0xfc0007ff,	WR_d|RD_s|RD_t,		0,		I1	},

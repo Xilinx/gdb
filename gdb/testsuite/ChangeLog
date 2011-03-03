@@ -1,3 +1,21 @@
+2011-03-03  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.python/py-inferior.exp: Avoid searching pattern beyond
+	end of buffer.
+
+2011-03-02  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.python/py-inferior.exp: Use gdb_test_no_output instead of
+	gdb_test when running a test where we expected no output back.
+
+2011-02-28  Michael Snyder  <msnyder@vmware.com>
+
+	* gdb.cp/overload.cc: Change initializer value to integer.
+
+2011-02-27  Michael Snyder  <msnyder@vmware.com>
+
+	* gdb.multi/base.exp: Add test for remove-inferiors.
+
 2011-02-26  Joel Brobecker  <brobecker@adacore.com>
 
 	* gdb.python/py-frame.exp: Simplify the initialization phase
@@ -19,6 +37,11 @@
 	* gdb.dwarf2/dw2-ranges2.c: ... here, convert it to C.
 	* gdb.dwarf2/dw2-ranges3.S: Rename to ...
 	* gdb.dwarf2/dw2-ranges3.c: ... here, convert it to C.
+
+2011-02-24  Michael Snyder  <msnyder@vmware.com>
+
+	* gdb.base/break.exp: Add tests for delete breakpoints using
+	convenience variables and value history references.
 
 2011-02-24  Michael Snyder  <msnyder@vmware.com>
 

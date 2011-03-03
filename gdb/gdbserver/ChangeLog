@@ -1,3 +1,43 @@
+2011-02-28  Michael Snyder  <msnyder@vmware.com>
+
+	* utils.c (decimal2str): Initialize 'width' to nine, then
+	don't mess with it.
+
+2011-02-28  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* hostio.c (require_data): Free *data, not data.
+
+2011-02-28  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* hostio.c (require_data): Use free, not xfree.
+
+2011-02-27  Michael Snyder  <msnyder@vmware.com>
+
+	* server.c (handle_query): Discard unused value.
+
+	* hostio.c (require_data): Free malloc memory before returning
+	error.
+
+2011-02-26  Michael Snyder  <msnyder@vmware.com>
+
+	* linux-low.c (list_threads): Call closedir for dirent.
+
+2011-02-27  Michael Snyder  <msnyder@vmware.com>
+
+	* i386-low.c (i386-length_and_rw_bits): Comment the fact that
+	a case statement falls through.
+
+	* linux-low.c (linux_xfer_siginfo): Fix fencepost error.
+
+	* linux-amd64-ipa.c (gdb_agent_get_raw_reg): Fix fencepost error
+	in comparison.
+
+2011-02-26  Michael Snyder  <msnyder@vmware.com>
+
+	* utils.c (decimal2str): Eliminate dead code and dead param.
+	(pulongest): Drop dead param from call to decimal2str.
+	(plongest): Ditto.
+
 2011-02-24  Joel Brobecker  <brobecker@adacore.com>
 
 	Revert the following patch (not approved yet):

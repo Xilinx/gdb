@@ -1,3 +1,311 @@
+2011-03-03  Yao Qi  <yao@codesourcery.com>
+
+	* Makefile.in (configure-common): Remove.  Let Makefile
+	in dir common to rebuild itself.
+	(common/Makefile): Likewise.
+
+2011-03-03  Joel Brobecker  <brobecker@adacore.com>
+
+	* utils.c (parse_escape): Add i18n markup in error message.
+
+2011-03-03  Yao Qi  <yao@codesourcery.com>
+
+	* gdb/arm-tdep.c (shifted_reg_val): Replace magic number 15 with
+	ARM_PC_REGNUM.
+	(thumb_get_next_pc_raw, arm_get_next_pc_raw): Likewise.
+	(displaced_write_reg, displaced_read_reg): Likewise.
+	(copy_ldr_str_ldrb_strb, cleanup_block_load_all): Likewise.
+	(cleanup_block_load_pc, copy_block_xfer): Likewise.
+	(cleanup_branch): Replace magic number 14 and 15 with
+	ARM_LR_REGNUM and ARM_PC_REGNUM respectively.
+
+2011-03-02  Michael Snyder  <msnyder@vmware.com>
+
+	* maint.c (maintenance_do_deprecate): No need to check for NULL.
+
+	* cli/cli-script.c (script_from_file): Add break for lint.
+
+	* mdebugread.c (parse_partial_symbols): Fix indent.
+
+	* gdbserver/linux-arm-low.c (arm_arch_setup): Replace malloc 
+	with xmalloc.
+
+	* target-descriptions.c (tdesc_gdb_type): No need to call
+	xstrdup, callee saves a copy.
+
+	* printcmd.c (print_scalar_formatted): Use strncpy for safety.
+
+	* infcall.c (call_function_by_hand): Add break statements for lint.
+
+	* utils.c (parse_escape): Escape the escape char.
+
+	* python/py-inferior.c (build_inferior_list): Error out if 
+	PyList_Append fails.
+	(gdbpy_inferiors): Error out if build_inferior_list fails.
+
+	* linux-nat.c (linux_nat_xfer_partial): Preserve errno around
+	a function call.
+
+	* record.c (record_restore): Move printf to before error return.
+
+2011-03-02  Yao Qi  <yao@codesourcery.com>
+
+	* arm-tdep.h (struct displaced_step_closure): Add two new fields
+	is_thumb and insn_size.
+	* arm-tdep.c (displaced_read_reg): Adjust correct pipeline offset
+	on both ARM and Thumb mode.
+	(arm_process_displaced_insn): Set is_thumb and insn_size.
+	(arm_displaced_init_closure): Handle both 16-bit and 32-bit.
+	(arm_displaced_step_fixup): Likewise.
+
+2011-03-01  Michael Snyder  <msnyder@vmware.com>
+
+	* cli/cli-dump.c (dump_bfd_file): Check error return and warn.
+
+	* jv-lang.c (evaluate_subexp_java): Conditional can't be true.
+
+	* dwarf2read.c (dwarf2_compute_name): NAME cannot be null here.
+
+	* cli/cli-dump.c (restore_binary_file): Validate ftell return value.
+
+	* ada-lang.c (ada_make_symbol_completion_list): Replace malloc
+	with xmalloc.
+
+	* ada-lang.c (aggregate_assign_others): Rename inner scope variable
+	which shadows function parameter.
+
+	* tracepoint.c (create_tsv_from_upload): Superfluous call
+	to xstrdup.  Callee already calls xstrdup.
+
+	* linespec.c (decode_line_1): Remove unnecessary null check.
+
+	* tracepoint.c (scope_info): Fix mem leak, remove underused
+	variable.
+
+	* python/py-prettyprint.c (apply_val_pretty_printer): Remove
+	superfluous null check.
+
+	* std-regs.c (value_of_builtin_frame_pc_reg): Frame can't be null.
+	(value_of_builtin_frame_fp_reg): Ditto.
+
+	* event-top.c (display_gdb_prompt): Remove superfluous null check.
+
+	* python/py-prettyprint.c (apply_val_pretty_printer): VAL may
+	be null.
+
+	* linespec.c (decode_line_1): Check for null before dereference.
+
+	* reverse.c (record_restore): Move null-check to before pointer
+	dereference.
+
+	* python/py-utils.c (gdbpy_obj_to_string): Delete unused variable.
+
+	* objc-lang.c (selectors_info): Add explanitory comment.
+	(classes_info): Ditto.
+
+2011-03-01  Ulrich Weigand  <ulrich.weigand@linaro.org>
+
+	* arm-linux-tdep.c (ARM_LDR_PC_SP_4): Add define.
+	(arm_linux_restart_syscall_init): Handle both on-stack and in-kernel
+	versions of the trampoline.  Handle Thumb vs. ARM addresses.
+	(arm_kernel_linux_restart_syscall_tramp_frame): New global.
+	(arm_linux_init_abi): Install it.
+	* arm-tdep.c (arm_psr_thumb_bit): Make global.
+	* arm-tdep.c (arm_psr_thumb_bit): Add prototype.
+
+2011-02-28  Michael Snyder  <msnyder@vmware.com>
+
+	* ui-out.c (ui_out_field_core_addr): Make local char buffer
+	a little bigger, to avoid possibility of an overflow.
+
+	* breakpoint.c (breakpoint_adjustment_warning): Make local char
+	buffers a little bigger, to avoid possibility of an overflow.
+
+	* coffread.c (coff_getfilename): Add check to avoid overflow.
+
+	* objc-lang.c (selectors_info): Add a small safety margin to 
+	avoid overflow.
+	(classes_info): Error out on too long REGEXP.
+
+	* infrun.c (handle_inferior_event): Remove unused function call.
+
+	* fork-child.c (fork_inferior): Remove ifdef'd code and
+	unused variable.
+
+	* linux-thread-db.c (attach_thread): Discard unused value.
+
+	* linux-nat.c (linux_handle_extended_wait): Delete unused variable.
+
+	* remote.c (remote_get_noisy_reply): Discard unused value.
+	(remote_vcont_resume): Ditto.
+	(remote_stop_ns): Ditto.
+
+	* linespec.c (decode_objc): Delete unused variable.
+
+	* tui/tui-regs.c (tui_register_format): Delete unused variable.
+
+	* dwarf2read.c (add_partial_symbol): Discard unused values.
+	(read_base_type): Delete unused variable.
+
+	* dbxread.c (read_dbx_symtab): Discard unused value.
+
+	* eval.c (evaluate_subexp_standard): Delete unused variable,
+	and discard unused values.
+
+	* infcmd.c (_initialize_infcmd): Discard unused values.
+
+	* stabsread.c (rs6000_builtin_type): Missing break statement.
+
+	* dbxread.c (process_one_symbol): Discard unused value.
+
+	* coffread.c (coff_end_symtab): Delete unused variable.
+
+	* dwarf2read.c (dw2_get_file_names): Discard unused value.
+	(dwarf2_add_typedef): Delete unused variable.
+	(read_namespace): Ditto.
+	(dwarf_decode_macros): Ditto.
+
+	* m2-lang.c (evaluate_subexp_modula2): Discard unused variable.
+
+	* opencl-lang.c (evaluate_subexp_opencl): Discard unused value.
+
+	* p-valprint.c (pascal_val_print): Discard unused value.
+
+	* utils.c (nquery): Call va_end before return;
+	(yquery): Ditto.
+	(query): Ditto.
+
+	* proc-service.c (ps_plog): Call va_end before return.
+
+2011-02-28  Tom Tromey  <tromey@redhat.com>
+
+	* python/python.c (gdbpy_value_cst): New global.
+	(_initialize_python): Initialize it.
+	* python/python-internal.h (gdbpy_value_cst): Declare.
+	* python/py-value.c (convert_value_from_python): Use
+	gdbpy_value_cst.
+
+2011-02-28  Michael Snyder  <msnyder@vmware.com>
+
+	* python/py-cmd.c (cmdpy_init): Fix memory leak.
+
+	* breakpoint.c (catch_syscall_completer): Free malloced list.
+
+	* jv-lang.c (java_primitive_type_from_name): Add missing break.
+
+	* opencl-lang.c (lval_func_check_validity): Rename inner variables.
+	(lval_func_check_synthetic_pointer): Ditto.
+	(lval_func_free_closure): Fix use-after-free.
+
+2011-02-28  Tom Tromey  <tromey@redhat.com>
+
+	* psymtab.c (expand_partial_symbol_tables): Use
+	ALL_OBJFILE_PSYMTABS.
+
+2011-02-28  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* objc-lang.c (selectors_info): Error on too long REGEXP.
+
+2011-02-28  Michael Snyder  <msnyder@vmware.com>
+
+	* python/py-param.c (set_parameter_value): Add missing
+	break statement.
+
+	* linux-record.c (record_linux_system_call): Add missing
+	break statement.
+
+2011-02-28  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* breakpoint.c (print_one_breakpoint_location): Remove unused
+	argument PRINT_ADDRESS_BITS.  Update callers.
+	(print_one_breakpoint): Likewise.
+
+2011-02-28  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* breakpoint.c (wrap_indent_at_field): New function.
+	(print_breakpoint_location): Use it instead of WRAP_INDENT argument.
+	Allocate ui_stream locally instead of using STB argument.
+	(print_one_breakpoint_location): Update call.
+	* ui-out.c (ui_out_query_field): New function.
+	* ui-out.h (ui_out_query_field): Add prototype.
+
+2011-02-28  Joel Brobecker  <brobecker@adacore.com>
+
+	From Michael Snyder  <msnyder@vmware.com>
+	* ada-exp.y (write_object_renaming): Add FALLTHROUGH comment.
+
+2011-02-27  Michael Snyder  <msnyder@vmware.com>
+
+	* objc-lang.c (selectors_info): Prevent string overrun.
+
+	* tui/tui-stack.c (tui_get_function_from_frame): Fix off by one
+	error in strncpy.
+
+	* symtab.c (rbreak_command): Move variable 'file_name' to 
+	outer scope.
+
+	* d-valprint.c (dynamic_array_type): Avoid shadowing a function
+	param with a local variable of the same name.
+
+2011-02-27  Michael Snyder  <msnyder@vmware.com>
+
+	* value.c (value_from_history_ref): New function.
+	* value.h (value_from_history_ref): Export.
+	* cli/cli-utils.c (get_number_trailer): Use value_from_history_ref
+	to parse value history references.
+	* cli/cli-utils.h (get_number_trailer): Update comment.
+
+2011-02-27  Michael Snyder  <msnyder@vmware.com>
+
+	* inferior.c (detach_inferior_command): Use get_number_or_range.
+	(kill_inferior_command): Ditto.
+	(remove_inferior_command): Ditto.
+	(initialize_inferiors): Make command names plural.
+	Update help strings.
+
+2011-02-27  Michael Snyder  <msnyder@vmware.com>
+
+	* darwin-nat-info.c: Fix comment typo.
+	* dwarf2expr.h: Ditto.
+	* fbsd-nat.c: Ditto.
+	* fbsd-nat.h: Ditto.
+	* frame-unwind.h: Ditto.
+	* frame.h: Ditto.
+	* hppa-hpux-tdep.c: Ditto.
+	* i386-linux-nat.c: Ditto.
+	* linux-nat.c: Ditto.
+	* nbsd-nat.c: Ditto.
+	* nbsd-nat.h: Ditto.
+	* ppc-linux-tdep.c: Ditto.
+	* serial.c: Ditto.
+	* ui-file.h: Ditto.
+	* tui/tui-winsource.c: Ditto.
+
+2011-02-26  Michael Snyder  <msnyder@vmware.com>
+
+	* breakpoint.c (reattach_breakpoints): Avoid resource leak (ui_file).
+
+	* maint.c (maintenance_do_deprecate): Plug a memory leak.
+
+	* dwarf2loc.c (insert_bits): Avoid shadowing a function param
+	with a local variable of the same name.
+
+	* i387-tdep.c (i387_supply_fxsave): Avoid shadowing a function
+	param with a local variable of the same name.
+	(i387_supply_xsave): Ditto.
+
+	* linux-low.c (linux_nat_xfer_osdata): Rename local variable so
+	that it does not shadow a function parameter.
+
+	* i386-nat.c (i386_length_and_rw_bits): Document that case
+	statement is meant to fall through.
+
+	* expprint.c (dump_subexp_body_standard): Document that case
+	statement is meant to fall through.
+
+	* amd64-linux-tdep.c (amd64_linux_syscall_record): Delete
+	dead if statement.  Condition can't be false.
+
 2011-02-25  Michael Snyder  <msnyder@vmware.com>
 
 	* arm-tdep.c: Fix typos in comments.

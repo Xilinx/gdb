@@ -5634,7 +5634,7 @@ ada_make_symbol_completion_list (char *text0, char *word)
   {
     const size_t completions_size = 
       VEC_length (char_ptr, completions) * sizeof (char *);
-    char **result = malloc (completions_size);
+    char **result = xmalloc (completions_size);
     
     memcpy (result, VEC_address (char_ptr, completions), completions_size);
 
@@ -8717,7 +8717,7 @@ aggregate_assign_others (struct value *container,
 			 LONGEST low, LONGEST high) 
 {
   int i;
-  int expr_pc = *pos+1;
+  int expr_pc = *pos + 1;
   
   for (i = 0; i < num_indices - 2; i += 2)
     {
@@ -8725,10 +8725,10 @@ aggregate_assign_others (struct value *container,
 
       for (ind = indices[i + 1] + 1; ind < indices[i + 2]; ind += 1)
 	{
-	  int pos;
+	  int localpos;
 
-	  pos = expr_pc;
-	  assign_component (container, lhs, ind, exp, &pos);
+	  localpos = expr_pc;
+	  assign_component (container, lhs, ind, exp, &localpos);
 	}
     }
   ada_evaluate_subexp (NULL, exp, pos, EVAL_SKIP);

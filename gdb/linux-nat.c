@@ -2198,8 +2198,6 @@ linux_handle_extended_wait (struct lwp_info *lp, int status,
       if (event == PTRACE_EVENT_FORK
 	  && linux_fork_checkpointing_p (GET_PID (lp->ptid)))
 	{
-	  struct fork_info *fp;
-
 	  /* Handle checkpointing by linux-fork.c here as a special
 	     case.  We don't want the follow-fork-mode or 'catch fork'
 	     to interfere with this.  */
@@ -2209,9 +2207,8 @@ linux_handle_extended_wait (struct lwp_info *lp, int status,
 	  detach_breakpoints (new_pid);
 
 	  /* Retain child fork in ptrace (stopped) state.  */
-	  fp = find_fork_pid (new_pid);
-	  if (!fp)
-	    fp = add_fork (new_pid);
+	  if (!find_fork_pid (new_pid))
+	    add_fork (new_pid);
 
 	  /* Report as spurious, so that infrun doesn't want to follow
 	     this fork.  We're actually doing an infcall in
@@ -2828,7 +2825,7 @@ status_callback (struct lwp_info *lp, void *data)
   if (lp->waitstatus.kind != TARGET_WAITKIND_IGNORE)
     {
       /* A ptrace event, like PTRACE_FORK|VFORK|EXEC, syscall event,
-	 or a a pending process exit.  Note that `W_EXITCODE(0,0) ==
+	 or a pending process exit.  Note that `W_EXITCODE(0,0) ==
 	 0', so a clean process exit can not be stored pending in
 	 lp->status, it is indistinguishable from
 	 no-pending-status.  */
@@ -4035,7 +4032,7 @@ linux_nat_xfer_partial (struct target_ops *ops, enum target_object object,
 static int
 linux_thread_alive (ptid_t ptid)
 {
-  int err;
+  int err, tmp_errno;
 
   gdb_assert (is_lwp (ptid));
 
@@ -4043,12 +4040,12 @@ linux_thread_alive (ptid_t ptid)
      running thread errors out claiming that the thread doesn't
      exist.  */
   err = kill_lwp (GET_LWP (ptid), 0);
-
+  tmp_errno = errno;
   if (debug_linux_nat)
     fprintf_unfiltered (gdb_stdlog,
 			"LLTA: KILL(SIG0) %s (%s)\n",
 			target_pid_to_str (ptid),
-			err ? safe_strerror (err) : "OK");
+			err ? safe_strerror (tmp_errno) : "OK");
 
   if (err != 0)
     return 0;
@@ -5145,16 +5142,16 @@ linux_nat_xfer_osdata (struct target_ops *ops, enum target_object object,
 
 		  if ((f = fopen (pathname, "r")) != NULL)
 		    {
-		      size_t len = fread (cmd, 1, sizeof (cmd) - 1, f);
+		      size_t length = fread (cmd, 1, sizeof (cmd) - 1, f);
 
-		      if (len > 0)
+		      if (length > 0)
 			{
 			  int i;
 
-			  for (i = 0; i < len; i++)
+			  for (i = 0; i < length; i++)
 			    if (cmd[i] == '\0')
 			      cmd[i] = ' ';
-			  cmd[len] = '\0';
+			  cmd[length] = '\0';
 
 			  obstack_xml_printf (
 			    &obstack,

@@ -405,12 +405,10 @@ complete_symtab (char *name, CORE_ADDR start_addr, unsigned int size)
 static void
 coff_end_symtab (struct objfile *objfile)
 {
-  struct symtab *symtab;
-
   last_source_start_addr = current_source_start_addr;
 
-  symtab = end_symtab (current_source_end_addr, objfile,
-		       SECT_OFF_TEXT (objfile));
+  end_symtab (current_source_end_addr, objfile,
+	      SECT_OFF_TEXT (objfile));
 
   /* Reinitialize for beginning of new file.  */
   last_source_file = NULL;
@@ -1318,7 +1316,11 @@ coff_getfilename (union internal_auxent *aux_entry)
   char *result;
 
   if (aux_entry->x_file.x_n.x_zeroes == 0)
-    strcpy (buffer, stringtab + aux_entry->x_file.x_n.x_offset);
+    {
+      if (strlen (stringtab + aux_entry->x_file.x_n.x_offset) >= BUFSIZ)
+	internal_error (__FILE__, __LINE__, _("coff file name too long"));
+      strcpy (buffer, stringtab + aux_entry->x_file.x_n.x_offset);
+    }
   else
     {
       strncpy (buffer, aux_entry->x_file.x_fname, FILNMLEN);

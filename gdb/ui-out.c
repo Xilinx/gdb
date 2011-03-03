@@ -492,7 +492,9 @@ ui_out_field_core_addr (struct ui_out *uiout,
 			struct gdbarch *gdbarch,
 			CORE_ADDR address)
 {
-  char addstr[20];
+  /* Maximum size string returned by hex_string_custom is 50 chars.
+     This buffer must be bigger than that, for safety.  */
+  char addstr[64];
   int addr_bit = gdbarch_addr_bit (gdbarch);
 
   if (addr_bit < (sizeof (CORE_ADDR) * HOST_CHAR_BIT))
@@ -1139,6 +1141,28 @@ void *
 ui_out_data (struct ui_out *uiout)
 {
   return uiout->data;
+}
+
+/* Access table field parameters.  */
+int
+ui_out_query_field (struct ui_out *uiout, int colno,
+		    int *width, int *alignment, char **col_name)
+{
+  struct ui_out_hdr *hdr;
+
+  if (!uiout->table.flag)
+    return 0;
+
+  for (hdr = uiout->table.header_first; hdr; hdr = hdr->next)
+    if (hdr->colno == colno)
+      {
+	*width = hdr->width;
+	*alignment = hdr->alignment;
+	*col_name = hdr->col_name;
+	return 1;
+      }
+
+  return 0;
 }
 
 /* Initalize private members at startup.  */

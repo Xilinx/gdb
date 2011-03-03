@@ -1,6 +1,6 @@
 /* BFD back-end for archive files (libraries).
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
    Written by Cygnus Support.  Mostly Gumby Henkel-Wallace's fault.
 
@@ -348,7 +348,7 @@ _bfd_find_nested_archive (bfd *arch_bfd, const char *filename)
        abfd != NULL;
        abfd = abfd->archive_next)
     {
-      if (strcmp (filename, abfd->filename) == 0)
+      if (filename_cmp (filename, abfd->filename) == 0)
         return abfd;
     }
   abfd = bfd_openr (filename, NULL);
@@ -1109,6 +1109,7 @@ bfd_slurp_bsd_armap_f2 (bfd *abfd)
   struct artdata *ardata = bfd_ardata (abfd);
   char *stringbase;
   unsigned int stringsize;
+  unsigned int left;
   bfd_size_type amt;
   carsym *set;
   int i = bfd_bread (nextname, 16, abfd);
@@ -1136,43 +1137,46 @@ bfd_slurp_bsd_armap_f2 (bfd *abfd)
   if (mapdata == NULL)
     return FALSE;
 
-  amt = mapdata->parsed_size;
-  raw_armap = (bfd_byte *) bfd_zalloc (abfd, amt);
-  if (raw_armap == NULL)
+  if (mapdata->parsed_size < HPUX_SYMDEF_COUNT_SIZE + BSD_STRING_COUNT_SIZE)
     {
+    wrong_format:
+      bfd_set_error (bfd_error_wrong_format);
     byebye:
       bfd_release (abfd, mapdata);
       return FALSE;
     }
+  left = mapdata->parsed_size - HPUX_SYMDEF_COUNT_SIZE - BSD_STRING_COUNT_SIZE;
+
+  amt = mapdata->parsed_size;
+  raw_armap = (bfd_byte *) bfd_zalloc (abfd, amt);
+  if (raw_armap == NULL)
+    goto byebye;
 
   if (bfd_bread (raw_armap, amt, abfd) != amt)
     {
       if (bfd_get_error () != bfd_error_system_call)
 	bfd_set_error (bfd_error_malformed_archive);
-    byebyebye:
-      bfd_release (abfd, raw_armap);
       goto byebye;
     }
 
   ardata->symdef_count = H_GET_16 (abfd, raw_armap);
 
-  if (ardata->symdef_count * BSD_SYMDEF_SIZE
-      > mapdata->parsed_size - HPUX_SYMDEF_COUNT_SIZE)
-    {
-      /* Probably we're using the wrong byte ordering.  */
-      bfd_set_error (bfd_error_wrong_format);
-      goto byebyebye;
-    }
-
   ardata->cache = 0;
 
   stringsize = H_GET_32 (abfd, raw_armap + HPUX_SYMDEF_COUNT_SIZE);
+  if (stringsize > left)
+    goto wrong_format;
+  left -= stringsize;
+
   /* Skip sym count and string sz.  */
   stringbase = ((char *) raw_armap
 		+ HPUX_SYMDEF_COUNT_SIZE
 		+ BSD_STRING_COUNT_SIZE);
   rbase = (bfd_byte *) stringbase + stringsize;
   amt = ardata->symdef_count * BSD_SYMDEF_SIZE;
+  if (amt > left)
+    goto wrong_format;
+
   ardata->symdefs = (struct carsym *) bfd_alloc (abfd, amt);
   if (!ardata->symdefs)
     return FALSE;
@@ -1355,7 +1359,7 @@ adjust_relative_path (const char * path, const char * ref_path)
       while (*e2 && ! IS_DIR_SEPARATOR (*e2))
 	++e2;
       if (*e1 == '\0' || *e2 == '\0' || e1 - pathp != e2 - refp
-	  || strncmp (pathp, refp, e1 - pathp) != 0)
+	  || filename_ncmp (pathp, refp, e1 - pathp) != 0)
 	break;
       pathp = e1 + 1;
       refp = e2 + 1;
@@ -1460,7 +1464,7 @@ _bfd_construct_extended_name_table (bfd *abfd,
           /* If the path is the same as the previous path seen,
              reuse it.  This can happen when flattening a thin
              archive that contains other archives.  */
-          if (last_filename && strcmp (last_filename, filename) == 0)
+          if (last_filename && filename_cmp (last_filename, filename) == 0)
             continue;
 
           last_filename = filename;
@@ -1506,7 +1510,7 @@ _bfd_construct_extended_name_table (bfd *abfd,
       else
 	{
 	  struct ar_hdr *hdr = arch_hdr (current);
-	  if (strncmp (normal, hdr->ar_name, thislen) != 0
+	  if (filename_ncmp (normal, hdr->ar_name, thislen) != 0
 	      || (thislen < sizeof hdr->ar_name
 		  && hdr->ar_name[thislen] != ar_padchar (current)))
 	    {
@@ -1554,7 +1558,7 @@ _bfd_construct_extended_name_table (bfd *abfd,
              archive that contains other archives.
              If the path is relative, adjust it relative to
              the containing archive.  */
-          if (last_filename && strcmp (last_filename, filename) == 0)
+          if (last_filename && filename_cmp (last_filename, filename) == 0)
             normal = last_filename;
           else if (! IS_ABSOLUTE_PATH (filename)
                    && ! IS_ABSOLUTE_PATH (abfd->filename))

@@ -263,11 +263,11 @@ lval_func_check_validity (const struct value *v, int offset, int length)
 
   for (i = start; i < end; i++)
     {
-      int startoffset = (i == start) ? startrest : 0;
-      int length = (i == end) ? endrest : elsize;
+      int comp_offset = (i == start) ? startrest : 0;
+      int comp_length = (i == end) ? endrest : elsize;
 
-      if (!value_bits_valid (c->val, c->indices[i] * elsize + startoffset,
-			     length))
+      if (!value_bits_valid (c->val, c->indices[i] * elsize + comp_offset,
+			     comp_length))
 	return 0;
     }
 
@@ -317,12 +317,12 @@ lval_func_check_synthetic_pointer (const struct value *v,
 
   for (i = start; i < end; i++)
     {
-      int startoffset = (i == start) ? startrest : 0;
-      int length = (i == end) ? endrest : elsize;
+      int comp_offset = (i == start) ? startrest : 0;
+      int comp_length = (i == end) ? endrest : elsize;
 
       if (!value_bits_synthetic_pointer (c->val,
-					 c->indices[i] * elsize + startoffset,
-					 length))
+					 c->indices[i] * elsize + comp_offset,
+					 comp_length))
 	return 0;
     }
 
@@ -348,9 +348,9 @@ lval_func_free_closure (struct value *v)
 
   if (c->refc == 0)
     {
+      value_free (c->val); /* Decrement the reference counter of the value.  */
       xfree (c->indices);
       xfree (c);
-      value_free (c->val); /* Decrement the reference counter of the value.  */
     }
 }
 
@@ -776,7 +776,7 @@ evaluate_subexp_opencl (struct type *expect_type, struct expression *exp,
 
       if (noside == EVAL_SKIP)
 	{
-	  arg2 = evaluate_subexp (NULL_TYPE, exp, pos, noside);
+	  evaluate_subexp (NULL_TYPE, exp, pos, noside);
 
 	  return value_from_longest (builtin_type (exp->gdbarch)->
 				     builtin_int, 1);
