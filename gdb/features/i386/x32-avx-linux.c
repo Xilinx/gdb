@@ -1,12 +1,12 @@
-/* THIS FILE IS GENERATED.  Original: intel32-linux.xml */
+/* THIS FILE IS GENERATED.  Original: x32-avx-linux.xml */
 
 #include "defs.h"
 #include "osabi.h"
 #include "target-descriptions.h"
 
-struct target_desc *tdesc_intel32_linux;
+struct target_desc *tdesc_x32_avx_linux;
 static void
-initialize_tdesc_intel32_linux (void)
+initialize_tdesc_x32_avx_linux (void)
 {
   struct target_desc *result = allocate_target_description ();
   struct tdesc_feature *feature;
@@ -149,5 +149,23 @@ initialize_tdesc_intel32_linux (void)
   feature = tdesc_create_feature (result, "org.gnu.gdb.i386.linux");
   tdesc_create_reg (feature, "orig_rax", 57, 1, NULL, 64, "int");
 
-  tdesc_intel32_linux = result;
+  feature = tdesc_create_feature (result, "org.gnu.gdb.i386.avx");
+  tdesc_create_reg (feature, "ymm0h", 58, 1, NULL, 128, "uint128");
+  tdesc_create_reg (feature, "ymm1h", 59, 1, NULL, 128, "uint128");
+  tdesc_create_reg (feature, "ymm2h", 60, 1, NULL, 128, "uint128");
+  tdesc_create_reg (feature, "ymm3h", 61, 1, NULL, 128, "uint128");
+  tdesc_create_reg (feature, "ymm4h", 62, 1, NULL, 128, "uint128");
+  tdesc_create_reg (feature, "ymm5h", 63, 1, NULL, 128, "uint128");
+  tdesc_create_reg (feature, "ymm6h", 64, 1, NULL, 128, "uint128");
+  tdesc_create_reg (feature, "ymm7h", 65, 1, NULL, 128, "uint128");
+  tdesc_create_reg (feature, "ymm8h", 66, 1, NULL, 128, "uint128");
+  tdesc_create_reg (feature, "ymm9h", 67, 1, NULL, 128, "uint128");
+  tdesc_create_reg (feature, "ymm10h", 68, 1, NULL, 128, "uint128");
+  tdesc_create_reg (feature, "ymm11h", 69, 1, NULL, 128, "uint128");
+  tdesc_create_reg (feature, "ymm12h", 70, 1, NULL, 128, "uint128");
+  tdesc_create_reg (feature, "ymm13h", 71, 1, NULL, 128, "uint128");
+  tdesc_create_reg (feature, "ymm14h", 72, 1, NULL, 128, "uint128");
+  tdesc_create_reg (feature, "ymm15h", 73, 1, NULL, 128, "uint128");
+
+  tdesc_x32_avx_linux = result;
 }

@@ -1,3 +1,10 @@
+2011-03-03  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* Makefile.in: Replace intel32 with x32.
+	* Makefile.in: Likewise.
+	* configure.srv: Likewise.
+	* linux-x86-low.c: Likewise.
+
 2011-01-15  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* Makefile.in (clean): Also remove intel32.c intel32-linux.c

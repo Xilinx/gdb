@@ -1,3 +1,26 @@
+2011-03-03  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-linux-nat.c: Replace intel32 with x32.
+	* amd64-linux-tdep.c: Likewise.
+	* amd64-linux-tdep.h: Likewise.
+	* amd64-tdep.c: Likewise.
+	* features/Makefile: Likewise.
+
+	* features/i386/x32-avx-linux.c: Regenerated.
+	* features/i386/x32-avx.c: Likewise.
+	* features/i386/x32-linux.c: Likewise.
+	* features/i386/x32.c: Likewise.
+	* regformats/i386/x32-avx-linux.dat: Likewise.
+	* regformats/i386/x32-avx.dat: Likewise.
+	* regformats/i386/x32-linux.dat: Likewise.
+	* regformats/i386/x32.dat: Likewise.
+
+	* features/i386/x32-avx-linux.xml: Renamed from intel32-xxx.xml.
+	* features/i386/x32-avx.xml: Likewise.
+	* features/i386/x32-core.xml: Likewise.
+	* features/i386/x32-linux.xml: Likewise.
+	* features/i386/x32.xml: Likewise.
+
 2011-01-15  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* features/Makefile ($(outdir)/i386/intel32.dat): Replace

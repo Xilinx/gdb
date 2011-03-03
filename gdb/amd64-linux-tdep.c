@@ -42,8 +42,8 @@
 
 #include "features/i386/amd64-linux.c"
 #include "features/i386/amd64-avx-linux.c"
-#include "features/i386/intel32-linux.c"
-#include "features/i386/intel32-avx-linux.c"
+#include "features/i386/x32-linux.c"
+#include "features/i386/x32-avx-linux.c"
 
 /* The syscall's XML filename for i386.  */
 #define XML_SYSCALL_FILENAME_AMD64 "syscalls/amd64-linux.xml"
@@ -1307,7 +1307,7 @@ amd64_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
     {
       if (info.abfd != NULL
 	  && info.bfd_arch_info->bits_per_address == 32)
-	tdesc = tdesc_intel32_linux;
+	tdesc = tdesc_x32_linux;
       else
 	tdesc = tdesc_amd64_linux;
     }
@@ -1560,6 +1560,6 @@ _initialize_amd64_linux_tdep (void)
   /* Initialize the Linux target description.  */
   initialize_tdesc_amd64_linux ();
   initialize_tdesc_amd64_avx_linux ();
-  initialize_tdesc_intel32_linux ();
-  initialize_tdesc_intel32_avx_linux ();
+  initialize_tdesc_x32_linux ();
+  initialize_tdesc_x32_avx_linux ();
 }

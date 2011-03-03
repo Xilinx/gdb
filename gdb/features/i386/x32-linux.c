@@ -1,18 +1,20 @@
-/* THIS FILE IS GENERATED.  Original: intel32.xml */
+/* THIS FILE IS GENERATED.  Original: x32-linux.xml */
 
 #include "defs.h"
 #include "osabi.h"
 #include "target-descriptions.h"
 
-struct target_desc *tdesc_intel32;
+struct target_desc *tdesc_x32_linux;
 static void
-initialize_tdesc_intel32 (void)
+initialize_tdesc_x32_linux (void)
 {
   struct target_desc *result = allocate_target_description ();
   struct tdesc_feature *feature;
   struct tdesc_type *field_type, *type;
 
   set_tdesc_architecture (result, bfd_scan_arch ("i386:x64-32"));
+
+  set_tdesc_osabi (result, osabi_from_tdesc_string ("GNU/Linux"));
 
   feature = tdesc_create_feature (result, "org.gnu.gdb.i386.core");
   field_type = tdesc_create_flags (feature, "i386_eflags", 4);
@@ -144,5 +146,8 @@ initialize_tdesc_intel32 (void)
   tdesc_create_reg (feature, "xmm15", 55, 1, NULL, 128, "vec128");
   tdesc_create_reg (feature, "mxcsr", 56, 1, "vector", 32, "i386_mxcsr");
 
-  tdesc_intel32 = result;
+  feature = tdesc_create_feature (result, "org.gnu.gdb.i386.linux");
+  tdesc_create_reg (feature, "orig_rax", 57, 1, NULL, 64, "int");
+
+  tdesc_x32_linux = result;
 }

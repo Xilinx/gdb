@@ -780,7 +780,7 @@ amd64_linux_read_description (struct target_ops *ops)
       if (is_64bit)
 	{
 	  if (is_ilp32)
-	    return tdesc_intel32_avx_linux;
+	    return tdesc_x32_avx_linux;
 	  else
 	    return tdesc_amd64_avx_linux;
 	}
@@ -792,7 +792,7 @@ amd64_linux_read_description (struct target_ops *ops)
       if (is_64bit)
 	{
 	  if (is_ilp32)
-	    return tdesc_intel32_linux;
+	    return tdesc_x32_linux;
 	  else
 	    return tdesc_amd64_linux;
 	}
