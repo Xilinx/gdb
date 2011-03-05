@@ -1,3 +1,11 @@
+2011-03-05  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-linux-tdep.c (linux_sigtramp_code): Renamed to ...
+	(amd64_linux_sigtramp_code): This.
+	(x32_linux_sigtramp_code): New.
+	(LINUX_SIGTRAMP_LEN): Updated.
+	(amd64_linux_sigtramp_start): Check x32 sigtramp.
+
 2011-03-03  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* amd64-linux-tdep.c (amd64_linux_core_read_description): Check
