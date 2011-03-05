@@ -1220,7 +1220,9 @@ _bfd_slurp_extended_name_table (bfd *abfd)
 
   /* FIXME:  Formatting sucks here, and in case of failure of BFD_READ,
      we probably don't want to return TRUE.  */
-  bfd_seek (abfd, bfd_ardata (abfd)->first_file_filepos, SEEK_SET);
+  if (bfd_seek (abfd, bfd_ardata (abfd)->first_file_filepos, SEEK_SET) != 0)
+    return FALSE;
+
   if (bfd_bread (nextname, 16, abfd) == 16)
     {
       if (bfd_seek (abfd, (file_ptr) -16, SEEK_CUR) != 0)
@@ -2299,30 +2301,27 @@ bsd_write_armap (bfd *arch,
   bfd_byte temp[4];
   unsigned int count;
   struct ar_hdr hdr;
-  struct stat statbuf;
   long uid, gid;
 
   firstreal = mapsize + elength + sizeof (struct ar_hdr) + SARMAG;
 
-  stat (arch->filename, &statbuf);
+  /* If deterministic, we use 0 as the timestamp in the map.
+     Some linkers may require that the archive filesystem modification
+     time is less than (or near to) the archive map timestamp.  Those
+     linkers should not be used with deterministic mode.  (GNU ld and
+     Gold do not have this restriction.)  */
+  bfd_ardata (arch)->armap_timestamp = 0;
+  uid = 0;
+  gid = 0;
   if ((arch->flags & BFD_DETERMINISTIC_OUTPUT) == 0)
     {
-      /* Remember the timestamp, to keep it holy.  But fudge it a little.  */
-      bfd_ardata (arch)->armap_timestamp = (statbuf.st_mtime
-                                            + ARMAP_TIME_OFFSET);
+      struct stat statbuf;
+
+      if (stat (arch->filename, &statbuf) == 0)
+	bfd_ardata (arch)->armap_timestamp = (statbuf.st_mtime
+					      + ARMAP_TIME_OFFSET);
       uid = getuid();
       gid = getgid();
-    }
-  else
-    {
-      /* If deterministic, we use 0 as the timestamp in the map.
-         Some linkers may require that the archive filesystem modification
-         time is less than (or near to) the archive map timestamp.  Those
-         linkers should not be used with deterministic mode.  (GNU ld and
-         Gold do not have this restriction.)  */
-      bfd_ardata (arch)->armap_timestamp = 0;
-      uid = 0;
-      gid = 0;
     }
 
   memset (&hdr, ' ', sizeof (struct ar_hdr));

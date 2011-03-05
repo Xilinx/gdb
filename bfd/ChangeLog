@@ -1,3 +1,27 @@
+2011-03-04  Alan Modra  <amodra@gmail.com>
+
+	* archive.c (bsd_write_armap): Don't call stat in deterministic
+	mode, and don't use st_mtime if stat returns error.
+
+2011-03-03  Michael Snyder  <msnyder@vmware.com>
+
+	* elf64-x86-64.c (elf_x86_64_relocate_section): Remove dead code.
+
+	* coff-x86_64.c (coff_amd64_rtype_to_howto): Fencepost error.
+
+	* aoutx.h (aout_final_link): Use sizeof int not sizeof int*.
+	(aout_link_write_other_symbol): Missing break statement.
+
+	* dwarf2.c (scan_unit_for_symbols): Stop memory leak.
+
+	* archive.c (_bfd_slurp_extended_name_table): Fail if bfd_seek fails.
+
+2011-03-03  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf64-x86-64.c (elf_x86_64_check_tls_transition): Supprt TLS
+	x32 IE->LE transition.
+	(elf_x86_64_relocate_section): Likewise.
+
 2011-03-02  Bernd Schmidt  <bernds@codesourcery.com>
 
         * elflink.c (is_reloc_section): Remove function.

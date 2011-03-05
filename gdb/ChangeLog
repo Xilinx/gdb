@@ -1,3 +1,84 @@
+2011-03-04  Michael Snyder  <msnyder@vmware.com>
+
+	* linux-fork.c (inferior_call_waitptid): Fix copy/paste error.
+
+	* symfile.c (simple_overlay_update): Check for null return value
+	from lookup_minimal_symbol.
+
+	* gdbserver/server.c (queue_stop_reply): Call xmalloc not malloc.
+
+	* xml-syscall.c (syscall_start_syscall): Assert name is non null.
+
+2011-03-04  Thiago Jung Bauermann  <bauerman@br.ibm.com>
+
+	* eval.c (parse_and_eval_address_1): Remove function.
+	* linespec.c (decode_indirect): Call parse_to_comma_and_eval
+	instead of parse_and_eval_address_1.
+	* value.h (parse_and_eval_address_1): Remove prototype.
+
+2011-03-04  Michael Snyder  <msnyder@vmware.com>
+
+	* remote.c (putpkt_binary): Document that case stmt falls through.
+
+2011-03-04  Thiago Jung Bauermann  <bauerman@br.ibm.com>
+
+	* breakpointc (print_it_typical): Move NULL check from here...
+	(print_bp_stop_message): ... to here.
+
+2011-03-04  Michael Snyder  <msnyder@msnyder-server.eng.vmware.com>
+
+	* breakpoint.c (enable_command): Use break instead of continue,
+	and fill in a missing break.
+	(disable_command): Ditto.
+
+2011-03-04  Ulrich Weigand  <ulrich.weigand@linaro.org>
+
+	* inflow.c (terminal_init_inferior_with_pgrp): Copy ttystate.
+	(terminal_save_ours): Remove misleading comment.
+	(inflow_inferior_data_cleanup): Free ttystate.
+	(inflow_inferior_exit): Likewise.
+	(copy_terminal_info): Copy ttystate.
+
+	* serial.c (serial_copy_tty_state): New function.
+	* serial.h (serial_copy_tty_state): Add prototype.
+	(struct serial_ops): Add copy_tty_state callback.
+	* ser-base.c (ser_base_copy_tty_state): New function.
+	* ser-base.h (ser_base_copy_tty_state): Add prototype.
+	* ser-go32.c (dos_copy_tty_state): New function.
+	(dos_ops): Install copy_tty_state callback.
+	* ser-mingw.c (_initialize_ser_windows): Likewise.
+	* ser-pipe.c (_initialize_ser_pipe): Likewise.
+	* ser-unix.c (hardwire_copy_tty_state): New function.
+	(_initialize_ser_hardwire): Install it.
+
+2011-03-04  Michael Snyder  <msnyder@vmware.com>
+
+	* breakpoint.c (create_breakpoint): Add missing break statement.
+
+	Reverting this patch:
+	* infcall.c (call_function_by_hand): Add break statements for lint.
+
+	Reverting this patch:
+	* cli/cli-script.c (script_from_file): Add break for lint.
+
+2011-03-04  Michael Snyder  <msnyder@vmware.com>
+
+	* solib.c (reload_shared_libraries_1): Close memory leak.
+
+2011-03-03  Tom Tromey  <tromey@redhat.com>
+
+	PR gdb/12538:
+	* dwarf2read.c (process_psymtab_comp_unit): Handle case where
+	DW_STRING is NULL.
+
+2011-03-03  Michael Snyder  <msnyder@vmware.com>
+
+	* remote-fileio.c (remote_fileio_func_fstat): Initialize all
+	fields of struct 'st' to zero.
+
+	* tui/tui-winsource.c (tui_update_source_window_as_is): Initialize
+	sal.pspace before calling set_current_source_symtab_and_line.
+
 2011-03-03  Yao Qi  <yao@codesourcery.com>
 
 	* Makefile.in (configure-common): Remove.  Let Makefile

@@ -3309,11 +3309,6 @@ print_it_typical (bpstat bs)
   int bp_temp = 0;
   enum print_stop_action result;
 
-  /* bs->breakpoint_at can be NULL if it was a momentary breakpoint
-     which has since been deleted.  */
-  if (bs->breakpoint_at == NULL)
-    return PRINT_UNKNOWN;
-
   gdb_assert (bs->bp_location_at != NULL);
 
   bl = bs->bp_location_at;
@@ -3519,10 +3514,14 @@ print_bp_stop_message (bpstat bs)
       {
 	struct breakpoint *b = bs->breakpoint_at;
 
+	/* bs->breakpoint_at can be NULL if it was a momentary breakpoint
+	   which has since been deleted.  */
+	if (b == NULL)
+	  return PRINT_UNKNOWN;
+
 	/* Normal case.  Call the breakpoint's print_it method, or
 	   print_it_typical.  */
-	/* FIXME: how breakpoint can ever be NULL here?  */
-	if (b != NULL && b->ops != NULL && b->ops->print_it != NULL)
+	if (b->ops != NULL && b->ops->print_it != NULL)
 	  return b->ops->print_it (b);
 	else
 	  return print_it_typical (bs);
@@ -7843,6 +7842,7 @@ create_breakpoint (struct gdbarch *gdbarch,
 	default:
 	  throw_exception (e);
 	}
+      break;
     default:
       if (!sals.nelts)
 	return 0;
@@ -10929,7 +10929,7 @@ disable_command (char *args, int from_tty)
       case bp_none:
 	warning (_("attempted to disable apparently deleted breakpoint #%d?"),
 		 bpt->number);
-	continue;
+	break;
       case bp_breakpoint:
       case bp_tracepoint:
       case bp_fast_tracepoint:
@@ -10941,8 +10941,9 @@ disable_command (char *args, int from_tty)
       case bp_read_watchpoint:
       case bp_access_watchpoint:
 	disable_breakpoint (bpt);
+	break;
       default:
-	continue;
+	break;
       }
   else if (strchr (args, '.'))
     {
@@ -11030,7 +11031,7 @@ enable_command (char *args, int from_tty)
       case bp_none:
 	warning (_("attempted to enable apparently deleted breakpoint #%d?"),
 		 bpt->number);
-	continue;
+	break;
       case bp_breakpoint:
       case bp_tracepoint:
       case bp_fast_tracepoint:
@@ -11042,8 +11043,9 @@ enable_command (char *args, int from_tty)
       case bp_read_watchpoint:
       case bp_access_watchpoint:
 	enable_breakpoint (bpt);
+	break;
       default:
-	continue;
+	break;
       }
   else if (strchr (args, '.'))
     {

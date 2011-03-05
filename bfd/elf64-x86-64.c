@@ -913,16 +913,29 @@ elf_x86_64_check_tls_transition (bfd *abfd,
 
     case R_X86_64_GOTTPOFF:
       /* Check transition from IE access model:
-		movq foo@gottpoff(%rip), %reg
-		addq foo@gottpoff(%rip), %reg
+		mov foo@gottpoff(%rip), %reg
+		add foo@gottpoff(%rip), %reg
        */
 
-      if (offset < 3 || (offset + 4) > sec->size)
-	return FALSE;
-
-      val = bfd_get_8 (abfd, contents + offset - 3);
-      if (val != 0x48 && val != 0x4c)
-	return FALSE;
+      /* Check REX prefix first.  */
+      if (offset >= 3 && (offset + 4) <= sec->size)
+	{
+	  val = bfd_get_8 (abfd, contents + offset - 3);
+	  if (val != 0x48 && val != 0x4c)
+	    {
+	      /* X32 may have 0x44 REX prefix or no REX prefix.  */
+	      if (ABI_64_P (abfd))
+		return FALSE;
+	    }
+	}
+      else
+	{
+	  /* X32 may not have any REX prefix.  */
+	  if (ABI_64_P (abfd))
+	    return FALSE;
+	  if (offset < 2 || (offset + 3) > sec->size)
+	    return FALSE;
+	}
 
       val = bfd_get_8 (abfd, contents + offset - 2);
       if (val != 0x8b && val != 0x03)
@@ -2999,18 +3012,6 @@ elf_x86_64_relocate_section (bfd *output_bfd,
 	      relocation = (base_got->output_section->vma
 			    + base_got->output_offset + off);
 
-	      if (r_type != R_X86_64_GOTPCREL
-		  && r_type != R_X86_64_GOTPCREL64)
-		{
-		  asection *gotplt;
-		  if (htab->elf.splt != NULL)
-		    gotplt = htab->elf.sgotplt;
-		  else
-		    gotplt = htab->elf.igotplt;
-		  relocation -= (gotplt->output_section->vma
-				 - gotplt->output_offset);
-		}
-
 	      goto do_relocation;
 	    }
 	}
@@ -3505,6 +3506,9 @@ elf_x86_64_relocate_section (bfd *output_bfd,
 		      if (val == 0x4c)
 			bfd_put_8 (output_bfd, 0x49,
 				   contents + roff - 3);
+		      else if (!ABI_64_P (output_bfd) && val == 0x44)
+			bfd_put_8 (output_bfd, 0x41,
+				   contents + roff - 3);
 		      bfd_put_8 (output_bfd, 0xc7,
 				 contents + roff - 2);
 		      bfd_put_8 (output_bfd, 0xc0 | reg,
@@ -3517,6 +3521,9 @@ elf_x86_64_relocate_section (bfd *output_bfd,
 		      if (val == 0x4c)
 			bfd_put_8 (output_bfd, 0x49,
 				   contents + roff - 3);
+		      else if (!ABI_64_P (output_bfd) && val == 0x44)
+			bfd_put_8 (output_bfd, 0x41,
+				   contents + roff - 3);
 		      bfd_put_8 (output_bfd, 0x81,
 				 contents + roff - 2);
 		      bfd_put_8 (output_bfd, 0xc0 | reg,
@@ -3527,6 +3534,9 @@ elf_x86_64_relocate_section (bfd *output_bfd,
 		      /* addq -> leaq */
 		      if (val == 0x4c)
 			bfd_put_8 (output_bfd, 0x4d,
+				   contents + roff - 3);
+		      else if (!ABI_64_P (output_bfd) && val == 0x44)
+			bfd_put_8 (output_bfd, 0x45,
 				   contents + roff - 3);
 		      bfd_put_8 (output_bfd, 0x8d,
 				 contents + roff - 2);
