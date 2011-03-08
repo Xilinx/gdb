@@ -1,3 +1,160 @@
+2011-03-08  Pedro Alves  <pedro@codesourcery.com>
+
+	* remote.c (remote_check_symbols): Skip if the target has no
+	execution.
+
+2011-03-08  Joel Brobecker  <brobecker@adacore.com>
+
+	* target.c (read_whatever_is_readable): Reformat comment,
+	with a minor typo fix. Minor reformatting of the code.
+
+2011-03-08  Yao Qi  <yao@codesourcery.com>
+
+	* arm-tdep.c: Remove prototype declaration displaced_in_arm_mode.
+	(displaced_read_reg): Add `dsc' parameter, remove `from' parameter.
+	Use cached result instead of calling displaced_in_arm_mode again.
+	(branch_write_pc, alu_write_pc, load_write_pc): Add `dsc' parameter.
+	(displaced_write_reg, copy_preload, copy_preload_reg): Callers update.
+	(cleanup_copro_load_store, copy_copro_load_store): Likewise.
+	(cleanup_branch, copy_bx_blx_reg, copy_alu_imm): Likewise.
+	(cleanup_alu_reg, copy_alu_reg, cleanup_alu_shifted_reg): Likewise.
+	(copy_alu_shifted_reg, cleanup_load, cleanup_store): Likewise.
+	(copy_extra_ld_st, copy_ldr_str_ldrb_strb): Likewise.
+	(cleanup_block_load_all, cleanup_block_store_pc): Likewise.
+	(cleanup_block_load_pc, copy_block_xfer): Likewise.
+	* arm-linux-tdep.c (arm_linux_copy_svc): Callers update.
+	(arm_catch_kernel_helper_return): Likewise.
+	* gdb/arm-tdep.h : Update function declarations.
+
+2011-03-06  Michael Snyder  <msnyder@vmware.com>
+
+	* dwarf2loc.c (indirect_pieced_value): Assert 'piece' not null.
+
+	* ser-unix.c (hardwire_get_tty_state): Stop memory leak.
+
+	* mi/mi-cmd-env.c (_initialize_mi_cmd_env): Free environment.
+
+	* elfread.c (elf_symtab_read): Stop memory leak.
+
+	* main.c (captured_main): Fix memory leak.
+
+2011-03-07  Andreas Schwab  <schwab@linux-m68k.org>
+
+	* ada-lang.c (compare_names): Call is_name_suffix with string1
+	instead of string2.
+
+2011-03-07  Tom Tromey  <tromey@redhat.com>
+
+	* xcoffread.c (xcoff_sym_fns): Update.
+	* symfile.h (struct sym_fns) <sym_read_psymbols>: New field.
+	(enum symfile_add_flags) <SYMFILE_NO_READ>: New constant.
+	* symfile.c (syms_from_objfile): Handle SYMFILE_NO_READ.
+	(symbol_file_add_with_addrs_or_offsets): Likewise.
+	(reread_symbols): Handle OBJF_PSYMTABS_READ.
+	* somread.c (som_sym_fns): Update.
+	* psymtab.h (require_partial_symbols): Declare.
+	* psymtab.c (require_partial_symbols): New function.
+	(ALL_OBJFILE_PSYMTABS_REQUIRED): New macro.
+	(ALL_OBJFILE_PSYMTABS): Undef.
+	(ALL_PSYMTABS): Move from psympriv.h.
+	(lookup_partial_symtab, find_pc_sect_psymtab)
+	(lookup_symbol_aux_psymtabs, relocate_psymtabs)
+	(find_last_source_symtab_from_partial)
+	(forget_cached_source_info_partial)
+	(print_psymtab_stats_for_objfile, read_symtabs_for_function)
+	(expand_partial_symbol_tables, read_psymtabs_with_filename)
+	(map_symbol_names_psymtab, map_symbol_filenames_psymtab)
+	(find_symbol_file_from_partial, map_matching_symbols_psymtab)
+	(expand_symtabs_matching_via_partial, maintenance_info_psymtabs):
+	Use ALL_OBJFILE_PSYMTABS_REQUIRED.
+	* psympriv.h (ALL_PSYMTABS): Move to psymtab.c.
+	* objfiles.h (OBJF_PSYMTABS_READ): New macro.
+	* objfiles.c (objfile_has_partial_symbols): Handle lazily-read
+	psymtabs.
+	* mipsread.c (ecoff_sym_fns): Update.
+	* machoread.c (macho_sym_fns): Update.
+	* elfread.c (elf_symfile_read): Set up for lazy psymtab reading.
+	(read_psyms): New function.
+	(elf_sym_fns, elf_sym_fns_gdb_index): Update.
+	(elf_sym_fns_lazy_psyms): New global.
+	* dwarf2read.c (dwarf2_initialize_objfile): Don't call
+	dwarf2_build_psymtabs.
+	* dbxread.c (aout_sym_fns): Update.
+	* coffread.c (coff_sym_fns): Update.
+
+2011-03-07  Tom Tromey  <tromey@redhat.com>
+
+	* infrun.c (print_exited_reason): Include inferior id and pid in
+	message.
+
+2011-03-07  Tom Tromey  <tromey@redhat.com>
+
+	* target.h (struct target_ops) <to_has_execution>: Add ptid_t
+	parameter.
+	(target_has_execution_1): Update.
+	(target_has_execution_current): Declare.
+	(target_has_execution): Call target_has_execution_current.
+	(default_child_has_execution): Update.
+	* target.c (default_child_has_execution): Add 'the_ptid'
+	parameter.
+	(target_has_execution_1): Likewise.
+	(target_has_execution_current): New function.
+	(add_target): Update.
+	(init_dummy_target): Update.
+	* remote-m32r-sdi.c (m32r_has_execution): New function.
+	(init_m32r_ops): Use it.
+	* record.c (record_core_has_execution): Now static.  Add
+	'the_ptid' parameter.
+	* inferior.c (have_live_inferiors): Don't save current thread.
+	Use target_has_execution_1.
+
+2011-03-07  Yao Qi  <yao@codesourcery.com>
+
+	* Makefile.in (aclocal_m4_deps): Remove gnulib/m4/memcmp.m4.
+
+2011-03-07  Joel Brobecker  <brobecker@adacore.com>
+
+	* elfread.c (elf_symtab_read): Minor reformatting.
+
+2011-03-07  Joel Brobecker  <brobecker@adacore.com>
+
+	* objc-lang.c (selectors_info): Minor reformatting.
+
+2011-03-07  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-lang.c (compare_names): Add FALLTHROUGH comment.
+
+2011-03-07  Joel Brobecker  <brobecker@adacore.com>
+	    Michael Snyder  <msnyder@vmware.com>
+
+	* ada-valprint.c (ada_val_print_array): Move the declaration of
+	"byte_order" and "elttype" inside the block where these variables
+	are actually used.  Remove some special handling for the case
+	where "elttype" and "eltlen" are null.  Replace by a comment
+	and a couple of assertion checks.
+
+2011-03-05  Michael Snyder  <msnyder@vmware.com>
+
+	* source.c (add_path): Replace semicolon at end of block.
+	* dwarf2expr.c (execute_stack_op): Ditto.
+
+2011-03-05  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin-tdep.c: Include sim-regno.h and gdb/sim-bfin.h.
+	* configure.tgt (bfin-*-*linux*): Define gdb_sim.
+	(bfin-*-*): Likewise.
+
+2011-03-05  Michael Snyder  <msnyder@vmware.com>
+
+	* dwarf2expr.c (execute_stack_op): Delete superfluous semicolon.
+	* mdebugread.c (parse_symbol): Ditto.
+	* parse.c (parse_exp_in_context): Ditto.
+	* source.c (add_path): Ditto.
+	* utils.c (gnu_debuglink_crc32): Ditto.
+	* varobj.c (variable_language): Ditto.
+
+	* linux-tdep.c (linux_get_siginfo_type): Stop memory leak.
+
 2011-03-04  Michael Snyder  <msnyder@vmware.com>
 
 	* linux-fork.c (inferior_call_waitptid): Fix copy/paste error.

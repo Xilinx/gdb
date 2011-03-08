@@ -625,7 +625,8 @@ add_path (char *dirname, char **which_path, int parse_separators)
 	    old = *which_path;
 	  }
       }
-    skip_dup:;
+    skip_dup:
+      ;
     }
   while (arg != NULL);
 }
