@@ -1,3 +1,250 @@
+2011-03-11  Michael Snyder  <msnyder@vmware.com>
+
+	* event-loop-c (delete_async_signal_handler): Assert prev_ptr.
+	(delete_async_event_handler): Ditto.
+
+	* python/py-breakpoint.c (bppy_set_condition): Stop memory leak.
+
+	* python/py-breakpoint.c (bppy_get_commands): Fix memory leak.
+
+	* top.c (set_verbose): Assert showcmd was found.
+
+2011-03-11  Maxim Grigoriev  <maxim2405@gmail.com>
+
+	* xtensa-tdep.c (warning_once): Correct style issues.
+
+2011-03-11  Yao Qi  <yao@codesourcery.com>
+
+	* arm-tdep.c (copy_ldr_str_ldrb_strb): Remove redundant statements.
+
+2011-03-11  Andreas Schwab  <schwab@redhat.com>
+
+	* common/aclocal.m4: Remove.
+
+2011-03-10  Maxim Grigoriev  <maxim2405@gmail.com>
+
+	* xtensa-tdep.c (windowing_enabled): Remove inline attribute.
+	(xtensa_write_register, xtensa_read_register): Likewise.
+	(xtensa_hextochar): Removed.
+	(xtensa_init_reggroups): Replace xtensa_hextochar () by explicit code.
+
+2011-03-10  Maxim Grigoriev  <maxim2405@gmail.com>
+
+	* xtensa-tdep.c (xtensa_c0reg_t): Update comments.
+	(xtensa_call0_frame_cache_t): Update comments.  New fields added.
+	(xtensa_alloc_frame_cache): Add initialization for new fields.
+	(xtensa_frame_cache): Change the way how call0_frame_cache () is called.
+	(warning_once): New function.
+	(xtensa_insn_kind): New item c0opc_and.
+	(call0_classify_opcode): Add the case for AND instruction.
+	(call0_track_op): Change arguments.  New local variable litbase.
+	Add the case to handle c0opc_and.  Update algorithms for c0opc_mov,
+	c0opc_l32r, c0opc_s32i to take into account dynamic stack adjustments
+	in the prologue.
+	Add cases for c0opc_l32e, c0opc_s32e, c0opc_rfwo, c0opc_rfwu.
+	(call0_analyze_prologue): Update the comments.  Change arguments.
+	Add the variety of updates to handle extended prologues, which now can
+	conduct dynamic stack adjustments.
+	(call0_frame_cache): Likewise.
+	(xtensa_skip_prologue): Update call0_analyze_prologue () function call.
+	(xtensa_gdbarch_init): Initialize xtensa_session_once_reported.
+
+2011-03-10  Michael Snyder  <msnyder@vmware.com>
+
+	* tracepoint.c (cmd_qtv): Discard unused value 'packet'.
+	(cmd_qtframe): Ditto.
+	(cmd_qtbuffer): Ditto.
+	(cmd_bigqtbuffer): Ditto.
+
+	* gdbserver/tracepoint.c (tracepoint_finish_step): Fix
+	loop variable.
+
+	* gdbserver/server.c (handle_v_run): Free alloced buffer on early
+	return.
+
+2011-03-10  Tom Tromey  <tromey@redhat.com>
+
+	* tracepoint.c (trace_actions_command): Update.
+	* thread.c (thread_apply_command): Update.
+	* reverse.c (delete_bookmark_command): Update.
+	(bookmarks_info): Update.
+	* printcmd.c (undisplay_command): Update.
+	* memattr.c (mem_enable_command): Update.
+	(mem_disable_command): Update.
+	(mem_delete_command): Update.
+	* inferior.c (detach_inferior_command): Update.
+	(kill_inferior_command): Update.
+	(remove_inferior_command): Update.
+	* cli/cli-utils.h (struct get_number_or_range_state): New.
+	(init_number_or_range): Declare.
+	(get_number_or_range): Update.
+	* cli/cli-utils.c (init_number_or_range): New function.
+	(get_number_or_range): Change 'pp' parameter to 'state'.  Remove
+	static variables.
+	(number_is_in_list): Update.
+	* breakpoint.h (get_tracepoint_by_number): Update.
+	* breakpoint.c (map_breakpoint_numbers): Update for change to
+	get_number_or_range.
+	(find_location_by_number): Use get_number, not
+	get_number_or_range.
+	(trace_pass_set_count): New function.
+	(trace_pass_command): Update for change to get_number_or_range.
+	Rework loop logic.
+	(get_tracepoint_by_number): Remove 'multi_p' parameter; add
+	'state' parameter.
+
+2011-03-10  Phil Muldoon  <pmuldoon@redhat.com>
+
+	* python/py-param.c (add_setshow_generic): Add set/show callback
+	parameters.  Register Python object context.
+	(get_show_value): New function.
+	(get_set_value): New function.
+	(call_doc_function): New function.
+	(get_doc_string): Move behind get_show_value/get_set_value.
+
+2011-03-10  Andreas Tobler  <andreast-list@fgznet.ch>
+
+	* fbsd-nat.c (fbsd_make_corefile_notes): Constify local `fname'.
+
+2011-03-09  Maxim Grigoriev  <maxim2405@gmail.com>
+
+	* xtensa-tdep.c (xtensa_read_register): Add comment.
+	(xtensa_write_register): Likewise.
+	(xtensa_hextochar): Add comment and update to match coding conventions.
+	(xtensa_frame_cache, xtensa_return_value): Follow coding conventions.
+	(execute_l32e, execute_s32e, execute_code): Update comments.
+	(xtensa_exception_handler_t): Update to match coding conventions.
+	(xtensa_insn_kind): Likewise.
+
+2011-03-09  Michael Snyder  <msnyder@vmware.com>
+
+	* mi-cmd-disas.c (mi_cmd_disassemble): Fix memory leak.
+
+2011-03-09  Pedro Alves  <pedro@codesourcery.com>
+
+	* nto-tdep.c (nto_find_and_open_solib): Constify local `base'.
+
+2011-03-09  Tom Tromey  <tromey@redhat.com>
+
+	* thread.c (restore_selected_frame): Handle frame_level == -1.
+	(make_cleanup_restore_current_thread): Use
+	get_selected_frame_if_set.
+	* frame.h (get_selected_frame_if_set): Declare.
+	* frame.c (get_selected_frame_if_set): New function.
+
+2011-03-09  Pedro Alves  <pedro@codesourcery.com>
+
+	* cli/cli-cmds.c (shell_escape): Use lbasename.
+	* coffread.c (coff_start_symtab): Constify parameter.
+	(complete_symtab): Constify `name' parameter.
+	(coff_symtab_read): Constify `filestring' local.
+	(coff_getfilename): Constify return and `result' local.
+	Use lbasename.
+	* fbsd-nat.c (fbsd_make_corefile_notes): Use lbasename.
+	* linux-fork.c (info_checkpoints_command): Use lbasename.
+	* linux-nat.c (linux_nat_make_corefile_notes): Use lbasename.
+	* minsyms.c (lookup_minimal_symbol): Use lbasename.
+	* nto-tdep.c (nto_find_and_open_solib): Use lbasename.
+	* procfs.c (procfs_make_note_section): Use lbasename.
+	* tui/tui-io.c (printable_part): Constity return and parameter.
+	Use lbasename.
+	(print_filename): Constify parameters, and local `s'.
+	(tui_rl_display_match_list): Constify local `temp'.
+
+2011-03-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Revert:
+	2011-03-08  Jan Kratochvil  <jan.kratochvil@redhat.com>
+	Fix DWARF-3+ DW_AT_accessibility default assumption.
+	* dwarf2read.c (dwarf2_add_field): Fix new_field->accessibility for
+	cu->header.version >= 3.
+
+2011-03-09  Yao Qi  <yao@codesourcery.com>
+
+	* common/Makefile.in: Remove.
+	* common/configure: Remove.
+	* common/configure.ac: Remove.
+
+2011-03-09  Yao Qi  <yao@codesourcery.com>
+
+	Revert:
+	2011-02-11  Yao Qi  <yao@codesourcery.com>
+
+	* common/Makefile.in: Add copyright header.
+
+	2011-02-11  Yao Qi  <yao@codesourcery.com>
+
+	* Makefile.in: Remove signals.o from COMMON_OBS.  Link
+	libcommon.a.
+	* configure.ac: Add common to sub dir.
+	* configure: Regenerate.
+
+2011-03-08  Maxim Grigoriev  <maxim2405@gmail.com>
+
+	* xtensa-tdep.c (call0_ret): New function.
+	(xtensa_skip_prologue): Speed up analysis.
+
+2011-03-08  Maxim Grigoriev  <maxim2405@gmail.com>
+
+	* xtensa-tdep.c (xtensa_register_reggroup_p): Count in all registers
+	while executing MI command -data-list-changed-registers.
+
+2011-03-08  Maxim Grigoriev  <maxim2405@gmail.com>
+
+	* xtensa-tdep.c (xtensa_read_register): New function.
+	(xtensa_write_register): New function.
+	(xtensa_find_register_by_name): New function.
+	(xtensa_windowed_frame_cache): Update comments in type description.
+	(xtensa_frame_cache): Likewise.
+	(xtensa_window_interrupt_insn): New function.
+	(xtensa_frame_cache): Add analysis for Xtensa Window Exception frames.
+	(xtensa_insn_kind): Add new instructions.
+	(rwx_special_register): New function.
+	(call0_classify_opcode): Add new instructions to the analysis.
+	(a0_saved, a7_saved, a11_saved): New variables.
+	(a0_was_saved, a7_was_saved, a11_was_saved): New variables.
+	(execute_l32e): New function.
+	(execute_s32e): New function.
+	(xtensa_exception_handler_t): New type.
+	(execute_code): New function.
+	(xtensa_window_interrupt_frame_cache): New function to conduct frame
+	analysis for Xtensa Window Exception handlers.
+
+2011-03-08  Maxim Grigoriev  <maxim2405@gmail.com>
+
+	* xtensa-tdep.c (TX_PS): New.
+	(windowing_enabled): Update to count for Call0 ABI.
+	(xtensa_hextochar): New.
+	(xtensa_init_reggroups): Make algorithm generic.
+	(xtensa_frame_cache): Use TX_PS on Tiny Xtensa.
+
+2011-03-08  Maxim Grigoriev  <maxim2405@gmail.com>
+
+	* xtensa-tdep.h (XTENSA_MAX_COPROCESSOR): Update.
+
+2011-03-08  Michael Snyder  <msnyder@vmware.com>
+
+	* i386-tdep.c (i386_follow_jump): Check return value of
+	target_read_memory.
+	(i386_analyze_struct_return): Ditto.
+	(i386_skip_probe): Ditto.
+	(i386_match_insn): Ditto.
+	(i386_skip_noop): Ditto.
+	(i386_analyze_frame_setup): Ditto.
+	(i386_analyze_register_saves): Ditto.
+	(i386_skip_prologue): Ditto.
+	(i386_skip_main_prologue): Ditto.
+
+	* target.c (read_whatever_is_readable): Fix memory leak.
+
+	* i386-tdep.c (i386_process_record): Document fall through.
+
+2011-03-08  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix DWARF-3+ DW_AT_accessibility default assumption.
+	* dwarf2read.c (dwarf2_add_field): Fix new_field->accessibility for
+	cu->header.version >= 3.
+
 2011-03-08  Pedro Alves  <pedro@codesourcery.com>
 
 	* remote.c (remote_check_symbols): Skip if the target has no
@@ -26,7 +273,7 @@
 	(arm_catch_kernel_helper_return): Likewise.
 	* gdb/arm-tdep.h : Update function declarations.
 
-2011-03-06  Michael Snyder  <msnyder@vmware.com>
+2011-03-07  Michael Snyder  <msnyder@vmware.com>
 
 	* dwarf2loc.c (indirect_pieced_value): Assert 'piece' not null.
 
@@ -265,7 +512,7 @@
 
 	* mdebugread.c (parse_partial_symbols): Fix indent.
 
-	* gdbserver/linux-arm-low.c (arm_arch_setup): Replace malloc 
+	* gdbserver/linux-arm-low.c (arm_arch_setup): Replace malloc
 	with xmalloc.
 
 	* target-descriptions.c (tdesc_gdb_type): No need to call
@@ -277,7 +524,7 @@
 
 	* utils.c (parse_escape): Escape the escape char.
 
-	* python/py-inferior.c (build_inferior_list): Error out if 
+	* python/py-inferior.c (build_inferior_list): Error out if
 	PyList_Append fails.
 	(gdbpy_inferiors): Error out if build_inferior_list fails.
 
@@ -361,7 +608,7 @@
 
 	* coffread.c (coff_getfilename): Add check to avoid overflow.
 
-	* objc-lang.c (selectors_info): Add a small safety margin to 
+	* objc-lang.c (selectors_info): Add a small safety margin to
 	avoid overflow.
 	(classes_info): Error out on too long REGEXP.
 
@@ -479,7 +726,7 @@
 	* tui/tui-stack.c (tui_get_function_from_frame): Fix off by one
 	error in strncpy.
 
-	* symtab.c (rbreak_command): Move variable 'file_name' to 
+	* symtab.c (rbreak_command): Move variable 'file_name' to
 	outer scope.
 
 	* d-valprint.c (dynamic_array_type): Avoid shadowing a function
@@ -634,7 +881,7 @@
 
 	* breakpoint.c (breakpoint_1): Change first argument from an int
 	to a char pointer, so that the function now accepts a list of
-	breakpoints rather than just one.  Use new function 
+	breakpoints rather than just one.  Use new function
 	'number_is_in_list' to implement.
 	(breakpoints_info): Pass char * instead of int to breakpoint_1.
 	(watchpoints_info): Ditto.
@@ -693,7 +940,7 @@
 	(info_threads_command): Pass char* to print_thread_info.
 	* cli/cli-utils.c (number_is_in_list): New function.
 	* cli/cli-utils.h (number_is_in_list): Export.
-	* mi/mi-main.c (mi_cmd_thread_info): Pass char* to 
+	* mi/mi-main.c (mi_cmd_thread_info): Pass char* to
 	print_thread_info.
 	(print_one_inferior): Ditto.
 	(mi_cmd_list_thread_groups): Ditto.
@@ -837,7 +1084,7 @@
 
 2011-02-18  Michael Snyder  <msnyder@vmware.com>
 
-	* thread.c (info_threads_command): Re-implement using 
+	* thread.c (info_threads_command): Re-implement using
 	get_number_or_range.
 	(thread_apply_command): Ditto.
 
@@ -2180,7 +2427,7 @@
 	(DEFAULT_HPUX_MAJOR_RELEASE): New macro.
 	(hpux_major_release): Make global, change default value to
 	DEFAULT_HPUX_MAJOR_RELEASE.
-	(get_hpux_major_release): Simply return HPUX_MAJOR_RELEASE. 
+	(get_hpux_major_release): Simply return HPUX_MAJOR_RELEASE.
 	* hppa-hpux-nat.c: Add <sys/utsname.h> include.
 	Add "solib-som.h" header.
 	(set_hpux_major_release): New function.
@@ -2396,11 +2643,11 @@
 	Make value allocations more lazy.
 	* ada-lang.c (coerce_unspec_val_to_type): Use allocate_value_lazy
 	instead of allocate_value and set_value_lazy when possible.
-	* dwarf2loc.c (dwarf2_evaluate_loc_desc_full): Use allocate_value_lazy 
+	* dwarf2loc.c (dwarf2_evaluate_loc_desc_full): Use allocate_value_lazy
 	instead of allocate_value and set_value_lazy.
 	* findvar.c (value_of_register_lazy): Likewise.
 	(read_var_value): Remove V preallocation, call just check_typedef in
-	advance.  Move allocate_value to LOC_CONST, LOC_LABEL, 
+	advance.  Move allocate_value to LOC_CONST, LOC_LABEL,
 	LOC_CONST_BYTES.  Use allocate_value_lazy in LOC_STATIC, LOC_ARG,
 	LOC_REF_ARG, LOC_LOCAL, LOC_BLOCK.  Set ADDR instead of
 	set_value_address and break in LOC_BLOCK.  Use allocate_value_lazy and
@@ -2532,7 +2779,7 @@
 	    Thiago Jung Bauermann  <bauerman@br.ibm.com>
 
 	Implement support for PowerPC BookE ranged watchpoints.
-	* breakpoint.h 
+	* breakpoint.h
 	(struct breakpoint_ops) <resources_needed>: New method.
 	Initialize to NULL in all existing breakpoint_ops instances.
 	(struct breakpoint) <exact>: New field.
@@ -2582,7 +2829,7 @@
 	<insert_location>: ... this.  Return int instead of void.
 	Accept pointer to struct bp_location instead of pointer to
 	struct breakpoint.  Adapt all implementations.
-	(breakpoint_ops) <remove>: Rename to... 
+	(breakpoint_ops) <remove>: Rename to...
 	<remove_location>: ... this.  Accept pointer to struct bp_location
 	instead of pointer to struct breakpoint.  Adapt all implementations.
 	* breakpoint.c (insert_catchpoint): Delete function.
@@ -2839,7 +3086,7 @@
 
 	* mi/mi-cmd-disas.c (mi_cmd_disassemble): Mark up error message
 	for i18n.
-	* tui/tui-layout.c (tui_set_layout_for_display_command): 
+	* tui/tui-layout.c (tui_set_layout_for_display_command):
 	Split line so that operator goes to beginning of line.
 	* tui/tui-winsource.c (tui_horizontal_source_scroll): Move
 	assignment out of if statement.

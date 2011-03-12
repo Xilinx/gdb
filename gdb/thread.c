@@ -1019,6 +1019,13 @@ restore_selected_frame (struct frame_id a_frame_id, int frame_level)
   struct frame_info *frame = NULL;
   int count;
 
+  /* This means there was no selected frame.  */
+  if (frame_level == -1)
+    {
+      select_frame (NULL);
+      return;
+    }
+
   gdb_assert (frame_level >= 0);
 
   /* Restore by level first, check if the frame id is the same as
@@ -1137,7 +1144,14 @@ make_cleanup_restore_current_thread (void)
 	  && target_has_registers
 	  && target_has_stack
 	  && target_has_memory)
-	frame = get_selected_frame (NULL);
+	{
+	  /* When processing internal events, there might not be a
+	     selected frame.  If we naively call get_selected_frame
+	     here, then we can end up reading debuginfo for the
+	     current frame, but we don't generally need the debuginfo
+	     at this point.  */
+	  frame = get_selected_frame_if_set ();
+	}
       else
 	frame = NULL;
 
@@ -1200,6 +1214,7 @@ thread_apply_command (char *tidlist, int from_tty)
   char *cmd;
   struct cleanup *old_chain;
   char *saved_cmd;
+  struct get_number_or_range_state state;
 
   if (tidlist == NULL || *tidlist == '\000')
     error (_("Please specify a thread ID list"));
@@ -1213,13 +1228,15 @@ thread_apply_command (char *tidlist, int from_tty)
      execute_command.  */
   saved_cmd = xstrdup (cmd);
   old_chain = make_cleanup (xfree, saved_cmd);
-  while (tidlist < cmd)
+
+  init_number_or_range (&state, tidlist);
+  while (!state.finished && state.string < cmd)
     {
       struct thread_info *tp;
       int start;
       char *p = tidlist;
 
-      start = get_number_or_range (&tidlist);
+      start = get_number_or_range (&state);
 
       make_cleanup_restore_current_thread ();
 
