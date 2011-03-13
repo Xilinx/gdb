@@ -712,11 +712,11 @@ amd64_linux_siginfo_fixup (struct siginfo *native, gdb_byte *inf, int direction)
 
    Value of DS segment register:
      1. LP64 process: 0x0.
-     2. ILP32 process: 0x2b.
+     2. X32 process: 0x2b.
  */
 
 #define AMD64_LINUX_USER64_CS	0x33
-#define AMD64_LINUX_ILP32_DS	0x2b
+#define AMD64_LINUX_X32_DS	0x2b
 
 static const struct target_desc *
 amd64_linux_read_description (struct target_ops *ops)
@@ -725,7 +725,7 @@ amd64_linux_read_description (struct target_ops *ops)
   unsigned long ds;
   int tid;
   int is_64bit;
-  int is_ilp32;
+  int is_x32;
   static uint64_t xcr0;
 
   /* GNU/Linux LWP ID's are process ID's.  */
@@ -749,7 +749,7 @@ amd64_linux_read_description (struct target_ops *ops)
   if (errno != 0)
     perror_with_name (_("Couldn't get DS register"));
 
-  is_ilp32 = ds == AMD64_LINUX_ILP32_DS;
+  is_x32 = ds == AMD64_LINUX_X32_DS;
 
   if (have_ptrace_getregset == -1)
     {
@@ -779,7 +779,7 @@ amd64_linux_read_description (struct target_ops *ops)
     {
       if (is_64bit)
 	{
-	  if (is_ilp32)
+	  if (is_x32)
 	    return tdesc_x32_avx_linux;
 	  else
 	    return tdesc_amd64_avx_linux;
@@ -791,7 +791,7 @@ amd64_linux_read_description (struct target_ops *ops)
     {
       if (is_64bit)
 	{
-	  if (is_ilp32)
+	  if (is_x32)
 	    return tdesc_x32_linux;
 	  else
 	    return tdesc_amd64_linux;
