@@ -18,7 +18,7 @@
 	.syntax unified
 	.text
 	.type main,%function
-#if defined (__thumb__) || defined (__thumb2__)
+#if defined (__thumb__)
 	.code   16
 	.thumb_func
 #endif
@@ -44,8 +44,22 @@ test_ret_end:
 	bl test_ldr_pc
 
 	/* Test ldm/stm only in ARM mode */
-#if !defined (__thumb__) && !defined (__thumb2__)
+#if !defined (__thumb__)
 	bl test_ldm_stm_pc
+#endif
+
+	/* Test ldrX literal in ARM */
+#if !defined (__thumb__)
+	bl test_ldr_literal
+#endif
+
+	/* Test 32-bit adr in ARM */
+#if !defined(__thumb__)
+	bl test_adr_32bit
+#endif
+
+#if !defined(__thumb__)
+	bl test_pop_pc
 #endif
 
 	/* Test str in ARM mode and Thumb-2 */
@@ -60,7 +74,7 @@ test_ret_end:
 	.size main, .-main
 	
 	.global test_call_subr
-#if defined (__thumb__) || defined (__thumb2__)
+#if defined (__thumb__)
 	.code   16
 	.thumb_func
 #endif
@@ -77,7 +91,7 @@ test_ret:
 
 	
 	.global test_branch
-#if defined (__thumb__) || defined (__thumb2__)
+#if defined (__thumb__)
 	.code   16
 	.thumb_func
 #endif
@@ -90,7 +104,7 @@ L_branch:
 	.size test_branch, .-test_branch
 
 	.global test_ldr_pc
-#if defined (__thumb__) || defined (__thumb2__)
+#if defined (__thumb__)
 	.code   16
 	.thumb_func
 #endif
@@ -103,7 +117,7 @@ test_ldr_pc_ret:
 	bx lr
 	.size test_ldr_pc, .-test_ldr_pc
 
-#if !defined (__thumb__) && !defined (__thumb2__)
+#if !defined (__thumb__)
 	.global test_ldm_stm_pc
 	.type test_ldm_stm_pc, %function
 test_ldm_stm_pc:
@@ -122,6 +136,71 @@ test_ldm_stm_pc_ret:
 	.word	test_ldm_stm_pc_ret
 	.size test_ldm_stm_pc, .-test_ldm_stm_pc
 #endif
+
+#if !defined (__thumb__)
+	.global test_ldr_literal
+	.type test_ldr_literal, %function
+test_ldr_literal:
+	ldrh    r0, [pc]
+	.global test_ldrsb_literal
+test_ldrsb_literal:
+	ldrsb   r0, [pc]
+	.global test_ldrsh_literal
+test_ldrsh_literal:
+	ldrsh   r0, [pc]
+	.global test_ldr_literal_end
+test_ldr_literal_end:
+	bx lr
+	.size test_ldr_literal, .-test_ldr_literal
+#endif
+
+
+#if !defined(__thumb__)
+	.global test_adr_32bit
+#if defined(__thumb2__)
+	.code   16
+	.thumb_func
+#endif
+test_adr_32bit:
+	adr     r0, .L6
+	nop
+.L6:
+	nop
+	.global test_adr_32bit_after
+test_adr_32bit_after:
+	adr     r0, .L6
+
+	.global test_adr_32bit_end
+test_adr_32bit_end:
+	bx lr
+	.size test_adr_32bit, .-test_adr_32bit
+#endif
+
+	.global test_pop_pc
+	.type test_pop_pc, %function
+#if defined(__thumb__)
+	.code   16
+	.thumb_func
+#endif
+
+test_pop_pc:
+	ldr     r1, .L5
+#if defined(__thumb__)
+	movs    r0, #1
+	orrs    r1, r0
+#endif
+	push    {r1}
+	push    {r1}
+	.global test_pop_pc_1
+test_pop_pc_1:
+	pop     {r1, pc}
+	.global test_pop_pc_ret
+test_pop_pc_ret:
+	bx lr
+	.align  2
+.L5:
+	.word   test_pop_pc_ret
+	.size test_pop_pc, .-test_pop_pc
 
 #if !defined(__thumb__)
 #if defined (__thumb2__)

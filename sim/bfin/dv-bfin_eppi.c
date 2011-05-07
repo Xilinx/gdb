@@ -57,7 +57,8 @@ struct bfin_eppi
 #define mmr_base()      offsetof(struct bfin_eppi, status)
 #define mmr_offset(mmr) (offsetof(struct bfin_eppi, mmr) - mmr_base())
 
-static const char * const mmr_names[] = {
+static const char * const mmr_names[] =
+{
   "EPPI_STATUS", "EPPI_HCOUNT", "EPPI_HDELAY", "EPPI_VCOUNT", "EPPI_VDELAY",
   "EPPI_FRAME", "EPPI_LINE", "EPPI_CLKDIV", "EPPI_CONTROL", "EPPI_FS1W_HBL",
   "EPPI_FS1P_AVPL", "EPPI_FS2W_LVB", "EPPI_FS2P_LAVF", "EPPI_CLIP", "EPPI_ERR",
@@ -105,7 +106,7 @@ bfin_eppi_io_write_buffer (struct hw *me, const void *source,
     {
     case mmr_offset(status):
       dv_bfin_mmr_require_16 (me, addr, nr_bytes, true);
-      dv_w1c_2 (value16p, value, 0);
+      dv_w1c_2 (value16p, value, 0x1ff);
       break;
     case mmr_offset(hcount):
     case mmr_offset(hdelay):
@@ -207,7 +208,8 @@ bfin_eppi_dma_write_buffer (struct hw *me, const void *source,
   return bfin_gui_update (eppi->gui_state, source, nr_bytes);
 }
 
-static const struct hw_port_descriptor bfin_eppi_ports[] = {
+static const struct hw_port_descriptor bfin_eppi_ports[] =
+{
   { "stat", 0, 0, output_port, },
   { NULL, 0, 0, 0, },
 };
@@ -265,7 +267,8 @@ bfin_eppi_finish (struct hw *me)
   eppi->color = bfin_gui_color (color);
 }
 
-const struct hw_descriptor dv_bfin_eppi_descriptor[] = {
+const struct hw_descriptor dv_bfin_eppi_descriptor[] =
+{
   {"bfin_eppi", bfin_eppi_finish,},
   {NULL, NULL},
 };

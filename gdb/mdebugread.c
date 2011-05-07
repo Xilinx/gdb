@@ -45,6 +45,7 @@
 #include "symtab.h"
 #include "gdbtypes.h"
 #include "gdbcore.h"
+#include "filenames.h"
 #include "objfiles.h"
 #include "gdb_obstack.h"
 #include "buildsym.h"
@@ -2959,7 +2960,7 @@ parse_partial_symbols (struct objfile *objfile)
 		      CORE_ADDR valu;
 		      static int prev_so_symnum = -10;
 		      static int first_so_symnum;
-		      char *p;
+		      const char *p;
 		      int prev_textlow_not_set;
 
 		      valu = sh.value + ANOFFSET (objfile->section_offsets,
@@ -3012,9 +3013,8 @@ parse_partial_symbols (struct objfile *objfile)
 			 the second the file name.  If pst exists, is
 			 empty, and has a filename ending in '/', we assume
 			 the previous N_SO was a directory name.  */
-
-		      p = strrchr (namestring, '/');
-		      if (p && *(p + 1) == '\000')
+		      p = lbasename (namestring);
+		      if (p != namestring && *p == '\000')
 			continue;		/* Simply ignore directory
 						   name SOs.  */
 
@@ -3065,15 +3065,15 @@ parse_partial_symbols (struct objfile *objfile)
 			 work (I suppose the psymtab_include_list could be
 			 hashed or put in a binary tree, if profiling shows
 			 this is a major hog).  */
-		      if (pst && strcmp (namestring, pst->filename) == 0)
+		      if (pst && filename_cmp (namestring, pst->filename) == 0)
 			continue;
 
 		      {
 			int i;
 
 			for (i = 0; i < includes_used; i++)
-			  if (strcmp (namestring,
-				      psymtab_include_list[i]) == 0)
+			  if (filename_cmp (namestring,
+					    psymtab_include_list[i]) == 0)
 			    {
 			      i = -1;
 			      break;
@@ -4204,7 +4204,7 @@ psymtab_to_symtab_1 (struct partial_symtab *pst, const char *filename)
     {
       /* This symbol table contains ordinary ecoff entries.  */
 
-      int maxlines;
+      int maxlines, size;
       EXTR *ext_ptr;
 
       if (fh == 0)
@@ -4311,7 +4311,14 @@ psymtab_to_symtab_1 (struct partial_symtab *pst, const char *filename)
 	    }
 	}
 
-      LINETABLE (st) = lines;
+      size = lines->nitems;
+      if (size > 1)
+	--size;
+      LINETABLE (st) = obstack_copy (&current_objfile->objfile_obstack,
+				     lines,
+				     (sizeof (struct linetable)
+				      + size * sizeof (lines->item)));
+      xfree (lines);
 
       /* .. and our share of externals.
          XXX use the global list to speed up things here.  How?
@@ -4763,7 +4770,6 @@ new_symtab (const char *name, int maxlines, struct objfile *objfile)
   BLOCK_SUPERBLOCK (BLOCKVECTOR_BLOCK (BLOCKVECTOR (s), STATIC_BLOCK)) =
     BLOCKVECTOR_BLOCK (BLOCKVECTOR (s), GLOBAL_BLOCK);
 
-  s->free_code = free_linetable;
   s->debugformat = "ECOFF";
   return (s);
 }
@@ -4803,7 +4809,9 @@ new_linetable (int size)
 {
   struct linetable *l;
 
-  size = (size - 1) * sizeof (l->item) + sizeof (struct linetable);
+  if (size > 1)
+    --size;
+  size = size * sizeof (l->item) + sizeof (struct linetable);
   l = (struct linetable *) xmalloc (size);
   l->nitems = 0;
   return l;

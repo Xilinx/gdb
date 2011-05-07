@@ -212,8 +212,8 @@ extern void set_gdbarch_virtual_frame_pointer (struct gdbarch *gdbarch, gdbarch_
 
 extern int gdbarch_pseudo_register_read_p (struct gdbarch *gdbarch);
 
-typedef void (gdbarch_pseudo_register_read_ftype) (struct gdbarch *gdbarch, struct regcache *regcache, int cookednum, gdb_byte *buf);
-extern void gdbarch_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache, int cookednum, gdb_byte *buf);
+typedef enum register_status (gdbarch_pseudo_register_read_ftype) (struct gdbarch *gdbarch, struct regcache *regcache, int cookednum, gdb_byte *buf);
+extern enum register_status gdbarch_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache, int cookednum, gdb_byte *buf);
 extern void set_gdbarch_pseudo_register_read (struct gdbarch *gdbarch, gdbarch_pseudo_register_read_ftype *pseudo_register_read);
 
 extern int gdbarch_pseudo_register_write_p (struct gdbarch *gdbarch);
@@ -384,8 +384,8 @@ typedef int (gdbarch_convert_register_p_ftype) (struct gdbarch *gdbarch, int reg
 extern int gdbarch_convert_register_p (struct gdbarch *gdbarch, int regnum, struct type *type);
 extern void set_gdbarch_convert_register_p (struct gdbarch *gdbarch, gdbarch_convert_register_p_ftype *convert_register_p);
 
-typedef void (gdbarch_register_to_value_ftype) (struct frame_info *frame, int regnum, struct type *type, gdb_byte *buf);
-extern void gdbarch_register_to_value (struct gdbarch *gdbarch, struct frame_info *frame, int regnum, struct type *type, gdb_byte *buf);
+typedef int (gdbarch_register_to_value_ftype) (struct frame_info *frame, int regnum, struct type *type, gdb_byte *buf, int *optimizedp, int *unavailablep);
+extern int gdbarch_register_to_value (struct gdbarch *gdbarch, struct frame_info *frame, int regnum, struct type *type, gdb_byte *buf, int *optimizedp, int *unavailablep);
 extern void set_gdbarch_register_to_value (struct gdbarch *gdbarch, gdbarch_register_to_value_ftype *register_to_value);
 
 typedef void (gdbarch_value_to_register_ftype) (struct frame_info *frame, int regnum, struct type *type, const gdb_byte *buf);

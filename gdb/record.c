@@ -739,8 +739,8 @@ record_exec_insn (struct regcache *regcache, struct gdbarch *gdbarch,
               {
                 entry->u.mem.mem_entry_not_accessible = 1;
                 if (record_debug)
-                  warning ("Process record: error reading memory at "
-			   "addr = %s len = %d.",
+                  warning (_("Process record: error reading memory at "
+			     "addr = %s len = %d."),
                            paddress (gdbarch, entry->u.mem.addr),
                            entry->u.mem.len);
               }
@@ -752,8 +752,8 @@ record_exec_insn (struct regcache *regcache, struct gdbarch *gdbarch,
                   {
                     entry->u.mem.mem_entry_not_accessible = 1;
                     if (record_debug)
-                      warning ("Process record: error writing memory at "
-			       "addr = %s len = %d.",
+                      warning (_("Process record: error writing memory at "
+				 "addr = %s len = %d."),
                                paddress (gdbarch, entry->u.mem.addr),
                                entry->u.mem.len);
                   }
@@ -2154,7 +2154,7 @@ bfdcore_read (bfd *obfd, asection *osec, void *buf, int len, int *offset)
   if (ret)
     *offset += len;
   else
-    error (_("Failed to read %d bytes from core file %s ('%s').\n"),
+    error (_("Failed to read %d bytes from core file %s ('%s')."),
 	   len, bfd_get_filename (obfd),
 	   bfd_errmsg (bfd_get_error ()));
 }
@@ -2373,7 +2373,7 @@ bfdcore_write (bfd *obfd, asection *osec, void *buf, int len, int *offset)
   if (ret)
     *offset += len;
   else
-    error (_("Failed to write %d bytes to core file %s ('%s').\n"),
+    error (_("Failed to write %d bytes to core file %s ('%s')."),
 	   len, bfd_get_filename (obfd),
 	   bfd_errmsg (bfd_get_error ()));
 }

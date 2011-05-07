@@ -196,7 +196,7 @@ mach_check_error (kern_return_t ret, const char *file,
   if (func == NULL)
     func = _("[UNKNOWN]");
 
-  warning (_("Mach error at \"%s:%u\" in function \"%s\": %s (0x%lx)\n"),
+  warning (_("Mach error at \"%s:%u\" in function \"%s\": %s (0x%lx)"),
 	   file, line, func, mach_error_string (ret), (unsigned long) ret);
 }
 
@@ -1236,7 +1236,7 @@ darwin_stop_inferior (struct inferior *inf)
 
   res = kill (inf->pid, SIGSTOP);
   if (res != 0)
-    warning (_("cannot kill: %s\n"), safe_strerror (errno));
+    warning (_("cannot kill: %s"), safe_strerror (errno));
 
   /* Wait until the process is really stopped.  */
   while (1)

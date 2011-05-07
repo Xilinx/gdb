@@ -96,6 +96,12 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap);
 #endif
 #endif
 
+/* Define underscore macro, if not available, to be able to use it inside
+   code shared with gdb in common directory.  */
+#ifndef _
+#define _(String) (String)
+#endif
+
 /* A type used for binary buffers.  */
 typedef unsigned char gdb_byte;
 
@@ -349,6 +355,7 @@ extern int disable_packet_Tthread;
 extern int disable_packet_qC;
 extern int disable_packet_qfThreadInfo;
 
+extern int run_once;
 extern int multi_process;
 extern int non_stop;
 
@@ -400,6 +407,7 @@ int putpkt (char *buf);
 int putpkt_binary (char *buf, int len);
 int putpkt_notif (char *buf);
 int getpkt (char *buf);
+void remote_prepare (char *name);
 void remote_open (char *name);
 void remote_close (void);
 void write_ok (char *buf);

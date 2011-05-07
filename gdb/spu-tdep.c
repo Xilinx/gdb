@@ -45,7 +45,7 @@
 #include "observer.h"
 #include "infcall.h"
 #include "dwarf2.h"
-
+#include "exceptions.h"
 #include "spu-tdep.h"
 
 
@@ -183,61 +183,66 @@ spu_register_type (struct gdbarch *gdbarch, int reg_nr)
 
 /* Pseudo registers for preferred slots - stack pointer.  */
 
-static void
+static enum register_status
 spu_pseudo_register_read_spu (struct regcache *regcache, const char *regname,
 			      gdb_byte *buf)
 {
   struct gdbarch *gdbarch = get_regcache_arch (regcache);
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
+  enum register_status status;
   gdb_byte reg[32];
   char annex[32];
   ULONGEST id;
 
-  regcache_raw_read_unsigned (regcache, SPU_ID_REGNUM, &id);
+  status = regcache_raw_read_unsigned (regcache, SPU_ID_REGNUM, &id);
+  if (status != REG_VALID)
+    return status;
   xsnprintf (annex, sizeof annex, "%d/%s", (int) id, regname);
   memset (reg, 0, sizeof reg);
   target_read (&current_target, TARGET_OBJECT_SPU, annex,
 	       reg, 0, sizeof reg);
 
   store_unsigned_integer (buf, 4, byte_order, strtoulst (reg, NULL, 16));
+  return REG_VALID;
 }
 
-static void
+static enum register_status
 spu_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
                           int regnum, gdb_byte *buf)
 {
   gdb_byte reg[16];
   char annex[32];
   ULONGEST id;
+  enum register_status status;
 
   switch (regnum)
     {
     case SPU_SP_REGNUM:
-      regcache_raw_read (regcache, SPU_RAW_SP_REGNUM, reg);
+      status = regcache_raw_read (regcache, SPU_RAW_SP_REGNUM, reg);
+      if (status != REG_VALID)
+	return status;
       memcpy (buf, reg, 4);
-      break;
+      return status;
 
     case SPU_FPSCR_REGNUM:
-      regcache_raw_read_unsigned (regcache, SPU_ID_REGNUM, &id);
+      status = regcache_raw_read_unsigned (regcache, SPU_ID_REGNUM, &id);
+      if (status != REG_VALID)
+	return status;
       xsnprintf (annex, sizeof annex, "%d/fpcr", (int) id);
       target_read (&current_target, TARGET_OBJECT_SPU, annex, buf, 0, 16);
-      break;
+      return status;
 
     case SPU_SRR0_REGNUM:
-      spu_pseudo_register_read_spu (regcache, "srr0", buf);
-      break;
+      return spu_pseudo_register_read_spu (regcache, "srr0", buf);
 
     case SPU_LSLR_REGNUM:
-      spu_pseudo_register_read_spu (regcache, "lslr", buf);
-      break;
+      return spu_pseudo_register_read_spu (regcache, "lslr", buf);
 
     case SPU_DECR_REGNUM:
-      spu_pseudo_register_read_spu (regcache, "decr", buf);
-      break;
+      return spu_pseudo_register_read_spu (regcache, "decr", buf);
 
     case SPU_DECR_STATUS_REGNUM:
-      spu_pseudo_register_read_spu (regcache, "decr_status", buf);
-      break;
+      return spu_pseudo_register_read_spu (regcache, "decr_status", buf);
 
     default:
       internal_error (__FILE__, __LINE__, _("invalid regnum"));
@@ -451,7 +456,7 @@ enum
     op_a     = 0x0c0,
     op_ai    = 0x1c,
 
-    op_selb  = 0x4,
+    op_selb  = 0x8,
 
     op_br    = 0x64,
     op_bra   = 0x60,
@@ -1077,6 +1082,7 @@ spu_frame_prev_register (struct frame_info *this_frame,
 
 static const struct frame_unwind spu_frame_unwind = {
   NORMAL_FRAME,
+  default_frame_unwind_stop_reason,
   spu_frame_this_id,
   spu_frame_prev_register,
   NULL,
@@ -1231,6 +1237,7 @@ spu2ppu_dealloc_cache (struct frame_info *self, void *this_cache)
 
 static const struct frame_unwind spu2ppu_unwind = {
   ARCH_FRAME,
+  default_frame_unwind_stop_reason,
   spu2ppu_this_id,
   spu2ppu_prev_register,
   NULL,
@@ -1589,8 +1596,21 @@ spu_software_single_step (struct frame_info *frame)
 	target += SPUADDR_ADDR (pc);
       else if (reg != -1)
 	{
-	  get_frame_register_bytes (frame, reg, 0, 4, buf);
-	  target += extract_unsigned_integer (buf, 4, byte_order) & -4;
+	  int optim, unavail;
+
+	  if (get_frame_register_bytes (frame, reg, 0, 4, buf,
+					 &optim, &unavail))
+	    target += extract_unsigned_integer (buf, 4, byte_order) & -4;
+	  else
+	    {
+	      if (optim)
+		error (_("Could not determine address of "
+			 "single-step breakpoint."));
+	      if (unavail)
+		throw_error (NOT_AVAILABLE_ERROR,
+			     _("Could not determine address of "
+			       "single-step breakpoint."));
+	    }
 	}
 
       target = target & lslr;
@@ -1613,9 +1633,13 @@ spu_get_longjmp_target (struct frame_info *frame, CORE_ADDR *pc)
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   gdb_byte buf[4];
   CORE_ADDR jb_addr;
+  int optim, unavail;
 
   /* Jump buffer is pointed to by the argument register $r3.  */
-  get_frame_register_bytes (frame, SPU_ARG1_REGNUM, 0, 4, buf);
+  if (!get_frame_register_bytes (frame, SPU_ARG1_REGNUM, 0, 4, buf,
+				 &optim, &unavail))
+    return 0;
+
   jb_addr = extract_unsigned_integer (buf, 4, byte_order);
   if (target_read_memory (SPUADDR (tdep->id, jb_addr), buf, 4))
     return 0;

@@ -564,7 +564,7 @@ mips_tdesc_register_reggroup_p (struct gdbarch *gdbarch, int regnum,
    gdbarch_num_regs .. 2 * gdbarch_num_regs) back onto the corresponding raw
    registers.  Take care of alignment and size problems.  */
 
-static void
+static enum register_status
 mips_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
 			   int cookednum, gdb_byte *buf)
 {
@@ -572,18 +572,22 @@ mips_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
   gdb_assert (cookednum >= gdbarch_num_regs (gdbarch)
 	      && cookednum < 2 * gdbarch_num_regs (gdbarch));
   if (register_size (gdbarch, rawnum) == register_size (gdbarch, cookednum))
-    regcache_raw_read (regcache, rawnum, buf);
+    return regcache_raw_read (regcache, rawnum, buf);
   else if (register_size (gdbarch, rawnum) >
 	   register_size (gdbarch, cookednum))
     {
       if (gdbarch_tdep (gdbarch)->mips64_transfers_32bit_regs_p)
-	regcache_raw_read_part (regcache, rawnum, 0, 4, buf);
+	return regcache_raw_read_part (regcache, rawnum, 0, 4, buf);
       else
 	{
 	  enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
 	  LONGEST regval;
-	  regcache_raw_read_signed (regcache, rawnum, &regval);
-	  store_signed_integer (buf, 4, byte_order, regval);
+	  enum register_status status;
+
+	  status = regcache_raw_read_signed (regcache, rawnum, &regval);
+	  if (status == REG_VALID)
+	    store_signed_integer (buf, 4, byte_order, regval);
+	  return status;
 	}
     }
   else
@@ -733,9 +737,10 @@ mips_convert_register_p (struct gdbarch *gdbarch,
       || mips_convert_register_gpreg_case_p (gdbarch, regnum, type);
 }
 
-static void
+static int
 mips_register_to_value (struct frame_info *frame, int regnum,
-			struct type *type, gdb_byte *to)
+			struct type *type, gdb_byte *to,
+			int *optimizedp, int *unavailablep)
 {
   struct gdbarch *gdbarch = get_frame_arch (frame);
 
@@ -743,14 +748,29 @@ mips_register_to_value (struct frame_info *frame, int regnum,
     {
       get_frame_register (frame, regnum + 0, to + 4);
       get_frame_register (frame, regnum + 1, to + 0);
+
+      if (!get_frame_register_bytes (frame, regnum + 0, 0, 4, to + 4,
+				     optimizedp, unavailablep))
+	return 0;
+
+      if (!get_frame_register_bytes (frame, regnum + 1, 0, 4, to + 0,
+				     optimizedp, unavailablep))
+	return 0;
+      *optimizedp = *unavailablep = 0;
+      return 1;
     }
   else if (mips_convert_register_gpreg_case_p (gdbarch, regnum, type))
     {
       int len = TYPE_LENGTH (type);
-      if (gdbarch_byte_order (gdbarch) == BFD_ENDIAN_BIG)
-	get_frame_register_bytes (frame, regnum, 8 - len, len, to);
-      else
-	get_frame_register_bytes (frame, regnum, 0, len, to);
+      CORE_ADDR offset;
+
+      offset = gdbarch_byte_order (gdbarch) == BFD_ENDIAN_BIG ? 8 - len : 0;
+      if (!get_frame_register_bytes (frame, regnum, offset, len, to,
+				     optimizedp, unavailablep))
+	return 0;
+
+      *optimizedp = *unavailablep = 0;
+      return 1;
     }
   else
     {
@@ -2008,6 +2028,7 @@ mips_insn16_frame_sniffer (const struct frame_unwind *self,
 static const struct frame_unwind mips_insn16_frame_unwind =
 {
   NORMAL_FRAME,
+  default_frame_unwind_stop_reason,
   mips_insn16_frame_this_id,
   mips_insn16_frame_prev_register,
   NULL,
@@ -2361,6 +2382,7 @@ mips_insn32_frame_sniffer (const struct frame_unwind *self,
 static const struct frame_unwind mips_insn32_frame_unwind =
 {
   NORMAL_FRAME,
+  default_frame_unwind_stop_reason,
   mips_insn32_frame_this_id,
   mips_insn32_frame_prev_register,
   NULL,
@@ -2485,6 +2507,7 @@ mips_stub_frame_sniffer (const struct frame_unwind *self,
 static const struct frame_unwind mips_stub_frame_unwind =
 {
   NORMAL_FRAME,
+  default_frame_unwind_stop_reason,
   mips_stub_frame_this_id,
   mips_stub_frame_prev_register,
   NULL,

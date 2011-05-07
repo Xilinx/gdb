@@ -52,7 +52,8 @@ struct bfin_otp
 #define mmr_offset(mmr) (offsetof(struct bfin_otp, mmr) - mmr_base())
 #define mmr_idx(mmr)    (mmr_offset (mmr) / 4)
 
-static const char * const mmr_names[] = {
+static const char * const mmr_names[] =
+{
   "OTP_CONTROL", "OTP_BEN", "OTP_STATUS", "OTP_TIMING",
   [mmr_idx (data0)] = "OTP_DATA0", "OTP_DATA1", "OTP_DATA2", "OTP_DATA3",
 };
@@ -148,7 +149,7 @@ bfin_otp_io_write_buffer (struct hw *me, const void *source, int space,
     case mmr_offset(status):
       dv_bfin_mmr_require_16 (me, addr, nr_bytes, true);
       /* XXX: All bits seem to be W1C.  */
-      dv_w1c_2 (value16p, value, 0);
+      dv_w1c_2 (value16p, value, -1);
       break;
     case mmr_offset(timing):
     case mmr_offset(data0):
@@ -235,6 +236,12 @@ attach_bfin_otp_regs (struct hw *me, struct bfin_otp *otp)
   otp->base = attach_address;
 }
 
+static const struct hw_port_descriptor bfin_otp_ports[] =
+{
+  { "stat", 0, 0, output_port, },
+  { NULL, 0, 0, 0, },
+};
+
 static void
 bfin_otp_finish (struct hw *me)
 {
@@ -248,6 +255,7 @@ bfin_otp_finish (struct hw *me)
   set_hw_data (me, otp);
   set_hw_io_read_buffer (me, bfin_otp_io_read_buffer);
   set_hw_io_write_buffer (me, bfin_otp_io_write_buffer);
+  set_hw_ports (me, bfin_otp_ports);
 
   attach_bfin_otp_regs (me, otp);
 
@@ -301,7 +309,8 @@ bfin_otp_finish (struct hw *me)
   bfin_otp_write_page_val (otp, FPS03, (void *)part_str);
 }
 
-const struct hw_descriptor dv_bfin_otp_descriptor[] = {
+const struct hw_descriptor dv_bfin_otp_descriptor[] =
+{
   {"bfin_otp", bfin_otp_finish,},
   {NULL, NULL},
 };

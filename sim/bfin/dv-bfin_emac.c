@@ -93,7 +93,8 @@ struct bfin_emac
 #define mmr_offset(mmr) (offsetof(struct bfin_emac, mmr) - mmr_base())
 #define mmr_idx(mmr)    (mmr_offset (mmr) / 4)
 
-static const char * const mmr_names[BFIN_MMR_EMAC_SIZE / 4] = {
+static const char * const mmr_names[BFIN_MMR_EMAC_SIZE / 4] =
+{
   "EMAC_OPMODE", "EMAC_ADDRLO", "EMAC_ADDRHI", "EMAC_HASHLO", "EMAC_HASHHI",
   "EMAC_STAADD", "EMAC_STADAT", "EMAC_FLC", "EMAC_VLAN1", "EMAC_VLAN2", NULL,
   "EMAC_WKUP_CTL", "EMAC_WKUP_FFMSK0", "EMAC_WKUP_FFMSK1", "EMAC_WKUP_FFMSK2",
@@ -223,7 +224,7 @@ bfin_emac_io_write_buffer (struct hw *me, const void *source,
       dv_w1c_4_partial (valuep, value, 0xf20);
       break;
     case mmr_offset(systat):
-      dv_w1c_4 (valuep, value, 0x1e);
+      dv_w1c_4 (valuep, value, 0xe1);
       break;
     case mmr_offset(staadd):
       *valuep = value | STABUSY;
@@ -241,7 +242,7 @@ bfin_emac_io_write_buffer (struct hw *me, const void *source,
     case mmr_offset(tx_stky):
     case mmr_offset(mmc_rirqs):
     case mmr_offset(mmc_tirqs):
-      dv_w1c_4 (valuep, value, 0);
+      dv_w1c_4 (valuep, value, -1);
       break;
     case mmr_offset(mmc_ctl):
       /* Writing to bit 0 clears all counters.  */
@@ -488,7 +489,8 @@ bfin_emac_dma_write_buffer (struct hw *me, const void *source,
   return ret;
 }
 
-static const struct hw_port_descriptor bfin_emac_ports[] = {
+static const struct hw_port_descriptor bfin_emac_ports[] =
+{
   { "tx",   DV_PORT_TX,   0, output_port, },
   { "rx",   DV_PORT_RX,   0, output_port, },
   { "stat", DV_PORT_STAT, 0, output_port, },
@@ -597,7 +599,8 @@ bfin_emac_finish (struct hw *me)
   bfin_emac_tap_init (me);
 }
 
-const struct hw_descriptor dv_bfin_emac_descriptor[] = {
+const struct hw_descriptor dv_bfin_emac_descriptor[] =
+{
   {"bfin_emac", bfin_emac_finish,},
   {NULL, NULL},
 };

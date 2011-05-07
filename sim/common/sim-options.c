@@ -515,7 +515,7 @@ dup_arg_p (const char *arg)
   arg_table[hash] = arg;
   return 0;
 }
-     
+
 /* Called by sim_open to parse the arguments.  */
 
 SIM_RC
@@ -637,7 +637,7 @@ sim_parse_args (SIM_DESC sd, char **argv)
 	      }
 	  }
     }
-	    
+
   /* Terminate the short and long option lists.  */
   *p = 0;
   lp->name = NULL;
@@ -734,7 +734,7 @@ print_help (SIM_DESC sd, sim_cpu *cpu, const struct option_list *ol, int is_comm
 	      }
 	    while (OPTION_VALID_P (o) && o->doc == NULL);
 	  }
-	
+
 	/* list any long options (aliases) for the current OPT */
 	o = opt;
 	do
@@ -915,13 +915,65 @@ find_match (SIM_DESC sd, sim_cpu *cpu, char *argv[], int *pargi)
   return matching_opt;
 }
 
+static char **
+complete_option_list (char **ret, size_t *cnt, const struct option_list *ol,
+		      char *text, char *word)
+{
+  const OPTION *opt = NULL;
+  int argi;
+  size_t len = strlen (word);
+
+  for ( ; ol != NULL; ol = ol->next)
+    for (opt = ol->options; OPTION_VALID_P (opt); ++opt)
+      {
+	const char *name = opt->opt.name;
+
+	/* A long option to match against?  */
+	if (!name)
+	  continue;
+
+	/* Does this option actually match?  */
+	if (strncmp (name, word, len))
+	  continue;
+
+	ret = xrealloc (ret, ++*cnt * sizeof (ret[0]));
+	ret[*cnt - 2] = xstrdup (name);
+      }
+
+  return ret;
+}
+
+/* All leading text is stored in @text, while the current word being
+   completed is stored in @word.  Trailing text of @word is not.  */
+
+char **
+sim_complete_command (SIM_DESC sd, char *text, char *word)
+{
+  char **ret = NULL;
+  size_t cnt = 1;
+  sim_cpu *cpu;
+
+  /* Only complete first word for now.  */
+  if (text != word)
+    return ret;
+
+  cpu = STATE_CPU (sd, 0);
+  if (cpu)
+    ret = complete_option_list (ret, &cnt, CPU_OPTIONS (cpu), text, word);
+  ret = complete_option_list (ret, &cnt, STATE_OPTIONS (sd), text, word);
+
+  if (ret)
+    ret[cnt - 1] = NULL;
+  return ret;
+}
+
 SIM_RC
 sim_args_command (SIM_DESC sd, char *cmd)
 {
   /* something to do? */
   if (cmd == NULL)
     return SIM_RC_OK; /* FIXME - perhaps help would be better */
-  
+
   if (cmd [0] == '-')
     {
       /* user specified -<opt> ... form? */
@@ -1012,7 +1064,7 @@ sim_args_command (SIM_DESC sd, char *cmd)
 
       freeargv (argv);
     }
-      
+
   /* didn't find anything that remotly matched */
   return SIM_RC_FAIL;
 }

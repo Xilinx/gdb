@@ -1682,14 +1682,14 @@ gdbarch_pseudo_register_read_p (struct gdbarch *gdbarch)
   return gdbarch->pseudo_register_read != NULL;
 }
 
-void
+enum register_status
 gdbarch_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache, int cookednum, gdb_byte *buf)
 {
   gdb_assert (gdbarch != NULL);
   gdb_assert (gdbarch->pseudo_register_read != NULL);
   if (gdbarch_debug >= 2)
     fprintf_unfiltered (gdb_stdlog, "gdbarch_pseudo_register_read called\n");
-  gdbarch->pseudo_register_read (gdbarch, regcache, cookednum, buf);
+  return gdbarch->pseudo_register_read (gdbarch, regcache, cookednum, buf);
 }
 
 void
@@ -2262,14 +2262,14 @@ set_gdbarch_convert_register_p (struct gdbarch *gdbarch,
   gdbarch->convert_register_p = convert_register_p;
 }
 
-void
-gdbarch_register_to_value (struct gdbarch *gdbarch, struct frame_info *frame, int regnum, struct type *type, gdb_byte *buf)
+int
+gdbarch_register_to_value (struct gdbarch *gdbarch, struct frame_info *frame, int regnum, struct type *type, gdb_byte *buf, int *optimizedp, int *unavailablep)
 {
   gdb_assert (gdbarch != NULL);
   gdb_assert (gdbarch->register_to_value != NULL);
   if (gdbarch_debug >= 2)
     fprintf_unfiltered (gdb_stdlog, "gdbarch_register_to_value called\n");
-  gdbarch->register_to_value (frame, regnum, type, buf);
+  return gdbarch->register_to_value (frame, regnum, type, buf, optimizedp, unavailablep);
 }
 
 void

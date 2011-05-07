@@ -2225,6 +2225,7 @@ hppa_frame_unwind_sniffer (const struct frame_unwind *self,
 static const struct frame_unwind hppa_frame_unwind =
 {
   NORMAL_FRAME,
+  default_frame_unwind_stop_reason,
   hppa_frame_this_id,
   hppa_frame_prev_register,
   NULL,
@@ -2335,6 +2336,7 @@ hppa_fallback_frame_prev_register (struct frame_info *this_frame,
 static const struct frame_unwind hppa_fallback_frame_unwind =
 {
   NORMAL_FRAME,
+  default_frame_unwind_stop_reason,
   hppa_fallback_frame_this_id,
   hppa_fallback_frame_prev_register,
   NULL,
@@ -2431,6 +2433,7 @@ hppa_stub_unwind_sniffer (const struct frame_unwind *self,
 
 static const struct frame_unwind hppa_stub_frame_unwind = {
   NORMAL_FRAME,
+  default_frame_unwind_stop_reason,
   hppa_stub_frame_this_id,
   hppa_stub_frame_prev_register,
   NULL,
@@ -2665,17 +2668,22 @@ hppa_fetch_pointer_argument (struct frame_info *frame, int argi,
   return get_frame_register_unsigned (frame, HPPA_R0_REGNUM + 26 - argi);
 }
 
-static void
+static enum register_status
 hppa_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
 			   int regnum, gdb_byte *buf)
 {
-    enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
-    ULONGEST tmp;
+  enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
+  ULONGEST tmp;
+  enum register_status status;
 
-    regcache_raw_read_unsigned (regcache, regnum, &tmp);
-    if (regnum == HPPA_PCOQ_HEAD_REGNUM || regnum == HPPA_PCOQ_TAIL_REGNUM)
-      tmp &= ~0x3;
-    store_unsigned_integer (buf, sizeof tmp, byte_order, tmp);
+  status = regcache_raw_read_unsigned (regcache, regnum, &tmp);
+  if (status == REG_VALID)
+    {
+      if (regnum == HPPA_PCOQ_HEAD_REGNUM || regnum == HPPA_PCOQ_TAIL_REGNUM)
+	tmp &= ~0x3;
+      store_unsigned_integer (buf, sizeof tmp, byte_order, tmp);
+    }
+  return status;
 }
 
 static CORE_ADDR

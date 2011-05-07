@@ -33,6 +33,8 @@
 #include "readline/readline.h"
 #include "gdb_regex.h"
 #include "dictionary.h"
+#include "language.h"
+#include "cp-support.h"
 
 #ifndef DEV_TTY
 #define DEV_TTY "/dev/tty"
@@ -480,7 +482,26 @@ lookup_symbol_aux_psymtabs (struct objfile *objfile,
   ALL_OBJFILE_PSYMTABS_REQUIRED (objfile, ps)
   {
     if (!ps->readin && lookup_partial_symbol (ps, name, psymtab_index, domain))
-      return PSYMTAB_TO_SYMTAB (ps);
+      {
+	struct symbol *sym = NULL;
+	struct symtab *stab = PSYMTAB_TO_SYMTAB (ps);
+
+	/* Some caution must be observed with overloaded functions
+	   and methods, since the psymtab will not contain any overload
+	   information (but NAME might contain it).  */
+	if (stab->primary)
+	  {
+	    struct blockvector *bv = BLOCKVECTOR (stab);
+	    struct block *block = BLOCKVECTOR_BLOCK (bv, block_index);
+
+	    sym = lookup_block_symbol (block, name, domain);
+	  }
+
+	if (sym && strcmp_iw (SYMBOL_SEARCH_NAME (sym), name) == 0)
+	  return stab;
+
+	/* Keep looking through other psymtabs.  */
+      }
   }
 
   return NULL;
@@ -567,10 +588,44 @@ match_partial_symbol (struct partial_symtab *pst, int global,
 
 static void
 pre_expand_symtabs_matching_psymtabs (struct objfile *objfile,
-				      int kind, const char *name,
+				      enum block_enum block_kind,
+				      const char *name,
 				      domain_enum domain)
 {
   /* Nothing.  */
+}
+
+/* Returns the name used to search psymtabs.  Unlike symtabs, psymtabs do
+   not contain any method/function instance information (since this would
+   force reading type information while reading psymtabs).  Therefore,
+   if NAME contains overload information, it must be stripped before searching
+   psymtabs.
+
+   The caller is responsible for freeing the return result.  */
+
+static char *
+psymtab_search_name (const char *name)
+{
+  switch (current_language->la_language)
+    {
+    case language_cplus:
+    case language_java:
+      {
+       if (strchr (name, '('))
+         {
+           char *ret = cp_remove_params (name);
+
+           if (ret)
+             return ret;
+         }
+      }
+      break;
+
+    default:
+      break;
+    }
+
+  return xstrdup (name);
 }
 
 /* Look, in partial_symtab PST, for symbol whose natural name is NAME.
@@ -584,11 +639,16 @@ lookup_partial_symbol (struct partial_symtab *pst, const char *name,
   struct partial_symbol **top, **real_top, **bottom, **center;
   int length = (global ? pst->n_global_syms : pst->n_static_syms);
   int do_linear_search = 1;
+  char *search_name;
+  struct cleanup *cleanup;
 
   if (length == 0)
     {
       return (NULL);
     }
+
+  search_name = psymtab_search_name (name);
+  cleanup = make_cleanup (xfree, search_name);
   start = (global ?
 	   pst->objfile->global_psymbols.list + pst->globals_offset :
 	   pst->objfile->static_psymbols.list + pst->statics_offset);
@@ -617,7 +677,8 @@ lookup_partial_symbol (struct partial_symtab *pst, const char *name,
 	    {
 	      do_linear_search = 1;
 	    }
-	  if (strcmp_iw_ordered (SYMBOL_SEARCH_NAME (*center), name) >= 0)
+	  if (strcmp_iw_ordered (SYMBOL_SEARCH_NAME (*center),
+				 search_name) >= 0)
 	    {
 	      top = center;
 	    }
@@ -630,12 +691,22 @@ lookup_partial_symbol (struct partial_symtab *pst, const char *name,
 	internal_error (__FILE__, __LINE__,
 			_("failed internal consistency check"));
 
-      while (top <= real_top
-	     && SYMBOL_MATCHES_SEARCH_NAME (*top, name))
+      /* For `case_sensitivity == case_sensitive_off' strcmp_iw_ordered will
+	 search more exactly than what matches SYMBOL_MATCHES_SEARCH_NAME.  */
+      while (top >= start && SYMBOL_MATCHES_SEARCH_NAME (*top, search_name))
+	top--;
+
+      /* Fixup to have a symbol which matches SYMBOL_MATCHES_SEARCH_NAME.  */
+      top++;
+
+      while (top <= real_top && SYMBOL_MATCHES_SEARCH_NAME (*top, search_name))
 	{
 	  if (symbol_matches_domain (SYMBOL_LANGUAGE (*top),
 				     SYMBOL_DOMAIN (*top), domain))
-	    return (*top);
+	    {
+	      do_cleanups (cleanup);
+	      return (*top);
+	    }
 	  top++;
 	}
     }
@@ -649,11 +720,15 @@ lookup_partial_symbol (struct partial_symtab *pst, const char *name,
 	{
 	  if (symbol_matches_domain (SYMBOL_LANGUAGE (*psym),
 				     SYMBOL_DOMAIN (*psym), domain)
-	      && SYMBOL_MATCHES_SEARCH_NAME (*psym, name))
-	    return (*psym);
+	      && SYMBOL_MATCHES_SEARCH_NAME (*psym, search_name))
+	    {
+	      do_cleanups (cleanup);
+	      return (*psym);
+	    }
 	}
     }
 
+  do_cleanups (cleanup);
   return (NULL);
 }
 
@@ -1000,44 +1075,8 @@ read_psymtabs_with_filename (struct objfile *objfile, const char *filename)
 
   ALL_OBJFILE_PSYMTABS_REQUIRED (objfile, p)
     {
-      if (strcmp (filename, p->filename) == 0)
+      if (filename_cmp (filename, p->filename) == 0)
 	PSYMTAB_TO_SYMTAB (p);
-    }
-}
-
-static void
-map_symbol_names_psymtab (struct objfile *objfile,
-			  void (*fun) (const char *, void *), void *data)
-{
-  struct partial_symtab *ps;
-
-  ALL_OBJFILE_PSYMTABS_REQUIRED (objfile, ps)
-    {
-      struct partial_symbol **psym;
-
-      /* If the psymtab's been read in we'll get it when we search
-	 through the blockvector.  */
-      if (ps->readin)
-	continue;
-
-      for (psym = objfile->global_psymbols.list + ps->globals_offset;
-	   psym < (objfile->global_psymbols.list + ps->globals_offset
-		   + ps->n_global_syms);
-	   psym++)
-	{
-	  /* If interrupted, then quit.  */
-	  QUIT;
-	  (*fun) (SYMBOL_NATURAL_NAME (*psym), data);
-	}
-
-      for (psym = objfile->static_psymbols.list + ps->statics_offset;
-	   psym < (objfile->static_psymbols.list + ps->statics_offset
-		   + ps->n_static_syms);
-	   psym++)
-	{
-	  QUIT;
-	  (*fun) (SYMBOL_NATURAL_NAME (*psym), data);
-	}
     }
 }
 
@@ -1177,7 +1216,7 @@ expand_symtabs_matching_via_partial (struct objfile *objfile,
 							  void *),
 				     int (*name_matcher) (const char *,
 							  void *),
-				     domain_enum kind,
+				     enum search_domain kind,
 				     void *data)
 {
   struct partial_symtab *ps;
@@ -1191,7 +1230,7 @@ expand_symtabs_matching_via_partial (struct objfile *objfile,
       if (ps->readin)
 	continue;
 
-      if (! (*file_matcher) (ps->filename, data))
+      if (file_matcher && ! (*file_matcher) (ps->filename, data))
 	continue;
 
       gbound = objfile->global_psymbols.list
@@ -1220,14 +1259,15 @@ expand_symtabs_matching_via_partial (struct objfile *objfile,
 	    {
 	      QUIT;
 
-	      if ((*name_matcher) (SYMBOL_NATURAL_NAME (*psym), data)
-		  && ((kind == VARIABLES_DOMAIN
+	      if ((kind == ALL_DOMAIN
+		   || (kind == VARIABLES_DOMAIN
 		       && SYMBOL_CLASS (*psym) != LOC_TYPEDEF
 		       && SYMBOL_CLASS (*psym) != LOC_BLOCK)
-		      || (kind == FUNCTIONS_DOMAIN
-			  && SYMBOL_CLASS (*psym) == LOC_BLOCK)
-		      || (kind == TYPES_DOMAIN
-			  && SYMBOL_CLASS (*psym) == LOC_TYPEDEF)))
+		   || (kind == FUNCTIONS_DOMAIN
+		       && SYMBOL_CLASS (*psym) == LOC_BLOCK)
+		   || (kind == TYPES_DOMAIN
+		       && SYMBOL_CLASS (*psym) == LOC_TYPEDEF))
+		  && (*name_matcher) (SYMBOL_NATURAL_NAME (*psym), data))
 		{
 		  PSYMTAB_TO_SYMTAB (ps);
 		  keep_going = 0;
@@ -1262,7 +1302,6 @@ const struct quick_symbol_functions psym_functions =
   map_matching_symbols_psymtab,
   expand_symtabs_matching_via_partial,
   find_pc_sect_symtab_from_partial,
-  map_symbol_names_psymtab,
   map_symbol_filenames_psymtab
 };
 
@@ -1668,7 +1707,7 @@ print-psymbols takes an output file name and optional symbol file name"));
 
   immediate_quit++;
   ALL_PSYMTABS (objfile, ps)
-    if (symname == NULL || strcmp (symname, ps->filename) == 0)
+    if (symname == NULL || filename_cmp (symname, ps->filename) == 0)
     dump_psymtab (objfile, ps, outfile);
   immediate_quit--;
   do_cleanups (cleanups);
@@ -1865,14 +1904,15 @@ maintenance_check_symtabs (char *ignore, int from_tty)
 
 
 void
-map_partial_symbol_names (void (*fun) (const char *, void *), void *data)
+expand_partial_symbol_names (int (*fun) (const char *, void *), void *data)
 {
   struct objfile *objfile;
 
   ALL_OBJFILES (objfile)
   {
     if (objfile->sf)
-      objfile->sf->qf->map_symbol_names (objfile, fun, data);
+      objfile->sf->qf->expand_symtabs_matching (objfile, NULL, fun,
+						ALL_DOMAIN, data);
   }
 }
 

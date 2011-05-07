@@ -282,8 +282,8 @@ dwarf_expr_dwarf_call (struct dwarf_expr_context *ctx, size_t die_offset)
 {
   struct dwarf_expr_baton *debaton = ctx->baton;
 
-  return per_cu_dwarf_call (ctx, die_offset, debaton->per_cu,
-			    ctx->get_frame_pc, ctx->baton);
+  per_cu_dwarf_call (ctx, die_offset, debaton->per_cu,
+		     ctx->get_frame_pc, ctx->baton);
 }
 
 struct piece_closure
@@ -591,8 +591,20 @@ read_pieced_value (struct value *v)
 
 	    if (gdb_regnum != -1)
 	      {
-		get_frame_register_bytes (frame, gdb_regnum, reg_offset, 
-					  this_size, buffer);
+		int optim, unavail;
+
+		if (!get_frame_register_bytes (frame, gdb_regnum, reg_offset,
+					       this_size, buffer,
+					       &optim, &unavail))
+		  {
+		    /* Just so garbage doesn't ever shine through.  */
+		    memset (buffer, 0, this_size);
+
+		    if (optim)
+		      set_value_optimized_out (v, 1);
+		    if (unavail)
+		      mark_value_bytes_unavailable (v, offset, this_size);
+		  }
 	      }
 	    else
 	      {
@@ -776,8 +788,22 @@ write_pieced_value (struct value *to, struct value *from)
 	      {
 		if (need_bitwise)
 		  {
-		    get_frame_register_bytes (frame, gdb_regnum, reg_offset,
-					      this_size, buffer);
+		    int optim, unavail;
+
+		    if (!get_frame_register_bytes (frame, gdb_regnum, reg_offset,
+						   this_size, buffer,
+						   &optim, &unavail))
+		      {
+			if (optim)
+			  error (_("Can't do read-modify-write to "
+				   "update bitfield; containing word has been "
+				   "optimized out"));
+			if (unavail)
+			  throw_error (NOT_AVAILABLE_ERROR,
+				       _("Can't do read-modify-write to update "
+					 "bitfield; containing word "
+					 "is unavailable"));
+		      }
 		    copy_bitwise (buffer, dest_offset_bits,
 				  contents, source_offset_bits,
 				  this_size_bits,
@@ -1050,6 +1076,7 @@ dwarf2_evaluate_loc_desc_full (struct type *type, struct frame_info *frame,
   struct dwarf_expr_context *ctx;
   struct cleanup *old_chain;
   struct objfile *objfile = dwarf2_per_cu_objfile (per_cu);
+  volatile struct gdb_exception ex;
 
   if (byte_offset < 0)
     invalid_synthetic_pointer ();
@@ -1080,7 +1107,22 @@ dwarf2_evaluate_loc_desc_full (struct type *type, struct frame_info *frame,
   ctx->get_tls_address = dwarf_expr_tls_address;
   ctx->dwarf_call = dwarf_expr_dwarf_call;
 
-  dwarf_expr_eval (ctx, data, size);
+  TRY_CATCH (ex, RETURN_MASK_ERROR)
+    {
+      dwarf_expr_eval (ctx, data, size);
+    }
+  if (ex.reason < 0)
+    {
+      if (ex.error == NOT_AVAILABLE_ERROR)
+	{
+	  retval = allocate_value (type);
+	  mark_value_bytes_unavailable (retval, 0, TYPE_LENGTH (type));
+	  return retval;
+	}
+      else
+	throw_exception (ex);
+    }
+
   if (ctx->num_pieces > 0)
     {
       struct piece_closure *c;
@@ -1178,12 +1220,17 @@ dwarf2_evaluate_loc_desc_full (struct type *type, struct frame_info *frame,
 	  }
 	  break;
 
+	case DWARF_VALUE_OPTIMIZED_OUT:
+	  retval = allocate_value (type);
+	  VALUE_LVAL (retval) = not_lval;
+	  set_value_optimized_out (retval, 1);
+	  break;
+
 	  /* DWARF_VALUE_IMPLICIT_POINTER was converted to a pieced
 	     operation by execute_stack_op.  */
 	case DWARF_VALUE_IMPLICIT_POINTER:
 	  /* DWARF_VALUE_OPTIMIZED_OUT can't occur in this context --
 	     it can only be encountered when making a piece.  */
-	case DWARF_VALUE_OPTIMIZED_OUT:
 	default:
 	  internal_error (__FILE__, __LINE__, _("invalid location type"));
 	}
@@ -1274,8 +1321,8 @@ needs_frame_dwarf_call (struct dwarf_expr_context *ctx, size_t die_offset)
 {
   struct needs_frame_baton *nf_baton = ctx->baton;
 
-  return per_cu_dwarf_call (ctx, die_offset, nf_baton->per_cu,
-			    ctx->get_frame_pc, ctx->baton);
+  per_cu_dwarf_call (ctx, die_offset, nf_baton->per_cu,
+		     ctx->get_frame_pc, ctx->baton);
 }
 
 /* Return non-zero iff the location expression at DATA (length SIZE)

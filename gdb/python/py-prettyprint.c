@@ -288,7 +288,7 @@ print_stack_unless_memory_error (struct ui_file *stream)
       make_cleanup (xfree, msg);
 
       if (msg == NULL || *msg == '\0')
-	fprintf_filtered (stream, _("<error reading variable"));
+	fprintf_filtered (stream, _("<error reading variable>"));
       else
 	fprintf_filtered (stream, _("<error reading variable: %s>"), msg);
 
@@ -394,7 +394,7 @@ py_restore_tstate (void *p)
 /* Create a dummy PyFrameObject, needed to work around
    a Python-2.4 bug with generators.  */
 static PyObject *
-push_dummy_python_frame ()
+push_dummy_python_frame (void)
 {
   PyObject *empty_string, *null_tuple, *globals;
   PyCodeObject *code;

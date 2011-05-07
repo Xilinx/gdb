@@ -401,7 +401,7 @@ v850_handle_pushm (int insn, int insn2, struct v850_frame_cache *pi,
   else
     reg_table = pushmh_reg_table;
 
-  /* Calculate the total size of the saved registers, and add it it to the
+  /* Calculate the total size of the saved registers, and add it to the
      immediate value used to adjust SP.  */
   for (i = 0; reg_table[i].mask != 0; i++)
     if (list12 & reg_table[i].mask)
@@ -935,6 +935,7 @@ v850_frame_this_id (struct frame_info *this_frame, void **this_cache,
 
 static const struct frame_unwind v850_frame_unwind = {
   NORMAL_FRAME,
+  default_frame_unwind_stop_reason,
   v850_frame_this_id,
   v850_frame_prev_register,
   NULL,

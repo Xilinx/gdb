@@ -489,7 +489,7 @@ mi_cmd_thread_list_ids (char *command, char **argv, int argc)
   char *mi_error_message;
 
   if (argc != 0)
-    error ("-thread-list-ids: No arguments required.");
+    error (_("-thread-list-ids: No arguments required."));
 
   rc = gdb_list_thread_ids (uiout, &mi_error_message);
 
@@ -504,7 +504,7 @@ void
 mi_cmd_thread_info (char *command, char **argv, int argc)
 {
   if (argc != 0 && argc != 1)
-    error ("Invalid MI command");
+    error (_("Invalid MI command"));
 
   print_thread_info (uiout, argv[0], -1);
 }
@@ -827,8 +827,8 @@ mi_cmd_list_thread_groups (char *command, char **argv, int argc)
 	  else if (strcmp (optarg, "1") == 0)
 	    recurse = 1;
 	  else
-	    error ("only '0' and '1' are valid values "
-		   "for the '--recurse' option");
+	    error (_("only '0' and '1' are valid values "
+		     "for the '--recurse' option"));
 	  break;
 	}
     }
@@ -839,12 +839,12 @@ mi_cmd_list_thread_groups (char *command, char **argv, int argc)
       int inf;
 
       if (*(argv[optind]) != 'i')
-	error ("invalid syntax of group id '%s'", argv[optind]);
+	error (_("invalid syntax of group id '%s'"), argv[optind]);
 
       inf = strtoul (argv[optind] + 1, &end, 0);
 
       if (*end != '\0')
-	error ("invalid syntax of group id '%s'", argv[optind]);
+	error (_("invalid syntax of group id '%s'"), argv[optind]);
       VEC_safe_push (int, ids, inf);
     }
   if (VEC_length (int, ids) > 1)
@@ -865,7 +865,7 @@ mi_cmd_list_thread_groups (char *command, char **argv, int argc)
       struct inferior *inf = find_inferior_id (id);
 
       if (!inf)
-	error ("Non-existent thread group id '%d'", id);
+	error (_("Non-existent thread group id '%d'"), id);
       
       print_thread_info (uiout, NULL, inf->pid);
     }
@@ -927,7 +927,7 @@ mi_cmd_data_list_register_names (char *command, char **argv, int argc)
     {
       regnum = atoi (argv[i]);
       if (regnum < 0 || regnum >= numregs)
-	error ("bad register number");
+	error (_("bad register number"));
 
       if (gdbarch_register_name (gdbarch, regnum) == NULL
 	  || *(gdbarch_register_name (gdbarch, regnum)) == '\0')
@@ -979,8 +979,8 @@ mi_cmd_data_list_changed_registers (char *command, char **argv, int argc)
 	    continue;
 	  changed = register_changed_p (regnum, prev_regs, this_regs);
 	  if (changed < 0)
-	    error ("-data-list-changed-registers: "
-		   "Unable to read register contents.");
+	    error (_("-data-list-changed-registers: "
+		     "Unable to read register contents."));
 	  else if (changed)
 	    ui_out_field_int (uiout, NULL, regnum);
 	}
@@ -998,13 +998,13 @@ mi_cmd_data_list_changed_registers (char *command, char **argv, int argc)
 	{
 	  changed = register_changed_p (regnum, prev_regs, this_regs);
 	  if (changed < 0)
-	    error ("-data-list-changed-registers: "
-		   "Unable to read register contents.");
+	    error (_("-data-list-changed-registers: "
+		     "Unable to read register contents."));
 	  else if (changed)
 	    ui_out_field_int (uiout, NULL, regnum);
 	}
       else
-	error ("bad register number");
+	error (_("bad register number"));
     }
   do_cleanups (cleanup);
 }
@@ -1016,23 +1016,25 @@ register_changed_p (int regnum, struct regcache *prev_regs,
   struct gdbarch *gdbarch = get_regcache_arch (this_regs);
   gdb_byte prev_buffer[MAX_REGISTER_SIZE];
   gdb_byte this_buffer[MAX_REGISTER_SIZE];
+  enum register_status prev_status;
+  enum register_status this_status;
 
-  /* Registers not valid in this frame return count as unchanged.  */
-  if (regcache_register_status (this_regs, regnum) == REG_UNKNOWN)
-    return 0;
-
-  /* First time through or after gdbarch change consider all registers as
-     changed.  Same for registers not valid in the previous frame.  */
-  if (!prev_regs || get_regcache_arch (prev_regs) != gdbarch
-      || regcache_register_status (prev_regs, regnum) == REG_UNKNOWN)
+  /* First time through or after gdbarch change consider all registers
+     as changed.  */
+  if (!prev_regs || get_regcache_arch (prev_regs) != gdbarch)
     return 1;
 
   /* Get register contents and compare.  */
-  regcache_cooked_read (prev_regs, regnum, prev_buffer);
-  regcache_cooked_read (this_regs, regnum, this_buffer);
+  prev_status = regcache_cooked_read (prev_regs, regnum, prev_buffer);
+  this_status = regcache_cooked_read (this_regs, regnum, this_buffer);
 
-  return memcmp (prev_buffer, this_buffer,
-		 register_size (gdbarch, regnum)) != 0;
+  if (this_status != prev_status)
+    return 1;
+  else if (this_status == REG_VALID)
+    return memcmp (prev_buffer, this_buffer,
+		   register_size (gdbarch, regnum)) != 0;
+  else
+    return 0;
 }
 
 /* Return a list of register number and value pairs.  The valid
@@ -1058,8 +1060,8 @@ mi_cmd_data_list_register_values (char *command, char **argv, int argc)
      upon the particular processor being debugged.  */
 
   if (argc == 0)
-    error ("-data-list-register-values: Usage: "
-	   "-data-list-register-values <format> [<regnum1>...<regnumN>]");
+    error (_("-data-list-register-values: Usage: "
+	     "-data-list-register-values <format> [<regnum1>...<regnumN>]"));
 
   format = (int) argv[0][0];
 
@@ -1101,7 +1103,7 @@ mi_cmd_data_list_register_values (char *command, char **argv, int argc)
 	  do_cleanups (tuple_cleanup);
 	}
       else
-	error ("bad register number");
+	error (_("bad register number"));
     }
   do_cleanups (list_cleanup);
 }
@@ -1124,7 +1126,7 @@ get_register (struct frame_info *frame, int regnum, int format)
   val = get_frame_register_value (frame, regnum);
 
   if (value_optimized_out (val))
-    error ("Optimized out");
+    error (_("Optimized out"));
 
   if (format == 'r')
     {
@@ -1183,20 +1185,20 @@ mi_cmd_data_write_register_values (char *command, char **argv, int argc)
   numregs = gdbarch_num_regs (gdbarch) + gdbarch_num_pseudo_regs (gdbarch);
 
   if (argc == 0)
-    error ("-data-write-register-values: Usage: -data-write-register-"
-	   "values <format> [<regnum1> <value1>...<regnumN> <valueN>]");
+    error (_("-data-write-register-values: Usage: -data-write-register-"
+	     "values <format> [<regnum1> <value1>...<regnumN> <valueN>]"));
 
   format = (int) argv[0][0];
 
   if (!target_has_registers)
-    error ("-data-write-register-values: No registers.");
+    error (_("-data-write-register-values: No registers."));
 
   if (!(argc - 1))
-    error ("-data-write-register-values: No regs and values specified.");
+    error (_("-data-write-register-values: No regs and values specified."));
 
   if ((argc - 1) % 2)
-    error ("-data-write-register-values: "
-	   "Regs and vals are not in pairs.");
+    error (_("-data-write-register-values: "
+	     "Regs and vals are not in pairs."));
 
   for (i = 1; i < argc; i = i + 2)
     {
@@ -1215,7 +1217,7 @@ mi_cmd_data_write_register_values (char *command, char **argv, int argc)
 	  regcache_cooked_write_signed (regcache, regnum, value);
 	}
       else
-	error ("bad register number");
+	error (_("bad register number"));
     }
 }
 
@@ -1236,8 +1238,8 @@ mi_cmd_data_evaluate_expression (char *command, char **argv, int argc)
   if (argc != 1)
     {
       ui_out_stream_delete (stb);
-      error ("-data-evaluate-expression: "
-	     "Usage: -data-evaluate-expression expression");
+      error (_("-data-evaluate-expression: "
+	       "Usage: -data-evaluate-expression expression"));
     }
 
   expr = parse_expression (argv[0]);
@@ -1323,8 +1325,8 @@ mi_cmd_data_read_memory (char *command, char **argv, int argc)
   argc -= optind;
 
   if (argc < 5 || argc > 6)
-    error ("-data-read-memory: Usage: "
-	   "ADDR WORD-FORMAT WORD-SIZE NR-ROWS NR-COLS [ASCHAR].");
+    error (_("-data-read-memory: Usage: "
+	     "ADDR WORD-FORMAT WORD-SIZE NR-ROWS NR-COLS [ASCHAR]."));
 
   /* Extract all the arguments. */
 
@@ -1360,12 +1362,12 @@ mi_cmd_data_read_memory (char *command, char **argv, int argc)
   /* The number of rows.  */
   nr_rows = atol (argv[3]);
   if (nr_rows <= 0)
-    error ("-data-read-memory: invalid number of rows.");
+    error (_("-data-read-memory: invalid number of rows."));
 
   /* Number of bytes per row.  */
   nr_cols = atol (argv[4]);
   if (nr_cols <= 0)
-    error ("-data-read-memory: invalid number of columns.");
+    error (_("-data-read-memory: invalid number of columns."));
 
   /* The un-printable character when printing ascii.  */
   if (argc == 6)
@@ -1384,7 +1386,7 @@ mi_cmd_data_read_memory (char *command, char **argv, int argc)
 			  TARGET_OBJECT_MEMORY, NULL, mbuf,
 			  addr, total_bytes);
   if (nr_bytes <= 0)
-    error ("Unable to read memory.");
+    error (_("Unable to read memory."));
 
   /* Output the header information.  */
   ui_out_field_core_addr (uiout, "addr", gdbarch, addr);
@@ -1507,7 +1509,7 @@ mi_cmd_data_read_memory_bytes (char *command, char **argv, int argc)
   argc -= optind;
 
   if (argc != 2)
-    error ("Usage: [ -o OFFSET ] ADDR LENGTH.");
+    error (_("Usage: [ -o OFFSET ] ADDR LENGTH."));
 
   addr = parse_and_eval_address (argv[0]) + offset;
   length = atol (argv[1]);
@@ -1517,7 +1519,7 @@ mi_cmd_data_read_memory_bytes (char *command, char **argv, int argc)
   cleanups = make_cleanup (free_memory_read_result_vector, result);
 
   if (VEC_length (memory_read_result_s, result) == 0)
-    error ("Unable to read memory.");
+    error (_("Unable to read memory."));
 
   make_cleanup_ui_out_list_begin_end (uiout, "memory");
   for (ix = 0;
@@ -1609,8 +1611,8 @@ mi_cmd_data_write_memory (char *command, char **argv, int argc)
   argc -= optind;
 
   if (argc != 4)
-    error ("-data-write-memory: Usage: "
-	   "[-o COLUMN_OFFSET] ADDR FORMAT WORD-SIZE VALUE.");
+    error (_("-data-write-memory: Usage: "
+	     "[-o COLUMN_OFFSET] ADDR FORMAT WORD-SIZE VALUE."));
 
   /* Extract all the arguments.  */
   /* Start address of the memory dump.  */
@@ -1650,7 +1652,7 @@ mi_cmd_data_write_memory_bytes (char *command, char **argv, int argc)
   struct cleanup *back_to;
 
   if (argc != 2)
-    error ("Usage: ADDR DATA.");
+    error (_("Usage: ADDR DATA."));
 
   addr = parse_and_eval_address (argv[0]);
   cdata = argv[1];
@@ -1694,7 +1696,7 @@ mi_cmd_enable_timings (char *command, char **argv, int argc)
   return;
 
  usage_error:
-  error ("-enable-timings: Usage: %s {yes|no}", command);
+  error (_("-enable-timings: Usage: %s {yes|no}"), command);
 }
 
 void
@@ -1718,7 +1720,7 @@ mi_cmd_list_features (char *command, char **argv, int argc)
       return;
     }
 
-  error ("-list-features should be passed no arguments");
+  error (_("-list-features should be passed no arguments"));
 }
 
 void
@@ -1738,7 +1740,7 @@ mi_cmd_list_target_features (char *command, char **argv, int argc)
       return;
     }
 
-  error ("-list-target-features should be passed no arguments");
+  error (_("-list-target-features should be passed no arguments"));
 }
 
 void
@@ -1773,14 +1775,14 @@ mi_cmd_remove_inferior (char *command, char **argv, int argc)
   struct inferior *inf;
 
   if (argc != 1)
-    error ("-remove-inferior should be passed a single argument");
+    error (_("-remove-inferior should be passed a single argument"));
 
   if (sscanf (argv[0], "i%d", &id) != 1)
-    error ("the thread group id is syntactically invalid");
+    error (_("the thread group id is syntactically invalid"));
 
   inf = find_inferior_id (id);
   if (!inf)
-    error ("the specified thread group does not exist");
+    error (_("the specified thread group does not exist"));
 
   if (inf->pid != 0)
     error (_("cannot remove an active inferior"));
@@ -1814,10 +1816,9 @@ mi_cmd_remove_inferior (char *command, char **argv, int argc)
    prompt, display error). */
 
 static void
-captured_mi_execute_command (struct ui_out *uiout, void *data)
+captured_mi_execute_command (struct ui_out *uiout, struct mi_parse *context)
 {
   struct cleanup *cleanup;
-  struct mi_parse *context = (struct mi_parse *) data;
 
   if (do_timings)
     current_command_ts = context->cmd_start;
@@ -1945,7 +1946,7 @@ mi_execute_command (char *cmd, int from_tty)
     }
   else
     {
-      struct gdb_exception result;
+      volatile struct gdb_exception result;
       ptid_t previous_ptid = inferior_ptid;
 
       command->token = token;
@@ -1957,8 +1958,10 @@ mi_execute_command (char *cmd, int from_tty)
 	  timestamp (command->cmd_start);
 	}
 
-      result = catch_exception (uiout, captured_mi_execute_command, command,
-				RETURN_MASK_ALL);
+      TRY_CATCH (result, RETURN_MASK_ALL)
+	{
+	  captured_mi_execute_command (uiout, command);
+	}
       if (result.reason < 0)
 	{
 	  /* The command execution failed and error() was called
@@ -2085,8 +2088,16 @@ mi_cmd_execute (struct mi_parse *parse)
 
   current_context = parse;
 
+  if (strncmp (parse->command, "break-", sizeof ("break-") - 1 ) == 0)
+    {
+      make_cleanup_restore_integer (&mi_suppress_breakpoint_notifications);
+      mi_suppress_breakpoint_notifications = 1;
+    }
+
   if (parse->cmd->argv_func != NULL)
-    parse->cmd->argv_func (parse->command, parse->argv, parse->argc);
+    {
+      parse->cmd->argv_func (parse->command, parse->argv, parse->argc);
+    }
   else if (parse->cmd->cli.cmd != 0)
     {
       /* FIXME: DELETE THIS. */

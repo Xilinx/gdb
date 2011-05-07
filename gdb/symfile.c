@@ -1067,6 +1067,9 @@ new_symfile_objfile (struct objfile *objfile, int add_flags)
    syms_from_objfile, above.
    ADDRS is ignored when SYMFILE_MAINLINE bit is set in ADD_FLAGS.
 
+   PARENT is the original objfile if ABFD is a separate debug info file.
+   Otherwise PARENT is NULL.
+
    Upon success, returns a pointer to the objfile that was added.
    Upon failure, jumps back to command level (never returns).  */
 
@@ -1076,7 +1079,7 @@ symbol_file_add_with_addrs_or_offsets (bfd *abfd,
                                        struct section_addr_info *addrs,
                                        struct section_offsets *offsets,
                                        int num_offsets,
-                                       int flags)
+                                       int flags, struct objfile *parent)
 {
   struct objfile *objfile;
   struct cleanup *my_cleanups;
@@ -1105,6 +1108,9 @@ symbol_file_add_with_addrs_or_offsets (bfd *abfd,
 
   objfile = allocate_objfile (abfd, flags);
   discard_cleanups (my_cleanups);
+
+  if (parent)
+    add_separate_debug_objfile (objfile, parent);
 
   /* We either created a new mapped symbol table, mapped an existing
      symbol table file which has not had initial symbol reading
@@ -1196,11 +1202,10 @@ symbol_file_add_separate (bfd *bfd, int symfile_flags, struct objfile *objfile)
     (bfd, symfile_flags,
      sap, NULL, 0,
      objfile->flags & (OBJF_REORDERED | OBJF_SHARED | OBJF_READNOW
-		       | OBJF_USERLOADED));
+		       | OBJF_USERLOADED),
+     objfile);
 
   do_cleanups (my_cleanup);
-
-  add_separate_debug_objfile (new_objfile, objfile);
 }
 
 /* Process the symbol file ABFD, as either the main file or as a
@@ -1211,10 +1216,10 @@ symbol_file_add_separate (bfd *bfd, int symfile_flags, struct objfile *objfile)
 struct objfile *
 symbol_file_add_from_bfd (bfd *abfd, int add_flags,
                           struct section_addr_info *addrs,
-                          int flags)
+                          int flags, struct objfile *parent)
 {
   return symbol_file_add_with_addrs_or_offsets (abfd, add_flags, addrs, 0, 0,
-                                                flags);
+                                                flags, parent);
 }
 
 
@@ -1226,7 +1231,7 @@ symbol_file_add (char *name, int add_flags, struct section_addr_info *addrs,
 		 int flags)
 {
   return symbol_file_add_from_bfd (symfile_bfd_open (name), add_flags, addrs,
-                                   flags);
+                                   flags, NULL);
 }
 
 
@@ -1325,7 +1330,7 @@ separate_debug_file_exists (const char *name, unsigned long crc,
      ".debug" suffix as "/usr/lib/debug/path/to/file" is a separate tree where
      the separate debug infos with the same basename can exist.  */
 
-  if (strcmp (name, parent_objfile->name) == 0)
+  if (filename_cmp (name, parent_objfile->name) == 0)
     return 0;
 
   abfd = bfd_open_maybe_remote (name);
@@ -1333,7 +1338,7 @@ separate_debug_file_exists (const char *name, unsigned long crc,
   if (!abfd)
     return 0;
 
-  /* Verify symlinks were not the cause of strcmp name difference above.
+  /* Verify symlinks were not the cause of filename_cmp name difference above.
 
      Some operating systems, e.g. Windows, do not provide a meaningful
      st_ino; they always set it to zero.  (Windows does provide a
@@ -1471,7 +1476,8 @@ find_separate_debug_file_by_debuglink (struct objfile *objfile)
       /* If the file is in the sysroot, try using its base path in the
 	 global debugfile directory.  */
       if (canon_name
-	  && strncmp (canon_name, gdb_sysroot, strlen (gdb_sysroot)) == 0
+	  && filename_ncmp (canon_name, gdb_sysroot,
+			    strlen (gdb_sysroot)) == 0
 	  && IS_DIR_SEPARATOR (canon_name[strlen (gdb_sysroot)]))
 	{
 	  memcpy (debugfile, debugdir, debugdir_end - debugdir);
@@ -2375,8 +2381,9 @@ reread_symbols (void)
 	  /* We need to do this whenever any symbols go away.  */
 	  make_cleanup (clear_symtab_users_cleanup, 0 /*ignore*/);
 
-	  if (exec_bfd != NULL && strcmp (bfd_get_filename (objfile->obfd),
-					  bfd_get_filename (exec_bfd)) == 0)
+	  if (exec_bfd != NULL
+	      && filename_cmp (bfd_get_filename (objfile->obfd),
+			       bfd_get_filename (exec_bfd)) == 0)
 	    {
 	      /* Reload EXEC_BFD without asking anything.  */
 
@@ -2458,7 +2465,6 @@ reread_symbols (void)
 	  objfile->psymtabs = NULL;
 	  objfile->psymtabs_addrmap = NULL;
 	  objfile->free_psymtabs = NULL;
-	  objfile->cp_namespace_symtab = NULL;
 	  objfile->template_symbols = NULL;
 	  objfile->msymbols = NULL;
 	  objfile->deprecated_sym_private = NULL;

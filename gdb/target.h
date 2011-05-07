@@ -450,6 +450,7 @@ struct target_ops
     int (*to_insert_breakpoint) (struct gdbarch *, struct bp_target_info *);
     int (*to_remove_breakpoint) (struct gdbarch *, struct bp_target_info *);
     int (*to_can_use_hw_breakpoint) (int, int, int);
+    int (*to_ranged_break_num_registers) (struct target_ops *);
     int (*to_insert_hw_breakpoint) (struct gdbarch *, struct bp_target_info *);
     int (*to_remove_hw_breakpoint) (struct gdbarch *, struct bp_target_info *);
 
@@ -458,6 +459,10 @@ struct target_ops
     int (*to_remove_watchpoint) (CORE_ADDR, int, int, struct expression *);
     int (*to_insert_watchpoint) (CORE_ADDR, int, int, struct expression *);
 
+    int (*to_insert_mask_watchpoint) (struct target_ops *,
+				      CORE_ADDR, CORE_ADDR, int);
+    int (*to_remove_mask_watchpoint) (struct target_ops *,
+				      CORE_ADDR, CORE_ADDR, int);
     int (*to_stopped_by_watchpoint) (void);
     int to_have_steppable_watchpoint;
     int to_have_continuable_watchpoint;
@@ -471,6 +476,8 @@ struct target_ops
 
     int (*to_can_accel_watchpoint_condition) (CORE_ADDR, int, int,
 					      struct expression *);
+    int (*to_masked_watch_num_registers) (struct target_ops *,
+					  CORE_ADDR, CORE_ADDR);
     void (*to_terminal_init) (void);
     void (*to_terminal_inferior) (void);
     void (*to_terminal_ours_for_output) (void);
@@ -479,7 +486,6 @@ struct target_ops
     void (*to_terminal_info) (char *, int);
     void (*to_kill) (struct target_ops *);
     void (*to_load) (char *, int);
-    int (*to_lookup_symbol) (char *, CORE_ADDR *);
     void (*to_create_inferior) (struct target_ops *, 
 				char *, char *, char **, int);
     void (*to_post_startup_inferior) (ptid_t);
@@ -494,7 +500,11 @@ struct target_ops
     int (*to_has_exited) (int, int, int *);
     void (*to_mourn_inferior) (struct target_ops *);
     int (*to_can_run) (void);
-    void (*to_notice_signals) (ptid_t ptid);
+
+    /* Documentation of this routine is provided with the corresponding
+       target_* macro.  */
+    void (*to_pass_signals) (int, unsigned char *);
+
     int (*to_thread_alive) (struct target_ops *, ptid_t ptid);
     void (*to_find_new_threads) (struct target_ops *);
     char *(*to_pid_to_str) (struct target_ops *, ptid_t);
@@ -1016,17 +1026,6 @@ extern void target_kill (void);
 
 extern void target_load (char *arg, int from_tty);
 
-/* Look up a symbol in the target's symbol table.  NAME is the symbol
-   name.  ADDRP is a CORE_ADDR * pointing to where the value of the
-   symbol should be returned.  The result is 0 if successful, nonzero
-   if the symbol does not exist in the target environment.  This
-   function should not call error() if communication with the target
-   is interrupted, since it is called from symbol reading, but should
-   return nonzero, possibly doing a complain().  */
-
-#define target_lookup_symbol(name, addrp) \
-     (*current_target.to_lookup_symbol) (name, addrp)
-
 /* Start an inferior process and set inferior_ptid to its pid.
    EXEC_FILE is the file to run.
    ALLARGS is a string containing the arguments to the program.
@@ -1131,10 +1130,19 @@ void target_mourn_inferior (void);
 #define target_can_run(t) \
      ((t)->to_can_run) ()
 
-/* post process changes to signal handling in the inferior.  */
+/* Set list of signals to be handled in the target.
 
-#define target_notice_signals(ptid) \
-     (*current_target.to_notice_signals) (ptid)
+   PASS_SIGNALS is an array of size NSIG, indexed by target signal number
+   (enum target_signal).  For every signal whose entry in this array is
+   non-zero, the target is allowed -but not required- to skip reporting
+   arrival of the signal to the GDB core by returning from target_wait,
+   and to pass the signal directly to the inferior instead.
+
+   However, if the target is hardware single-stepping a thread that is
+   about to receive a signal, it needs to be reported in any case, even
+   if mentioned in a previous target_pass_signals call.   */
+
+extern void target_pass_signals (int nsig, unsigned char *pass_signals);
 
 /* Check to see if a thread is still alive.  */
 
@@ -1360,11 +1368,30 @@ extern char *target_thread_name (struct thread_info *);
 #define	target_remove_watchpoint(addr, len, type, cond) \
      (*current_target.to_remove_watchpoint) (addr, len, type, cond)
 
+/* Insert a new masked watchpoint at ADDR using the mask MASK.
+   RW may be hw_read for a read watchpoint, hw_write for a write watchpoint
+   or hw_access for an access watchpoint.  Returns 0 for success, 1 if
+   masked watchpoints are not supported, -1 for failure.  */
+
+extern int target_insert_mask_watchpoint (CORE_ADDR, CORE_ADDR, int);
+
+/* Remove a masked watchpoint at ADDR with the mask MASK.
+   RW may be hw_read for a read watchpoint, hw_write for a write watchpoint
+   or hw_access for an access watchpoint.  Returns 0 for success, non-zero
+   for failure.  */
+
+extern int target_remove_mask_watchpoint (CORE_ADDR, CORE_ADDR, int);
+
 #define target_insert_hw_breakpoint(gdbarch, bp_tgt) \
      (*current_target.to_insert_hw_breakpoint) (gdbarch, bp_tgt)
 
 #define target_remove_hw_breakpoint(gdbarch, bp_tgt) \
      (*current_target.to_remove_hw_breakpoint) (gdbarch, bp_tgt)
+
+/* Return number of debug registers needed for a ranged breakpoint,
+   or -1 if ranged breakpoints are not supported.  */
+
+extern int target_ranged_break_num_registers (void);
 
 /* Return non-zero if target knows the data address which triggered this
    target_stopped_by_watchpoint, in such case place it to *ADDR_P.  Only the
@@ -1387,6 +1414,12 @@ extern char *target_thread_name (struct thread_info *);
    the watchpoint triggers.  */
 #define target_can_accel_watchpoint_condition(addr, len, type, cond) \
   (*current_target.to_can_accel_watchpoint_condition) (addr, len, type, cond)
+
+/* Return number of debug registers needed for a masked watchpoint,
+   -1 if masked watchpoints are not supported or -2 if the given address
+   and mask combination cannot be used.  */
+
+extern int target_masked_watch_num_registers (CORE_ADDR addr, CORE_ADDR mask);
 
 /* Target can execute in reverse?  */
 #define target_can_execute_reverse \

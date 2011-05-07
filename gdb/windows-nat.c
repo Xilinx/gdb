@@ -41,11 +41,11 @@
 #include <psapi.h>
 #ifdef __CYGWIN__
 #include <sys/cygwin.h>
-#include <cygwin/version.h>
 #endif
 #include <signal.h>
 
 #include "buildsym.h"
+#include "filenames.h"
 #include "symfile.h"
 #include "objfiles.h"
 #include "gdb_obstack.h"
@@ -111,7 +111,6 @@ static struct target_ops windows_ops;
 /* The starting and ending address of the cygwin1.dll text segment.  */
   static CORE_ADDR cygwin_load_start;
   static CORE_ADDR cygwin_load_end;
-# if CYGWIN_VERSION_DLL_MAKE_COMBINED(CYGWIN_VERSION_API_MAJOR,CYGWIN_VERSION_API_MINOR) >= 181
 #   define __USEWIDE
     typedef wchar_t cygwin_buf_t;
     static DWORD WINAPI (*GetModuleFileNameEx) (HANDLE, HMODULE,
@@ -120,21 +119,6 @@ static struct target_ops windows_ops;
 #   define CreateProcess CreateProcessW
 #   define GetModuleFileNameEx_name "GetModuleFileNameExW"
 #   define bad_GetModuleFileNameEx bad_GetModuleFileNameExW
-# else
-#   define CCP_POSIX_TO_WIN_W 1
-#   define CCP_WIN_W_TO_POSIX 3
-#   define cygwin_conv_path(op, from, to, size)  \
-         (op == CCP_WIN_W_TO_POSIX) ? \
-         cygwin_conv_to_full_posix_path (from, to) : \
-         cygwin_conv_to_win32_path (from, to)
-    typedef char cygwin_buf_t;
-    static DWORD WINAPI (*GetModuleFileNameEx) (HANDLE, HMODULE, LPSTR, DWORD);
-#   define STARTUPINFO STARTUPINFOA
-#   define CreateProcess CreateProcessA
-#   define GetModuleFileNameEx_name "GetModuleFileNameExA"
-#   define bad_GetModuleFileNameEx bad_GetModuleFileNameExA
-#   define CW_SET_DOS_FILE_WARNING -1	/* no-op this for older Cygwin */
-# endif
 #endif
 
 static int have_saved_context;	/* True if we've saved context from a
@@ -516,7 +500,7 @@ windows_store_inferior_registers (struct target_ops *ops,
     do_windows_store_inferior_registers (regcache, r);
 }
 
-/* Get the name of a given module at at given base address.  If base_address
+/* Get the name of a given module at given base address.  If base_address
    is zero return the first loaded module (which is always the name of the
    executable).  */
 static int
@@ -759,7 +743,7 @@ windows_make_so (const char *name, LPVOID load_addr)
 	  return so;
 	}
 
-      /* The symbols in a dll are offset by 0x1000, which is the the
+      /* The symbols in a dll are offset by 0x1000, which is the
 	 offset from 0 of the first byte in an image - because of the
 	 file header and the section alignment.  */
       cygwin_load_start = (CORE_ADDR) (uintptr_t) ((char *)
@@ -1289,7 +1273,7 @@ fake_create_process (void)
     open_process_used = 1;
   else
     {
-      error (_("OpenProcess call failed, GetLastError = %lud\n"),
+      error (_("OpenProcess call failed, GetLastError = %lud"),
        GetLastError ());
       /*  We can not debug anything in that case.  */
     }
@@ -2586,7 +2570,7 @@ _initialize_check_for_gdb_ini (void)
 				      sizeof ("/gdb.ini"));
       strcpy (oldini, homedir);
       p = strchr (oldini, '\0');
-      if (p > oldini && p[-1] != '/')
+      if (p > oldini && !IS_DIR_SEPARATOR (p[-1]))
 	*p++ = '/';
       strcpy (p, "gdb.ini");
       if (access (oldini, 0) == 0)

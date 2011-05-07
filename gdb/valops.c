@@ -1343,8 +1343,16 @@ value_assign (struct value *toval, struct value *fromval)
 			   "don't fit in a %d bit word."),
 			 (int) sizeof (LONGEST) * HOST_CHAR_BIT);
 
-		get_frame_register_bytes (frame, value_reg, offset,
-					  changed_len, buffer);
+		if (!get_frame_register_bytes (frame, value_reg, offset,
+					       changed_len, buffer,
+					       &optim, &unavail))
+		  {
+		    if (optim)
+		      error (_("value has been optimized out"));
+		    if (unavail)
+		      throw_error (NOT_AVAILABLE_ERROR,
+				   _("value is not available"));
+		  }
 
 		modify_field (type, buffer, value_as_long (fromval),
 			      value_bitpos (toval), value_bitsize (toval));
@@ -3090,14 +3098,16 @@ classify_oload_match (struct badness_vector *oload_champ_bv,
 
 /* C++: return 1 is NAME is a legitimate name for the destructor of
    type TYPE.  If TYPE does not have a destructor, or if NAME is
-   inappropriate for TYPE, an error is signaled.  */
+   inappropriate for TYPE, an error is signaled.  Parameter TYPE should not yet
+   have CHECK_TYPEDEF applied, this function will apply it itself.  */
+
 int
-destructor_name_p (const char *name, const struct type *type)
+destructor_name_p (const char *name, struct type *type)
 {
   if (name[0] == '~')
     {
-      char *dname = type_name_no_tag (type);
-      char *cp = strchr (dname, '<');
+      const char *dname = type_name_no_tag_or_error (type);
+      const char *cp = strchr (dname, '<');
       unsigned int len;
 
       /* Do not compare the template part for template classes.  */
@@ -3331,25 +3341,32 @@ value_struct_elt_for_reference (struct type *domain, int offset,
 	      int ii;
 
 	      j = -1;
-	      for (ii = 0; ii < TYPE_FN_FIELDLIST_LENGTH (t, i);
-		   ++ii)
+	      for (ii = 0; ii < len; ++ii)
 		{
 		  /* Skip artificial methods.  This is necessary if,
 		     for example, the user wants to "print
 		     subclass::subclass" with only one user-defined
-		     constructor.  There is no ambiguity in this
-		     case.  */
+		     constructor.  There is no ambiguity in this case.
+		     We are careful here to allow artificial methods
+		     if they are the unique result.  */
 		  if (TYPE_FN_FIELD_ARTIFICIAL (f, ii))
-		    continue;
+		    {
+		      if (j == -1)
+			j = ii;
+		      continue;
+		    }
 
 		  /* Desired method is ambiguous if more than one
 		     method is defined.  */
-		  if (j != -1)
+		  if (j != -1 && !TYPE_FN_FIELD_ARTIFICIAL (f, j))
 		    error (_("non-unique member `%s' requires "
 			     "type instantiation"), name);
 
 		  j = ii;
 		}
+
+	      if (j == -1)
+		error (_("no matching member function"));
 	    }
 
 	  if (TYPE_FN_FIELD_STATIC_P (f, j))

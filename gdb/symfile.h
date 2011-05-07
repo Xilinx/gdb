@@ -182,7 +182,8 @@ struct quick_symbol_functions
      doesn't make sense to implement both.)  The arguments are as for
      `lookup_symbol'.  */
   void (*pre_expand_symtabs_matching) (struct objfile *objfile,
-				       int kind, const char *name,
+				       enum block_enum block_kind,
+				       const char *name,
 				       domain_enum domain);
 
   /* Print statistics about any indices loaded for OBJFILE.  The
@@ -249,23 +250,24 @@ struct quick_symbol_functions
 
      FILE_MATCHER is called for each file in OBJFILE.  The file name
      and the DATA argument are passed to it.  If it returns zero, this
-     file is skipped.
+     file is skipped.  If FILE_MATCHER is NULL such file is not skipped.
 
-     Otherwise, if the file is not skipped, then NAME_MATCHER is
-     called for each symbol defined in the file.  The symbol's
-     "natural" name and DATA are passed to NAME_MATCHER.
+     Otherwise, if KIND does not match this symbol is skipped.
+     
+     If even KIND matches, then NAME_MATCHER is called for each symbol defined
+     in the file.  The symbol's "natural" name and DATA are passed to
+     NAME_MATCHER.
 
      If NAME_MATCHER returns zero, then this symbol is skipped.
 
-     Otherwise, if this symbol is not skipped, and it matches KIND,
-     then this symbol's symbol table is expanded.
-     
+     Otherwise, this symbol's symbol table is expanded.
+
      DATA is user data that is passed unmodified to the callback
      functions.  */
   void (*expand_symtabs_matching) (struct objfile *objfile,
 				   int (*file_matcher) (const char *, void *),
 				   int (*name_matcher) (const char *, void *),
-				   domain_enum kind,
+				   enum search_domain kind,
 				   void *data);
 
   /* Return the symbol table from OBJFILE that contains PC and
@@ -279,13 +281,6 @@ struct quick_symbol_functions
 					 CORE_ADDR pc,
 					 struct obj_section *section,
 					 int warn_if_readin);
-
-  /* Call a callback for every symbol defined in OBJFILE.  FUN is the
-     callback.  It is passed the symbol's natural name, and the DATA
-     passed to this function.  */
-  void (*map_symbol_names) (struct objfile *objfile,
-			    void (*fun) (const char *, void *),
-			    void *data);
 
   /* Call a callback for every file defined in OBJFILE whose symtab is
      not already read in.  FUN is the callback.  It is passed the file's name,
@@ -326,10 +321,10 @@ struct sym_fns
 
   void (*sym_read) (struct objfile *, int);
 
-  /* Read the partial symbols for an objfile.  This may be NULL, in
-     which case gdb assumes that sym_read already read the partial
-     symbols.  This may only be non-NULL if the objfile actually does
-     have debuginfo available.  */
+  /* Read the partial symbols for an objfile.  This may be NULL, in which case
+     gdb has to check other ways if this objfile has any symbols.  This may
+     only be non-NULL if the objfile actually does have debuginfo available.
+     */
 
   void (*sym_read_psymbols) (struct objfile *);
 
@@ -433,7 +428,7 @@ extern struct objfile *symbol_file_add (char *, int,
 
 extern struct objfile *symbol_file_add_from_bfd (bfd *, int,
                                                  struct section_addr_info *,
-                                                 int);
+                                                 int, struct objfile *parent);
 
 extern void symbol_file_add_separate (bfd *, int, struct objfile *);
 

@@ -318,15 +318,14 @@ xtensa_register_type (struct gdbarch *gdbarch, int regnum)
 
 	      if (tp == NULL)
 		{
-		  char *name = xmalloc (16);
+		  char *name = xstrprintf ("int%d", size * 8);
 		  tp = xmalloc (sizeof (struct ctype_cache));
 		  tp->next = tdep->type_entries;
 		  tdep->type_entries = tp;
 		  tp->size = size;
-
-		  sprintf (name, "int%d", size * 8);
 		  tp->virtual_type
-		    = arch_integer_type (gdbarch, size * 8, 1, xstrdup (name));
+		    = arch_integer_type (gdbarch, size * 8, 1, name);
+		  xfree (name);
 		}
 
 	      reg->ctype = tp->virtual_type;
@@ -453,7 +452,7 @@ xtensa_register_write_masked (struct regcache *regcache,
 /* Read a tie state or mapped registers.  Read the masked areas
    of the registers and assemble them into a single value.  */
 
-static void
+static enum register_status
 xtensa_register_read_masked (struct regcache *regcache,
 			     xtensa_register_t *reg, gdb_byte *buffer)
 {
@@ -479,8 +478,12 @@ xtensa_register_read_masked (struct regcache *regcache,
       int r = mask->mask[i].reg_num;
       if (r >= 0)
 	{
+	  enum register_status status;
 	  ULONGEST val;
-	  regcache_cooked_read_unsigned (regcache, r, &val);
+
+	  status = regcache_cooked_read_unsigned (regcache, r, &val);
+	  if (status != REG_VALID)
+	    return status;
 	  regval = (unsigned int) val;
 	}
       else
@@ -535,12 +538,14 @@ xtensa_register_read_masked (struct regcache *regcache,
 	buffer[i] = mem & 0xff;
 	mem >>= 8;
       }
+
+  return REG_VALID;
 }
 
 
 /* Read pseudo registers.  */
 
-static void
+static enum register_status
 xtensa_pseudo_register_read (struct gdbarch *gdbarch,
 			     struct regcache *regcache,
 			     int regnum,
@@ -561,16 +566,20 @@ xtensa_pseudo_register_read (struct gdbarch *gdbarch,
       && (regnum <= gdbarch_tdep (gdbarch)->a0_base + 15))
     {
       gdb_byte *buf = (gdb_byte *) alloca (MAX_REGISTER_SIZE);
+      enum register_status status;
 
-      regcache_raw_read (regcache, gdbarch_tdep (gdbarch)->wb_regnum, buf);
+      status = regcache_raw_read (regcache,
+				  gdbarch_tdep (gdbarch)->wb_regnum,
+				  buf);
+      if (status != REG_VALID)
+	return status;
       regnum = arreg_number (gdbarch, regnum,
 			     extract_unsigned_integer (buf, 4, byte_order));
     }
 
   /* We can always read non-pseudo registers.  */
   if (regnum >= 0 && regnum < gdbarch_num_regs (gdbarch))
-    regcache_raw_read (regcache, regnum, buffer);
-
+    return regcache_raw_read (regcache, regnum, buffer);
 
   /* We have to find out how to deal with priveleged registers.
      Let's treat them as pseudo-registers, but we cannot read/write them.  */
@@ -581,6 +590,7 @@ xtensa_pseudo_register_read (struct gdbarch *gdbarch,
       buffer[1] = (gdb_byte)0;
       buffer[2] = (gdb_byte)0;
       buffer[3] = (gdb_byte)0;
+      return REG_VALID;
     }
   /* Pseudo registers.  */
   else if (regnum >= 0
@@ -598,7 +608,7 @@ xtensa_pseudo_register_read (struct gdbarch *gdbarch,
 	    {
 	      warning (_("cannot read register %s"),
 		       xtensa_register_name (gdbarch, regnum));
-	      return;
+	      return REG_VALID;
 	    }
 	}
 
@@ -609,26 +619,23 @@ xtensa_pseudo_register_read (struct gdbarch *gdbarch,
 	  if (flags & xtTargetFlagsUseFetchStore)
 	    {
 	      warning (_("cannot read register"));
-	      return;
+	      return REG_VALID;
 	    }
 
 	  /* On some targets (esp. simulators), we can always read the reg.  */
 	  else if ((flags & xtTargetFlagsNonVisibleRegs) == 0)
 	    {
 	      warning (_("cannot read register"));
-	      return;
+	      return REG_VALID;
 	    }
 	}
 
       /* We can always read mapped registers.  */
       else if (type == xtRegisterTypeMapped || type == xtRegisterTypeTieState)
-        {
-	  xtensa_register_read_masked (regcache, reg, buffer);
-	  return;
-	}
+	return xtensa_register_read_masked (regcache, reg, buffer);
 
       /* Assume that we can read the register.  */
-      regcache_raw_read (regcache, regnum, buffer);
+      return regcache_raw_read (regcache, regnum, buffer);
     }
   else
     internal_error (__FILE__, __LINE__,
@@ -835,7 +842,8 @@ xtensa_register_reggroup_p (struct gdbarch *gdbarch,
   if (group == restore_reggroup)
     return (regnum < gdbarch_num_regs (gdbarch)
 	    && (reg->flags & SAVE_REST_FLAGS) == SAVE_REST_VALID);
-  if ((cp_number = xtensa_coprocessor_register_group (group)) >= 0)
+  cp_number = xtensa_coprocessor_register_group (group);
+  if (cp_number >= 0)
     return rg & (xtRegisterGroupCP0 << cp_number);
   else
     return 1;
@@ -1541,6 +1549,7 @@ static const struct frame_unwind
 xtensa_unwind =
 {
   NORMAL_FRAME,
+  default_frame_unwind_stop_reason,
   xtensa_frame_this_id,
   xtensa_frame_prev_register,
   NULL,
@@ -2706,9 +2715,9 @@ call0_frame_cache (struct frame_info *this_frame,
 	 too bad.  */
 
       int i;
-      for (i = 0; 
-	   (i < C0_NREGS) &&
-	     (i == C0_RA || cache->c0.c0_rt[i].fr_reg != C0_RA);
+      for (i = 0;
+	   (i < C0_NREGS)
+	   && (i == C0_RA || cache->c0.c0_rt[i].fr_reg != C0_RA);
 	   ++i);
       if (i >= C0_NREGS && cache->c0.c0_rt[C0_RA].fr_reg == C0_RA)
 	i = C0_RA;

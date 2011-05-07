@@ -30,6 +30,7 @@
 #endif
 #include <sys/ptrace.h>
 #include "linux-nat.h"
+#include "linux-ptrace.h"
 #include "linux-fork.h"
 #include "gdbthread.h"
 #include "gdbcmd.h"
@@ -160,48 +161,10 @@ blocked.  */
 #define O_LARGEFILE 0
 #endif
 
-/* If the system headers did not provide the constants, hard-code the normal
-   values.  */
-#ifndef PTRACE_EVENT_FORK
-
-#define PTRACE_SETOPTIONS	0x4200
-#define PTRACE_GETEVENTMSG	0x4201
-
-/* Options set using PTRACE_SETOPTIONS.  */
-#define PTRACE_O_TRACESYSGOOD	0x00000001
-#define PTRACE_O_TRACEFORK	0x00000002
-#define PTRACE_O_TRACEVFORK	0x00000004
-#define PTRACE_O_TRACECLONE	0x00000008
-#define PTRACE_O_TRACEEXEC	0x00000010
-#define PTRACE_O_TRACEVFORKDONE	0x00000020
-#define PTRACE_O_TRACEEXIT	0x00000040
-
-/* Wait extended result codes for the above trace options.  */
-#define PTRACE_EVENT_FORK	1
-#define PTRACE_EVENT_VFORK	2
-#define PTRACE_EVENT_CLONE	3
-#define PTRACE_EVENT_EXEC	4
-#define PTRACE_EVENT_VFORK_DONE	5
-#define PTRACE_EVENT_EXIT	6
-
-#endif /* PTRACE_EVENT_FORK */
-
 /* Unlike other extended result codes, WSTOPSIG (status) on
    PTRACE_O_TRACESYSGOOD syscall events doesn't return SIGTRAP, but
    instead SIGTRAP with bit 7 set.  */
 #define SYSCALL_SIGTRAP (SIGTRAP | 0x80)
-
-/* We can't always assume that this flag is available, but all systems
-   with the ptrace event handlers also have __WALL, so it's safe to use
-   here.  */
-#ifndef __WALL
-#define __WALL          0x40000000 /* Wait for any child.  */
-#endif
-
-#ifndef PTRACE_GETSIGINFO
-# define PTRACE_GETSIGINFO    0x4202
-# define PTRACE_SETSIGINFO    0x4203
-#endif
 
 /* The single-threaded native GNU/Linux target_ops.  We save a pointer for
    the use of the multi-threaded target.  */
@@ -981,15 +944,33 @@ linux_child_insert_fork_catchpoint (int pid)
 }
 
 static int
+linux_child_remove_fork_catchpoint (int pid)
+{
+  return 0;
+}
+
+static int
 linux_child_insert_vfork_catchpoint (int pid)
 {
   return !linux_supports_tracefork (pid);
 }
 
 static int
+linux_child_remove_vfork_catchpoint (int pid)
+{
+  return 0;
+}
+
+static int
 linux_child_insert_exec_catchpoint (int pid)
 {
   return !linux_supports_tracefork (pid);
+}
+
+static int
+linux_child_remove_exec_catchpoint (int pid)
+{
+  return 0;
 }
 
 static int
@@ -1078,6 +1059,26 @@ restore_child_signals_mask (sigset_t *prev_mask)
 {
   sigprocmask (SIG_SETMASK, prev_mask, NULL);
 }
+
+/* Mask of signals to pass directly to the inferior.  */
+static sigset_t pass_mask;
+
+/* Update signals to pass to the inferior.  */
+static void
+linux_nat_pass_signals (int numsigs, unsigned char *pass_signals)
+{
+  int signo;
+
+  sigemptyset (&pass_mask);
+
+  for (signo = 1; signo < NSIG; signo++)
+    {
+      int target_signo = target_signal_from_host (signo);
+      if (target_signo < numsigs && pass_signals[target_signo])
+        sigaddset (&pass_mask, signo);
+    }
+}
+
 
 
 /* Prototypes for local functions.  */
@@ -1543,6 +1544,9 @@ linux_nat_create_inferior (struct target_ops *ops,
     }
 #endif /* HAVE_PERSONALITY */
 
+  /* Make sure we report all signals during startup.  */
+  linux_nat_pass_signals (0, NULL);
+
   linux_ops->to_create_inferior (ops, exec_file, allargs, env, from_tty);
 
 #ifdef HAVE_PERSONALITY
@@ -1563,6 +1567,9 @@ linux_nat_attach (struct target_ops *ops, char *args, int from_tty)
   struct lwp_info *lp;
   int status;
   ptid_t ptid;
+
+  /* Make sure we report all signals during attach.  */
+  linux_nat_pass_signals (0, NULL);
 
   linux_ops->to_attach (ops, args, from_tty);
 
@@ -1922,19 +1929,9 @@ linux_nat_resume (struct target_ops *ops,
 
   if (lp->status && WIFSTOPPED (lp->status))
     {
-      enum target_signal saved_signo;
-      struct inferior *inf;
-
-      inf = find_inferior_pid (ptid_get_pid (lp->ptid));
-      gdb_assert (inf);
-      saved_signo = target_signal_from_host (WSTOPSIG (lp->status));
-
-      /* Defer to common code if we're gaining control of the
-	 inferior.  */
-      if (inf->control.stop_soon == NO_STOP_QUIETLY
-	  && signal_stop_state (saved_signo) == 0
-	  && signal_print_state (saved_signo) == 0
-	  && signal_pass_state (saved_signo) == 1)
+      if (!lp->step
+	  && WSTOPSIG (lp->status)
+	  && sigismember (&pass_mask, WSTOPSIG (lp->status)))
 	{
 	  if (debug_linux_nat)
 	    fprintf_unfiltered (gdb_stdlog,
@@ -1944,7 +1941,7 @@ linux_nat_resume (struct target_ops *ops,
 	  /* FIXME: What should we do if we are supposed to continue
 	     this thread with a signal?  */
 	  gdb_assert (signo == TARGET_SIGNAL_0);
-	  signo = saved_signo;
+	  signo = target_signal_from_host (WSTOPSIG (lp->status));
 	  lp->status = 0;
 	}
     }
@@ -3590,20 +3587,11 @@ retry:
   if (WIFSTOPPED (status))
     {
       enum target_signal signo = target_signal_from_host (WSTOPSIG (status));
-      struct inferior *inf;
 
-      inf = find_inferior_pid (ptid_get_pid (lp->ptid));
-      gdb_assert (inf);
-
-      /* Defer to common code if we get a signal while
-	 single-stepping, since that may need special care, e.g. to
-	 skip the signal handler, or, if we're gaining control of the
-	 inferior.  */
+      /* When using hardware single-step, we need to report every signal.
+	 Otherwise, signals in pass_mask may be short-circuited.  */
       if (!lp->step
-	  && inf->control.stop_soon == NO_STOP_QUIETLY
-	  && signal_stop_state (signo) == 0
-	  && signal_print_state (signo) == 0
-	  && signal_pass_state (signo) == 1)
+	  && WSTOPSIG (status) && sigismember (&pass_mask, WSTOPSIG (status)))
 	{
 	  /* FIMXE: kettenis/2001-06-06: Should we resume all threads
 	     here?  It is not clear we should.  GDB may not expect
@@ -5244,8 +5232,11 @@ static void
 linux_target_install_ops (struct target_ops *t)
 {
   t->to_insert_fork_catchpoint = linux_child_insert_fork_catchpoint;
+  t->to_remove_fork_catchpoint = linux_child_remove_fork_catchpoint;
   t->to_insert_vfork_catchpoint = linux_child_insert_vfork_catchpoint;
+  t->to_remove_vfork_catchpoint = linux_child_remove_vfork_catchpoint;
   t->to_insert_exec_catchpoint = linux_child_insert_exec_catchpoint;
+  t->to_remove_exec_catchpoint = linux_child_remove_exec_catchpoint;
   t->to_set_syscall_catchpoint = linux_child_set_syscall_catchpoint;
   t->to_pid_to_exec_file = linux_child_pid_to_exec_file;
   t->to_post_startup_inferior = linux_child_post_startup_inferior;
@@ -5712,6 +5703,7 @@ linux_nat_add_target (struct target_ops *t)
   t->to_detach = linux_nat_detach;
   t->to_resume = linux_nat_resume;
   t->to_wait = linux_nat_wait;
+  t->to_pass_signals = linux_nat_pass_signals;
   t->to_xfer_partial = linux_nat_xfer_partial;
   t->to_kill = linux_nat_kill;
   t->to_mourn_inferior = linux_nat_mourn_inferior;

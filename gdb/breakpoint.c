@@ -39,6 +39,7 @@
 #include "language.h"
 #include "gdb_string.h"
 #include "demangle.h"
+#include "filenames.h"
 #include "annotate.h"
 #include "symfile.h"
 #include "objfiles.h"
@@ -72,6 +73,7 @@
 #undef savestring
 
 #include "mi/mi-common.h"
+#include "python/python.h"
 
 /* Arguments to pass as context to some catch command handlers.  */
 #define CATCH_PERMANENT ((void *) (uintptr_t) 0)
@@ -99,7 +101,7 @@ static void clear_command (char *, int);
 
 static void catch_command (char *, int);
 
-static int can_use_hardware_watchpoint (struct value *, int);
+static int can_use_hardware_watchpoint (struct value *);
 
 static void break_command_1 (char *, int, int);
 
@@ -128,6 +130,10 @@ static int breakpoint_address_match (struct address_space *aspace1,
 
 static int watchpoint_locations_match (struct bp_location *loc1,
 				       struct bp_location *loc2);
+
+static int breakpoint_location_address_match (struct bp_location *bl,
+					      struct address_space *aspace,
+					      CORE_ADDR addr);
 
 static void breakpoints_info (char *, int);
 
@@ -218,6 +224,8 @@ static void disable_trace_command (char *, int);
 
 static void trace_pass_command (char *, int);
 
+static int is_masked_watchpoint (const struct breakpoint *b);
+
 /* Assuming we're creating a static tracepoint, does S look like a
    static tracepoint marker spec ("-m MARKER_ID")?  */
 #define is_marker_spec(s)						\
@@ -245,7 +253,7 @@ breakpoint_commands (struct breakpoint *b)
 
 static int breakpoint_proceeded;
 
-static const char *
+const char *
 bpdisp_text (enum bpdisp disp)
 {
   /* NOTE: the following values are a part of MI protocol and
@@ -620,7 +628,7 @@ set_breakpoint_condition (struct breakpoint *b, char *exp,
 	}
     }
   breakpoints_changed ();
-  observer_notify_breakpoint_modified (b->number);
+  observer_notify_breakpoint_modified (b);
 }
 
 /* condition N EXP -- set break condition of breakpoint N to EXP.  */
@@ -643,6 +651,14 @@ condition_command (char *arg, int from_tty)
   ALL_BREAKPOINTS (b)
     if (b->number == bnum)
       {
+	/* Check if this breakpoint has a Python object assigned to
+	   it, and if it has a definition of the "stop"
+	   method.  This method and conditions entered into GDB from
+	   the CLI are mutually exclusive.  */
+	if (b->py_bp_object
+	    && gdbpy_breakpoint_has_py_cond (b->py_bp_object))
+	  error (_("Cannot set a condition where a Python 'stop' "
+		   "method has been defined in the breakpoint."));
 	set_breakpoint_condition (b, p, from_tty);
 	return;
       }
@@ -777,7 +793,7 @@ breakpoint_set_commands (struct breakpoint *b,
   decref_counted_command_line (&b->commands);
   b->commands = alloc_counted_command_line (commands);
   breakpoints_changed ();
-  observer_notify_breakpoint_modified (b->number);
+  observer_notify_breakpoint_modified (b);
 }
 
 /* Set the internal `silent' flag on the breakpoint.  Note that this
@@ -791,7 +807,7 @@ breakpoint_set_silent (struct breakpoint *b, int silent)
 
   b->silent = silent;
   if (old_silent != silent)
-    observer_notify_breakpoint_modified (b->number);
+    observer_notify_breakpoint_modified (b);
 }
 
 /* Set the thread for this breakpoint.  If THREAD is -1, make the
@@ -804,7 +820,7 @@ breakpoint_set_thread (struct breakpoint *b, int thread)
 
   b->thread = thread;
   if (old_thread != thread)
-    observer_notify_breakpoint_modified (b->number);
+    observer_notify_breakpoint_modified (b);
 }
 
 /* Set the task for this breakpoint.  If TASK is 0, make the
@@ -817,7 +833,7 @@ breakpoint_set_task (struct breakpoint *b, int task)
 
   b->task = task;
   if (old_task != task)
-    observer_notify_breakpoint_modified (b->number);
+    observer_notify_breakpoint_modified (b);
 }
 
 void
@@ -894,7 +910,7 @@ do_map_commands_command (struct breakpoint *b, void *data)
       decref_counted_command_line (&b->commands);
       b->commands = info->cmd;
       breakpoints_changed ();
-      observer_notify_breakpoint_modified (b->number);
+      observer_notify_breakpoint_modified (b);
     }
 }
 
@@ -1149,6 +1165,25 @@ watchpoint_in_thread_scope (struct breakpoint *b)
 	      && !is_executing (inferior_ptid)));
 }
 
+/* Set watchpoint B to disp_del_at_next_stop, even including its possible
+   associated bp_watchpoint_scope breakpoint.  */
+
+static void
+watchpoint_del_at_next_stop (struct breakpoint *b)
+{
+  gdb_assert (is_watchpoint (b));
+
+  if (b->related_breakpoint != b)
+    {
+      gdb_assert (b->related_breakpoint->type == bp_watchpoint_scope);
+      gdb_assert (b->related_breakpoint->related_breakpoint == b);
+      b->related_breakpoint->disposition = disp_del_at_next_stop;
+      b->related_breakpoint->related_breakpoint = b->related_breakpoint;
+      b->related_breakpoint = b;
+    }
+  b->disposition = disp_del_at_next_stop;
+}
+
 /* Assuming that B is a watchpoint:
    - Reparse watchpoint expression, if REPARSE is non-zero
    - Evaluate expression and store the result in B->val
@@ -1207,6 +1242,8 @@ update_watchpoint (struct breakpoint *b, int reparse)
   int within_current_scope;
   struct frame_id saved_frame_id;
   int frame_saved;
+
+  gdb_assert (is_watchpoint (b));
 
   /* If this is a local watchpoint, we only want to check if the
      watchpoint frame is in scope if the current thread is the thread
@@ -1310,8 +1347,10 @@ update_watchpoint (struct breakpoint *b, int reparse)
       /* Avoid setting b->val if it's already set.  The meaning of
 	 b->val is 'the last value' user saw, and we should update
 	 it only if we reported that last value to user.  As it
-	 happens, the code that reports it updates b->val directly.  */
-      if (!b->val_valid)
+	 happens, the code that reports it updates b->val directly.
+	 We don't keep track of the memory value for masked
+	 watchpoints.  */
+      if (!b->val_valid && !is_masked_watchpoint (b))
 	{
 	  b->val = v;
 	  b->val_valid = 1;
@@ -1369,19 +1408,21 @@ update_watchpoint (struct breakpoint *b, int reparse)
 	 an ordinary watchpoint depending on the hardware support
 	 and free hardware slots.  REPARSE is set when the inferior
 	 is started.  */
-      if ((b->type == bp_watchpoint || b->type == bp_hardware_watchpoint)
-	  && reparse)
+      if (reparse)
 	{
 	  int reg_cnt;
 	  enum bp_loc_type loc_type;
 	  struct bp_location *bl;
 
-	  reg_cnt = can_use_hardware_watchpoint (val_chain, b->exact);
+	  reg_cnt = can_use_hardware_watchpoint (val_chain);
 
 	  if (reg_cnt)
 	    {
 	      int i, target_resources_ok, other_type_used;
-	      enum enable_state orig_enable_state;
+
+	      /* Use an exact watchpoint when there's only one memory region to be
+		 watched, and only one debug register is needed to watch it.  */
+	      b->exact = target_exact_watchpoints && reg_cnt == 1;
 
 	      /* We need to determine how many resources are already
 		 used for all other hardware watchpoints plus this one
@@ -1390,24 +1431,33 @@ update_watchpoint (struct breakpoint *b, int reparse)
 		 hw_watchpoint_used_count call below counts this
 		 watchpoint, make sure that it is marked as a hardware
 		 watchpoint.  */
-	      b->type = bp_hardware_watchpoint;
+	      if (b->type == bp_watchpoint)
+		b->type = bp_hardware_watchpoint;
 
-	      /* hw_watchpoint_used_count ignores disabled watchpoints,
-		 and b might be disabled if we're being called from
-		 do_enable_breakpoint.  */
-	      orig_enable_state = b->enable_state;
-	      b->enable_state = bp_enabled;
-
-	      i = hw_watchpoint_used_count (bp_hardware_watchpoint,
-					    &other_type_used);
-
-	      b->enable_state = orig_enable_state;
-
+	      i = hw_watchpoint_used_count (b->type, &other_type_used);
 	      target_resources_ok = target_can_use_hardware_watchpoint
-		    (bp_hardware_watchpoint, i, other_type_used);
+		    (b->type, i, other_type_used);
 	      if (target_resources_ok <= 0)
-		b->type = bp_watchpoint;
+		{
+		  /* If there's no works_in_software_mode method, we
+		     assume that the watchpoint works in software mode.  */
+		  int sw_mode = (!b->ops || !b->ops->works_in_software_mode
+				 || b->ops->works_in_software_mode (b));
+
+		  if (target_resources_ok == 0 && !sw_mode)
+		    error (_("Target does not support this type of "
+			     "hardware watchpoint."));
+		  else if (target_resources_ok < 0 && !sw_mode)
+		    error (_("There are not enough available hardware "
+			     "resources for this watchpoint."));
+		  else
+		    b->type = bp_watchpoint;
+		}
 	    }
+	  else if (b->ops && b->ops->works_in_software_mode
+		   && !b->ops->works_in_software_mode (b))
+	    error (_("Expression cannot be implemented with "
+		     "read/access watchpoint."));
 	  else
 	    b->type = bp_watchpoint;
 
@@ -1443,13 +1493,7 @@ update_watchpoint (struct breakpoint *b, int reparse)
 Watchpoint %d deleted because the program has left the block\n\
 in which its expression is valid.\n"),
 		       b->number);
-      if (b->related_breakpoint)
-	{
-	  b->related_breakpoint->disposition = disp_del_at_next_stop;
-	  b->related_breakpoint->related_breakpoint = NULL;
-	  b->related_breakpoint= NULL;
-	}
-      b->disposition = disp_del_at_next_stop;
+      watchpoint_del_at_next_stop (b);
     }
 
   /* Restore the selected frame.  */
@@ -1512,6 +1556,7 @@ insert_bp_location (struct bp_location *bl,
   memset (&bl->target_info, 0, sizeof (bl->target_info));
   bl->target_info.placed_address = bl->address;
   bl->target_info.placed_address_space = bl->pspace->aspace;
+  bl->target_info.length = bl->length;
 
   if (bl->loc_type == bp_loc_software_breakpoint
       || bl->loc_type == bp_loc_hardware_breakpoint)
@@ -1642,6 +1687,7 @@ insert_bp_location (struct bp_location *bl,
 	      /* See also: disable_breakpoints_in_shlibs.  */
 	      val = 0;
 	      bl->shlib_disabled = 1;
+	      observer_notify_breakpoint_modified (bl->owner);
 	      if (!*disabled_breaks)
 		{
 		  fprintf_unfiltered (tmp_error_stream, 
@@ -2774,11 +2820,10 @@ breakpoint_here_p (struct address_space *aspace, CORE_ADDR pc)
 	  && bl->loc_type != bp_loc_hardware_breakpoint)
 	continue;
 
-      /* ALL_BP_LOCATIONS bp_location has bl->OWNER always non-NULL.  */
+      /* ALL_BP_LOCATIONS bp_location has BL->OWNER always non-NULL.  */
       if ((breakpoint_enabled (bl->owner)
 	   || bl->owner->enable_state == bp_permanent)
-	  && breakpoint_address_match (bl->pspace->aspace, bl->address,
-				       aspace, pc))
+	  && breakpoint_location_address_match (bl, aspace, pc))
 	{
 	  if (overlay_debugging 
 	      && section_is_overlay (bl->section)
@@ -2803,8 +2848,7 @@ moribund_breakpoint_here_p (struct address_space *aspace, CORE_ADDR pc)
   int ix;
 
   for (ix = 0; VEC_iterate (bp_location_p, moribund_locations, ix, loc); ++ix)
-    if (breakpoint_address_match (loc->pspace->aspace, loc->address,
-				  aspace,  pc))
+    if (breakpoint_location_address_match (loc, aspace, pc))
       return 1;
 
   return 0;
@@ -2828,8 +2872,7 @@ regular_breakpoint_inserted_here_p (struct address_space *aspace,
 	continue;
 
       if (bl->inserted
-	  && breakpoint_address_match (bl->pspace->aspace, bl->address,
-				       aspace, pc))
+	  && breakpoint_location_address_match (bl, aspace, pc))
 	{
 	  if (overlay_debugging 
 	      && section_is_overlay (bl->section)
@@ -2946,8 +2989,7 @@ breakpoint_thread_match (struct address_space *aspace, CORE_ADDR pc,
 	  && bl->owner->enable_state != bp_permanent)
 	continue;
 
-      if (!breakpoint_address_match (bl->pspace->aspace, bl->address,
-				     aspace, pc))
+      if (!breakpoint_location_address_match (bl, aspace, pc))
 	continue;
 
       if (bl->owner->thread != -1)
@@ -3479,6 +3521,8 @@ print_it_typical (bpstat bs)
     case bp_tracepoint:
     case bp_fast_tracepoint:
     case bp_jit_event:
+    case bp_gnu_ifunc_resolver:
+    case bp_gnu_ifunc_resolver_return:
     default:
       result = PRINT_UNKNOWN;
       break;
@@ -3658,15 +3702,27 @@ watchpoints_triggered (struct target_waitstatus *ws)
 
 	b->watchpoint_triggered = watch_triggered_no;
 	for (loc = b->loc; loc; loc = loc->next)
-	  /* Exact match not required.  Within range is
-	     sufficient.  */
-	  if (target_watchpoint_addr_within_range (&current_target,
-						   addr, loc->address,
-						   loc->length))
-	    {
-	      b->watchpoint_triggered = watch_triggered_yes;
-	      break;
-	    }
+	  {
+	    if (is_masked_watchpoint (loc->owner))
+	      {
+		CORE_ADDR newaddr = addr & loc->owner->hw_wp_mask;
+		CORE_ADDR start = loc->address & loc->owner->hw_wp_mask;
+
+		if (newaddr == start)
+		  {
+		    b->watchpoint_triggered = watch_triggered_yes;
+		    break;
+		  }
+	      }
+	    /* Exact match not required.  Within range is sufficient.  */
+	    else if (target_watchpoint_addr_within_range (&current_target,
+							 addr, loc->address,
+							 loc->length))
+	      {
+		b->watchpoint_triggered = watch_triggered_yes;
+		break;
+	      }
+	  }
       }
 
   return 1;
@@ -3703,6 +3759,8 @@ watchpoint_check (void *p)
   /* BS is built from an existing struct breakpoint.  */
   gdb_assert (bs->breakpoint_at != NULL);
   b = bs->breakpoint_at;
+
+  gdb_assert (is_watchpoint (b));
 
   /* If this is a local watchpoint, we only want to check if the
      watchpoint frame is in scope if the current thread is the thread
@@ -3761,9 +3819,16 @@ watchpoint_check (void *p)
          might be in the middle of evaluating a function call.  */
 
       int pc = 0;
-      struct value *mark = value_mark ();
+      struct value *mark;
       struct value *new_val;
 
+      if (is_masked_watchpoint (b))
+	/* Since we don't know the exact trigger address (from
+	   stopped_data_address), just tell the user we've triggered
+	   a mask watchpoint.  */
+	return WP_VALUE_CHANGED;
+
+      mark = value_mark ();
       fetch_subexp_value (b->exp, &pc, &new_val, NULL, NULL);
 
       /* We use value_equal_contents instead of value_equal because
@@ -3813,13 +3878,7 @@ watchpoint_check (void *p)
 		   " deleted because the program has left the block in\n\
 which its expression is valid.\n");     
 
-      if (b->related_breakpoint)
-	{
-	  b->related_breakpoint->disposition = disp_del_at_next_stop;
-	  b->related_breakpoint->related_breakpoint = NULL;
-	  b->related_breakpoint = NULL;
-	}
-      b->disposition = disp_del_at_next_stop;
+      watchpoint_del_at_next_stop (b);
 
       return WP_DELETED;
     }
@@ -3836,6 +3895,9 @@ bpstat_check_location (const struct bp_location *bl,
 
   /* BL is from existing struct breakpoint.  */
   gdb_assert (b != NULL);
+
+  if (b->ops && b->ops->breakpoint_hit)
+    return b->ops->breakpoint_hit (bl, aspace, bp_addr);
 
   /* By definition, the inferior does not report stops at
      tracepoints.  */
@@ -3865,7 +3927,7 @@ bpstat_check_location (const struct bp_location *bl,
   if (is_hardware_watchpoint (b)
       && b->watchpoint_triggered == watch_triggered_no)
     return 0;
-  
+
   if (b->type == bp_hardware_breakpoint)
     {
       if (bl->address != bp_addr)
@@ -3876,13 +3938,6 @@ bpstat_check_location (const struct bp_location *bl,
 	return 0;
     }
 
-  if (b->type == bp_catchpoint)
-    {
-      gdb_assert (b->ops != NULL && b->ops->breakpoint_hit != NULL);
-      if (!b->ops->breakpoint_hit (b))
-        return 0;
-    }
-     
   return 1;
 }
 
@@ -4024,9 +4079,7 @@ bpstat_check_watchpoint (bpstat bs)
 	    case 0:
 	      /* Error from catch_errors.  */
 	      printf_filtered (_("Watchpoint %d deleted.\n"), b->number);
-	      if (b->related_breakpoint)
-		b->related_breakpoint->disposition = disp_del_at_next_stop;
-	      b->disposition = disp_del_at_next_stop;
+	      watchpoint_del_at_next_stop (b);
 	      /* We've already printed what needs to be printed.  */
 	      bs->print_it = print_it_done;
 	      break;
@@ -4069,6 +4122,11 @@ bpstat_check_breakpoint_conditions (bpstat bs, ptid_t ptid)
     {
       int value_is_zero = 0;
       struct expression *cond;
+
+      /* Evaluate Python breakpoints that have a "stop"
+	 method implemented.  */
+      if (b->py_bp_object)
+	bs->stop = gdbpy_should_stop (b->py_bp_object);
 
       if (is_watchpoint (b))
 	cond = b->cond_exp;
@@ -4150,6 +4208,7 @@ bpstat_check_breakpoint_conditions (bpstat bs, ptid_t ptid)
 	  bs->stop = 0;
 	  /* Increase the hit count even though we don't stop.  */
 	  ++(b->hit_count);
+	  observer_notify_breakpoint_modified (b);
 	}	
     }
 }
@@ -4232,15 +4291,14 @@ bpstat_stop_status (struct address_space *aspace,
 	     watchpoint as triggered so that we will handle the
 	     out-of-scope event.  We'll get to the watchpoint next
 	     iteration.  */
-	  if (b->type == bp_watchpoint_scope)
+	  if (b->type == bp_watchpoint_scope && b->related_breakpoint != b)
 	    b->related_breakpoint->watchpoint_triggered = watch_triggered_yes;
 	}
     }
 
   for (ix = 0; VEC_iterate (bp_location_p, moribund_locations, ix, loc); ++ix)
     {
-      if (breakpoint_address_match (loc->pspace->aspace, loc->address,
-				    aspace, bp_addr))
+      if (breakpoint_location_address_match (loc, aspace, bp_addr))
 	{
 	  bs = bpstat_alloc (loc, &bs_link);
 	  /* For hits of moribund locations, we should just proceed.  */
@@ -4279,6 +4337,7 @@ bpstat_stop_status (struct address_space *aspace,
 	  if (bs->stop)
 	    {
 	      ++(b->hit_count);
+	      observer_notify_breakpoint_modified (b);
 
 	      /* We will stop here.  */
 	      if (b->disposition == disp_disable)
@@ -4354,7 +4413,7 @@ handle_jit_event (void)
 /* Decide what infrun needs to do with this bpstat.  */
 
 struct bpstat_what
-bpstat_what (bpstat bs)
+bpstat_what (bpstat bs_head)
 {
   struct bpstat_what retval;
   /* We need to defer calling `solib_add', as adding new symbols
@@ -4362,12 +4421,13 @@ bpstat_what (bpstat bs)
      and hence may clear unprocessed entries in the BS chain.  */
   int shlib_event = 0;
   int jit_event = 0;
+  bpstat bs;
 
   retval.main_action = BPSTAT_WHAT_KEEP_CHECKING;
   retval.call_dummy = STOP_NONE;
   retval.is_longjmp = 0;
 
-  for (; bs != NULL; bs = bs->next)
+  for (bs = bs_head; bs != NULL; bs = bs->next)
     {
       /* Extract this BS's action.  After processing each BS, we check
 	 if its action overrides all we've seem so far.  */
@@ -4497,6 +4557,16 @@ bpstat_what (bpstat bs)
 	     out already.  */
 	  internal_error (__FILE__, __LINE__,
 			  _("bpstat_what: tracepoint encountered"));
+	  break;
+	case bp_gnu_ifunc_resolver:
+	  /* Step over it (and insert bp_gnu_ifunc_resolver_return).  */
+	  this_action = BPSTAT_WHAT_SINGLE;
+	  break;
+	case bp_gnu_ifunc_resolver_return:
+	  /* The breakpoint will be removed, execution will restart from the
+	     PC of the former breakpoint.  */
+	  this_action = BPSTAT_WHAT_KEEP_CHECKING;
+	  break;
 	default:
 	  internal_error (__FILE__, __LINE__,
 			  _("bpstat_what: unhandled bptype %d"), (int) bptype);
@@ -4504,6 +4574,9 @@ bpstat_what (bpstat bs)
 
       retval.main_action = max (retval.main_action, this_action);
     }
+
+  /* These operations may affect the bs->breakpoint_at state so they are
+     delayed after MAIN_ACTION is decided above.  */
 
   if (shlib_event)
     {
@@ -4532,6 +4605,23 @@ bpstat_what (bpstat bs)
 	fprintf_unfiltered (gdb_stdlog, "bpstat_what: bp_jit_event\n");
 
       handle_jit_event ();
+    }
+
+  for (bs = bs_head; bs != NULL; bs = bs->next)
+    {
+      struct breakpoint *b = bs->breakpoint_at;
+
+      if (b == NULL)
+	continue;
+      switch (b->type)
+	{
+	case bp_gnu_ifunc_resolver:
+	  gnu_ifunc_resolver_stop (b);
+	  break;
+	case bp_gnu_ifunc_resolver_return:
+	  gnu_ifunc_resolver_return_stop (b);
+	  break;
+	}
     }
 
   return retval;
@@ -4607,7 +4697,9 @@ print_breakpoint_location (struct breakpoint *b,
   if (loc != NULL)
     set_current_program_space (loc->pspace);
 
-  if (b->source_file && loc)
+  if (b->display_canonical)
+    ui_out_field_string (uiout, "what", b->addr_string);
+  else if (b->source_file && loc)
     {
       struct symbol *sym 
 	= find_pc_sect_function (loc->address, loc->section);
@@ -4689,6 +4781,8 @@ bptype_string (enum bptype type)
     {bp_fast_tracepoint, "fast tracepoint"},
     {bp_static_tracepoint, "static tracepoint"},
     {bp_jit_event, "jit events"},
+    {bp_gnu_ifunc_resolver, "STT_GNU_IFUNC resolver"},
+    {bp_gnu_ifunc_resolver_return, "STT_GNU_IFUNC resolver return"},
   };
 
   if (((int) type >= (sizeof (bptypes) / sizeof (bptypes[0])))
@@ -4711,7 +4805,6 @@ print_one_breakpoint_location (struct breakpoint *b,
 {
   struct command_line *l;
   static char bpenables[] = "nynny";
-  struct cleanup *bkpt_chain;
 
   int header_of_multiple = 0;
   int part_of_multiple = (loc != NULL);
@@ -4730,7 +4823,6 @@ print_one_breakpoint_location (struct breakpoint *b,
     loc = b->loc;
 
   annotate_record ();
-  bkpt_chain = make_cleanup_ui_out_tuple_begin_end (uiout, "bkpt");
 
   /* 1 */
   annotate_field (0);
@@ -4823,6 +4915,8 @@ print_one_breakpoint_location (struct breakpoint *b,
       case bp_fast_tracepoint:
       case bp_static_tracepoint:
       case bp_jit_event:
+      case bp_gnu_ifunc_resolver:
+      case bp_gnu_ifunc_resolver_return:
 	if (opts.addressprint)
 	  {
 	    annotate_field (4);
@@ -4889,9 +4983,12 @@ print_one_breakpoint_location (struct breakpoint *b,
 	  ui_out_field_int (uiout, "task", b->task);
 	}
     }
-  
+
   ui_out_text (uiout, "\n");
-  
+
+  if (!part_of_multiple && b->ops && b->ops->print_one_detail)
+    b->ops->print_one_detail (b, uiout);
+
   if (!part_of_multiple && b->static_trace_marker_id)
     {
       gdb_assert (b->type == bp_static_tracepoint);
@@ -4990,8 +5087,6 @@ print_one_breakpoint_location (struct breakpoint *b,
       else if (b->exp_string)
 	ui_out_field_string (uiout, "original-location", b->exp_string);
     }
-	
-  do_cleanups (bkpt_chain);
 }
 
 static void
@@ -4999,7 +5094,12 @@ print_one_breakpoint (struct breakpoint *b,
 		      struct bp_location **last_loc, 
 		      int allflag)
 {
+  struct cleanup *bkpt_chain;
+
+  bkpt_chain = make_cleanup_ui_out_tuple_begin_end (uiout, "bkpt");
+
   print_one_breakpoint_location (b, NULL, 0, last_loc, allflag);
+  do_cleanups (bkpt_chain);
 
   /* If this breakpoint has custom print function,
      it's already printed.  Otherwise, print individual
@@ -5015,13 +5115,18 @@ print_one_breakpoint (struct breakpoint *b,
 	 internally, that's not a property exposed to user.  */
       if (b->loc 
 	  && !is_hardware_watchpoint (b)
-	  && (b->loc->next || !b->loc->enabled)
-	  && !ui_out_is_mi_like_p (uiout)) 
+	  && (b->loc->next || !b->loc->enabled))
 	{
 	  struct bp_location *loc;
 	  int n = 1;
+
 	  for (loc = b->loc; loc; loc = loc->next, ++n)
-	    print_one_breakpoint_location (b, loc, n, last_loc, allflag);
+	    {
+	      struct cleanup *inner2 =
+		make_cleanup_ui_out_tuple_begin_end (uiout, NULL);
+	      print_one_breakpoint_location (b, loc, n, last_loc, allflag);
+	      do_cleanups (inner2);
+	    }
 	}
     }
 }
@@ -5088,26 +5193,13 @@ gdb_breakpoint_query (struct ui_out *uiout, int bnum,
     return GDB_RC_OK;
 }
 
-/* Return non-zero if B is user settable (breakpoints, watchpoints,
-   catchpoints, et.al.).  */
-
-static int
-user_settable_breakpoint (const struct breakpoint *b)
-{
-  return (b->type == bp_breakpoint
-	  || b->type == bp_catchpoint
-	  || b->type == bp_hardware_breakpoint
-	  || is_tracepoint (b)
-	  || is_watchpoint (b));
-}
-
 /* Return true if this breakpoint was set by the user, false if it is
    internal or momentary.  */
 
 int
 user_breakpoint_p (struct breakpoint *b)
 {
-  return user_settable_breakpoint (b) && b->number > 0;
+  return b->number > 0;
 }
 
 /* Print information on user settable breakpoint (watchpoint, etc)
@@ -5473,6 +5565,39 @@ breakpoint_address_match (struct address_space *aspace1, CORE_ADDR addr1,
 	  && addr1 == addr2);
 }
 
+/* Returns true if {ASPACE2,ADDR2} falls within the range determined by
+   {ASPACE1,ADDR1,LEN1}.  In most targets, this can only be true if ASPACE1
+   matches ASPACE2.  On targets that have global breakpoints, the address
+   space doesn't really matter.  */
+
+static int
+breakpoint_address_match_range (struct address_space *aspace1, CORE_ADDR addr1,
+				int len1, struct address_space *aspace2,
+				CORE_ADDR addr2)
+{
+  return ((gdbarch_has_global_breakpoints (target_gdbarch)
+	   || aspace1 == aspace2)
+	  && addr2 >= addr1 && addr2 < addr1 + len1);
+}
+
+/* Returns true if {ASPACE,ADDR} matches the breakpoint BL.  BL may be
+   a ranged breakpoint.  In most targets, a match happens only if ASPACE
+   matches the breakpoint's address space.  On targets that have global
+   breakpoints, the address space doesn't really matter.  */
+
+static int
+breakpoint_location_address_match (struct bp_location *bl,
+				   struct address_space *aspace,
+				   CORE_ADDR addr)
+{
+  return (breakpoint_address_match (bl->pspace->aspace, bl->address,
+				    aspace, addr)
+	  || (bl->length
+	      && breakpoint_address_match_range (bl->pspace->aspace,
+						 bl->address, bl->length,
+						 aspace, addr)));
+}
+
 /* Assuming LOC1 and LOC2's types' have meaningful target addresses
    (breakpoint_address_is_meaningful), returns true if LOC1 and LOC2
    represent the same location.  */
@@ -5495,8 +5620,10 @@ breakpoint_locations_match (struct bp_location *loc1,
   else if (hw_point1)
     return watchpoint_locations_match (loc1, loc2);
   else
-    return breakpoint_address_match (loc1->pspace->aspace, loc1->address,
-				     loc2->pspace->aspace, loc2->address);
+    /* We compare bp_location.length in order to cover ranged breakpoints.  */
+    return (breakpoint_address_match (loc1->pspace->aspace, loc1->address,
+				     loc2->pspace->aspace, loc2->address)
+	    && loc1->length == loc2->length);
 }
 
 static void
@@ -5594,6 +5721,8 @@ allocate_bp_location (struct breakpoint *bpt)
     case bp_longjmp_master:
     case bp_std_terminate_master:
     case bp_exception_master:
+    case bp_gnu_ifunc_resolver:
+    case bp_gnu_ifunc_resolver_return:
       loc->loc_type = bp_loc_software_breakpoint;
       break;
     case bp_hardware_breakpoint:
@@ -5683,6 +5812,7 @@ set_raw_breakpoint_without_location (struct gdbarch *gdbarch,
   b->ops = NULL;
   b->condition_not_parsed = 0;
   b->py_bp_object = NULL;
+  b->related_breakpoint = b;
 
   /* Add this breakpoint to the end of the chain so that a list of
      breakpoints will come out in order of increasing numbers.  */
@@ -5699,9 +5829,12 @@ set_raw_breakpoint_without_location (struct gdbarch *gdbarch,
   return b;
 }
 
-/* Initialize loc->function_name.  */
+/* Initialize loc->function_name.  EXPLICIT_LOC says no indirect function
+   resolutions should be made as the user specified the location explicitly
+   enough.  */
+
 static void
-set_breakpoint_location_function (struct bp_location *loc)
+set_breakpoint_location_function (struct bp_location *loc, int explicit_loc)
 {
   gdb_assert (loc->owner != NULL);
 
@@ -5709,8 +5842,33 @@ set_breakpoint_location_function (struct bp_location *loc)
       || loc->owner->type == bp_hardware_breakpoint
       || is_tracepoint (loc->owner))
     {
-      find_pc_partial_function (loc->address, &(loc->function_name), 
-				NULL, NULL);
+      int is_gnu_ifunc;
+
+      find_pc_partial_function_gnu_ifunc (loc->address, &loc->function_name,
+					  NULL, NULL, &is_gnu_ifunc);
+
+      if (is_gnu_ifunc && !explicit_loc)
+	{
+	  struct breakpoint *b = loc->owner;
+
+	  gdb_assert (loc->pspace == current_program_space);
+	  if (gnu_ifunc_resolve_name (loc->function_name,
+				      &loc->requested_address))
+	    {
+	      /* Recalculate ADDRESS based on new REQUESTED_ADDRESS.  */
+	      loc->address = adjust_breakpoint_address (loc->gdbarch,
+							loc->requested_address,
+							b->type);
+	    }
+	  else if (b->type == bp_breakpoint && b->loc == loc
+	           && loc->next == NULL && b->related_breakpoint == b)
+	    {
+	      /* Create only the whole new breakpoint of this type but do not
+		 mess more complicated breakpoints with multiple locations.  */
+	      b->type = bp_gnu_ifunc_resolver;
+	    }
+	}
+
       if (loc->function_name)
 	loc->function_name = xstrdup (loc->function_name);
     }
@@ -5785,7 +5943,8 @@ set_raw_breakpoint (struct gdbarch *gdbarch,
   b->loc->section = sal.section;
   b->line_number = sal.line;
 
-  set_breakpoint_location_function (b->loc);
+  set_breakpoint_location_function (b->loc,
+				    sal.explicit_pc || sal.explicit_line);
 
   breakpoints_changed ();
 
@@ -5936,14 +6095,6 @@ remove_thread_event_breakpoints (void)
       delete_breakpoint (b);
 }
 
-struct captured_parse_breakpoint_args
-  {
-    char **arg_p;
-    struct symtabs_and_lines *sals_p;
-    char ***addr_string_p;
-    int *not_found_ptr;
-  };
-
 struct lang_and_radix
   {
     enum language lang;
@@ -6032,7 +6183,7 @@ disable_breakpoints_in_shlibs (void)
   }
 }
 
-/* Disable any breakpoints that are in in an unloaded shared library.
+/* Disable any breakpoints that are in an unloaded shared library.
    Only apply to enabled breakpoints, disabled ones can just stay
    disabled.  */
 
@@ -6069,6 +6220,10 @@ disable_breakpoints_in_unloaded_shlib (struct so_list *solib)
 	   succeeding so we must mark the breakpoint as not inserted
 	   to prevent future errors occurring in remove_breakpoints.  */
 	loc->inserted = 0;
+
+	/* This may cause duplicate notifications for the same breakpoint.  */
+	observer_notify_breakpoint_modified (b);
+
 	if (!disabled_shlib_breaks)
 	  {
 	    target_terminal_ours_for_output ();
@@ -6105,9 +6260,10 @@ remove_catch_fork (struct bp_location *bl)
    catchpoints.  */
 
 static int
-breakpoint_hit_catch_fork (struct breakpoint *b)
+breakpoint_hit_catch_fork (const struct bp_location *bl,
+			   struct address_space *aspace, CORE_ADDR bp_addr)
 {
-  return inferior_has_forked (inferior_ptid, &b->forked_inferior_pid);
+  return inferior_has_forked (inferior_ptid, &bl->owner->forked_inferior_pid);
 }
 
 /* Implement the "print_it" breakpoint_ops method for fork
@@ -6174,8 +6330,10 @@ static struct breakpoint_ops catch_fork_breakpoint_ops =
   remove_catch_fork,
   breakpoint_hit_catch_fork,
   NULL, /* resources_needed */
+  NULL, /* works_in_software_mode */
   print_it_catch_fork,
   print_one_catch_fork,
+  NULL, /* print_one_detail */
   print_mention_catch_fork,
   print_recreate_catch_fork
 };
@@ -6202,9 +6360,10 @@ remove_catch_vfork (struct bp_location *bl)
    catchpoints.  */
 
 static int
-breakpoint_hit_catch_vfork (struct breakpoint *b)
+breakpoint_hit_catch_vfork (const struct bp_location *bl,
+			    struct address_space *aspace, CORE_ADDR bp_addr)
 {
-  return inferior_has_vforked (inferior_ptid, &b->forked_inferior_pid);
+  return inferior_has_vforked (inferior_ptid, &bl->owner->forked_inferior_pid);
 }
 
 /* Implement the "print_it" breakpoint_ops method for vfork
@@ -6270,8 +6429,10 @@ static struct breakpoint_ops catch_vfork_breakpoint_ops =
   remove_catch_vfork,
   breakpoint_hit_catch_vfork,
   NULL, /* resources_needed */
+  NULL, /* works_in_software_mode */
   print_it_catch_vfork,
   print_one_catch_vfork,
+  NULL, /* print_one_detail */
   print_mention_catch_vfork,
   print_recreate_catch_vfork
 };
@@ -6361,12 +6522,14 @@ remove_catch_syscall (struct bp_location *bl)
    catchpoints.  */
 
 static int
-breakpoint_hit_catch_syscall (struct breakpoint *b)
+breakpoint_hit_catch_syscall (const struct bp_location *bl,
+			      struct address_space *aspace, CORE_ADDR bp_addr)
 {
   /* We must check if we are catching specific syscalls in this
      breakpoint.  If we are, then we must guarantee that the called
      syscall is the same syscall we are catching.  */
   int syscall_number = 0;
+  const struct breakpoint *b = bl->owner;
 
   if (!inferior_has_called_syscall (inferior_ptid, &syscall_number))
     return 0;
@@ -6435,7 +6598,7 @@ print_it_catch_syscall (struct breakpoint *b)
 
 static void
 print_one_catch_syscall (struct breakpoint *b,
-                         struct bp_location **last_loc)
+			 struct bp_location **last_loc)
 {
   struct value_print_options opts;
 
@@ -6554,8 +6717,10 @@ static struct breakpoint_ops catch_syscall_breakpoint_ops =
   remove_catch_syscall,
   breakpoint_hit_catch_syscall,
   NULL, /* resources_needed */
+  NULL, /* works_in_software_mode */
   print_it_catch_syscall,
   print_one_catch_syscall,
+  NULL, /* print_one_detail */
   print_mention_catch_syscall,
   print_recreate_catch_syscall
 };
@@ -6618,6 +6783,7 @@ create_catchpoint (struct gdbarch *gdbarch, int tempflag,
     create_catchpoint_without_mention (gdbarch, tempflag, cond_string, ops);
 
   mention (b);
+  observer_notify_breakpoint_created (b);
   update_global_location_list (1);
 
   return b;
@@ -6651,9 +6817,10 @@ remove_catch_exec (struct bp_location *bl)
 }
 
 static int
-breakpoint_hit_catch_exec (struct breakpoint *b)
+breakpoint_hit_catch_exec (const struct bp_location *bl,
+			   struct address_space *aspace, CORE_ADDR bp_addr)
 {
-  return inferior_has_execd (inferior_ptid, &b->exec_pathname);
+  return inferior_has_execd (inferior_ptid, &bl->owner->exec_pathname);
 }
 
 static enum print_stop_action
@@ -6708,8 +6875,10 @@ static struct breakpoint_ops catch_exec_breakpoint_ops =
   remove_catch_exec,
   breakpoint_hit_catch_exec,
   NULL, /* resources_needed */
+  NULL, /* works_in_software_mode */
   print_it_catch_exec,
   print_one_catch_exec,
+  NULL, /* print_one_detail */
   print_mention_catch_exec,
   print_recreate_catch_exec
 };
@@ -6727,19 +6896,29 @@ create_syscall_event_catchpoint (int tempflag, VEC(int) *filter,
   /* Now, we have to mention the breakpoint and update the global
      location list.  */
   mention (b);
+  observer_notify_breakpoint_created (b);
   update_global_location_list (1);
 }
 
 static int
 hw_breakpoint_used_count (void)
 {
-  struct breakpoint *b;
   int i = 0;
+  struct breakpoint *b;
+  struct bp_location *bl;
 
   ALL_BREAKPOINTS (b)
   {
     if (b->type == bp_hardware_breakpoint && breakpoint_enabled (b))
-      i++;
+      for (bl = b->loc; bl; bl = bl->next)
+	{
+	  /* Special types of hardware breakpoints may use more than
+	     one register.  */
+	  if (b->ops && b->ops->resources_needed)
+	    i += b->ops->resources_needed (bl);
+	  else
+	    i++;
+	}
   }
 
   return i;
@@ -6902,7 +7081,7 @@ clone_momentary_breakpoint (struct breakpoint *orig)
 
   copy = set_raw_breakpoint_without_location (orig->gdbarch, orig->type);
   copy->loc = allocate_bp_location (copy);
-  set_breakpoint_location_function (copy->loc);
+  set_breakpoint_location_function (copy->loc, 1);
 
   copy->loc->gdbarch = orig->loc->gdbarch;
   copy->loc->requested_address = orig->loc->requested_address;
@@ -6954,12 +7133,6 @@ mention (struct breakpoint *b)
 
   get_user_print_options (&opts);
 
-  /* FIXME: This is misplaced; mention() is called by things (like
-     hitting a watchpoint) other than breakpoint creation.  It should
-     be possible to clean this up and at the same time replace the
-     random calls to breakpoint_changed with this hook.  */
-  observer_notify_breakpoint_created (b->number);
-
   if (b->ops != NULL && b->ops->print_mention != NULL)
     b->ops->print_mention (b);
   else
@@ -7002,6 +7175,7 @@ mention (struct breakpoint *b)
 	do_cleanups (ui_out_chain);
 	break;
       case bp_breakpoint:
+      case bp_gnu_ifunc_resolver:
 	if (ui_out_is_mi_like_p (uiout))
 	  {
 	    say_where = 0;
@@ -7012,6 +7186,8 @@ mention (struct breakpoint *b)
 	else
 	  printf_filtered (_("Breakpoint"));
 	printf_filtered (_(" %d"), b->number);
+	if (b->type == bp_gnu_ifunc_resolver)
+	  printf_filtered (_(" at gnu-indirect-function resolver"));
 	say_where = 1;
 	break;
       case bp_hardware_breakpoint:
@@ -7071,6 +7247,7 @@ mention (struct breakpoint *b)
       case bp_longjmp_master:
       case bp_std_terminate_master:
       case bp_exception_master:
+      case bp_gnu_ifunc_resolver_return:
 	break;
       }
 
@@ -7131,7 +7308,8 @@ add_location_to_breakpoint (struct breakpoint *b,
   gdb_assert (loc->pspace != NULL);
   loc->section = sal->section;
 
-  set_breakpoint_location_function (loc);
+  set_breakpoint_location_function (loc,
+				    sal->explicit_pc || sal->explicit_line);
   return loc;
 }
 
@@ -7190,7 +7368,7 @@ create_breakpoint_sal (struct gdbarch *gdbarch,
 		       enum bptype type, enum bpdisp disposition,
 		       int thread, int task, int ignore_count,
 		       struct breakpoint_ops *ops, int from_tty,
-		       int enabled, int internal)
+		       int enabled, int internal, int display_canonical)
 {
   struct breakpoint *b = NULL;
   int i;
@@ -7299,6 +7477,7 @@ create_breakpoint_sal (struct gdbarch *gdbarch,
 	}
     }   
 
+  b->display_canonical = display_canonical;
   if (addr_string)
     b->addr_string = addr_string;
   else
@@ -7308,12 +7487,11 @@ create_breakpoint_sal (struct gdbarch *gdbarch,
       = xstrprintf ("*%s", paddress (b->loc->gdbarch, b->loc->address));
 
   b->ops = ops;
-  if (internal)
-    /* Do not mention breakpoints with a negative number, but do
-       notify observers.  */
-    observer_notify_breakpoint_created (b->number);
-  else
+  /* Do not mention breakpoints with a negative number, but do
+     notify observers.  */
+  if (!internal)
     mention (b);
+  observer_notify_breakpoint_created (b);
 }
 
 /* Remove element at INDEX_TO_REMOVE from SAL, shifting other
@@ -7465,7 +7643,8 @@ expand_line_sal_maybe (struct symtab_and_line sal)
 
 static void
 create_breakpoints_sal (struct gdbarch *gdbarch,
-			struct symtabs_and_lines sals, char **addr_string,
+			struct symtabs_and_lines sals,
+			struct linespec_result *canonical,
 			char *cond_string,
 			enum bptype type, enum bpdisp disposition,
 			int thread, int task, int ignore_count,
@@ -7479,10 +7658,11 @@ create_breakpoints_sal (struct gdbarch *gdbarch,
       struct symtabs_and_lines expanded = 
 	expand_line_sal_maybe (sals.sals[i]);
 
-      create_breakpoint_sal (gdbarch, expanded, addr_string[i],
+      create_breakpoint_sal (gdbarch, expanded, canonical->canonical[i],
 			     cond_string, type, disposition,
 			     thread, task, ignore_count, ops,
-			     from_tty, enabled, internal);
+			     from_tty, enabled, internal,
+			     canonical->special_display);
     }
 }
 
@@ -7497,12 +7677,10 @@ create_breakpoints_sal (struct gdbarch *gdbarch,
 static void
 parse_breakpoint_sals (char **address,
 		       struct symtabs_and_lines *sals,
-		       char ***addr_string,
-		       int *not_found_ptr)
+		       struct linespec_result *canonical)
 {
   char *addr_start = *address;
 
-  *addr_string = NULL;
   /* If no arg given, or if first arg is 'if ', use the default
      breakpoint.  */
   if ((*address) == NULL
@@ -7551,15 +7729,14 @@ parse_breakpoint_sals (char **address,
  	      || ((strchr ("+-", (*address)[0]) != NULL)
  		  && ((*address)[1] != '['))))
 	*sals = decode_line_1 (address, 1, default_breakpoint_symtab,
-			       default_breakpoint_line, addr_string, 
-			       not_found_ptr);
+			       default_breakpoint_line, canonical);
       else
 	*sals = decode_line_1 (address, 1, (struct symtab *) NULL, 0,
-		               addr_string, not_found_ptr);
+		               canonical);
     }
   /* For any SAL that didn't have a canonical string, fill one in.  */
-  if (sals->nelts > 0 && *addr_string == NULL)
-    *addr_string = xcalloc (sals->nelts, sizeof (char **));
+  if (sals->nelts > 0 && canonical->canonical == NULL)
+    canonical->canonical = xcalloc (sals->nelts, sizeof (char *));
   if (addr_start != (*address))
     {
       int i;
@@ -7567,9 +7744,9 @@ parse_breakpoint_sals (char **address,
       for (i = 0; i < sals->nelts; i++)
 	{
 	  /* Add the string if not present.  */
-	  if ((*addr_string)[i] == NULL)
-	    (*addr_string)[i] = savestring (addr_start, 
-					    (*address) - addr_start);
+	  if (canonical->canonical[i] == NULL)
+	    canonical->canonical[i] = savestring (addr_start, 
+						  (*address) - addr_start);
 	}
     }
 }
@@ -7617,15 +7794,6 @@ check_fast_tracepoint_sals (struct gdbarch *gdbarch,
 
       do_cleanups (old_chain);
     }
-}
-
-static void
-do_captured_parse_breakpoint (struct ui_out *ui, void *data)
-{
-  struct captured_parse_breakpoint_args *args = data;
-  
-  parse_breakpoint_sals (args->arg_p, args->sals_p, args->addr_string_p, 
-		         args->not_found_ptr);
 }
 
 /* Given TOK, a string specification of condition and thread, as
@@ -7763,29 +7931,22 @@ create_breakpoint (struct gdbarch *gdbarch,
 		   struct breakpoint_ops *ops,
 		   int from_tty, int enabled, int internal)
 {
-  struct gdb_exception e;
+  volatile struct gdb_exception e;
   struct symtabs_and_lines sals;
   struct symtab_and_line pending_sal;
   char *copy_arg;
   char *addr_start = arg;
-  char **addr_string;
+  struct linespec_result canonical;
   struct cleanup *old_chain;
   struct cleanup *bkpt_chain = NULL;
-  struct captured_parse_breakpoint_args parse_args;
   int i;
   int pending = 0;
-  int not_found = 0;
   int task = 0;
   int prev_bkpt_count = breakpoint_count;
 
   sals.sals = NULL;
   sals.nelts = 0;
-  addr_string = NULL;
-
-  parse_args.arg_p = &arg;
-  parse_args.sals_p = &sals;
-  parse_args.addr_string_p = &addr_string;
-  parse_args.not_found_ptr = &not_found;
+  init_linespec_result (&canonical);
 
   if (type_wanted == bp_static_tracepoint && is_marker_spec (arg))
     {
@@ -7794,14 +7955,16 @@ create_breakpoint (struct gdbarch *gdbarch,
       sals = decode_static_tracepoint_spec (&arg);
 
       copy_arg = savestring (addr_start, arg - addr_start);
-      addr_string = xcalloc (sals.nelts, sizeof (char **));
+      canonical.canonical = xcalloc (sals.nelts, sizeof (char *));
       for (i = 0; i < sals.nelts; i++)
-	addr_string[i] = xstrdup (copy_arg);
+	canonical.canonical[i] = xstrdup (copy_arg);
       goto done;
     }
 
-  e = catch_exception (uiout, do_captured_parse_breakpoint, 
-		       &parse_args, RETURN_MASK_ALL);
+  TRY_CATCH (e, RETURN_MASK_ALL)
+    {
+      parse_breakpoint_sals (&arg, &sals, &canonical);
+    }
 
   /* If caller is interested in rc value from parse, set value.  */
   switch (e.reason)
@@ -7833,7 +7996,7 @@ create_breakpoint (struct gdbarch *gdbarch,
 	     breakpoint behavior is on and thus a pending breakpoint
 	     is defaulted on behalf of the user.  */
 	  copy_arg = xstrdup (addr_start);
-	  addr_string = &copy_arg;
+	  canonical.canonical = &copy_arg;
 	  sals.nelts = 1;
 	  sals.sals = &pending_sal;
 	  pending_sal.pc = 0;
@@ -7858,8 +8021,8 @@ create_breakpoint (struct gdbarch *gdbarch,
       /* Make sure that all storage allocated to SALS gets freed.  */
       make_cleanup (xfree, sals.sals);
       
-      /* Cleanup the addr_string array but not its contents.  */
-      make_cleanup (xfree, addr_string);
+      /* Cleanup the canonical array but not its contents.  */
+      make_cleanup (xfree, canonical.canonical);
     }
 
   /* ----------------------------- SNIP -----------------------------
@@ -7868,12 +8031,12 @@ create_breakpoint (struct gdbarch *gdbarch,
      then the memory is not reclaimed.  */
   bkpt_chain = make_cleanup (null_cleanup, 0);
 
-  /* Mark the contents of the addr_string for cleanup.  These go on
+  /* Mark the contents of the canonical for cleanup.  These go on
      the bkpt_chain and only occur if the breakpoint create fails.  */
   for (i = 0; i < sals.nelts; i++)
     {
-      if (addr_string[i] != NULL)
-	make_cleanup (xfree, addr_string[i]);
+      if (canonical.canonical[i] != NULL)
+	make_cleanup (xfree, canonical.canonical[i]);
     }
 
   /* Resolve all line numbers to PC's and verify that the addresses
@@ -7920,7 +8083,7 @@ create_breakpoint (struct gdbarch *gdbarch,
 	 expand multiple locations for each sal, given than SALS
 	 already should contain all sals for MARKER_ID.  */
       if (type_wanted == bp_static_tracepoint
-	  && is_marker_spec (addr_string[0]))
+	  && is_marker_spec (canonical.canonical[0]))
 	{
 	  int i;
 
@@ -7935,11 +8098,12 @@ create_breakpoint (struct gdbarch *gdbarch,
 	      expanded.sals[0] = sals.sals[i];
 	      old_chain = make_cleanup (xfree, expanded.sals);
 
-	      create_breakpoint_sal (gdbarch, expanded, addr_string[i],
+	      create_breakpoint_sal (gdbarch, expanded, canonical.canonical[i],
 				     cond_string, type_wanted,
 				     tempflag ? disp_del : disp_donttouch,
 				     thread, task, ignore_count, ops,
-				     from_tty, enabled, internal);
+				     from_tty, enabled, internal,
+				     canonical.special_display);
 
 	      do_cleanups (old_chain);
 
@@ -7960,7 +8124,7 @@ create_breakpoint (struct gdbarch *gdbarch,
 	    }
 	}
       else
-	create_breakpoints_sal (gdbarch, sals, addr_string, cond_string,
+	create_breakpoints_sal (gdbarch, sals, &canonical, cond_string,
 				type_wanted,
 				tempflag ? disp_del : disp_donttouch,
 				thread, task, ignore_count, ops, from_tty,
@@ -7975,7 +8139,7 @@ create_breakpoint (struct gdbarch *gdbarch,
       b = set_raw_breakpoint_without_location (gdbarch, type_wanted);
       set_breakpoint_number (internal, b);
       b->thread = -1;
-      b->addr_string = addr_string[0];
+      b->addr_string = canonical.canonical[0];
       b->cond_string = NULL;
       b->ignore_count = ignore_count;
       b->disposition = tempflag ? disp_del : disp_donttouch;
@@ -7990,12 +8154,11 @@ create_breakpoint (struct gdbarch *gdbarch,
 	      || b->type == bp_hardware_breakpoint))
 	b->enable_state = bp_startup_disabled;
 
-      if (internal)
+      if (!internal)
         /* Do not mention breakpoints with a negative number, 
 	   but do notify observers.  */
-        observer_notify_breakpoint_created (b->number);
-      else
-        mention (b);
+	mention (b);
+      observer_notify_breakpoint_created (b);
     }
   
   if (sals.nelts > 1)
@@ -8199,6 +8362,311 @@ stopat_command (char *arg, int from_tty)
     break_command_1 (arg, 0, from_tty);
 }
 
+/* Implement the "breakpoint_hit" breakpoint_ops method for
+   ranged breakpoints.  */
+
+static int
+breakpoint_hit_ranged_breakpoint (const struct bp_location *bl,
+				  struct address_space *aspace,
+				  CORE_ADDR bp_addr)
+{
+  return breakpoint_address_match_range (bl->pspace->aspace, bl->address,
+					 bl->length, aspace, bp_addr);
+}
+
+/* Implement the "resources_needed" breakpoint_ops method for
+   ranged breakpoints.  */
+
+static int
+resources_needed_ranged_breakpoint (const struct bp_location *bl)
+{
+  return target_ranged_break_num_registers ();
+}
+
+/* Implement the "print_it" breakpoint_ops method for
+   ranged breakpoints.  */
+
+static enum print_stop_action
+print_it_ranged_breakpoint (struct breakpoint *b)
+{
+  struct bp_location *bl = b->loc;
+
+  gdb_assert (b->type == bp_hardware_breakpoint);
+
+  /* Ranged breakpoints have only one location.  */
+  gdb_assert (bl && bl->next == NULL);
+
+  annotate_breakpoint (b->number);
+  if (b->disposition == disp_del)
+    ui_out_text (uiout, "\nTemporary ranged breakpoint ");
+  else
+    ui_out_text (uiout, "\nRanged breakpoint ");
+  if (ui_out_is_mi_like_p (uiout))
+    {
+      ui_out_field_string (uiout, "reason",
+		      async_reason_lookup (EXEC_ASYNC_BREAKPOINT_HIT));
+      ui_out_field_string (uiout, "disp", bpdisp_text (b->disposition));
+    }
+  ui_out_field_int (uiout, "bkptno", b->number);
+  ui_out_text (uiout, ", ");
+
+  return PRINT_SRC_AND_LOC;
+}
+
+/* Implement the "print_one" breakpoint_ops method for
+   ranged breakpoints.  */
+
+static void
+print_one_ranged_breakpoint (struct breakpoint *b,
+			     struct bp_location **last_loc)
+{
+  struct bp_location *bl = b->loc;
+  struct value_print_options opts;
+
+  /* Ranged breakpoints have only one location.  */
+  gdb_assert (bl && bl->next == NULL);
+
+  get_user_print_options (&opts);
+
+  if (opts.addressprint)
+    /* We don't print the address range here, it will be printed later
+       by print_one_detail_ranged_breakpoint.  */
+    ui_out_field_skip (uiout, "addr");
+  annotate_field (5);
+  print_breakpoint_location (b, bl);
+  *last_loc = bl;
+}
+
+/* Implement the "print_one_detail" breakpoint_ops method for
+   ranged breakpoints.  */
+
+static void
+print_one_detail_ranged_breakpoint (const struct breakpoint *b,
+				    struct ui_out *uiout)
+{
+  CORE_ADDR address_start, address_end;
+  struct bp_location *bl = b->loc;
+  struct ui_stream *stb = ui_out_stream_new (uiout);
+  struct cleanup *cleanup = make_cleanup_ui_out_stream_delete (stb);
+
+  gdb_assert (bl);
+
+  address_start = bl->address;
+  address_end = address_start + bl->length - 1;
+
+  ui_out_text (uiout, "\taddress range: ");
+  fprintf_unfiltered (stb->stream, "[%s, %s]",
+		      print_core_address (bl->gdbarch, address_start),
+		      print_core_address (bl->gdbarch, address_end));
+  ui_out_field_stream (uiout, "addr", stb);
+  ui_out_text (uiout, "\n");
+
+  do_cleanups (cleanup);
+}
+
+/* Implement the "print_mention" breakpoint_ops method for
+   ranged breakpoints.  */
+
+static void
+print_mention_ranged_breakpoint (struct breakpoint *b)
+{
+  struct bp_location *bl = b->loc;
+
+  gdb_assert (bl);
+  gdb_assert (b->type == bp_hardware_breakpoint);
+
+  if (ui_out_is_mi_like_p (uiout))
+    return;
+
+  printf_filtered (_("Hardware assisted ranged breakpoint %d from %s to %s."),
+		   b->number, paddress (bl->gdbarch, bl->address),
+		   paddress (bl->gdbarch, bl->address + bl->length - 1));
+}
+
+/* Implement the "print_recreate" breakpoint_ops method for
+   ranged breakpoints.  */
+
+static void
+print_recreate_ranged_breakpoint (struct breakpoint *b, struct ui_file *fp)
+{
+  fprintf_unfiltered (fp, "break-range %s, %s", b->addr_string,
+		      b->addr_string_range_end);
+}
+
+/* The breakpoint_ops structure to be used in ranged breakpoints.  */
+
+static struct breakpoint_ops ranged_breakpoint_ops =
+{
+  NULL, /* insert */
+  NULL, /* remove */
+  breakpoint_hit_ranged_breakpoint,
+  resources_needed_ranged_breakpoint,
+  NULL, /* works_in_software_mode */
+  print_it_ranged_breakpoint,
+  print_one_ranged_breakpoint,
+  print_one_detail_ranged_breakpoint,
+  print_mention_ranged_breakpoint,
+  print_recreate_ranged_breakpoint
+};
+
+/* Find the address where the end of the breakpoint range should be
+   placed, given the SAL of the end of the range.  This is so that if
+   the user provides a line number, the end of the range is set to the
+   last instruction of the given line.  */
+
+static CORE_ADDR
+find_breakpoint_range_end (struct symtab_and_line sal)
+{
+  CORE_ADDR end;
+
+  /* If the user provided a PC value, use it.  Otherwise,
+     find the address of the end of the given location.  */
+  if (sal.explicit_pc)
+    end = sal.pc;
+  else
+    {
+      int ret;
+      CORE_ADDR start;
+
+      ret = find_line_pc_range (sal, &start, &end);
+      if (!ret)
+	error (_("Could not find location of the end of the range."));
+
+      /* find_line_pc_range returns the start of the next line.  */
+      end--;
+    }
+
+  return end;
+}
+
+/* Implement the "break-range" CLI command.  */
+
+static void
+break_range_command (char *arg, int from_tty)
+{
+  char *arg_start, *addr_string_start, *addr_string_end;
+  struct linespec_result canonical_start, canonical_end;
+  int bp_count, can_use_bp, length;
+  CORE_ADDR end;
+  struct breakpoint *b;
+  struct symtab_and_line sal_start, sal_end;
+  struct symtabs_and_lines sals_start, sals_end;
+  struct cleanup *cleanup_bkpt;
+
+  /* We don't support software ranged breakpoints.  */
+  if (target_ranged_break_num_registers () < 0)
+    error (_("This target does not support hardware ranged breakpoints."));
+
+  bp_count = hw_breakpoint_used_count ();
+  bp_count += target_ranged_break_num_registers ();
+  can_use_bp = target_can_use_hardware_watchpoint (bp_hardware_breakpoint,
+						   bp_count, 0);
+  if (can_use_bp < 0)
+    error (_("Hardware breakpoints used exceeds limit."));
+
+  if (arg == NULL || arg[0] == '\0')
+    error(_("No address range specified."));
+
+  sals_start.sals = NULL;
+  sals_start.nelts = 0;
+  init_linespec_result (&canonical_start);
+
+  while (*arg == ' ' || *arg == '\t')
+    arg++;
+
+  parse_breakpoint_sals (&arg, &sals_start, &canonical_start);
+
+  sal_start = sals_start.sals[0];
+  addr_string_start = canonical_start.canonical[0];
+  cleanup_bkpt = make_cleanup (xfree, addr_string_start);
+  xfree (sals_start.sals);
+  xfree (canonical_start.canonical);
+
+  if (arg[0] != ',')
+    error (_("Too few arguments."));
+  else if (sals_start.nelts == 0)
+    error (_("Could not find location of the beginning of the range."));
+  else if (sals_start.nelts != 1)
+    error (_("Cannot create a ranged breakpoint with multiple locations."));
+
+  resolve_sal_pc (&sal_start);
+
+  arg++;	/* Skip the comma.  */
+  while (*arg == ' ' || *arg == '\t')
+    arg++;
+
+  /* Parse the end location.  */
+
+  sals_end.sals = NULL;
+  sals_end.nelts = 0;
+  init_linespec_result (&canonical_end);
+  arg_start = arg;
+
+  /* We call decode_line_1 directly here instead of using
+     parse_breakpoint_sals because we need to specify the start location's
+     symtab and line as the default symtab and line for the end of the
+     range.  This makes it possible to have ranges like "foo.c:27, +14",
+     where +14 means 14 lines from the start location.  */
+  sals_end = decode_line_1 (&arg, 1, sal_start.symtab, sal_start.line,
+			    &canonical_end);
+
+  /* canonical_end can be NULL if it was of the form "*0xdeadbeef".  */
+  if (canonical_end.canonical == NULL)
+    canonical_end.canonical = xcalloc (1, sizeof (char *));
+  /* Add the string if not present.  */
+  if (arg_start != arg && canonical_end.canonical[0] == NULL)
+    canonical_end.canonical[0] = savestring (arg_start, arg - arg_start);
+
+  sal_end = sals_end.sals[0];
+  addr_string_end = canonical_end.canonical[0];
+  make_cleanup (xfree, addr_string_end);
+  xfree (sals_end.sals);
+  xfree (canonical_end.canonical);
+
+  if (sals_end.nelts == 0)
+    error (_("Could not find location of the end of the range."));
+  else if (sals_end.nelts != 1)
+    error (_("Cannot create a ranged breakpoint with multiple locations."));
+
+  resolve_sal_pc (&sal_end);
+
+  end = find_breakpoint_range_end (sal_end);
+  if (sal_start.pc > end)
+    error (_("Invalid address range, end preceeds start."));
+
+  length = end - sal_start.pc + 1;
+  if (length < 0)
+    /* Length overflowed.  */
+    error (_("Address range too large."));
+  else if (length == 1)
+    {
+      /* This range is simple enough to be handled by
+	 the `hbreak' command.  */
+      hbreak_command (addr_string_start, 1);
+
+      do_cleanups (cleanup_bkpt);
+
+      return;
+    }
+
+  /* Now set up the breakpoint.  */
+  b = set_raw_breakpoint (get_current_arch (), sal_start,
+			  bp_hardware_breakpoint);
+  set_breakpoint_count (breakpoint_count + 1);
+  b->number = breakpoint_count;
+  b->disposition = disp_donttouch;
+  b->addr_string = addr_string_start;
+  b->addr_string_range_end = addr_string_end;
+  b->ops = &ranged_breakpoint_ops;
+  b->loc->length = length;
+
+  discard_cleanups (cleanup_bkpt);
+
+  mention (b);
+  observer_notify_breakpoint_created (b);
+  update_global_location_list (1);
+}
+
 /*  Return non-zero if EXP is verified as constant.  Returned zero
     means EXP is variable.  Also the constant detection may fail for
     some constant expressions and in such case still falsely return
@@ -8341,6 +8809,15 @@ resources_needed_watchpoint (const struct bp_location *bl)
   return target_region_ok_for_hw_watchpoint (bl->address, length);
 }
 
+/* Implement the "works_in_software_mode" breakpoint_ops method for
+   hardware watchpoints.  */
+
+int
+works_in_software_mode_watchpoint (const struct breakpoint *b)
+{
+  return b->type == bp_hardware_watchpoint;
+}
+
 /* The breakpoint_ops structure to be used in hardware watchpoints.  */
 
 static struct breakpoint_ops watchpoint_breakpoint_ops =
@@ -8349,11 +8826,199 @@ static struct breakpoint_ops watchpoint_breakpoint_ops =
   remove_watchpoint,
   NULL, /* breakpoint_hit */
   resources_needed_watchpoint,
+  works_in_software_mode_watchpoint,
   NULL, /* print_it */
   NULL, /* print_one */
+  NULL, /* print_one_detail */
   NULL, /* print_mention */
   NULL  /* print_recreate */
 };
+
+/* Implement the "insert" breakpoint_ops method for
+   masked hardware watchpoints.  */
+
+static int
+insert_masked_watchpoint (struct bp_location *bl)
+{
+  return target_insert_mask_watchpoint (bl->address, bl->owner->hw_wp_mask,
+					bl->watchpoint_type);
+}
+
+/* Implement the "remove" breakpoint_ops method for
+   masked hardware watchpoints.  */
+
+static int
+remove_masked_watchpoint (struct bp_location *bl)
+{
+  return target_remove_mask_watchpoint (bl->address, bl->owner->hw_wp_mask,
+				        bl->watchpoint_type);
+}
+
+/* Implement the "resources_needed" breakpoint_ops method for
+   masked hardware watchpoints.  */
+
+static int
+resources_needed_masked_watchpoint (const struct bp_location *bl)
+{
+  return target_masked_watch_num_registers (bl->address,
+					    bl->owner->hw_wp_mask);
+}
+
+/* Implement the "works_in_software_mode" breakpoint_ops method for
+   masked hardware watchpoints.  */
+
+static int
+works_in_software_mode_masked_watchpoint (const struct breakpoint *b)
+{
+  return 0;
+}
+
+/* Implement the "print_it" breakpoint_ops method for
+   masked hardware watchpoints.  */
+
+static enum print_stop_action
+print_it_masked_watchpoint (struct breakpoint *b)
+{
+  /* Masked watchpoints have only one location.  */
+  gdb_assert (b->loc && b->loc->next == NULL);
+
+  switch (b->type)
+    {
+    case bp_hardware_watchpoint:
+      annotate_watchpoint (b->number);
+      if (ui_out_is_mi_like_p (uiout))
+	ui_out_field_string
+	  (uiout, "reason",
+	   async_reason_lookup (EXEC_ASYNC_WATCHPOINT_TRIGGER));
+      break;
+
+    case bp_read_watchpoint:
+      if (ui_out_is_mi_like_p (uiout))
+	ui_out_field_string
+	  (uiout, "reason",
+	   async_reason_lookup (EXEC_ASYNC_READ_WATCHPOINT_TRIGGER));
+      break;
+
+    case bp_access_watchpoint:
+      if (ui_out_is_mi_like_p (uiout))
+	ui_out_field_string
+	  (uiout, "reason",
+	   async_reason_lookup (EXEC_ASYNC_ACCESS_WATCHPOINT_TRIGGER));
+      break;
+    default:
+      internal_error (__FILE__, __LINE__,
+		      _("Invalid hardware watchpoint type."));
+    }
+
+  mention (b);
+  ui_out_text (uiout, _("\n\
+Check the underlying instruction at PC for the memory\n\
+address and value which triggered this watchpoint.\n"));
+  ui_out_text (uiout, "\n");
+
+  /* More than one watchpoint may have been triggered.  */
+  return PRINT_UNKNOWN;
+}
+
+/* Implement the "print_one_detail" breakpoint_ops method for
+   masked hardware watchpoints.  */
+
+static void
+print_one_detail_masked_watchpoint (const struct breakpoint *b,
+				    struct ui_out *uiout)
+{
+  /* Masked watchpoints have only one location.  */
+  gdb_assert (b->loc && b->loc->next == NULL);
+
+  ui_out_text (uiout, "\tmask ");
+  ui_out_field_core_addr (uiout, "mask", b->loc->gdbarch, b->hw_wp_mask);
+  ui_out_text (uiout, "\n");
+}
+
+/* Implement the "print_mention" breakpoint_ops method for
+   masked hardware watchpoints.  */
+
+static void
+print_mention_masked_watchpoint (struct breakpoint *b)
+{
+  struct cleanup *ui_out_chain;
+
+  switch (b->type)
+    {
+    case bp_hardware_watchpoint:
+      ui_out_text (uiout, "Masked hardware watchpoint ");
+      ui_out_chain = make_cleanup_ui_out_tuple_begin_end (uiout, "wpt");
+      break;
+    case bp_read_watchpoint:
+      ui_out_text (uiout, "Masked hardware read watchpoint ");
+      ui_out_chain = make_cleanup_ui_out_tuple_begin_end (uiout, "hw-rwpt");
+      break;
+    case bp_access_watchpoint:
+      ui_out_text (uiout, "Masked hardware access (read/write) watchpoint ");
+      ui_out_chain = make_cleanup_ui_out_tuple_begin_end (uiout, "hw-awpt");
+      break;
+    default:
+      internal_error (__FILE__, __LINE__,
+		      _("Invalid hardware watchpoint type."));
+    }
+
+  ui_out_field_int (uiout, "number", b->number);
+  ui_out_text (uiout, ": ");
+  ui_out_field_string (uiout, "exp", b->exp_string);
+  do_cleanups (ui_out_chain);
+}
+
+/* Implement the "print_recreate" breakpoint_ops method for
+   masked hardware watchpoints.  */
+
+static void
+print_recreate_masked_watchpoint (struct breakpoint *b, struct ui_file *fp)
+{
+  char tmp[40];
+
+  switch (b->type)
+    {
+    case bp_hardware_watchpoint:
+      fprintf_unfiltered (fp, "watch");
+      break;
+    case bp_read_watchpoint:
+      fprintf_unfiltered (fp, "rwatch");
+      break;
+    case bp_access_watchpoint:
+      fprintf_unfiltered (fp, "awatch");
+      break;
+    default:
+      internal_error (__FILE__, __LINE__,
+		      _("Invalid hardware watchpoint type."));
+    }
+
+  sprintf_vma (tmp, b->hw_wp_mask);
+  fprintf_unfiltered (fp, " %s mask 0x%s", b->exp_string, tmp);
+}
+
+/* The breakpoint_ops structure to be used in masked hardware watchpoints.  */
+
+static struct breakpoint_ops masked_watchpoint_breakpoint_ops =
+{
+  insert_masked_watchpoint,
+  remove_masked_watchpoint,
+  NULL, /* breakpoint_hit */
+  resources_needed_masked_watchpoint,
+  works_in_software_mode_masked_watchpoint,
+  print_it_masked_watchpoint,
+  NULL, /* print_one */
+  print_one_detail_masked_watchpoint,
+  print_mention_masked_watchpoint,
+  print_recreate_masked_watchpoint
+};
+
+/* Tell whether the given watchpoint is a masked hardware watchpoint.  */
+
+static int
+is_masked_watchpoint (const struct breakpoint *b)
+{
+  return b->ops == &masked_watchpoint_breakpoint_ops;
+}
 
 /* accessflag:  hw_write:  watch write, 
                 hw_read:   watch read, 
@@ -8362,6 +9027,7 @@ static void
 watch_command_1 (char *arg, int accessflag, int from_tty,
 		 int just_location, int internal)
 {
+  volatile struct gdb_exception e;
   struct breakpoint *b, *scope_breakpoint = NULL;
   struct expression *exp;
   struct block *exp_valid_block = NULL, *cond_exp_valid_block = NULL;
@@ -8369,75 +9035,97 @@ watch_command_1 (char *arg, int accessflag, int from_tty,
   struct frame_info *frame;
   char *exp_start = NULL;
   char *exp_end = NULL;
-  char *tok, *id_tok_start, *end_tok;
-  int toklen;
+  char *tok, *end_tok;
+  int toklen = -1;
   char *cond_start = NULL;
   char *cond_end = NULL;
-  int i, other_type_used, target_resources_ok = 0;
   enum bptype bp_type;
-  int reg_cnt = 0;
   int thread = -1;
   int pc = 0;
+  /* Flag to indicate whether we are going to use masks for
+     the hardware watchpoint.  */
+  int use_mask = 0;
+  CORE_ADDR mask = 0;
 
   /* Make sure that we actually have parameters to parse.  */
   if (arg != NULL && arg[0] != '\0')
     {
-      toklen = strlen (arg); /* Size of argument list.  */
+      char *value_start;
 
-      /* Points tok to the end of the argument list.  */
-      tok = arg + toklen - 1;
+      /* Look for "parameter value" pairs at the end
+	 of the arguments string.  */
+      for (tok = arg + strlen (arg) - 1; tok > arg; tok--)
+	{
+	  /* Skip whitespace at the end of the argument list.  */
+	  while (tok > arg && (*tok == ' ' || *tok == '\t'))
+	    tok--;
 
-      /* Go backwards in the parameters list.  Skip the last
-         parameter.  If we're expecting a 'thread <thread_num>'
-         parameter, this should be the thread identifier.  */
-      while (tok > arg && (*tok == ' ' || *tok == '\t'))
-        tok--;
-      while (tok > arg && (*tok != ' ' && *tok != '\t'))
-        tok--;
+	  /* Find the beginning of the last token.
+	     This is the value of the parameter.  */
+	  while (tok > arg && (*tok != ' ' && *tok != '\t'))
+	    tok--;
+	  value_start = tok + 1;
 
-      /* Points end_tok to the beginning of the last token.  */
-      id_tok_start = tok + 1;
+	  /* Skip whitespace.  */
+	  while (tok > arg && (*tok == ' ' || *tok == '\t'))
+	    tok--;
 
-      /* Go backwards in the parameters list.  Skip one more
-         parameter.  If we're expecting a 'thread <thread_num>'
-         parameter, we should reach a "thread" token.  */
-      while (tok > arg && (*tok == ' ' || *tok == '\t'))
-        tok--;
+	  end_tok = tok;
 
-      end_tok = tok;
+	  /* Find the beginning of the second to last token.
+	     This is the parameter itself.  */
+	  while (tok > arg && (*tok != ' ' && *tok != '\t'))
+	    tok--;
+	  tok++;
+	  toklen = end_tok - tok + 1;
 
-      while (tok > arg && (*tok != ' ' && *tok != '\t'))
-        tok--;
+	  if (toklen == 6 && !strncmp (tok, "thread", 6))
+	    {
+	      /* At this point we've found a "thread" token, which means
+		 the user is trying to set a watchpoint that triggers
+		 only in a specific thread.  */
+	      char *endp;
 
-      /* Move the pointer forward to skip the whitespace and
-         calculate the length of the token.  */
-      tok++;
-      toklen = end_tok - tok;
+	      if (thread != -1)
+		error(_("You can specify only one thread."));
 
-      if (toklen >= 1 && strncmp (tok, "thread", toklen) == 0)
-        {
-          /* At this point we've found a "thread" token, which means
-             the user is trying to set a watchpoint that triggers
-             only in a specific thread.  */
-          char *endp;
+	      /* Extract the thread ID from the next token.  */
+	      thread = strtol (value_start, &endp, 0);
 
-          /* Extract the thread ID from the next token.  */
-          thread = strtol (id_tok_start, &endp, 0);
+	      /* Check if the user provided a valid numeric value for the
+		 thread ID.  */
+	      if (*endp != ' ' && *endp != '\t' && *endp != '\0')
+		error (_("Invalid thread ID specification %s."), value_start);
 
-          /* Check if the user provided a valid numeric value for the
-             thread ID.  */
-          if (*endp != ' ' && *endp != '\t' && *endp != '\0')
-            error (_("Invalid thread ID specification %s."), id_tok_start);
+	      /* Check if the thread actually exists.  */
+	      if (!valid_thread_id (thread))
+		error (_("Unknown thread %d."), thread);
+	    }
+	  else if (toklen == 4 && !strncmp (tok, "mask", 4))
+	    {
+	      /* We've found a "mask" token, which means the user wants to
+		 create a hardware watchpoint that is going to have the mask
+		 facility.  */
+	      struct value *mask_value, *mark;
 
-          /* Check if the thread actually exists.  */
-          if (!valid_thread_id (thread))
-            error (_("Unknown thread %d."), thread);
+	      if (use_mask)
+		error(_("You can specify only one mask."));
 
-          /* Truncate the string and get rid of the thread <thread_num>
-             parameter before the parameter list is parsed by the
-             evaluate_expression() function.  */
-          *tok = '\0';
-        }
+	      use_mask = just_location = 1;
+
+	      mark = value_mark ();
+	      mask_value = parse_to_comma_and_eval (&value_start);
+	      mask = value_as_address (mask_value);
+	      value_free_to_mark (mark);
+	    }
+	  else
+	    /* We didn't recognize what we found.  We should stop here.  */
+	    break;
+
+	  /* Truncate the string and get rid of the "parameter value" pair before
+	     the arguments string is parsed by the parse_exp_1 function.  */
+	  *tok = '\0';
+	}
     }
 
   /* Parse the rest of the arguments.  */
@@ -8468,10 +9156,22 @@ watch_command_1 (char *arg, int accessflag, int from_tty,
 
   if (just_location)
     {
+      int ret;
+
       exp_valid_block = NULL;
       val = value_addr (result);
       release_value (val);
       value_free_to_mark (mark);
+
+      if (use_mask)
+	{
+	  ret = target_masked_watch_num_registers (value_as_address (val),
+						   mask);
+	  if (ret == -1)
+	    error (_("This target does not support masked watchpoints."));
+	  else if (ret == -2)
+	    error (_("Invalid mask or memory region."));
+	}
     }
   else if (val != NULL)
     release_value (val);
@@ -8504,28 +9204,6 @@ watch_command_1 (char *arg, int accessflag, int from_tty,
     bp_type = bp_access_watchpoint;
   else
     bp_type = bp_hardware_watchpoint;
-
-  reg_cnt = can_use_hardware_watchpoint (val, target_exact_watchpoints);
-  if (reg_cnt == 0 && bp_type != bp_hardware_watchpoint)
-    error (_("Expression cannot be implemented with read/access watchpoint."));
-  if (reg_cnt != 0)
-    {
-      i = hw_watchpoint_used_count (bp_type, &other_type_used);
-      target_resources_ok = 
-	target_can_use_hardware_watchpoint (bp_type, i + reg_cnt,
-					    other_type_used);
-      if (target_resources_ok == 0 && bp_type != bp_hardware_watchpoint)
-	error (_("Target does not support this type of hardware watchpoint."));
-
-      if (target_resources_ok < 0 && bp_type != bp_hardware_watchpoint)
-	error (_("Target can only support one kind "
-		 "of HW watchpoint at a time."));
-    }
-
-  /* Change the type of breakpoint to an ordinary watchpoint if a
-     hardware watchpoint could not be set.  */
-  if (!reg_cnt || target_resources_ok <= 0)
-    bp_type = bp_watchpoint;
 
   frame = block_innermost_frame (exp_valid_block);
 
@@ -8564,7 +9242,6 @@ watch_command_1 (char *arg, int accessflag, int from_tty,
 
   /* Now set up the breakpoint.  */
   b = set_raw_breakpoint_without_location (NULL, bp_type);
-  set_breakpoint_number (internal, b);
   b->thread = thread;
   b->disposition = disp_donttouch;
   b->exp = exp;
@@ -8583,7 +9260,7 @@ watch_command_1 (char *arg, int accessflag, int from_tty,
 					  core_addr_to_string (addr));
       xfree (name);
 
-      b->exp_string = xstrprintf ("-location: %.*s",
+      b->exp_string = xstrprintf ("-location %.*s",
 				  (int) (exp_end - exp_start), exp_start);
 
       /* The above expression is in C.  */
@@ -8591,13 +9268,18 @@ watch_command_1 (char *arg, int accessflag, int from_tty,
     }
   else
     b->exp_string = savestring (exp_start, exp_end - exp_start);
-  b->val = val;
-  b->val_valid = 1;
-  b->ops = &watchpoint_breakpoint_ops;
 
-  /* Use an exact watchpoint when there's only one memory region to be
-     watched, and only one debug register is needed to watch it.  */
-  b->exact = target_exact_watchpoints && reg_cnt == 1;
+  if (use_mask)
+    {
+      b->hw_wp_mask = mask;
+      b->ops = &masked_watchpoint_breakpoint_ops;
+    }
+  else
+    {
+      b->val = val;
+      b->val_valid = 1;
+      b->ops = &watchpoint_breakpoint_ops;
+    }
 
   if (cond_start)
     b->cond_string = savestring (cond_start, cond_end - cond_start);
@@ -8626,27 +9308,34 @@ watch_command_1 (char *arg, int accessflag, int from_tty,
   if (!just_location)
     value_free_to_mark (mark);
 
-  /* Finally update the new watchpoint.  This creates the locations
-     that should be inserted.  */
-  update_watchpoint (b, 1);
-  if (internal)
-    /* Do not mention breakpoints with a negative number, but do
-       notify observers.  */
-    observer_notify_breakpoint_created (b->number);
-  else
+  TRY_CATCH (e, RETURN_MASK_ALL)
+    {
+      /* Finally update the new watchpoint.  This creates the locations
+	 that should be inserted.  */
+      update_watchpoint (b, 1);
+    }
+  if (e.reason < 0)
+    {
+      delete_breakpoint (b);
+      throw_exception (e);
+    }
+
+  set_breakpoint_number (internal, b);
+
+  /* Do not mention breakpoints with a negative number, but do
+     notify observers.  */
+  if (!internal)
     mention (b);
+  observer_notify_breakpoint_created (b);
+
   update_global_location_list (1);
 }
 
 /* Return count of debug registers needed to watch the given expression.
-   If EXACT_WATCHPOINTS is 1, then consider that only the address of
-   the start of the watched region will be monitored (i.e., all accesses
-   will be aligned).  This uses less debug registers on some targets.
-
    If the watchpoint cannot be handled in hardware return zero.  */
 
 static int
-can_use_hardware_watchpoint (struct value *v, int exact_watchpoints)
+can_use_hardware_watchpoint (struct value *v)
 {
   int found_memory_cnt = 0;
   struct value *head = v;
@@ -8702,7 +9391,7 @@ can_use_hardware_watchpoint (struct value *v, int exact_watchpoints)
 		  int len;
 		  int num_regs;
 
-		  len = (exact_watchpoints
+		  len = (target_exact_watchpoints
 			 && is_scalar_type_recursive (vtype))?
 		    1 : TYPE_LENGTH (value_type (v));
 
@@ -8843,10 +9532,9 @@ until_break_command (char *arg, int from_tty, int anywhere)
 
   if (default_breakpoint_valid)
     sals = decode_line_1 (&arg, 1, default_breakpoint_symtab,
-			  default_breakpoint_line, (char ***) NULL, NULL);
+			  default_breakpoint_line, NULL);
   else
-    sals = decode_line_1 (&arg, 1, (struct symtab *) NULL, 
-			  0, (char ***) NULL, NULL);
+    sals = decode_line_1 (&arg, 1, (struct symtab *) NULL, 0, NULL);
 
   if (sals.nelts != 1)
     error (_("Couldn't get information on specified line."));
@@ -9037,7 +9725,7 @@ catch_exec_command_1 (char *arg, int from_tty,
 }
 
 static enum print_stop_action
-print_exception_catchpoint (struct breakpoint *b)
+print_it_exception_catchpoint (struct breakpoint *b)
 {
   int bp_temp, bp_throw;
 
@@ -9128,8 +9816,10 @@ static struct breakpoint_ops gnu_v3_exception_catchpoint_ops = {
   NULL, /* remove */
   NULL, /* breakpoint_hit */
   NULL, /* resources_needed */
-  print_exception_catchpoint,
+  NULL, /* works_in_software_mode */
+  print_it_exception_catchpoint,
   print_one_exception_catchpoint,
+  NULL, /* print_one_detail */
   print_mention_exception_catchpoint,
   print_recreate_exception_catchpoint
 };
@@ -9254,6 +9944,7 @@ create_ada_exception_breakpoint (struct gdbarch *gdbarch,
   b->ops = ops;
 
   mention (b);
+  observer_notify_breakpoint_created (b);
   update_global_location_list (1);
 }
 
@@ -9510,8 +10201,8 @@ clear_command (char *arg, int from_tty)
 				    && b->source_file != NULL
 				    && sal.symtab != NULL
 				    && sal.pspace == loc->pspace
-				    && strcmp (b->source_file,
-					       sal.symtab->filename) == 0
+				    && filename_cmp (b->source_file,
+						     sal.symtab->filename) == 0
 				    && b->line_number == sal.line);
 		  if (pc_match || line_match)
 		    {
@@ -10044,15 +10735,28 @@ delete_breakpoint (struct breakpoint *bpt)
 
   /* At least avoid this stale reference until the reference counting
      of breakpoints gets resolved.  */
-  if (bpt->related_breakpoint != NULL)
+  if (bpt->related_breakpoint != bpt)
     {
-      gdb_assert (bpt->related_breakpoint->related_breakpoint == bpt);
-      bpt->related_breakpoint->disposition = disp_del_at_next_stop;
-      bpt->related_breakpoint->related_breakpoint = NULL;
-      bpt->related_breakpoint = NULL;
+      struct breakpoint *related;
+
+      if (bpt->type == bp_watchpoint_scope)
+	watchpoint_del_at_next_stop (bpt->related_breakpoint);
+      else if (bpt->related_breakpoint->type == bp_watchpoint_scope)
+	watchpoint_del_at_next_stop (bpt);
+
+      /* Unlink bpt from the bpt->related_breakpoint ring.  */
+      for (related = bpt; related->related_breakpoint != bpt;
+	   related = related->related_breakpoint);
+      related->related_breakpoint = bpt->related_breakpoint;
+      bpt->related_breakpoint = bpt;
     }
 
-  observer_notify_breakpoint_deleted (bpt->number);
+  /* watch_command_1 creates a watchpoint but only sets its number if
+     update_watchpoint succeeds in creating its bp_locations.  If there's
+     a problem in that process, we'll be asked to delete the half-created
+     watchpoint.  In that case, don't announce the deletion.  */
+  if (bpt->number)
+    observer_notify_breakpoint_deleted (bpt);
 
   if (breakpoint_chain == bpt)
     breakpoint_chain = bpt->next;
@@ -10068,6 +10772,7 @@ delete_breakpoint (struct breakpoint *bpt)
   xfree (bpt->cond_string);
   xfree (bpt->cond_exp);
   xfree (bpt->addr_string);
+  xfree (bpt->addr_string_range_end);
   xfree (bpt->exp);
   xfree (bpt->exp_string);
   xfree (bpt->exp_string_reparse);
@@ -10137,45 +10842,23 @@ delete_command (char *arg, int from_tty)
     {
       int breaks_to_delete = 0;
 
-      /* Delete all breakpoints if no argument.
-         Do not delete internal or call-dummy breakpoints, these have
-         to be deleted with an explicit breakpoint number argument.  */
+      /* Delete all breakpoints if no argument.  Do not delete
+         internal breakpoints, these have to be deleted with an
+         explicit breakpoint number argument.  */
       ALL_BREAKPOINTS (b)
-      {
-	if (b->type != bp_call_dummy
-	    && b->type != bp_std_terminate
-	    && b->type != bp_shlib_event
-	    && b->type != bp_jit_event
-	    && b->type != bp_thread_event
-	    && b->type != bp_overlay_event
-	    && b->type != bp_longjmp_master
-	    && b->type != bp_std_terminate_master
-	    && b->type != bp_exception_master
-	    && b->number >= 0)
+	if (user_breakpoint_p (b))
 	  {
 	    breaks_to_delete = 1;
 	    break;
 	  }
-      }
 
       /* Ask user only if there are some breakpoints to delete.  */
       if (!from_tty
 	  || (breaks_to_delete && query (_("Delete all breakpoints? "))))
 	{
 	  ALL_BREAKPOINTS_SAFE (b, b_tmp)
-	  {
-	    if (b->type != bp_call_dummy
-		&& b->type != bp_std_terminate
-		&& b->type != bp_shlib_event
-		&& b->type != bp_thread_event
-		&& b->type != bp_jit_event
-		&& b->type != bp_overlay_event
-		&& b->type != bp_longjmp_master
-		&& b->type != bp_std_terminate_master
-		&& b->type != bp_exception_master
-		&& b->number >= 0)
+	    if (user_breakpoint_p (b))
 	      delete_breakpoint (b);
-	  }
 	}
     }
   else
@@ -10362,13 +11045,47 @@ update_static_tracepoint (struct breakpoint *b, struct symtab_and_line sal)
   return sal;
 }
 
-static void
+/* Returns 1 iff locations A and B are sufficiently same that
+   we don't need to report breakpoint as changed.  */
+
+static int
+locations_are_equal (struct bp_location *a, struct bp_location *b)
+{
+  while (a && b)
+    {
+      if (a->address != b->address)
+	return 0;
+
+      if (a->shlib_disabled != b->shlib_disabled)
+	return 0;
+
+      if (a->enabled != b->enabled)
+	return 0;
+
+      a = a->next;
+      b = b->next;
+    }
+
+  if ((a == NULL) != (b == NULL))
+    return 0;
+
+  return 1;
+}
+
+/* Create new breakpoint locations for B (a hardware or software breakpoint)
+   based on SALS and SALS_END.  If SALS_END.NELTS is not zero, then B is
+   a ranged breakpoint.  */
+
+void
 update_breakpoint_locations (struct breakpoint *b,
-			     struct symtabs_and_lines sals)
+			     struct symtabs_and_lines sals,
+			     struct symtabs_and_lines sals_end)
 {
   int i;
-  char *s;
   struct bp_location *existing_locations = b->loc;
+
+  /* Ranged breakpoints have only one start location and one end location.  */
+  gdb_assert (sals_end.nelts == 0 || (sals.nelts == 1 && sals_end.nelts == 1));
 
   /* If there's no new locations, and all existing locations are
      pending, don't do anything.  This optimizes the common case where
@@ -10390,6 +11107,7 @@ update_breakpoint_locations (struct breakpoint *b,
 	 old symtab.  */
       if (b->cond_string != NULL)
 	{
+	  char *s;
 	  struct gdb_exception e;
 
 	  s = b->cond_string;
@@ -10416,6 +11134,13 @@ update_breakpoint_locations (struct breakpoint *b,
 
       if (b->line_number == 0)
 	b->line_number = sals.sals[i].line;
+
+      if (sals_end.nelts)
+	{
+	  CORE_ADDR end = find_breakpoint_range_end (sals_end.sals[0]);
+
+	  new_loc->length = end - sals.sals[0].pc + 1;
+	}
     }
 
   /* Update locations of permanent breakpoints.  */
@@ -10441,8 +11166,7 @@ update_breakpoint_locations (struct breakpoint *b,
 	    if (have_ambiguous_names)
 	      {
 		for (; l; l = l->next)
-		  if (breakpoint_address_match (e->pspace->aspace, e->address,
-						l->pspace->aspace, l->address))
+		  if (breakpoint_locations_match (e, l))
 		    {
 		      l->enabled = 0;
 		      break;
@@ -10462,7 +11186,139 @@ update_breakpoint_locations (struct breakpoint *b,
       }
   }
 
+  if (!locations_are_equal (existing_locations, b->loc))
+    observer_notify_breakpoint_modified (b);
+
   update_global_location_list (1);
+}
+
+/* Find the SaL locations corresponding to the given ADDR_STRING.
+   On return, FOUND will be 1 if any SaL was found, zero otherwise.  */
+
+static struct symtabs_and_lines
+addr_string_to_sals (struct breakpoint *b, char *addr_string, int *found)
+{
+  char *s;
+  int marker_spec;
+  struct symtabs_and_lines sals = {0};
+  struct gdb_exception e;
+
+  s = addr_string;
+  marker_spec = b->type == bp_static_tracepoint && is_marker_spec (s);
+
+  TRY_CATCH (e, RETURN_MASK_ERROR)
+    {
+      if (marker_spec)
+	{
+	  sals = decode_static_tracepoint_spec (&s);
+	  if (sals.nelts > b->static_trace_marker_id_idx)
+	    {
+	      sals.sals[0] = sals.sals[b->static_trace_marker_id_idx];
+	      sals.nelts = 1;
+	    }
+	  else
+	    error (_("marker %s not found"), b->static_trace_marker_id);
+	}
+      else
+	sals = decode_line_1 (&s, 1, (struct symtab *) NULL, 0, NULL);
+    }
+  if (e.reason < 0)
+    {
+      int not_found_and_ok = 0;
+      /* For pending breakpoints, it's expected that parsing will
+	 fail until the right shared library is loaded.  User has
+	 already told to create pending breakpoints and don't need
+	 extra messages.  If breakpoint is in bp_shlib_disabled
+	 state, then user already saw the message about that
+	 breakpoint being disabled, and don't want to see more
+	 errors.  */
+      if (e.error == NOT_FOUND_ERROR
+	  && (b->condition_not_parsed 
+	      || (b->loc && b->loc->shlib_disabled)
+	      || b->enable_state == bp_disabled))
+	not_found_and_ok = 1;
+
+      if (!not_found_and_ok)
+	{
+	  /* We surely don't want to warn about the same breakpoint
+	     10 times.  One solution, implemented here, is disable
+	     the breakpoint on error.  Another solution would be to
+	     have separate 'warning emitted' flag.  Since this
+	     happens only when a binary has changed, I don't know
+	     which approach is better.  */
+	  b->enable_state = bp_disabled;
+	  throw_exception (e);
+	}
+    }
+
+  if (e.reason == 0 || e.error != NOT_FOUND_ERROR)
+    {
+      gdb_assert (sals.nelts == 1);
+
+      resolve_sal_pc (&sals.sals[0]);
+      if (b->condition_not_parsed && s && s[0])
+	{
+	  char *cond_string = 0;
+	  int thread = -1;
+	  int task = 0;
+
+	  find_condition_and_thread (s, sals.sals[0].pc,
+				     &cond_string, &thread, &task);
+	  if (cond_string)
+	    b->cond_string = cond_string;
+	  b->thread = thread;
+	  b->task = task;
+	  b->condition_not_parsed = 0;
+	}
+
+      if (b->type == bp_static_tracepoint && !marker_spec)
+	sals.sals[0] = update_static_tracepoint (b, sals.sals[0]);
+
+      *found = 1;
+    }
+  else
+    *found = 0;
+
+  return sals;
+}
+
+/* Reevaluate a hardware or software breakpoint and recreate its locations.
+   This is necessary after symbols are read (e.g., an executable or DSO
+   was loaded, or the inferior just started).  */
+
+static void
+re_set_breakpoint (struct breakpoint *b)
+{
+  int found;
+  struct symtabs_and_lines sals, sals_end;
+  struct symtabs_and_lines expanded = {0};
+  struct symtabs_and_lines expanded_end = {0};
+  struct cleanup *cleanups = make_cleanup (null_cleanup, NULL);
+
+  input_radix = b->input_radix;
+  save_current_space_and_thread ();
+  switch_to_program_space_and_thread (b->pspace);
+  set_language (b->language);
+
+  sals = addr_string_to_sals (b, b->addr_string, &found);
+  if (found)
+    {
+      make_cleanup (xfree, sals.sals);
+      expanded = expand_line_sal_maybe (sals.sals[0]);
+    }
+
+  if (b->addr_string_range_end)
+    {
+      sals_end = addr_string_to_sals (b, b->addr_string_range_end, &found);
+      if (found)
+	{
+	  make_cleanup (xfree, sals_end.sals);
+	  expanded_end = expand_line_sal_maybe (sals_end.sals[0]);
+	}
+    }
+
+  update_breakpoint_locations (b, expanded, expanded_end);
+  do_cleanups (cleanups);
 }
 
 /* Reset a breakpoint given it's struct breakpoint * BINT.
@@ -10474,14 +11330,6 @@ breakpoint_re_set_one (void *bint)
 {
   /* Get past catch_errs.  */
   struct breakpoint *b = (struct breakpoint *) bint;
-  int not_found = 0;
-  int *not_found_ptr = &not_found;
-  struct symtabs_and_lines sals = {0};
-  struct symtabs_and_lines expanded = {0};
-  char *s;
-  struct gdb_exception e;
-  struct cleanup *cleanups = make_cleanup (null_cleanup, NULL);
-  int marker_spec = 0;
 
   switch (b->type)
     {
@@ -10494,6 +11342,7 @@ breakpoint_re_set_one (void *bint)
     case bp_tracepoint:
     case bp_fast_tracepoint:
     case bp_static_tracepoint:
+    case bp_gnu_ifunc_resolver:
       /* Do not attempt to re-set breakpoints disabled during startup.  */
       if (b->enable_state == bp_startup_disabled)
 	return 0;
@@ -10505,89 +11354,7 @@ breakpoint_re_set_one (void *bint)
 	  return 0;
 	}
 
-      input_radix = b->input_radix;
-      s = b->addr_string;
-
-      save_current_space_and_thread ();
-      switch_to_program_space_and_thread (b->pspace);
-
-      marker_spec = b->type == bp_static_tracepoint && is_marker_spec (s);
-
-      set_language (b->language);
-      TRY_CATCH (e, RETURN_MASK_ERROR)
-	{
-	  if (marker_spec)
-	    {
-	      sals = decode_static_tracepoint_spec (&s);
-	      if (sals.nelts > b->static_trace_marker_id_idx)
-		{
-		  sals.sals[0] = sals.sals[b->static_trace_marker_id_idx];
-		  sals.nelts = 1;
-		}
-	      else
-		error (_("marker %s not found"), b->static_trace_marker_id);
-	    }
-	  else
-	    sals = decode_line_1 (&s, 1, (struct symtab *) NULL, 0,
-				  (char ***) NULL, not_found_ptr);
-	}
-      if (e.reason < 0)
-	{
-	  int not_found_and_ok = 0;
-	  /* For pending breakpoints, it's expected that parsing will
-	     fail until the right shared library is loaded.  User has
-	     already told to create pending breakpoints and don't need
-	     extra messages.  If breakpoint is in bp_shlib_disabled
-	     state, then user already saw the message about that
-	     breakpoint being disabled, and don't want to see more
-	     errors.  */
-	  if (not_found 
-	      && (b->condition_not_parsed 
-		  || (b->loc && b->loc->shlib_disabled)
-		  || b->enable_state == bp_disabled))
-	    not_found_and_ok = 1;
-
-	  if (!not_found_and_ok)
-	    {
-	      /* We surely don't want to warn about the same breakpoint
-		 10 times.  One solution, implemented here, is disable
-		 the breakpoint on error.  Another solution would be to
-		 have separate 'warning emitted' flag.  Since this
-		 happens only when a binary has changed, I don't know
-		 which approach is better.  */
-	      b->enable_state = bp_disabled;
-	      throw_exception (e);
-	    }
-	}
-
-      if (!not_found)
-	{
-	  gdb_assert (sals.nelts == 1);
-
-	  resolve_sal_pc (&sals.sals[0]);
-	  if (b->condition_not_parsed && s && s[0])
-	    {
-	      char *cond_string = 0;
-	      int thread = -1;
-	      int task = 0;
-
-	      find_condition_and_thread (s, sals.sals[0].pc,
-					 &cond_string, &thread, &task);
-	      if (cond_string)
-		b->cond_string = cond_string;
-	      b->thread = thread;
-	      b->task = task;
-	      b->condition_not_parsed = 0;
-	    }
-
-	  if (b->type == bp_static_tracepoint && !marker_spec)
-	    sals.sals[0] = update_static_tracepoint (b, sals.sals[0]);
-
-	  expanded = expand_line_sal_maybe (sals.sals[0]);
-	}
-
-      make_cleanup (xfree, sals.sals);
-      update_breakpoint_locations (b, expanded);
+      re_set_breakpoint (b);
       break;
 
     case bp_watchpoint:
@@ -10664,10 +11431,10 @@ breakpoint_re_set_one (void *bint)
     case bp_exception:
     case bp_exception_resume:
     case bp_jit_event:
+    case bp_gnu_ifunc_resolver_return:
       break;
     }
 
-  do_cleanups (cleanups);
   return 0;
 }
 
@@ -10765,7 +11532,7 @@ set_ignore_count (int bptnum, int count, int from_tty)
 			     count, bptnum);
 	}
       breakpoints_changed ();
-      observer_notify_breakpoint_modified (b->number);
+      observer_notify_breakpoint_modified (b);
       return;
     }
 
@@ -10830,11 +11597,25 @@ map_breakpoint_numbers (char *args, void (*function) (struct breakpoint *,
 	  ALL_BREAKPOINTS_SAFE (b, tmp)
 	    if (b->number == num)
 	      {
-		struct breakpoint *related_breakpoint = b->related_breakpoint;
+		struct breakpoint *related_breakpoint;
+
 		match = 1;
-		function (b, data);
-		if (related_breakpoint)
-		  function (related_breakpoint, data);
+		related_breakpoint = b;
+		do
+		  {
+		    struct breakpoint *next_related_b;
+
+		    /* FUNCTION can be also delete_breakpoint.  */
+		    next_related_b = related_breakpoint->related_breakpoint;
+		    function (related_breakpoint, data);
+
+		    /* For delete_breakpoint of the last entry of the ring we
+		       were traversing we would never get back to B.  */
+		    if (next_related_b == related_breakpoint)
+		      break;
+		    related_breakpoint = next_related_b;
+		  }
+		while (related_breakpoint != b);
 		break;
 	      }
 	  if (match == 0)
@@ -10906,7 +11687,7 @@ disable_breakpoint (struct breakpoint *bpt)
 
   update_global_location_list (0);
 
-  observer_notify_breakpoint_modified (bpt->number);
+  observer_notify_breakpoint_modified (bpt);
 }
 
 /* A callback for map_breakpoint_numbers that calls
@@ -10921,31 +11702,14 @@ do_map_disable_breakpoint (struct breakpoint *b, void *ignore)
 static void
 disable_command (char *args, int from_tty)
 {
-  struct breakpoint *bpt;
-
   if (args == 0)
-    ALL_BREAKPOINTS (bpt)
-      switch (bpt->type)
-      {
-      case bp_none:
-	warning (_("attempted to disable apparently deleted breakpoint #%d?"),
-		 bpt->number);
-	break;
-      case bp_breakpoint:
-      case bp_tracepoint:
-      case bp_fast_tracepoint:
-      case bp_static_tracepoint:
-      case bp_catchpoint:
-      case bp_hardware_breakpoint:
-      case bp_watchpoint:
-      case bp_hardware_watchpoint:
-      case bp_read_watchpoint:
-      case bp_access_watchpoint:
-	disable_breakpoint (bpt);
-	break;
-      default:
-	break;
-      }
+    {
+      struct breakpoint *bpt;
+
+      ALL_BREAKPOINTS (bpt)
+	if (user_breakpoint_p (bpt))
+	  disable_breakpoint (bpt);
+    }
   else if (strchr (args, '.'))
     {
       struct bp_location *loc = find_location_by_number (args);
@@ -10977,14 +11741,19 @@ do_enable_breakpoint (struct breakpoint *bpt, enum bpdisp disposition)
 
   if (is_watchpoint (bpt))
     {
+      /* Initialize it just to avoid a GCC false warning.  */
+      enum enable_state orig_enable_state = 0;
       struct gdb_exception e;
 
       TRY_CATCH (e, RETURN_MASK_ALL)
 	{
+	  orig_enable_state = bpt->enable_state;
+	  bpt->enable_state = bp_enabled;
 	  update_watchpoint (bpt, 1 /* reparse */);
 	}
       if (e.reason < 0)
 	{
+	  bpt->enable_state = orig_enable_state;
 	  exception_fprintf (gdb_stderr, e, _("Cannot enable watchpoint %d: "),
 			     bpt->number);
 	  return;
@@ -10997,7 +11766,7 @@ do_enable_breakpoint (struct breakpoint *bpt, enum bpdisp disposition)
   update_global_location_list (1);
   breakpoints_changed ();
   
-  observer_notify_breakpoint_modified (bpt->number);
+  observer_notify_breakpoint_modified (bpt);
 }
 
 
@@ -11023,31 +11792,14 @@ do_map_enable_breakpoint (struct breakpoint *b, void *ignore)
 static void
 enable_command (char *args, int from_tty)
 {
-  struct breakpoint *bpt;
-
   if (args == 0)
-    ALL_BREAKPOINTS (bpt)
-      switch (bpt->type)
-      {
-      case bp_none:
-	warning (_("attempted to enable apparently deleted breakpoint #%d?"),
-		 bpt->number);
-	break;
-      case bp_breakpoint:
-      case bp_tracepoint:
-      case bp_fast_tracepoint:
-      case bp_static_tracepoint:
-      case bp_catchpoint:
-      case bp_hardware_breakpoint:
-      case bp_watchpoint:
-      case bp_hardware_watchpoint:
-      case bp_read_watchpoint:
-      case bp_access_watchpoint:
-	enable_breakpoint (bpt);
-	break;
-      default:
-	break;
-      }
+    {
+      struct breakpoint *bpt;
+
+      ALL_BREAKPOINTS (bpt)
+	if (user_breakpoint_p (bpt))
+	  enable_breakpoint (bpt);
+    }
   else if (strchr (args, '.'))
     {
       struct bp_location *loc = find_location_by_number (args);
@@ -11135,10 +11887,10 @@ decode_line_spec_1 (char *string, int funfirstline)
     sals = decode_line_1 (&string, funfirstline,
 			  default_breakpoint_symtab,
 			  default_breakpoint_line,
-			  (char ***) NULL, NULL);
+			  NULL);
   else
     sals = decode_line_1 (&string, funfirstline,
-			  (struct symtab *) NULL, 0, (char ***) NULL, NULL);
+			  (struct symtab *) NULL, 0, NULL);
   if (*string)
     error (_("Junk at end of line specification: %s"), string);
   return sals;
@@ -11590,24 +12342,19 @@ delete_trace_command (char *arg, int from_tty)
          have to be deleted with an explicit breakpoint number 
 	 argument.  */
       ALL_TRACEPOINTS (b)
-      {
-	if (b->number >= 0)
+	if (is_tracepoint (b) && user_breakpoint_p (b))
 	  {
 	    breaks_to_delete = 1;
 	    break;
 	  }
-      }
 
       /* Ask user only if there are some breakpoints to delete.  */
       if (!from_tty
 	  || (breaks_to_delete && query (_("Delete all tracepoints? "))))
 	{
 	  ALL_BREAKPOINTS_SAFE (b, b_tmp)
-	  {
-	    if (is_tracepoint (b)
-		&& b->number >= 0)
+	    if (is_tracepoint (b) && user_breakpoint_p (b))
 	      delete_breakpoint (b);
-	  }
 	}
     }
   else
@@ -11824,7 +12571,7 @@ save_breakpoints (char *filename, int from_tty,
     if (filter && !filter (tp))
       continue;
 
-    if (tp->ops != NULL)
+    if (tp->ops != NULL && tp->ops->print_recreate != NULL)
       (tp->ops->print_recreate) (tp, fp);
     else
       {
@@ -11952,7 +12699,7 @@ save_tracepoints_command (char *args, int from_tty)
 /* Create a vector of all tracepoints.  */
 
 VEC(breakpoint_p) *
-all_tracepoints ()
+all_tracepoints (void)
 {
   VEC(breakpoint_p) *tp_vec = 0;
   struct breakpoint *tp;
@@ -12580,7 +13327,23 @@ inferior in all-stop mode, gdb behaves as if always-inserted mode is off."),
 			   &show_always_inserted_mode,
 			   &breakpoint_set_cmdlist,
 			   &breakpoint_show_cmdlist);
-  
+
+  add_com ("break-range", class_breakpoint, break_range_command, _("\
+Set a breakpoint for an address range.\n\
+break-range START-LOCATION, END-LOCATION\n\
+where START-LOCATION and END-LOCATION can be one of the following:\n\
+  LINENUM, for that line in the current file,\n\
+  FILE:LINENUM, for that line in that file,\n\
+  +OFFSET, for that number of lines after the current line\n\
+           or the start of the range\n\
+  FUNCTION, for the first line in that function,\n\
+  FILE:FUNCTION, to distinguish among like-named static functions.\n\
+  *ADDRESS, for the instruction at that address.\n\
+\n\
+The breakpoint will stop execution of the inferior whenever it executes\n\
+an instruction at any address within the [START-LOCATION, END-LOCATION]\n\
+range (including START-LOCATION and END-LOCATION)."));
+
   automatic_hardware_breakpoints = 1;
 
   observer_attach_about_to_proceed (breakpoint_about_to_proceed);

@@ -30,6 +30,7 @@
 #include "exceptions.h"
 #include "event-loop.h"
 #include "serial.h"
+#include "python.h"
 
 #include <ctype.h>
 
@@ -39,7 +40,6 @@ static int gdbpy_should_print_stack = 1;
 
 #ifdef HAVE_PYTHON
 
-#include "python.h"
 #include "libiberty.h"
 #include "cli/cli-decode.h"
 #include "charset.h"
@@ -454,7 +454,7 @@ gdbpy_decode_line (PyObject *self, PyObject *args)
 	  arg = xstrdup (arg);
 	  make_cleanup (xfree, arg);
 	  copy = arg;
-	  sals = decode_line_1 (&copy, 0, 0, 0, 0, 0);
+	  sals = decode_line_1 (&copy, 0, 0, 0, 0);
 	  make_cleanup (xfree, sals.sals);
 	}
       else
@@ -681,23 +681,69 @@ gdbpy_initialize_events (void)
 /* Printing.  */
 
 /* A python function to write a single string using gdb's filtered
-   output stream.  */
+   output stream .  The optional keyword STREAM can be used to write
+   to a particular stream.  The default stream is to gdb_stdout.  */
+
 static PyObject *
-gdbpy_write (PyObject *self, PyObject *args)
+gdbpy_write (PyObject *self, PyObject *args, PyObject *kw)
 {
   char *arg;
-
-  if (! PyArg_ParseTuple (args, "s", &arg))
+  static char *keywords[] = {"text", "stream", NULL };
+  int stream_type = 0;
+  
+  if (! PyArg_ParseTupleAndKeywords (args, kw, "s|i", keywords, &arg,
+				     &stream_type))
     return NULL;
-  printf_filtered ("%s", arg);
+
+  switch (stream_type)
+    {
+    case 1:
+      {
+	fprintf_filtered (gdb_stderr, "%s", arg);
+	break;
+      }
+    case 2:
+      {
+	fprintf_filtered (gdb_stdlog, "%s", arg);
+	break;
+      }
+    default:
+      fprintf_filtered (gdb_stdout, "%s", arg);
+    }
+     
   Py_RETURN_NONE;
 }
 
-/* A python function to flush gdb's filtered output stream.  */
+/* A python function to flush a gdb stream.  The optional keyword
+   STREAM can be used to flush a particular stream.  The default stream
+   is gdb_stdout.  */
+
 static PyObject *
-gdbpy_flush (PyObject *self, PyObject *args)
+gdbpy_flush (PyObject *self, PyObject *args, PyObject *kw)
 {
-  gdb_flush (gdb_stdout);
+  static char *keywords[] = {"stream", NULL };
+  int stream_type = 0;
+  
+  if (! PyArg_ParseTupleAndKeywords (args, kw, "|i", keywords,
+				     &stream_type))
+    return NULL;
+
+  switch (stream_type)
+    {
+    case 1:
+      {
+	gdb_flush (gdb_stderr);
+	break;
+      }
+    case 2:
+      {
+	gdb_flush (gdb_stdlog);
+	break;
+      }
+    default:
+      gdb_flush (gdb_stdout);
+    }
+     
   Py_RETURN_NONE;
 }
 
@@ -864,6 +910,22 @@ source_python_script (FILE *stream, const char *file)
 	       _("Python scripting is not supported in this copy of GDB."));
 }
 
+int
+gdbpy_should_stop (struct breakpoint_object *bp_obj)
+{
+  internal_error (__FILE__, __LINE__,
+		  _("gdbpy_should_stop called when Python scripting is  " \
+		    "not supported."));
+}
+
+int
+gdbpy_breakpoint_has_py_cond (struct breakpoint_object *bp_obj)
+{
+  internal_error (__FILE__, __LINE__,
+		  _("gdbpy_breakpoint_has_py_cond called when Python " \
+		    "scripting is not supported."));
+}
+
 #endif /* HAVE_PYTHON */
 
 
@@ -959,6 +1021,11 @@ Enables or disables printing of Python stack traces."),
   PyModule_AddStringConstant (gdb_module, "TARGET_CONFIG",
 			      (char*) target_name);
 
+  /* Add stream constants.  */
+  PyModule_AddIntConstant (gdb_module, "STDOUT", 0);
+  PyModule_AddIntConstant (gdb_module, "STDERR", 1);
+  PyModule_AddIntConstant (gdb_module, "STDLOG", 2);
+  
   /* gdb.parameter ("data-directory") doesn't necessarily exist when the python
      script below is run (depending on order of _initialize_* functions).
      Define the initial value of gdb.PYTHONDIR here.  */
@@ -1052,7 +1119,7 @@ class GdbOutputFile:\n\
     return False\n\
 \n\
   def write(self, s):\n\
-    gdb.write(s)\n\
+    gdb.write(s, stream=gdb.STDOUT)\n   \
 \n\
   def writelines(self, iterable):\n\
     for line in iterable:\n\
@@ -1061,8 +1128,27 @@ class GdbOutputFile:\n\
   def flush(self):\n\
     gdb.flush()\n\
 \n\
-sys.stderr = GdbOutputFile()\n\
 sys.stdout = GdbOutputFile()\n\
+\n\
+class GdbOutputErrorFile:\n\
+  def close(self):\n\
+    # Do nothing.\n\
+    return None\n\
+\n\
+  def isatty(self):\n\
+    return False\n\
+\n\
+  def write(self, s):\n\
+    gdb.write(s, stream=gdb.STDERR)\n		\
+\n\
+  def writelines(self, iterable):\n\
+    for line in iterable:\n\
+      self.write(line)\n \
+\n\
+  def flush(self):\n\
+    gdb.flush()\n\
+\n\
+sys.stderr = GdbOutputErrorFile()\n\
 \n\
 # Ideally this would live in the gdb module, but it's intentionally written\n\
 # in python, and we need this to bootstrap the gdb module.\n\
@@ -1183,10 +1269,9 @@ Return the name of the current target wide charset." },
 Parse String and return an argv-like array.\n\
 Arguments are separate by spaces and may be quoted."
   },
-
-  { "write", gdbpy_write, METH_VARARGS,
+  { "write", (PyCFunction)gdbpy_write, METH_VARARGS | METH_KEYWORDS,
     "Write a string using gdb's filtered stream." },
-  { "flush", gdbpy_flush, METH_NOARGS,
+  { "flush", (PyCFunction)gdbpy_flush, METH_VARARGS | METH_KEYWORDS,
     "Flush gdb's filtered stdout stream." },
   { "selected_thread", gdbpy_selected_thread, METH_NOARGS,
     "selected_thread () -> gdb.InferiorThread.\n\

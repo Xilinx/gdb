@@ -49,7 +49,8 @@ struct bfin_spi
 #define mmr_base()      offsetof(struct bfin_spi, ctl)
 #define mmr_offset(mmr) (offsetof(struct bfin_spi, mmr) - mmr_base())
 
-static const char * const mmr_names[] = {
+static const char * const mmr_names[] =
+{
   "SPI_CTL", "SPI_FLG", "SPI_STAT", "SPI_TDBR",
   "SPI_RDBR", "SPI_BAUD", "SPI_SHADOW",
 };
@@ -87,7 +88,7 @@ bfin_spi_io_write_buffer (struct hw *me, const void *source, int space,
   switch (mmr_off)
     {
     case mmr_offset(stat):
-      dv_w1c_2 (valuep, value, SPIF | TXS | RXS);
+      dv_w1c_2 (valuep, value, ~(SPIF | TXS | RXS));
       break;
     case mmr_offset(tdbr):
       *valuep = value;
@@ -168,7 +169,8 @@ bfin_spi_dma_write_buffer (struct hw *me, const void *source,
   return 0;
 }
 
-static const struct hw_port_descriptor bfin_spi_ports[] = {
+static const struct hw_port_descriptor bfin_spi_ports[] =
+{
   { "stat", 0, 0, output_port, },
   { NULL, 0, 0, 0, },
 };
@@ -223,7 +225,8 @@ bfin_spi_finish (struct hw *me)
   spi->stat = 0x0001;
 }
 
-const struct hw_descriptor dv_bfin_spi_descriptor[] = {
+const struct hw_descriptor dv_bfin_spi_descriptor[] =
+{
   {"bfin_spi", bfin_spi_finish,},
   {NULL, NULL},
 };

@@ -26,7 +26,8 @@
 #include "sim-io.h"
 #include "sim-assert.h"
 
-struct hw_instance_data {
+struct hw_instance_data
+{
   hw_finish_instance_method *to_finish;
   struct hw_instance *instances;
 };
@@ -156,7 +157,7 @@ int
 hw_instance_call_method (struct hw_instance *instance,
 			 const char *method_name,
 			 int n_stack_args,
-			 unsigned_cell stack_args[/*n_stack_args*/],	
+			 unsigned_cell stack_args[/*n_stack_args*/],
 			 int n_stack_returns,
 			 unsigned_cell stack_returns[/*n_stack_args*/])
 {

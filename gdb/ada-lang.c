@@ -60,6 +60,7 @@
 
 #include "psymtab.h"
 #include "value.h"
+#include "mi/mi-common.h"
 
 /* Define whether or not the C operator '/' truncates towards zero for
    differently signed operands (truncation direction is undefined in C).
@@ -1732,7 +1733,8 @@ ada_is_simple_array_type (struct type *type)
   type = ada_check_typedef (type);
   return (TYPE_CODE (type) == TYPE_CODE_ARRAY
           || (TYPE_CODE (type) == TYPE_CODE_PTR
-              && TYPE_CODE (TYPE_TARGET_TYPE (type)) == TYPE_CODE_ARRAY));
+              && TYPE_CODE (ada_check_typedef (TYPE_TARGET_TYPE (type)))
+                 == TYPE_CODE_ARRAY));
 }
 
 /* Non-zero iff TYPE belongs to a GNAT array descriptor.  */
@@ -2577,14 +2579,15 @@ static struct value *
 ada_value_slice_from_ptr (struct value *array_ptr, struct type *type,
                           int low, int high)
 {
+  struct type *type0 = ada_check_typedef (type);
   CORE_ADDR base = value_as_address (array_ptr)
-    + ((low - ada_discrete_type_low_bound (TYPE_INDEX_TYPE (type)))
-       * TYPE_LENGTH (TYPE_TARGET_TYPE (type)));
+    + ((low - ada_discrete_type_low_bound (TYPE_INDEX_TYPE (type0)))
+       * TYPE_LENGTH (TYPE_TARGET_TYPE (type0)));
   struct type *index_type =
-    create_range_type (NULL, TYPE_TARGET_TYPE (TYPE_INDEX_TYPE (type)),
+    create_range_type (NULL, TYPE_TARGET_TYPE (TYPE_INDEX_TYPE (type0)),
                        low, high);
   struct type *slice_type =
-    create_array_type (NULL, TYPE_TARGET_TYPE (type), index_type);
+    create_array_type (NULL, TYPE_TARGET_TYPE (type0), index_type);
 
   return value_at_lazy (slice_type, base);
 }
@@ -2593,7 +2596,7 @@ ada_value_slice_from_ptr (struct value *array_ptr, struct type *type,
 static struct value *
 ada_value_slice (struct value *array, int low, int high)
 {
-  struct type *type = value_type (array);
+  struct type *type = ada_check_typedef (value_type (array));
   struct type *index_type =
     create_range_type (NULL, TYPE_INDEX_TYPE (type), low, high);
   struct type *slice_type =
@@ -2802,10 +2805,11 @@ ada_array_length (struct value *arr, int n)
 static struct value *
 empty_array (struct type *arr_type, int low)
 {
+  struct type *arr_type0 = ada_check_typedef (arr_type);
   struct type *index_type =
-    create_range_type (NULL, TYPE_TARGET_TYPE (TYPE_INDEX_TYPE (arr_type)),
+    create_range_type (NULL, TYPE_TARGET_TYPE (TYPE_INDEX_TYPE (arr_type0)),
                        low, low - 1);
-  struct type *elt_type = ada_array_element_type (arr_type, 1);
+  struct type *elt_type = ada_array_element_type (arr_type0, 1);
 
   return allocate_value (create_array_type (NULL, elt_type, index_type));
 }
@@ -3655,12 +3659,13 @@ replace_operator_with_call (struct expression **expp, int pc, int nargs,
   /* A new expression, with 6 more elements (3 for funcall, 4 for function
      symbol, -oplen for operator being replaced).  */
   struct expression *newexp = (struct expression *)
-    xmalloc (sizeof (struct expression)
+    xzalloc (sizeof (struct expression)
              + EXP_ELEM_TO_BYTES ((*expp)->nelts + 7 - oplen));
   struct expression *exp = *expp;
 
   newexp->nelts = exp->nelts + 7 - oplen;
   newexp->language_defn = exp->language_defn;
+  newexp->gdbarch = exp->gdbarch;
   memcpy (newexp->elts, exp->elts, EXP_ELEM_TO_BYTES (pc));
   memcpy (newexp->elts + pc + 7, exp->elts + pc + oplen,
           EXP_ELEM_TO_BYTES (exp->nelts - pc - oplen));
@@ -5485,7 +5490,7 @@ symbol_completion_add (VEC(char_ptr) **sv,
 }
 
 /* An object of this type is passed as the user_data argument to the
-   map_partial_symbol_names method.  */
+   expand_partial_symbol_names method.  */
 struct add_partial_datum
 {
   VEC(char_ptr) **completions;
@@ -5497,15 +5502,14 @@ struct add_partial_datum
   int encoded;
 };
 
-/* A callback for map_partial_symbol_names.  */
-static void
-ada_add_partial_symbol_completions (const char *name, void *user_data)
+/* A callback for expand_partial_symbol_names.  */
+static int
+ada_expand_partial_symbol_name (const char *name, void *user_data)
 {
   struct add_partial_datum *data = user_data;
-
-  symbol_completion_add (data->completions, name,
-			 data->text, data->text_len, data->text0, data->word,
-			 data->wild_match, data->encoded);
+  
+  return symbol_completion_match (name, data->text, data->text_len,
+                                  data->wild_match, data->encoded) != NULL;
 }
 
 /* Return a list of possible symbol names completing TEXT0.  The list
@@ -5563,7 +5567,7 @@ ada_make_symbol_completion_list (char *text0, char *word)
     data.word = word;
     data.wild_match = wild_match;
     data.encoded = encoded;
-    map_partial_symbol_names (ada_add_partial_symbol_completions, &data);
+    expand_partial_symbol_names (ada_expand_partial_symbol_name, &data);
   }
 
   /* At this point scan through the misc symbol vectors and add each
@@ -7550,6 +7554,7 @@ to_fixed_array_type (struct type *type0, struct value *dval,
   struct type *result;
   int constrained_packed_array_p;
 
+  type0 = ada_check_typedef (type0);
   if (TYPE_FIXED_INSTANCE (type0))
     return type0;
 
@@ -10744,40 +10749,63 @@ ada_exception_name_addr (enum exception_catchpoint_kind ex,
 static enum print_stop_action
 print_it_exception (enum exception_catchpoint_kind ex, struct breakpoint *b)
 {
-  const CORE_ADDR addr = ada_exception_name_addr (ex, b);
-  char exception_name[256];
+  annotate_catchpoint (b->number);
 
-  if (addr != 0)
+  if (ui_out_is_mi_like_p (uiout))
     {
-      read_memory (addr, exception_name, sizeof (exception_name) - 1);
-      exception_name [sizeof (exception_name) - 1] = '\0';
+      ui_out_field_string (uiout, "reason",
+			   async_reason_lookup (EXEC_ASYNC_BREAKPOINT_HIT));
+      ui_out_field_string (uiout, "disp", bpdisp_text (b->disposition));
     }
 
-  ada_find_printable_frame (get_current_frame ());
+  ui_out_text (uiout, "\nCatchpoint ");
+  ui_out_field_int (uiout, "bkptno", b->number);
+  ui_out_text (uiout, ", ");
 
-  annotate_catchpoint (b->number);
   switch (ex)
     {
       case ex_catch_exception:
-        if (addr != 0)
-          printf_filtered (_("\nCatchpoint %d, %s at "),
-                           b->number, exception_name);
-        else
-          printf_filtered (_("\nCatchpoint %d, exception at "), b->number);
-        break;
       case ex_catch_exception_unhandled:
-        if (addr != 0)
-          printf_filtered (_("\nCatchpoint %d, unhandled %s at "),
-                           b->number, exception_name);
-        else
-          printf_filtered (_("\nCatchpoint %d, unhandled exception at "),
-                           b->number);
-        break;
+	{
+	  const CORE_ADDR addr = ada_exception_name_addr (ex, b);
+	  char exception_name[256];
+
+	  if (addr != 0)
+	    {
+	      read_memory (addr, exception_name, sizeof (exception_name) - 1);
+	      exception_name [sizeof (exception_name) - 1] = '\0';
+	    }
+	  else
+	    {
+	      /* For some reason, we were unable to read the exception
+		 name.  This could happen if the Runtime was compiled
+		 without debugging info, for instance.  In that case,
+		 just replace the exception name by the generic string
+		 "exception" - it will read as "an exception" in the
+		 notification we are about to print.  */
+	      sprintf (exception_name, "exception");
+	    }
+	  /* In the case of unhandled exception breakpoints, we print
+	     the exception name as "unhandled EXCEPTION_NAME", to make
+	     it clearer to the user which kind of catchpoint just got
+	     hit.  We used ui_out_text to make sure that this extra
+	     info does not pollute the exception name in the MI case.  */
+	  if (ex == ex_catch_exception_unhandled)
+	    ui_out_text (uiout, "unhandled ");
+	  ui_out_field_string (uiout, "exception-name", exception_name);
+	}
+	break;
       case ex_catch_assert:
-        printf_filtered (_("\nCatchpoint %d, failed assertion at "),
-                         b->number);
-        break;
+	/* In this case, the name of the exception is not really
+	   important.  Just print "failed assertion" to make it clearer
+	   that his program just hit an assertion-failure catchpoint.
+	   We used ui_out_text because this info does not belong in
+	   the MI output.  */
+	ui_out_text (uiout, "failed assertion");
+	break;
     }
+  ui_out_text (uiout, " at ");
+  ada_find_printable_frame (get_current_frame ());
 
   return PRINT_SRC_AND_LOC;
 }
@@ -10922,8 +10950,10 @@ static struct breakpoint_ops catch_exception_breakpoint_ops =
   NULL, /* remove */
   NULL, /* breakpoint_hit */
   NULL, /* resources_needed */
+  NULL, /* works_in_software_mode */
   print_it_catch_exception,
   print_one_catch_exception,
+  NULL, /* print_one_detail */
   print_mention_catch_exception,
   print_recreate_catch_exception
 };
@@ -10961,8 +10991,10 @@ static struct breakpoint_ops catch_exception_unhandled_breakpoint_ops = {
   NULL, /* remove */
   NULL, /* breakpoint_hit */
   NULL, /* resources_needed */
+  NULL, /* works_in_software_mode */
   print_it_catch_exception_unhandled,
   print_one_catch_exception_unhandled,
+  NULL, /* print_one_detail */
   print_mention_catch_exception_unhandled,
   print_recreate_catch_exception_unhandled
 };
@@ -10998,8 +11030,10 @@ static struct breakpoint_ops catch_assert_breakpoint_ops = {
   NULL, /* remove */
   NULL, /* breakpoint_hit */
   NULL, /* resources_needed */
+  NULL, /* works_in_software_mode */
   print_it_catch_assert,
   print_one_catch_assert,
+  NULL, /* print_one_detail */
   print_mention_catch_assert,
   print_recreate_catch_assert
 };

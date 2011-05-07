@@ -1,7 +1,27 @@
 		What has changed in GDB?
 	     (Organized release by release)
 
-*** Changes since GDB 7.2
+*** Changes since GDB 7.3
+
+* When natively debugging programs on PowerPC BookE processors running
+  a Linux kernel version 2.6.34 or later, GDB supports masked hardware
+  watchpoints, which specify a mask in addition to an address to watch.
+  The mask specifies that some bits of an address (the bits which are
+  reset in the mask) should be ignored when matching the address accessed
+  by the inferior against the watchpoint address.  See the "PowerPC Embedded"
+  section in the user manual for more details.
+
+* The new option --once causes GDBserver to stop listening for connections once
+  the first connection is made.  The listening port used by GDBserver will
+  become available after that.
+
+* Changed commands
+
+watch EXPRESSION mask MASK_VALUE
+  The watch command now supports the mask argument which allows creation
+  of masked watchpoints, if the current architecture supports this feature.
+
+*** Changes in GDB 7.3
 
 * GDB has a new command: "thread find [REGEXP]".
   It finds the thread id whose name, target id, or thread extra info
@@ -38,6 +58,23 @@
 
 * Python scripting
 
+  ** The function gdb.Write now accepts an optional keyword 'stream'.
+     This keyword, when provided, will direct the output to either
+     stdout, stderr, or GDB's logging output.
+
+  ** Parameters can now be be sub-classed in Python, and in particular
+     you may implement the get_set_doc and get_show_doc functions.
+     This improves how Parameter set/show documentation is processed
+     and allows for more dynamic content.
+
+  ** Symbols, Symbol Table, Symbol Table and Line, Object Files,
+     Inferior, Inferior Thread, Blocks, and Block Iterator APIs now
+     have an is_valid method.
+
+  ** Breakpoints can now be sub-classed in Python, and in particular
+     you may implement a 'stop' function that is executed each time
+     the inferior reaches that breakpoint.   
+
   ** New function gdb.lookup_global_symbol looks up a global symbol.
 
   ** GDB values in Python are now callable if the value represents a
@@ -70,15 +107,7 @@
 
   ** Python Support for Inferior events.
      Python scripts can add observers to be notified of events
-     occurring the in process being debugged.
-     The following events are currently supported:
-     - gdb.events.cont Continue event.
-     - gdb.events.exited Inferior exited event.
-     - gdb.events.stop Signal received, and Breakpoint hit events.
-
-  ** Python Support for Inferior events.
-     Python scripts can add observers to be notified of events
-     occurring the in process being debugged.
+     occurring in the process being debugged.
      The following events are currently supported:
      - gdb.events.cont Continue event.
      - gdb.events.exited Inferior exited event.
@@ -147,6 +176,12 @@
   libthread_db library with the "set libthread-db-search-path"
   command.  See the user manual for more details on this command.
 
+* When natively debugging programs on PowerPC BookE processors running
+  a Linux kernel version 2.6.34 or later, GDB supports ranged breakpoints,
+  which stop execution of the inferior whenever it executes an instruction
+  at any address within the specified range.  See the "PowerPC Embedded"
+  section in the user manual for more details.
+
 * New features in the GDB remote stub, GDBserver
 
   ** GDBserver is now supported on PowerPC LynxOS (versions 4.x and 5.x),
@@ -172,6 +207,8 @@ Analog Devices, Inc. Blackfin Processor	bfin-*
 * New features in the GNU simulator
 
   ** The --map-info flag lists all known core mappings.
+
+  ** CFI flashes may be simulated via the "cfi" device.
 
 *** Changes in GDB 7.2
 

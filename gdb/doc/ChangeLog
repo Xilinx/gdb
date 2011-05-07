@@ -1,3 +1,112 @@
+2011-05-06  Sergio Durigan Junior  <sergiodj@linux.vnet.ibm.com>
+	    Thiago Jung Bauermann  <bauerman@br.ibm.com>
+
+	Implement support for PowerPC BookE masked watchpoints.
+	* gdb.texinfo (Set Watchpoints): Document mask parameter.
+	(PowerPC Embedded): Mention support of masked watchpoints.
+
+2011-05-03  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.texinfo (In Memoriam): Replace litteral uses of `GDB' with
+	`@value{GDBN}'.
+
+2011-05-03  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.texinfo (titlepage): Remove dedication.
+	(In Memoriam): New appendix.
+
+2011-04-27  Jan Kratochvil  <jan.kratochvil@redhat.com>
+	    Eli Zaretskii  <eliz@gnu.org>
+
+	* gdb.texinfo (Index Section Format): Change the version to 5.
+	Describe the different formula.
+
+2011-04-24  Jan Kratochvil  <jan.kratochvil@redhat.com>
+	    Eli Zaretskii  <eliz@gnu.org>
+
+	* gdb.texinfo (Starting and Stopping Trace Experiments): New anchor
+	for disconnected tracing.
+	(Multi-Process Mode for @code{gdbserver}): Mention --multi and
+	extended-remote relationship.  Mention --once.
+	(TCP port allocation lifecycle of @code{gdbserver}): New.
+
+2011-04-23  Eli Zaretskii  <eliz@gnu.org>
+
+	* gdb.texinfo (Server): Improve indexing.  Index all optional
+	switches to gdbserver.
+
+2011-04-20  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.texinfo (Index Section Format): New node.
+	(Top): Add new node to menu.
+
+2011-04-20  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.texinfo (Maintenance Commands): Document `maint print
+	remote-registers'.
+
+2011-04-20  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.texinfo (Trace File Format): Move node later.
+
+2011-04-19  Tom Tromey  <tromey@redhat.com>
+
+	* gdbint.texinfo (Register Information Functions): Remove
+	duplicate "the".
+	* gdb.texinfo (Emacs): Remove duplicate "to".
+	(GDB/MI Variable Objects): Remove duplicate "the".
+	(General Query Packets): Likewise.
+
+2011-04-02  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.texinfo (GDB/MI Output Records): Fix menu entry for
+	"GDB/MI Ada Exception Information" node.
+
+2011-04-01  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.texinfo (GDB/MI Ada Exception Information): Document
+	the "exception-name" field in the *stopped async record.
+
+2011-03-31  Thiago Jung Bauermann  <bauerman@br.ibm.com>
+	    Sergio Durigan Junior  <sergiodj@linux.vnet.ibm.com>
+
+	Implement support for PowerPC BookE ranged breakpoints.
+	* gdb.texinfo (PowerPC Embedded): Document ranged breakpoints.
+
+2011-03-28  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.texinfo (Set Tracepoints): Fix typo.
+
+2011-03-24  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.texinfo (Specify Location): Document `function:label'
+	linespec.
+
+2011-03-18  Phil Muldoon  <pmuldoon@redhat.com>
+
+	PR python/12149
+
+	* gdb.texinfo (Basic Python): Update gdb.write and flush text.
+
+2011-03-17  Phil Muldoon  <pmuldoon@redhat.com>
+
+	* gdb.texinfo (Blocks In Python): Add is_valid method description.
+	(Inferiors In Python): Likewise.
+	(Threads In Python): Likewise.
+	(Symbols In Python): Likewise.
+	(Objfiles In Python): Likewise.
+	(Symbol Tables In Python): Likewise.
+
+2011-03-15  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.texinfo (Auto Display) <undisplay, enable display, disable
+	display>: Explain that the commands accept number ranges.
+
+2011-03-14  Phil Muldoon  <pmuldoon@redhat.com>
+
+	* gdb.texinfo (Breakpoints In Python): Add description and example
+	of Python stop function operation.
+
 2011-03-10  Phil Muldoon  <pmuldoon@redhat.com>
 
 	* gdb.texinfo (Parameters In Python): Document get_set_string and

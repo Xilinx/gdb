@@ -883,7 +883,7 @@ ada_demangle (const char *mangled, int option ATTRIBUTE_UNUSED)
   int len0;
   const char* p;
   char *d;
-  char *demangled = NULL;
+  char *demangled;
   
   /* Discard leading _ada_, which is used for library level subprograms.  */
   if (strncmp (mangled, "_ada_", 5) == 0)
@@ -1129,11 +1129,10 @@ ada_demangle (const char *mangled, int option ATTRIBUTE_UNUSED)
 
  unknown:
   len0 = strlen (mangled);
-  free (demangled);
   demangled = XNEWVEC (char, len0 + 3);
 
   if (mangled[0] == '<')
-    strcpy (demangled, mangled);
+     strcpy (demangled, mangled);
   else
     sprintf (demangled, "<%s>", mangled);
 
@@ -1312,8 +1311,7 @@ delete_non_B_K_work_stuff (struct work_stuff *work)
       int i;
 
       for (i = 0; i < work->ntmpl_args; i++)
-	if (work->tmpl_argvec[i])
-	  free ((char*) work->tmpl_argvec[i]);
+	free ((char*) work->tmpl_argvec[i]);
 
       free ((char*) work->tmpl_argvec);
       work->tmpl_argvec = NULL;

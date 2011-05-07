@@ -643,7 +643,7 @@ void
 patch_subfile_names (struct subfile *subfile, char *name)
 {
   if (subfile != NULL && subfile->dirname == NULL && subfile->name != NULL
-      && subfile->name[strlen (subfile->name) - 1] == '/')
+      && IS_DIR_SEPARATOR (subfile->name[strlen (subfile->name) - 1]))
     {
       subfile->dirname = subfile->name;
       subfile->name = xstrdup (name);
@@ -878,7 +878,7 @@ watch_main_source_file_lossage (void)
 	   subfile->next;
 	   subfile = subfile->next)
 	{
-	  if (strcmp (lbasename (subfile->name), mainbase) == 0)
+	  if (filename_cmp (lbasename (subfile->name), mainbase) == 0)
 	    {
 	      ++nr_matches;
 	      mainsub_alias = subfile;
@@ -1100,8 +1100,6 @@ end_symtab (CORE_ADDR end_addr, struct objfile *objfile, int section)
 	    {
 	      symtab->dirname = NULL;
 	    }
-	  symtab->free_code = free_linetable;
-	  symtab->free_func = NULL;
 
 	  /* Use whatever language we have been using for this
 	     subfile, not the one that was deduced in allocate_symtab
@@ -1112,18 +1110,10 @@ end_symtab (CORE_ADDR end_addr, struct objfile *objfile, int section)
 	  symtab->language = subfile->language;
 
 	  /* Save the debug format string (if any) in the symtab.  */
-	  if (subfile->debugformat != NULL)
-	    {
-	      symtab->debugformat = obsavestring (subfile->debugformat,
-					      strlen (subfile->debugformat),
-						  &objfile->objfile_obstack);
-	    }
+	  symtab->debugformat = subfile->debugformat;
 
 	  /* Similarly for the producer.  */
-	  if (subfile->producer != NULL)
-	    symtab->producer = obsavestring (subfile->producer,
-					     strlen (subfile->producer),
-					     &objfile->objfile_obstack);
+	  symtab->producer = subfile->producer;
 
 	  /* All symtabs for the main file and the subfiles share a
 	     blockvector, so we need to clear primary for everything
@@ -1169,12 +1159,6 @@ end_symtab (CORE_ADDR end_addr, struct objfile *objfile, int section)
 	{
 	  xfree ((void *) subfile->line_vector);
 	}
-      if (subfile->debugformat != NULL)
-	{
-	  xfree ((void *) subfile->debugformat);
-	}
-      if (subfile->producer != NULL)
-	xfree (subfile->producer);
 
       nextsub = subfile->next;
       xfree ((void *) subfile);
@@ -1279,20 +1263,15 @@ hashname (char *name)
 
 
 void
-record_debugformat (char *format)
+record_debugformat (const char *format)
 {
-  current_subfile->debugformat = xstrdup (format);
+  current_subfile->debugformat = format;
 }
 
 void
 record_producer (const char *producer)
 {
-  /* The producer is not always provided in the debugging info.
-     Do nothing if PRODUCER is NULL.  */
-  if (producer == NULL)
-    return;
-
-  current_subfile->producer = xstrdup (producer);
+  current_subfile->producer = producer;
 }
 
 /* Merge the first symbol list SRCLIST into the second symbol list

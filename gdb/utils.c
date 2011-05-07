@@ -581,7 +581,7 @@ free_current_contents (void *ptr)
 }
 
 /* Provide a known function that does nothing, to use as a base for
-   for a possibly long chain of cleanups.  This is useful where we
+   a possibly long chain of cleanups.  This is useful where we
    use the cleanup chain for handling normal cleanups as well as dealing
    with cleanups that need to be done as a result of a call to error().
    In such cases, we may not be certain where the first cleanup is, unless
@@ -657,10 +657,10 @@ report_command_stats (void *arg)
       long space_diff = space_now - start_stats->start_space;
 
       printf_unfiltered (msg_type == 0
-			 ? _("Space used: %ld (%c%ld during startup)\n")
-			 : _("Space used: %ld (%c%ld for this command)\n"),
+			 ? _("Space used: %ld (%s%ld during startup)\n")
+			 : _("Space used: %ld (%s%ld for this command)\n"),
 			 space_now,
-			 (space_diff >= 0 ? '+' : '-'),
+			 (space_diff >= 0 ? "+" : ""),
 			 space_diff);
 #endif
     }
@@ -2974,10 +2974,12 @@ strcmp_iw (const char *string1, const char *string2)
 	{
 	  string2++;
 	}
-      if (*string1 != *string2)
-	{
-	  break;
-	}
+      if (case_sensitivity == case_sensitive_on && *string1 != *string2)
+	break;
+      if (case_sensitivity == case_sensitive_off
+	  && (tolower ((unsigned char) *string1)
+	      != tolower ((unsigned char) *string2)))
+	break;
       if (*string1 != '\0')
 	{
 	  string1++;
@@ -2997,6 +2999,10 @@ strcmp_iw (const char *string1, const char *string2)
    find names in the list that match some fixed NAME according to
    strcmp_iw(LIST_ELT, NAME), then the place to start looking is right
    where this function would put NAME.
+
+   This function must be neutral to the CASE_SENSITIVITY setting as the user
+   may choose it during later lookup.  Therefore this function always sorts
+   primarily case-insensitively and secondarily case-sensitively.
 
    Here are some examples of why using strcmp to sort is a bad idea:
 
@@ -3023,47 +3029,78 @@ strcmp_iw (const char *string1, const char *string2)
 int
 strcmp_iw_ordered (const char *string1, const char *string2)
 {
-  while ((*string1 != '\0') && (*string2 != '\0'))
-    {
-      while (isspace (*string1))
-	{
-	  string1++;
-	}
-      while (isspace (*string2))
-	{
-	  string2++;
-	}
-      if (*string1 != *string2)
-	{
-	  break;
-	}
-      if (*string1 != '\0')
-	{
-	  string1++;
-	  string2++;
-	}
-    }
+  const char *saved_string1 = string1, *saved_string2 = string2;
+  enum case_sensitivity case_pass = case_sensitive_off;
 
-  switch (*string1)
+  for (;;)
     {
-      /* Characters are non-equal unless they're both '\0'; we want to
-	 make sure we get the comparison right according to our
-	 comparison in the cases where one of them is '\0' or '('.  */
-    case '\0':
-      if (*string2 == '\0')
+      /* C1 and C2 are valid only if *string1 != '\0' && *string2 != '\0'.
+	 Provide stub characters if we are already at the end of one of the
+	 strings.  */
+      char c1 = 'X', c2 = 'X';
+
+      while (*string1 != '\0' && *string2 != '\0')
+	{
+	  while (isspace (*string1))
+	    string1++;
+	  while (isspace (*string2))
+	    string2++;
+
+	  switch (case_pass)
+	  {
+	    case case_sensitive_off:
+	      c1 = tolower ((unsigned char) *string1);
+	      c2 = tolower ((unsigned char) *string2);
+	      break;
+	    case case_sensitive_on:
+	      c1 = *string1;
+	      c2 = *string2;
+	      break;
+	  }
+	  if (c1 != c2)
+	    break;
+
+	  if (*string1 != '\0')
+	    {
+	      string1++;
+	      string2++;
+	    }
+	}
+
+      switch (*string1)
+	{
+	  /* Characters are non-equal unless they're both '\0'; we want to
+	     make sure we get the comparison right according to our
+	     comparison in the cases where one of them is '\0' or '('.  */
+	case '\0':
+	  if (*string2 == '\0')
+	    break;
+	  else
+	    return -1;
+	case '(':
+	  if (*string2 == '\0')
+	    return 1;
+	  else
+	    return -1;
+	default:
+	  if (*string2 == '\0' || *string2 == '(')
+	    return 1;
+	  else if (c1 > c2)
+	    return 1;
+	  else if (c1 < c2)
+	    return -1;
+	  /* PASSTHRU */
+	}
+
+      if (case_pass == case_sensitive_on)
 	return 0;
-      else
-	return -1;
-    case '(':
-      if (*string2 == '\0')
-	return 1;
-      else
-	return -1;
-    default:
-      if (*string2 == '(')
-	return 1;
-      else
-	return *string1 - *string2;
+      
+      /* Otherwise the strings were equal in case insensitive way, make
+	 a more fine grained comparison in a case sensitive way.  */
+
+      case_pass = case_sensitive_on;
+      string1 = saved_string1;
+      string2 = saved_string2;
     }
 }
 
@@ -3222,6 +3259,25 @@ paddress (struct gdbarch *gdbarch, CORE_ADDR addr)
   if (addr_bit < (sizeof (CORE_ADDR) * HOST_CHAR_BIT))
     addr &= ((CORE_ADDR) 1 << addr_bit) - 1;
   return hex_string (addr);
+}
+
+/* This function is described in "defs.h".  */
+
+const char *
+print_core_address (struct gdbarch *gdbarch, CORE_ADDR address)
+{
+  int addr_bit = gdbarch_addr_bit (gdbarch);
+
+  if (addr_bit < (sizeof (CORE_ADDR) * HOST_CHAR_BIT))
+    address &= ((CORE_ADDR) 1 << addr_bit) - 1;
+
+  /* FIXME: cagney/2002-05-03: Need local_address_string() function
+     that returns the language localized string formatted to a width
+     based on gdbarch_addr_bit.  */
+  if (addr_bit <= 32)
+    return hex_string_custom (address, 8);
+  else
+    return hex_string_custom (address, 16);
 }
 
 static char *
@@ -3586,7 +3642,7 @@ gdb_realpath (const char *filename)
   /* FIXME: cagney/2002-11-13:
 
      Method 2a: Use realpath() with a NULL buffer.  Some systems, due
-     to the problems described in in method 3, have modified their
+     to the problems described in method 3, have modified their
      realpath() implementation so that it will allocate a buffer when
      NULL is passed in.  Before this can be used, though, some sort of
      configure time test would need to be added.  Otherwize the code

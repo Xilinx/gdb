@@ -107,14 +107,11 @@
 #define	YYDEBUG	0		/* Default to no yydebug support.  */
 #endif
 
-int
-yyparse (void);
+int yyparse (void);
 
-static int
-yylex (void);
+static int yylex (void);
 
-void
-yyerror (char *);
+void yyerror (char *);
 
 %}
 
@@ -150,8 +147,7 @@ yyerror (char *);
 
 %{
 /* YYSTYPE gets defined by %union.  */
-static int
-parse_number (char *, int, int, YYSTYPE *);
+static int parse_number (char *, int, int, YYSTYPE *);
 %}
 
 %type <voidval> exp exp1 type_exp start variable qualified_name lcurly
@@ -336,7 +332,7 @@ exp	: 	'[' TYPENAME
 			  class = lookup_objc_class (parse_gdbarch,
 						     copy_name ($2.stoken));
 			  if (class == 0)
-			    error ("%s is not an ObjC Class", 
+			    error (_("%s is not an ObjC Class"), 
 				   copy_name ($2.stoken));
 			  write_exp_elt_opcode (OP_LONG);
 			  write_exp_elt_type (parse_type->builtin_int);
@@ -629,7 +625,7 @@ block	:	BLOCKNAME
 				$$ = BLOCKVECTOR_BLOCK (BLOCKVECTOR (tem),
 							STATIC_BLOCK);
 			      else
-				error ("No file or function \"%s\".",
+				error (_("No file or function \"%s\"."),
 				       copy_name ($1.stoken));
 			    }
 			}
@@ -640,7 +636,7 @@ block	:	block COLONCOLON name
 			    = lookup_symbol (copy_name ($3), $1,
 					     VAR_DOMAIN, (int *) NULL);
 			  if (!tem || SYMBOL_CLASS (tem) != LOC_BLOCK)
-			    error ("No function \"%s\" in specified context.",
+			    error (_("No function \"%s\" in specified context."),
 				   copy_name ($3));
 			  $$ = SYMBOL_BLOCK_VALUE (tem); }
 	;
@@ -650,7 +646,7 @@ variable:	block COLONCOLON name
 			  sym = lookup_symbol (copy_name ($3), $1,
 					       VAR_DOMAIN, (int *) NULL);
 			  if (sym == 0)
-			    error ("No symbol \"%s\" in specified context.",
+			    error (_("No symbol \"%s\" in specified context."),
 				   copy_name ($3));
 
 			  write_exp_elt_opcode (OP_VAR_VALUE);
@@ -665,7 +661,7 @@ qualified_name:	typebase COLONCOLON name
 			  struct type *type = $1;
 			  if (TYPE_CODE (type) != TYPE_CODE_STRUCT
 			      && TYPE_CODE (type) != TYPE_CODE_UNION)
-			    error ("`%s' is not defined as an aggregate type.",
+			    error (_("`%s' is not defined as an aggregate type."),
 				   TYPE_NAME (type));
 
 			  write_exp_elt_opcode (OP_SCOPE);
@@ -679,11 +675,11 @@ qualified_name:	typebase COLONCOLON name
 			  struct stoken tmp_token;
 			  if (TYPE_CODE (type) != TYPE_CODE_STRUCT
 			      && TYPE_CODE (type) != TYPE_CODE_UNION)
-			    error ("`%s' is not defined as an aggregate type.",
+			    error (_("`%s' is not defined as an aggregate type."),
 				   TYPE_NAME (type));
 
 			  if (strcmp (type_name_no_tag (type), $4.ptr) != 0)
-			    error ("invalid destructor `%s::~%s'",
+			    error (_("invalid destructor `%s::~%s'"),
 				   type_name_no_tag (type), $4.ptr);
 
 			  tmp_token.ptr = (char*) alloca ($4.length + 2);
@@ -722,10 +718,10 @@ variable:	qualified_name
 			    write_exp_msymbol (msymbol);
 			  else if (!have_full_symbols ()
 				   && !have_partial_symbols ())
-			    error ("No symbol table is loaded.  "
-				   "Use the \"file\" command.");
+			    error (_("No symbol table is loaded.  "
+				   "Use the \"file\" command."));
 			  else
-			    error ("No symbol \"%s\" in current context.",
+			    error (_("No symbol \"%s\" in current context."),
 				   name);
 			}
 	;
@@ -776,10 +772,10 @@ variable:	name_not_typename
 				write_exp_msymbol (msymbol);
 			      else if (!have_full_symbols () && 
 				       !have_partial_symbols ())
-				error ("No symbol table is loaded.  "
-				       "Use the \"file\" command.");
+				error (_("No symbol table is loaded.  "
+				       "Use the \"file\" command."));
 			      else
-				error ("No symbol \"%s\" in current context.",
+				error (_("No symbol \"%s\" in current context."),
 				       copy_name ($1.stoken));
 			    }
 			}
@@ -862,7 +858,7 @@ typebase  /* Implements (approximately): (type-qualifier)* type-specifier.  */
 	|	CLASSNAME
 			{
 			  if ($1.type == NULL)
-			    error ("No symbol \"%s\" in current context.", 
+			    error (_("No symbol \"%s\" in current context."), 
 				   copy_name($1.stoken));
 			  else
 			    $$ = $1.type;
@@ -1106,7 +1102,7 @@ parse_number (p, len, parsed_float, putithere)
       if (c != 'l' && c != 'u' && n != 0)
 	{	
 	  if ((unsigned_p && (unsigned LONGEST) prevn >= (unsigned LONGEST) n))
-	    error ("Numeric constant too large.");
+	    error (_("Numeric constant too large."));
 	}
       prevn = n;
     }
@@ -1218,7 +1214,7 @@ static const struct token tokentab2[] =
 /* Read one token, getting characters through lexptr.  */
 
 static int
-yylex ()
+yylex (void)
 {
   int c, tokchr;
   int namelen;
@@ -1271,7 +1267,7 @@ yylex ()
       if (c == '\\')
 	c = parse_escape (parse_gdbarch, &lexptr);
       else if (c == '\'')
-	error ("Empty character constant.");
+	error (_("Empty character constant."));
 
       yylval.typed_val_int.val = c;
       yylval.typed_val_int.type = parse_type->builtin_char;
@@ -1284,12 +1280,12 @@ yylex ()
 	    {
 	      lexptr = tokstart + namelen;
 	      if (lexptr[-1] != '\'')
-		error ("Unmatched single quote.");
+		error (_("Unmatched single quote."));
 	      namelen -= 2;
 	      tokstart++;
 	      goto tryname;
 	    }
-	  error ("Invalid character constant.");
+	  error (_("Invalid character constant."));
 	}
       return INT;
 
@@ -1400,7 +1396,7 @@ yylex ()
 
 	    memcpy (err_copy, tokstart, p - tokstart);
 	    err_copy[p - tokstart] = 0;
-	    error ("Invalid number \"%s\".", err_copy);
+	    error (_("Invalid number \"%s\"."), err_copy);
 	  }
 	lexptr = p;
 	return toktype;
@@ -1438,7 +1434,7 @@ yylex ()
 	  tokptr = strchr(tokstart, '(');
 	  if (tokptr == NULL)
 	    {
-	      error ("Missing '(' in @selector(...)");
+	      error (_("Missing '(' in @selector(...)"));
 	    }
 	  tempbufindex = 0;
 	  tokptr++;	/* Skip the '('.  */
@@ -1453,7 +1449,7 @@ yylex ()
 	  } while ((*tokptr != ')') && (*tokptr != '\0'));
 	  if (*tokptr++ != ')')
 	    {
-	      error ("Missing ')' in @selector(...)");
+	      error (_("Missing ')' in @selector(...)"));
 	    }
 	  tempbuf[tempbufindex] = '\0';
 	  yylval.sval.ptr = tempbuf;
@@ -1514,7 +1510,7 @@ yylex ()
       } while ((*tokptr != '"') && (*tokptr != '\0'));
       if (*tokptr++ != '"')
 	{
-	  error ("Unterminated string in expression.");
+	  error (_("Unterminated string in expression."));
 	}
       tempbuf[tempbufindex] = '\0';	/* See note above.  */
       yylval.sval.ptr = tempbuf;
@@ -1526,7 +1522,7 @@ yylex ()
   if (!(tokchr == '_' || tokchr == '$' || 
        (tokchr >= 'a' && tokchr <= 'z') || (tokchr >= 'A' && tokchr <= 'Z')))
     /* We must have come across a bad character (e.g. ';').  */
-    error ("Invalid character '%c' in expression.", c);
+    error (_("Invalid character '%c' in expression."), c);
 
   /* It's a name.  See how long it is.  */
   namelen = 0;
@@ -1784,8 +1780,8 @@ yyerror (msg)
      char *msg;
 {
   if (*lexptr == '\0')
-    error("A %s near end of expression.",  (msg ? msg : "error"));
+    error(_("A %s near end of expression."),  (msg ? msg : "error"));
   else
-    error ("A %s in expression, near `%s'.", (msg ? msg : "error"), 
+    error (_("A %s in expression, near `%s'."), (msg ? msg : "error"),
 	   lexptr);
 }

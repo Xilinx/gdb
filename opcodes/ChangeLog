@@ -1,3 +1,67 @@
+2011-04-27  Nick Clifton  <nickc@redhat.com>
+
+	* po/da.po: Updated Danish translation.
+
+2011-04-26  Anton Blanchard  <anton@samba.org>
+
+	* ppc-opc.c: (powerpc_opcodes): Enable icswx for POWER7.
+
+2011-04-21  DJ Delorie  <dj@redhat.com>
+
+	* rx-decode.opc (rx_decode_opcode): Set the syntax for multi-byte NOPs.
+	* rx-decode.c: Regenerate.
+
+2011-04-20  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-init.h: Regenerated.
+
+2011-04-19  Quentin Neill  <quentin.neill@amd.com>
+
+	* i386-gen.c (cpu_flag_init): Remove 3dnow and 3dnowa bits
+	from bdver1 flags.
+
+2011-04-13  Nick Clifton  <nickc@redhat.com>
+
+	* v850-dis.c (disassemble): Always print a closing square brace if
+	an opening square brace was printed.
+
+2011-04-12  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/12534
+	* arm-dis.c (thumb32_opcodes): Add %L suffix to LDRD and STRD insn
+	patterns.
+	(print_insn_thumb32): Handle %L.
+
+2011-04-11  Julian Brown  <julian@codesourcery.com>
+
+	* arm-dis.c (psr_name): Fix typo for BASEPRI_MAX.
+	(print_insn_thumb32): Add APSR bitmask support.
+
+2011-04-07  Paul Carroll<pcarroll@codesourcery.com>
+
+	* arm-dis.c (print_insn): init vars moved into private_data structure.
+
+2011-03-24  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin-dis.c (decode_dsp32mac_0): Move MM zeroing down to MAC0 logic.
+
+2011-03-22  Eric B. Weddington  <eric.weddington@atmel.com>
+
+	* avr-dis.c (avr_operand): Add opcode_str parameter. Check for
+	post-increment to support LPM Z+ instruction. Add support for 'E'
+	constraint for DES instruction.
+	(print_insn_avr): Adjust calls to avr_operand. Rename variable.
+
+2011-03-14  Richard Sandiford  <richard.sandiford@linaro.org>
+
+	* arm-dis.c (get_sym_code_type): Treat STT_GNU_IFUNCs as code.
+
+2011-03-14  Richard Sandiford  <richard.sandiford@linaro.org>
+
+	* arm-dis.c (get_sym_code_type): Don't check for STT_ARM_TFUNC.
+	Use branch types instead.
+	(print_insn): Likewise.
+
 2011-02-28  Maciej W. Rozycki  <macro@codesourcery.com>
 
 	* mips-opc.c (mips_builtin_opcodes): Correct register use

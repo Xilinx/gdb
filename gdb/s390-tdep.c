@@ -216,7 +216,7 @@ s390_pseudo_register_type (struct gdbarch *gdbarch, int regnum)
   internal_error (__FILE__, __LINE__, _("invalid regnum"));
 }
 
-static void
+static enum register_status
 s390_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
 			   int regnum, gdb_byte *buf)
 {
@@ -227,37 +227,53 @@ s390_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
 
   if (regnum == tdep->pc_regnum)
     {
-      regcache_raw_read_unsigned (regcache, S390_PSWA_REGNUM, &val);
-      if (register_size (gdbarch, S390_PSWA_REGNUM) == 4)
-	val &= 0x7fffffff;
-      store_unsigned_integer (buf, regsize, byte_order, val);
-      return;
+      enum register_status status;
+
+      status = regcache_raw_read_unsigned (regcache, S390_PSWA_REGNUM, &val);
+      if (status == REG_VALID)
+	{
+	  if (register_size (gdbarch, S390_PSWA_REGNUM) == 4)
+	    val &= 0x7fffffff;
+	  store_unsigned_integer (buf, regsize, byte_order, val);
+	}
+      return status;
     }
 
   if (regnum == tdep->cc_regnum)
     {
-      regcache_raw_read_unsigned (regcache, S390_PSWM_REGNUM, &val);
-      if (register_size (gdbarch, S390_PSWA_REGNUM) == 4)
-	val = (val >> 12) & 3;
-      else
-	val = (val >> 44) & 3;
-      store_unsigned_integer (buf, regsize, byte_order, val);
-      return;
+      enum register_status status;
+
+      status = regcache_raw_read_unsigned (regcache, S390_PSWM_REGNUM, &val);
+      if (status == REG_VALID)
+	{
+	  if (register_size (gdbarch, S390_PSWA_REGNUM) == 4)
+	    val = (val >> 12) & 3;
+	  else
+	    val = (val >> 44) & 3;
+	  store_unsigned_integer (buf, regsize, byte_order, val);
+	}
+      return status;
     }
 
   if (tdep->gpr_full_regnum != -1
       && regnum >= tdep->gpr_full_regnum
       && regnum < tdep->gpr_full_regnum + 16)
     {
+      enum register_status status;
       ULONGEST val_upper;
+
       regnum -= tdep->gpr_full_regnum;
 
-      regcache_raw_read_unsigned (regcache, S390_R0_REGNUM + regnum, &val);
-      regcache_raw_read_unsigned (regcache, S390_R0_UPPER_REGNUM + regnum,
-				  &val_upper);
-      val |= val_upper << 32;
-      store_unsigned_integer (buf, regsize, byte_order, val);
-      return;
+      status = regcache_raw_read_unsigned (regcache, S390_R0_REGNUM + regnum, &val);
+      if (status == REG_VALID)
+	status = regcache_raw_read_unsigned (regcache, S390_R0_UPPER_REGNUM + regnum,
+					     &val_upper);
+      if (status == REG_VALID)
+	{
+	  val |= val_upper << 32;
+	  store_unsigned_integer (buf, regsize, byte_order, val);
+	}
+      return status;
     }
 
   internal_error (__FILE__, __LINE__, _("invalid regnum"));
@@ -1742,6 +1758,7 @@ s390_frame_prev_register (struct frame_info *this_frame,
 
 static const struct frame_unwind s390_frame_unwind = {
   NORMAL_FRAME,
+  default_frame_unwind_stop_reason,
   s390_frame_this_id,
   s390_frame_prev_register,
   NULL,
@@ -1825,6 +1842,7 @@ s390_stub_frame_sniffer (const struct frame_unwind *self,
 
 static const struct frame_unwind s390_stub_frame_unwind = {
   NORMAL_FRAME,
+  default_frame_unwind_stop_reason,
   s390_stub_frame_this_id,
   s390_stub_frame_prev_register,
   NULL,
@@ -2016,6 +2034,7 @@ s390_sigtramp_frame_sniffer (const struct frame_unwind *self,
 
 static const struct frame_unwind s390_sigtramp_frame_unwind = {
   SIGTRAMP_FRAME,
+  default_frame_unwind_stop_reason,
   s390_sigtramp_frame_this_id,
   s390_sigtramp_frame_prev_register,
   NULL,

@@ -99,6 +99,16 @@ void _initialize_infrun (void);
 
 void nullify_last_target_wait_ptid (void);
 
+static void insert_step_resume_breakpoint_at_frame (struct frame_info *);
+
+static void insert_step_resume_breakpoint_at_caller (struct frame_info *);
+
+static void insert_step_resume_breakpoint_at_sal (struct gdbarch *,
+						  struct symtab_and_line ,
+						  struct frame_id);
+
+static void insert_longjmp_resume_breakpoint (struct gdbarch *, CORE_ADDR);
+
 /* When set, stop the 'step' command if we enter a function which has
    no line number information.  The normal behavior is that we step
    over such function.  */
@@ -275,6 +285,11 @@ update_observer_mode (void)
 static unsigned char *signal_stop;
 static unsigned char *signal_print;
 static unsigned char *signal_program;
+
+/* Table of signals that the target may silently handle.
+   This is automatically determined from the flags above,
+   and simply cached here.  */
+static unsigned char *signal_pass;
 
 #define SET_SIGS(nsigs,sigs,flags) \
   do { \
@@ -1688,6 +1703,51 @@ a command like `return' or `jump' to continue execution."));
   else if (step)
     step = maybe_software_singlestep (gdbarch, pc);
 
+  /* Currently, our software single-step implementation leads to different
+     results than hardware single-stepping in one situation: when stepping
+     into delivering a signal which has an associated signal handler,
+     hardware single-step will stop at the first instruction of the handler,
+     while software single-step will simply skip execution of the handler.
+
+     For now, this difference in behavior is accepted since there is no
+     easy way to actually implement single-stepping into a signal handler
+     without kernel support.
+
+     However, there is one scenario where this difference leads to follow-on
+     problems: if we're stepping off a breakpoint by removing all breakpoints
+     and then single-stepping.  In this case, the software single-step
+     behavior means that even if there is a *breakpoint* in the signal
+     handler, GDB still would not stop.
+
+     Fortunately, we can at least fix this particular issue.  We detect
+     here the case where we are about to deliver a signal while software
+     single-stepping with breakpoints removed.  In this situation, we
+     revert the decisions to remove all breakpoints and insert single-
+     step breakpoints, and instead we install a step-resume breakpoint
+     at the current address, deliver the signal without stepping, and
+     once we arrive back at the step-resume breakpoint, actually step
+     over the breakpoint we originally wanted to step over.  */
+  if (singlestep_breakpoints_inserted_p
+      && tp->control.trap_expected && sig != TARGET_SIGNAL_0)
+    {
+      /* If we have nested signals or a pending signal is delivered
+	 immediately after a handler returns, might might already have
+	 a step-resume breakpoint set on the earlier handler.  We cannot
+	 set another step-resume breakpoint; just continue on until the
+	 original breakpoint is hit.  */
+      if (tp->control.step_resume_breakpoint == NULL)
+	{
+	  insert_step_resume_breakpoint_at_frame (get_current_frame ());
+	  tp->step_after_step_resume_breakpoint = 1;
+	}
+
+      remove_single_step_breakpoints ();
+      singlestep_breakpoints_inserted_p = 0;
+
+      insert_breakpoints ();
+      tp->control.trap_expected = 0;
+    }
+
   if (should_resume)
     {
       ptid_t resume_ptid;
@@ -1786,6 +1846,18 @@ a command like `return' or `jump' to continue execution."));
       /* Avoid confusing the next resume, if the next stop/resume
 	 happens to apply to another thread.  */
       tp->suspend.stop_signal = TARGET_SIGNAL_0;
+
+      /* Advise target which signals may be handled silently.  If we have
+	 removed breakpoints because we are stepping over one (which can
+	 happen only if we are not using displaced stepping), we need to
+	 receive all signals to avoid accidentally skipping a breakpoint
+	 during execution of a signal handler.  */
+      if ((step || singlestep_breakpoints_inserted_p)
+	  && tp->control.trap_expected
+	  && !use_displaced_stepping (gdbarch))
+	target_pass_signals (0, NULL);
+      else
+	target_pass_signals ((int) TARGET_SIGNAL_LAST, signal_pass);
 
       target_resume (resume_ptid, step, sig);
     }
@@ -2240,12 +2312,6 @@ static void handle_step_into_function (struct gdbarch *gdbarch,
 				       struct execution_control_state *ecs);
 static void handle_step_into_function_backward (struct gdbarch *gdbarch,
 						struct execution_control_state *ecs);
-static void insert_step_resume_breakpoint_at_frame (struct frame_info *);
-static void insert_step_resume_breakpoint_at_caller (struct frame_info *);
-static void insert_step_resume_breakpoint_at_sal (struct gdbarch *,
-						  struct symtab_and_line ,
-						  struct frame_id);
-static void insert_longjmp_resume_breakpoint (struct gdbarch *, CORE_ADDR);
 static void check_exception_resume (struct execution_control_state *,
 				    struct frame_info *, struct symbol *);
 
@@ -3818,7 +3884,12 @@ handle_inferior_event (struct execution_control_state *ecs)
       int hw_step = 1;
 
       if (!target_have_steppable_watchpoint)
-	remove_breakpoints ();
+	{
+	  remove_breakpoints ();
+	  /* See comment in resume why we need to stop bypassing signals
+	     while breakpoints have been removed.  */
+	  target_pass_signals (0, NULL);
+	}
 	/* Single step */
       hw_step = maybe_software_singlestep (gdbarch, stop_pc);
       target_resume (ecs->ptid, hw_step, TARGET_SIGNAL_0);
@@ -4090,6 +4161,8 @@ process_event_stop_test:
 
 	  insert_step_resume_breakpoint_at_frame (frame);
 	  ecs->event_thread->step_after_step_resume_breakpoint = 1;
+	  /* Reset trap_expected to ensure breakpoints are re-inserted.  */
+	  ecs->event_thread->control.trap_expected = 0;
 	  keep_going (ecs);
 	  return;
 	}
@@ -4117,6 +4190,8 @@ process_event_stop_test:
                                 "single-step range\n");
 
 	  insert_step_resume_breakpoint_at_frame (frame);
+	  /* Reset trap_expected to ensure breakpoints are re-inserted.  */
+	  ecs->event_thread->control.trap_expected = 0;
 	  keep_going (ecs);
 	  return;
 	}
@@ -5853,12 +5928,29 @@ signal_pass_state (int signo)
   return signal_program[signo];
 }
 
+static void
+signal_cache_update (int signo)
+{
+  if (signo == -1)
+    {
+      for (signo = 0; signo < (int) TARGET_SIGNAL_LAST; signo++)
+	signal_cache_update (signo);
+
+      return;
+    }
+
+  signal_pass[signo] = (signal_stop[signo] == 0
+			&& signal_print[signo] == 0
+			&& signal_program[signo] == 1);
+}
+
 int
 signal_stop_update (int signo, int state)
 {
   int ret = signal_stop[signo];
 
   signal_stop[signo] = state;
+  signal_cache_update (signo);
   return ret;
 }
 
@@ -5868,6 +5960,7 @@ signal_print_update (int signo, int state)
   int ret = signal_print[signo];
 
   signal_print[signo] = state;
+  signal_cache_update (signo);
   return ret;
 }
 
@@ -5877,6 +5970,7 @@ signal_pass_update (int signo, int state)
   int ret = signal_program[signo];
 
   signal_program[signo] = state;
+  signal_cache_update (signo);
   return ret;
 }
 
@@ -6068,7 +6162,8 @@ Are you sure you want to change it? "),
   for (signum = 0; signum < nsigs; signum++)
     if (sigs[signum])
       {
-	target_notice_signals (inferior_ptid);
+	signal_cache_update (-1);
+	target_pass_signals ((int) TARGET_SIGNAL_LAST, signal_pass);
 
 	if (from_tty)
 	  {
@@ -6196,7 +6291,7 @@ signals_info (char *signum_exp, int from_tty)
 
 /* The $_siginfo convenience variable is a bit special.  We don't know
    for sure the type of the value until we actually have a chance to
-   fetch the data.  The type can change depending on gdbarch, so it it
+   fetch the data.  The type can change depending on gdbarch, so it is
    also dependent on which thread you have selected.
 
      1. making $_siginfo be an internalvar that creates a new value on
@@ -6696,11 +6791,6 @@ ptid_is_pid (ptid_t ptid)
 int
 ptid_match (ptid_t ptid, ptid_t filter)
 {
-  /* Since both parameters have the same type, prevent easy mistakes
-     from happening.  */
-  gdb_assert (!ptid_equal (ptid, minus_one_ptid)
-	      && !ptid_equal (ptid, null_ptid));
-
   if (ptid_equal (filter, minus_one_ptid))
     return 1;
   if (ptid_is_pid (filter)
@@ -6925,6 +7015,8 @@ leave it stopped or free to run as needed."),
     xmalloc (sizeof (signal_print[0]) * numsigs);
   signal_program = (unsigned char *)
     xmalloc (sizeof (signal_program[0]) * numsigs);
+  signal_pass = (unsigned char *)
+    xmalloc (sizeof (signal_program[0]) * numsigs);
   for (i = 0; i < numsigs; i++)
     {
       signal_stop[i] = 1;
@@ -6967,6 +7059,9 @@ leave it stopped or free to run as needed."),
   signal_print[TARGET_SIGNAL_WAITING] = 0;
   signal_stop[TARGET_SIGNAL_CANCEL] = 0;
   signal_print[TARGET_SIGNAL_CANCEL] = 0;
+
+  /* Update cached state.  */
+  signal_cache_update (-1);
 
   add_setshow_zinteger_cmd ("stop-on-solib-events", class_support,
 			    &stop_on_solib_events, _("\

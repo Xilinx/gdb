@@ -44,7 +44,8 @@ struct bfin_ebiu_ddrc
 #define mmr_base()      offsetof(struct bfin_ebiu_ddrc, ddrctl0)
 #define mmr_offset(mmr) (offsetof(struct bfin_ebiu_ddrc, mmr) - mmr_base())
 
-static const char * const mmr_names[] = {
+static const char * const mmr_names[] =
+{
   "EBIU_DDRCTL0", "EBIU_DDRCTL1", "EBIU_DDRCTL2", "EBIU_DDRCTL3", "EBIU_DDRQUE",
   "EBIU_ERRADD", "EBIU_ERRMST", "EBIU_RSTCTL", "EBIU_DDRBRC0", "EBIU_DDRBRC1",
   "EBIU_DDRBRC2", "EBIU_DDRBRC3", "EBIU_DDRBRC4", "EBIU_DDRBRC5",
@@ -178,7 +179,8 @@ bfin_ebiu_ddrc_finish (struct hw *me)
   ddrc->rstctl = 0x0002;
 }
 
-const struct hw_descriptor dv_bfin_ebiu_ddrc_descriptor[] = {
+const struct hw_descriptor dv_bfin_ebiu_ddrc_descriptor[] =
+{
   {"bfin_ebiu_ddrc", bfin_ebiu_ddrc_finish,},
   {NULL, NULL},
 };

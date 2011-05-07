@@ -54,8 +54,6 @@ static int default_watchpoint_addr_within_range (struct target_ops *,
 
 static int default_region_ok_for_hw_watchpoint (CORE_ADDR, int);
 
-static int nosymbol (char *, CORE_ADDR *);
-
 static void tcomplain (void) ATTRIBUTE_NORETURN;
 
 static int nomemory (CORE_ADDR, char *, int, int, struct target_ops *);
@@ -149,11 +147,7 @@ static void debug_to_terminal_info (char *, int);
 
 static void debug_to_load (char *, int);
 
-static int debug_to_lookup_symbol (char *, CORE_ADDR *);
-
 static int debug_to_can_run (void);
-
-static void debug_to_notice_signals (ptid_t);
 
 static void debug_to_stop (ptid_t);
 
@@ -532,12 +526,6 @@ noprocess (void)
   error (_("You can't do that without a process to debug."));
 }
 
-static int
-nosymbol (char *name, CORE_ADDR *addrp)
-{
-  return 1;			/* Symbol does not exist in target env.  */
-}
-
 static void
 default_terminal_info (char *args, int from_tty)
 {
@@ -604,8 +592,11 @@ update_current_target (void)
       INHERIT (to_can_use_hw_breakpoint, t);
       INHERIT (to_insert_hw_breakpoint, t);
       INHERIT (to_remove_hw_breakpoint, t);
+      /* Do not inherit to_ranged_break_num_registers.  */
       INHERIT (to_insert_watchpoint, t);
       INHERIT (to_remove_watchpoint, t);
+      /* Do not inherit to_insert_mask_watchpoint.  */
+      /* Do not inherit to_remove_mask_watchpoint.  */
       INHERIT (to_stopped_data_address, t);
       INHERIT (to_have_steppable_watchpoint, t);
       INHERIT (to_have_continuable_watchpoint, t);
@@ -613,6 +604,7 @@ update_current_target (void)
       INHERIT (to_watchpoint_addr_within_range, t);
       INHERIT (to_region_ok_for_hw_watchpoint, t);
       INHERIT (to_can_accel_watchpoint_condition, t);
+      /* Do not inherit to_masked_watch_num_registers.  */
       INHERIT (to_terminal_init, t);
       INHERIT (to_terminal_inferior, t);
       INHERIT (to_terminal_ours_for_output, t);
@@ -621,7 +613,6 @@ update_current_target (void)
       INHERIT (to_terminal_info, t);
       /* Do not inherit to_kill.  */
       INHERIT (to_load, t);
-      INHERIT (to_lookup_symbol, t);
       /* Do no inherit to_create_inferior.  */
       INHERIT (to_post_startup_inferior, t);
       INHERIT (to_insert_fork_catchpoint, t);
@@ -635,7 +626,7 @@ update_current_target (void)
       INHERIT (to_has_exited, t);
       /* Do not inherit to_mourn_inferior.  */
       INHERIT (to_can_run, t);
-      INHERIT (to_notice_signals, t);
+      /* Do not inherit to_pass_signals.  */
       /* Do not inherit to_thread_alive.  */
       /* Do not inherit to_find_new_threads.  */
       /* Do not inherit to_pid_to_str.  */
@@ -774,9 +765,6 @@ update_current_target (void)
   de_fault (to_load,
 	    (void (*) (char *, int))
 	    tcomplain);
-  de_fault (to_lookup_symbol,
-	    (int (*) (char *, CORE_ADDR *))
-	    nosymbol);
   de_fault (to_post_startup_inferior,
 	    (void (*) (ptid_t))
 	    target_ignore);
@@ -806,9 +794,6 @@ update_current_target (void)
 	    return_zero);
   de_fault (to_can_run,
 	    return_zero);
-  de_fault (to_notice_signals,
-	    (void (*) (ptid_t))
-	    target_ignore);
   de_fault (to_extra_thread_info,
 	    (char *(*) (struct thread_info *))
 	    return_zero);
@@ -2600,6 +2585,37 @@ target_resume (ptid_t ptid, int step, enum target_signal signal)
 
   noprocess ();
 }
+
+void
+target_pass_signals (int numsigs, unsigned char *pass_signals)
+{
+  struct target_ops *t;
+
+  for (t = current_target.beneath; t != NULL; t = t->beneath)
+    {
+      if (t->to_pass_signals != NULL)
+	{
+	  if (targetdebug)
+	    {
+	      int i;
+
+	      fprintf_unfiltered (gdb_stdlog, "target_pass_signals (%d, {",
+				  numsigs);
+
+	      for (i = 0; i < numsigs; i++)
+		if (pass_signals[i])
+		  fprintf_unfiltered (gdb_stdlog, " %s",
+				      target_signal_to_name (i));
+
+	      fprintf_unfiltered (gdb_stdlog, " })\n");
+	    }
+
+	  (*t->to_pass_signals) (numsigs, pass_signals);
+	  return;
+	}
+    }
+}
+
 /* Look through the list of possible targets for a target that can
    follow forks.  */
 
@@ -3505,6 +3521,90 @@ target_verify_memory (const gdb_byte *data, CORE_ADDR memaddr, ULONGEST size)
   tcomplain ();
 }
 
+/* The documentation for this function is in its prototype declaration in
+   target.h.  */
+
+int
+target_insert_mask_watchpoint (CORE_ADDR addr, CORE_ADDR mask, int rw)
+{
+  struct target_ops *t;
+
+  for (t = current_target.beneath; t != NULL; t = t->beneath)
+    if (t->to_insert_mask_watchpoint != NULL)
+      {
+	int ret;
+
+	ret = t->to_insert_mask_watchpoint (t, addr, mask, rw);
+
+	if (targetdebug)
+	  fprintf_unfiltered (gdb_stdlog, "\
+target_insert_mask_watchpoint (%s, %s, %d) = %d\n",
+			      core_addr_to_string (addr),
+			      core_addr_to_string (mask), rw, ret);
+
+	return ret;
+      }
+
+  return 1;
+}
+
+/* The documentation for this function is in its prototype declaration in
+   target.h.  */
+
+int
+target_remove_mask_watchpoint (CORE_ADDR addr, CORE_ADDR mask, int rw)
+{
+  struct target_ops *t;
+
+  for (t = current_target.beneath; t != NULL; t = t->beneath)
+    if (t->to_remove_mask_watchpoint != NULL)
+      {
+	int ret;
+
+	ret = t->to_remove_mask_watchpoint (t, addr, mask, rw);
+
+	if (targetdebug)
+	  fprintf_unfiltered (gdb_stdlog, "\
+target_remove_mask_watchpoint (%s, %s, %d) = %d\n",
+			      core_addr_to_string (addr),
+			      core_addr_to_string (mask), rw, ret);
+
+	return ret;
+      }
+
+  return 1;
+}
+
+/* The documentation for this function is in its prototype declaration
+   in target.h.  */
+
+int
+target_masked_watch_num_registers (CORE_ADDR addr, CORE_ADDR mask)
+{
+  struct target_ops *t;
+
+  for (t = current_target.beneath; t != NULL; t = t->beneath)
+    if (t->to_masked_watch_num_registers != NULL)
+      return t->to_masked_watch_num_registers (t, addr, mask);
+
+  return -1;
+}
+
+/* The documentation for this function is in its prototype declaration
+   in target.h.  */
+
+int
+target_ranged_break_num_registers (void)
+{
+  struct target_ops *t;
+
+  for (t = current_target.beneath; t != NULL; t = t->beneath)
+    if (t->to_ranged_break_num_registers != NULL)
+      return t->to_ranged_break_num_registers (t);
+
+  return -1;
+}
+
 static void
 debug_to_prepare_to_store (struct regcache *regcache)
 {
@@ -3800,18 +3900,6 @@ debug_to_load (char *args, int from_tty)
   fprintf_unfiltered (gdb_stdlog, "target_load (%s, %d)\n", args, from_tty);
 }
 
-static int
-debug_to_lookup_symbol (char *name, CORE_ADDR *addrp)
-{
-  int retval;
-
-  retval = debug_target.to_lookup_symbol (name, addrp);
-
-  fprintf_unfiltered (gdb_stdlog, "target_lookup_symbol (%s, xxx)\n", name);
-
-  return retval;
-}
-
 static void
 debug_to_post_startup_inferior (ptid_t ptid)
 {
@@ -3924,15 +4012,6 @@ debug_to_can_run (void)
   return retval;
 }
 
-static void
-debug_to_notice_signals (ptid_t ptid)
-{
-  debug_target.to_notice_signals (ptid);
-
-  fprintf_unfiltered (gdb_stdlog, "target_notice_signals (%d)\n",
-                      PIDGET (ptid));
-}
-
 static struct gdbarch *
 debug_to_thread_architecture (struct target_ops *ops, ptid_t ptid)
 {
@@ -4011,7 +4090,6 @@ setup_target_debug (void)
   current_target.to_terminal_save_ours = debug_to_terminal_save_ours;
   current_target.to_terminal_info = debug_to_terminal_info;
   current_target.to_load = debug_to_load;
-  current_target.to_lookup_symbol = debug_to_lookup_symbol;
   current_target.to_post_startup_inferior = debug_to_post_startup_inferior;
   current_target.to_insert_fork_catchpoint = debug_to_insert_fork_catchpoint;
   current_target.to_remove_fork_catchpoint = debug_to_remove_fork_catchpoint;
@@ -4021,7 +4099,6 @@ setup_target_debug (void)
   current_target.to_remove_exec_catchpoint = debug_to_remove_exec_catchpoint;
   current_target.to_has_exited = debug_to_has_exited;
   current_target.to_can_run = debug_to_can_run;
-  current_target.to_notice_signals = debug_to_notice_signals;
   current_target.to_stop = debug_to_stop;
   current_target.to_rcmd = debug_to_rcmd;
   current_target.to_pid_to_exec_file = debug_to_pid_to_exec_file;

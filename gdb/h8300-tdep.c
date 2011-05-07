@@ -526,6 +526,7 @@ h8300_frame_prev_register (struct frame_info *this_frame, void **this_cache,
 
 static const struct frame_unwind h8300_frame_unwind = {
   NORMAL_FRAME,
+  default_frame_unwind_stop_reason,
   h8300_frame_this_id,
   h8300_frame_prev_register,
   NULL,
@@ -1149,17 +1150,17 @@ h8300_register_type (struct gdbarch *gdbarch, int regno)
     }
 }
 
-static void
+static enum register_status
 h8300_pseudo_register_read (struct gdbarch *gdbarch,
 			    struct regcache *regcache, int regno,
 			    gdb_byte *buf)
 {
   if (regno == E_PSEUDO_CCR_REGNUM (gdbarch))
-    regcache_raw_read (regcache, E_CCR_REGNUM, buf);
+    return regcache_raw_read (regcache, E_CCR_REGNUM, buf);
   else if (regno == E_PSEUDO_EXR_REGNUM (gdbarch))
-    regcache_raw_read (regcache, E_EXR_REGNUM, buf);
+    return regcache_raw_read (regcache, E_EXR_REGNUM, buf);
   else
-    regcache_raw_read (regcache, regno, buf);
+    return regcache_raw_read (regcache, regno, buf);
 }
 
 static void

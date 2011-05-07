@@ -62,7 +62,8 @@ struct bfin_twi
 #define mmr_offset(mmr) (offsetof(struct bfin_twi, mmr) - mmr_base())
 #define mmr_idx(mmr)    (mmr_offset (mmr) / 4)
 
-static const char * const mmr_names[] = {
+static const char * const mmr_names[] =
+{
   "TWI_CLKDIV", "TWI_CONTROL", "TWI_SLAVE_CTL", "TWI_SLAVE_STAT",
   "TWI_SLAVE_ADDR", "TWI_MASTER_CTL", "TWI_MASTER_STAT", "TWI_MASTER_ADDR",
   "TWI_INT_STAT", "TWI_INT_MASK", "TWI_FIFO_CTL", "TWI_FIFO_STAT",
@@ -101,10 +102,10 @@ bfin_twi_io_write_buffer (struct hw *me, const void *source, int space,
       *valuep = value;
       break;
     case mmr_offset(int_stat):
-      dv_w1c_2 (valuep, value, 0);
+      dv_w1c_2 (valuep, value, -1);
       break;
     case mmr_offset(master_stat):
-      dv_w1c_2 (valuep, value, MPROG | SDASEN | SCLSEN | BUSBUSY);
+      dv_w1c_2 (valuep, value, BUFWRERR | BUFRDERR | DNAK | ANAK | LOSTARB);
       break;
     case mmr_offset(slave_stat):
     case mmr_offset(fifo_stat):
@@ -173,7 +174,8 @@ bfin_twi_io_read_buffer (struct hw *me, void *dest, int space,
   return nr_bytes;
 }
 
-static const struct hw_port_descriptor bfin_twi_ports[] = {
+static const struct hw_port_descriptor bfin_twi_ports[] =
+{
   { "stat", 0, 0, output_port, },
   { NULL, 0, 0, 0, },
 };
@@ -221,7 +223,8 @@ bfin_twi_finish (struct hw *me)
   attach_bfin_twi_regs (me, twi);
 }
 
-const struct hw_descriptor dv_bfin_twi_descriptor[] = {
+const struct hw_descriptor dv_bfin_twi_descriptor[] =
+{
   {"bfin_twi", bfin_twi_finish,},
   {NULL, NULL},
 };

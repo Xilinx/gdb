@@ -35,7 +35,8 @@ struct bfin_evt
 #define mmr_base()      offsetof(struct bfin_evt, evt[0])
 #define mmr_offset(mmr) (offsetof(struct bfin_evt, mmr) - mmr_base())
 
-static const char * const mmr_names[] = {
+static const char * const mmr_names[] =
+{
   "EVT0", "EVT1", "EVT2", "EVT3", "EVT4", "EVT5", "EVT6", "EVT7", "EVT8",
   "EVT9", "EVT10", "EVT11", "EVT12", "EVT13", "EVT14", "EVT15",
 };
@@ -120,7 +121,8 @@ bfin_evt_finish (struct hw *me)
   attach_bfin_evt_regs (me, evt);
 }
 
-const struct hw_descriptor dv_bfin_evt_descriptor[] = {
+const struct hw_descriptor dv_bfin_evt_descriptor[] =
+{
   {"bfin_evt", bfin_evt_finish,},
   {NULL, NULL},
 };

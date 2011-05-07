@@ -535,24 +535,15 @@ compare_pnums (const void *lhs_, const void *rhs_)
     return 1;
 }
 
-static void *
-init_remote_state (struct gdbarch *gdbarch)
+static int
+map_regcache_remote_table (struct gdbarch *gdbarch, struct packet_reg *regs)
 {
   int regnum, num_remote_regs, offset;
-  struct remote_state *rs = get_remote_state_raw ();
-  struct remote_arch_state *rsa;
   struct packet_reg **remote_regs;
 
-  rsa = GDBARCH_OBSTACK_ZALLOC (gdbarch, struct remote_arch_state);
-
-  /* Use the architecture to build a regnum<->pnum table, which will be
-     1:1 unless a feature set specifies otherwise.  */
-  rsa->regs = GDBARCH_OBSTACK_CALLOC (gdbarch,
-				      gdbarch_num_regs (gdbarch),
-				      struct packet_reg);
   for (regnum = 0; regnum < gdbarch_num_regs (gdbarch); regnum++)
     {
-      struct packet_reg *r = &rsa->regs[regnum];
+      struct packet_reg *r = &regs[regnum];
 
       if (register_size (gdbarch, regnum) == 0)
 	/* Do not try to fetch zero-sized (placeholder) registers.  */
@@ -568,12 +559,12 @@ init_remote_state (struct gdbarch *gdbarch)
      number.  */
 
   remote_regs = alloca (gdbarch_num_regs (gdbarch)
-			  * sizeof (struct packet_reg *));
+			* sizeof (struct packet_reg *));
   for (num_remote_regs = 0, regnum = 0;
        regnum < gdbarch_num_regs (gdbarch);
        regnum++)
-    if (rsa->regs[regnum].pnum != -1)
-      remote_regs[num_remote_regs++] = &rsa->regs[regnum];
+    if (regs[regnum].pnum != -1)
+      remote_regs[num_remote_regs++] = &regs[regnum];
 
   qsort (remote_regs, num_remote_regs, sizeof (struct packet_reg *),
 	 compare_pnums);
@@ -585,9 +576,55 @@ init_remote_state (struct gdbarch *gdbarch)
       offset += register_size (gdbarch, remote_regs[regnum]->regnum);
     }
 
+  return offset;
+}
+
+/* Given the architecture described by GDBARCH, return the remote
+   protocol register's number and the register's offset in the g/G
+   packets of GDB register REGNUM, in PNUM and POFFSET respectively.
+   If the target does not have a mapping for REGNUM, return false,
+   otherwise, return true.  */
+
+int
+remote_register_number_and_offset (struct gdbarch *gdbarch, int regnum,
+				   int *pnum, int *poffset)
+{
+  int sizeof_g_packet;
+  struct packet_reg *regs;
+  struct cleanup *old_chain;
+
+  gdb_assert (regnum < gdbarch_num_regs (gdbarch));
+
+  regs = xcalloc (gdbarch_num_regs (gdbarch), sizeof (struct packet_reg));
+  old_chain = make_cleanup (xfree, regs);
+
+  sizeof_g_packet = map_regcache_remote_table (gdbarch, regs);
+
+  *pnum = regs[regnum].pnum;
+  *poffset = regs[regnum].offset;
+
+  do_cleanups (old_chain);
+
+  return *pnum != -1;
+}
+
+static void *
+init_remote_state (struct gdbarch *gdbarch)
+{
+  struct remote_state *rs = get_remote_state_raw ();
+  struct remote_arch_state *rsa;
+
+  rsa = GDBARCH_OBSTACK_ZALLOC (gdbarch, struct remote_arch_state);
+
+  /* Use the architecture to build a regnum<->pnum table, which will be
+     1:1 unless a feature set specifies otherwise.  */
+  rsa->regs = GDBARCH_OBSTACK_CALLOC (gdbarch,
+				      gdbarch_num_regs (gdbarch),
+				      struct packet_reg);
+
   /* Record the maximum possible size of the g packet - it may turn out
      to be smaller.  */
-  rsa->sizeof_g_packet = offset;
+  rsa->sizeof_g_packet = map_regcache_remote_table (gdbarch, rsa->regs);
 
   /* Default maximum number of characters in a packet body.  Many
      remote stubs have a hardwired buffer size of 400 bytes
@@ -1559,20 +1596,17 @@ static char *last_pass_packet;
    it can simply pass through to the inferior without reporting.  */
 
 static void
-remote_pass_signals (void)
+remote_pass_signals (int numsigs, unsigned char *pass_signals)
 {
   if (remote_protocol_packets[PACKET_QPassSignals].support != PACKET_DISABLE)
     {
       char *pass_packet, *p;
-      int numsigs = (int) TARGET_SIGNAL_LAST;
       int count = 0, i;
 
       gdb_assert (numsigs < 256);
       for (i = 0; i < numsigs; i++)
 	{
-	  if (signal_stop_state (i) == 0
-	      && signal_print_state (i) == 0
-	      && signal_pass_state (i) == 1)
+	  if (pass_signals[i])
 	    count++;
 	}
       pass_packet = xmalloc (count * 3 + strlen ("QPassSignals:") + 1);
@@ -1580,9 +1614,7 @@ remote_pass_signals (void)
       p = pass_packet + strlen (pass_packet);
       for (i = 0; i < numsigs; i++)
 	{
-	  if (signal_stop_state (i) == 0
-	      && signal_print_state (i) == 0
-	      && signal_pass_state (i) == 1)
+	  if (pass_signals[i])
 	    {
 	      if (i >= 16)
 		*p++ = tohex (i >> 4);
@@ -1610,14 +1642,6 @@ remote_pass_signals (void)
       else
 	xfree (pass_packet);
     }
-}
-
-static void
-remote_notice_signals (ptid_t ptid)
-{
-  /* Update the remote on signals to silently pass, if they've
-     changed.  */
-  remote_pass_signals ();
 }
 
 /* If PTID is MAGIC_NULL_PTID, don't set any thread.  If PTID is
@@ -1876,7 +1900,7 @@ read_ptid (char *buf, char **obuf)
       /* Multi-process ptid.  */
       pp = unpack_varlen_hex (p + 1, &pid);
       if (*pp != '.')
-	error (_("invalid remote ptid: %s\n"), p);
+	error (_("invalid remote ptid: %s"), p);
 
       p = pp;
       pp = unpack_varlen_hex (p + 1, &tid);
@@ -3097,22 +3121,9 @@ set_stop_requested_callback (struct thread_info *thread, void *data)
   return 0;
 }
 
-/* Stub for catch_exception.  */
-
-struct start_remote_args
-{
-  int from_tty;
-
-  /* The current target.  */
-  struct target_ops *target;
-
-  /* Non-zero if this is an extended-remote target.  */
-  int extended_p;
-};
-
 /* Send interrupt_sequence to remote target.  */
 static void
-send_interrupt_sequence ()
+send_interrupt_sequence (void)
 {
   if (interrupt_sequence_mode == interrupt_sequence_control_c)
     serial_write (remote_desc, "\x03", 1);
@@ -3130,20 +3141,19 @@ send_interrupt_sequence ()
 }
 
 static void
-remote_start_remote (struct ui_out *uiout, void *opaque)
+remote_start_remote (int from_tty, struct target_ops *target, int extended_p)
 {
-  struct start_remote_args *args = opaque;
   struct remote_state *rs = get_remote_state ();
   struct packet_config *noack_config;
   char *wait_status = NULL;
 
   immediate_quit++;		/* Allow user to interrupt it.  */
 
-  /* Ack any packet which the remote side has already sent.  */
-  serial_write (remote_desc, "+", 1);
-
   if (interrupt_on_connect)
     send_interrupt_sequence ();
+
+  /* Ack any packet which the remote side has already sent.  */
+  serial_write (remote_desc, "+", 1);
 
   /* The first packet we send to the target is the optional "supported
      packets" request.  If the target can answer this, it will tell us
@@ -3179,7 +3189,7 @@ remote_start_remote (struct ui_out *uiout, void *opaque)
 	rs->noack_mode = 1;
     }
 
-  if (args->extended_p)
+  if (extended_p)
     {
       /* Tell the remote that we are using the extended protocol.  */
       putpkt ("!");
@@ -3197,7 +3207,7 @@ remote_start_remote (struct ui_out *uiout, void *opaque)
   /* On OSs where the list of libraries is global to all
      processes, we fetch them early.  */
   if (gdbarch_has_global_solist (target_gdbarch))
-    solib_add (NULL, args->from_tty, args->target, auto_solib_add);
+    solib_add (NULL, from_tty, target, auto_solib_add);
 
   if (non_stop)
     {
@@ -3215,7 +3225,7 @@ remote_start_remote (struct ui_out *uiout, void *opaque)
 	 controlling.  We default to adding them in the running state.
 	 The '?' query below will then tell us about which threads are
 	 stopped.  */
-      remote_threads_info (args->target);
+      remote_threads_info (target);
     }
   else if (rs->non_stop_aware)
     {
@@ -3236,7 +3246,7 @@ remote_start_remote (struct ui_out *uiout, void *opaque)
     {
       if (rs->buf[0] == 'W' || rs->buf[0] == 'X')
 	{
-	  if (!args->extended_p)
+	  if (!extended_p)
 	    error (_("The target is not running (try extended-remote?)"));
 
 	  /* We're connected, but not running.  Drop out before we
@@ -3276,7 +3286,7 @@ remote_start_remote (struct ui_out *uiout, void *opaque)
 	 how to do it some other way, try again.  This is not
 	 supported for non-stop; it could be, but it is tricky if
 	 there are no stopped threads when we connect.  */
-      if (remote_read_description_p (args->target)
+      if (remote_read_description_p (target)
 	  && gdbarch_target_desc (target_gdbarch) == NULL)
 	{
 	  target_clear_description ();
@@ -3289,7 +3299,7 @@ remote_start_remote (struct ui_out *uiout, void *opaque)
       rs->cached_wait_status = 1;
 
       immediate_quit--;
-      start_remote (args->from_tty); /* Initialize gdb process mechanisms.  */
+      start_remote (from_tty); /* Initialize gdb process mechanisms.  */
     }
   else
     {
@@ -3331,7 +3341,7 @@ remote_start_remote (struct ui_out *uiout, void *opaque)
 
       if (thread_count () == 0)
 	{
-	  if (!args->extended_p)
+	  if (!extended_p)
 	    error (_("The target is not running (try extended-remote?)"));
 
 	  /* We're connected, but not running.  Drop out before we
@@ -3355,10 +3365,8 @@ remote_start_remote (struct ui_out *uiout, void *opaque)
 	 the stop reply queue.  */
       gdb_assert (wait_status == NULL);
 
-      /* Update the remote on signals to silently pass, or more
-	 importantly, which to not ignore, in case a previous session
-	 had set some different set of signals to be ignored.  */
-      remote_pass_signals ();
+      /* Report all signals during attach/startup.  */
+      remote_pass_signals (0, NULL);
     }
 
   /* If we connected to a live target, do some additional setup.  */
@@ -3537,7 +3545,7 @@ remote_set_permissions (void)
   /* If the target didn't like the packet, warn the user.  Do not try
      to undo the user's settings, that would just be maddening.  */
   if (strcmp (rs->buf, "OK") != 0)
-    warning ("Remote refused setting permissions with: %s", rs->buf);
+    warning (_("Remote refused setting permissions with: %s"), rs->buf);
 }
 
 /* This type describes each known response to the qSupported
@@ -4060,14 +4068,12 @@ remote_open_1 (char *name, int from_tty,
      all the ``target ....'' commands to share a common callback
      function.  See cli-dump.c.  */
   {
-    struct gdb_exception ex;
-    struct start_remote_args args;
+    volatile struct gdb_exception ex;
 
-    args.from_tty = from_tty;
-    args.target = target;
-    args.extended_p = extended_p;
-
-    ex = catch_exception (uiout, remote_start_remote, &args, RETURN_MASK_ALL);
+    TRY_CATCH (ex, RETURN_MASK_ALL)
+      {
+	remote_start_remote (from_tty, target, extended_p);
+      }
     if (ex.reason < 0)
       {
 	/* Pop the partially set up target - unless something else did
@@ -4528,9 +4534,6 @@ remote_resume (struct target_ops *ops,
   last_sent_signal = siggnal;
   last_sent_step = step;
 
-  /* Update the inferior on signals to silently pass, if they've changed.  */
-  remote_pass_signals ();
-
   /* The vCont packet doesn't need to specify threads via Hc.  */
   /* No reverse support (yet) for vCont.  */
   if (execution_direction != EXEC_REVERSE)
@@ -4549,7 +4552,7 @@ remote_resume (struct target_ops *ops,
     {
       /* We don't pass signals to the target in reverse exec mode.  */
       if (info_verbose && siggnal != TARGET_SIGNAL_0)
-	warning (" - Can't pass signal %d to target in reverse: ignored.\n",
+	warning (_(" - Can't pass signal %d to target in reverse: ignored."),
 		 siggnal);
 
       if (step 
@@ -10272,7 +10275,7 @@ Specify the serial device it is connected to\n\
   remote_ops.to_kill = remote_kill;
   remote_ops.to_load = generic_load;
   remote_ops.to_mourn_inferior = remote_mourn;
-  remote_ops.to_notice_signals = remote_notice_signals;
+  remote_ops.to_pass_signals = remote_pass_signals;
   remote_ops.to_thread_alive = remote_thread_alive;
   remote_ops.to_find_new_threads = remote_threads_info;
   remote_ops.to_pid_to_str = remote_pid_to_str;

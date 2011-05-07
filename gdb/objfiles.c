@@ -247,10 +247,6 @@ allocate_objfile (bfd *abfd, int flags)
   objfile->sect_index_bss = -1;
   objfile->sect_index_rodata = -1;
 
-  /* We don't yet have a C++-specific namespace symtab.  */
-
-  objfile->cp_namespace_symtab = NULL;
-
   /* Add this file onto the tail of the linked list of other such files.  */
 
   objfile->next = NULL;
@@ -587,6 +583,10 @@ free_objfile (struct objfile *objfile)
      lists.  */
   preserve_values (objfile);
 
+  /* It still may reference data modules have associated with the objfile and
+     the symbol file data.  */
+  forget_cached_source_info_for_objfile (objfile);
+
   /* First do any symbol file specific actions required when we are
      finished with a particular symbol file.  Note that if the objfile
      is using reusable symbol information (via mmalloc) then each of
@@ -599,7 +599,8 @@ free_objfile (struct objfile *objfile)
       (*objfile->sf->sym_finish) (objfile);
     }
 
-  /* Discard any data modules have associated with the objfile.  */
+  /* Discard any data modules have associated with the objfile.  The function
+     still may reference objfile->obfd.  */
   objfile_free_data (objfile);
 
   gdb_bfd_unref (objfile->obfd);
@@ -636,13 +637,9 @@ free_objfile (struct objfile *objfile)
 
   {
     struct symtab_and_line cursal = get_current_source_symtab_and_line ();
-    struct symtab *s;
 
-    ALL_OBJFILE_SYMTABS (objfile, s)
-      {
-	if (s == cursal.symtab)
-	  clear_current_source_symtab_and_line ();
-      }
+    if (cursal.symtab && cursal.symtab->objfile == objfile)
+      clear_current_source_symtab_and_line ();
   }
 
   /* The last thing we do is free the objfile struct itself.  */
@@ -909,11 +906,15 @@ objfile_has_partial_symbols (struct objfile *objfile)
 {
   if (!objfile->sf)
     return 0;
-  /* If we have not read psymbols, but we have a function capable of
-     reading them, then that is an indication that they are in fact
-     available.  */
-  if ((objfile->flags & OBJF_PSYMTABS_READ) == 0)
-    return objfile->sf->sym_read_psymbols != NULL;
+
+  /* If we have not read psymbols, but we have a function capable of reading
+     them, then that is an indication that they are in fact available.  Without
+     this function the symbols may have been already read in but they also may
+     not be present in this objfile.  */
+  if ((objfile->flags & OBJF_PSYMTABS_READ) == 0
+      && objfile->sf->sym_read_psymbols != NULL)
+    return 1;
+
   return objfile->sf->qf->has_symbols (objfile);
 }
 

@@ -57,6 +57,7 @@
 #include "vec.h"
 #include "c-lang.h"
 #include "valprint.h"
+#include <ctype.h>
 
 #include <fcntl.h>
 #include "gdb_string.h"
@@ -148,16 +149,24 @@ DEF_VEC_I (offset_type);
    a comment by the code that writes the index.  */
 struct mapped_index
 {
+  /* Index data format version.  */
+  int version;
+
   /* The total length of the buffer.  */
   off_t total_size;
+
   /* A pointer to the address table data.  */
   const gdb_byte *address_table;
+
   /* Size of the address table data in bytes.  */
   offset_type address_table_size;
+
   /* The symbol table, implemented as a hash table.  */
   const offset_type *symbol_table;
+
   /* Size in slots, each slot is 2 offset_types.  */
   offset_type symbol_table_slots;
+
   /* A pointer to the constant pool.  */
   const char *constant_pool;
 };
@@ -395,6 +404,13 @@ struct dwarf2_cu
      DIEs for namespaces, we don't need to try to infer them
      from mangled names.  */
   unsigned int has_namespace_info : 1;
+
+  /* This CU references .debug_loc.  See the symtab->locations_valid field.
+     This test is imperfect as there may exist optimized debug code not using
+     any location list and still facing inlining issues if handled as
+     unoptimized code.  For a future better test see GCC PR other/32998.  */
+
+  unsigned int has_loclist : 1;
 };
 
 /* Persistent data held for a compilation unit, even when not
@@ -1962,21 +1978,27 @@ create_addrmap_from_index (struct objfile *objfile, struct mapped_index *index)
   do_cleanups (cleanup);
 }
 
-/* The hash function for strings in the mapped index.  This is the
-   same as the hashtab.c hash function, but we keep a separate copy to
-   maintain control over the implementation.  This is necessary
-   because the hash function is tied to the format of the mapped index
-   file.  */
+/* The hash function for strings in the mapped index.  This is the same as
+   SYMBOL_HASH_NEXT, but we keep a separate copy to maintain control over the
+   implementation.  This is necessary because the hash function is tied to the
+   format of the mapped index file.  The hash values do not have to match with
+   SYMBOL_HASH_NEXT.
+   
+   Use INT_MAX for INDEX_VERSION if you generate the current index format.  */
 
 static hashval_t
-mapped_index_string_hash (const void *p)
+mapped_index_string_hash (int index_version, const void *p)
 {
   const unsigned char *str = (const unsigned char *) p;
   hashval_t r = 0;
   unsigned char c;
 
   while ((c = *str++) != 0)
-    r = r * 67 + c - 113;
+    {
+      if (index_version >= 5)
+	c = tolower (c);
+      r = r * 67 + c - 113;
+    }
 
   return r;
 }
@@ -1989,11 +2011,43 @@ static int
 find_slot_in_mapped_hash (struct mapped_index *index, const char *name,
 			  offset_type **vec_out)
 {
-  offset_type hash = mapped_index_string_hash (name);
+  struct cleanup *back_to = make_cleanup (null_cleanup, 0);
+  offset_type hash;
   offset_type slot, step;
+  int (*cmp) (const char *, const char *);
+
+  if (current_language->la_language == language_cplus
+      || current_language->la_language == language_java
+      || current_language->la_language == language_fortran)
+    {
+      /* NAME is already canonical.  Drop any qualifiers as .gdb_index does
+	 not contain any.  */
+      const char *paren = strchr (name, '(');
+
+      if (paren)
+	{
+	  char *dup;
+
+	  dup = xmalloc (paren - name + 1);
+	  memcpy (dup, name, paren - name);
+	  dup[paren - name] = 0;
+
+	  make_cleanup (xfree, dup);
+	  name = dup;
+	}
+    }
+
+  /* Index version 4 did not support case insensitive searches.  But the
+     indexes for case insensitive languages are built in lowercase, therefore
+     simulate our NAME being searched is also lowercased.  */
+  hash = mapped_index_string_hash ((index->version == 4
+                                    && case_sensitivity == case_sensitive_off
+				    ? 5 : index->version),
+				   name);
 
   slot = hash & (index->symbol_table_slots - 1);
   step = ((hash * 17) & (index->symbol_table_slots - 1)) | 1;
+  cmp = (case_sensitivity == case_sensitive_on ? strcmp : strcasecmp);
 
   for (;;)
     {
@@ -2001,13 +2055,17 @@ find_slot_in_mapped_hash (struct mapped_index *index, const char *name,
       offset_type i = 2 * slot;
       const char *str;
       if (index->symbol_table[i] == 0 && index->symbol_table[i + 1] == 0)
-	return 0;
+	{
+	  do_cleanups (back_to);
+	  return 0;
+	}
 
       str = index->constant_pool + MAYBE_SWAP (index->symbol_table[i]);
-      if (!strcmp (name, str))
+      if (!cmp (name, str))
 	{
 	  *vec_out = (offset_type *) (index->constant_pool
 				      + MAYBE_SWAP (index->symbol_table[i + 1]));
+	  do_cleanups (back_to);
 	  return 1;
 	}
 
@@ -2045,17 +2103,19 @@ dwarf2_read_index (struct objfile *objfile)
   /* Version check.  */
   version = MAYBE_SWAP (*(offset_type *) addr);
   /* Versions earlier than 3 emitted every copy of a psymbol.  This
-     causes the index to behave very poorly for certain requests.  Version 4
+     causes the index to behave very poorly for certain requests.  Version 3
      contained incomplete addrmap.  So, it seems better to just ignore such
-     indices.  */
+     indices.  Index version 4 uses a different hash function than index
+     version 5 and later.  */
   if (version < 4)
     return 0;
   /* Indexes with higher version than the one supported by GDB may be no
      longer backward compatible.  */
-  if (version > 4)
+  if (version > 5)
     return 0;
 
   map = OBSTACK_ZALLOC (&objfile->objfile_obstack, struct mapped_index);
+  map->version = version;
   map->total_size = dwarf2_per_objfile->gdb_index.size;
 
   metadata = (offset_type *) (addr + sizeof (offset_type));
@@ -2399,7 +2459,7 @@ dw2_do_expand_symtabs_matching (struct objfile *objfile, const char *name)
 
 static void
 dw2_pre_expand_symtabs_matching (struct objfile *objfile,
-				 int kind, const char *name,
+				 enum block_enum block_kind, const char *name,
 				 domain_enum domain)
 {
   dw2_do_expand_symtabs_matching (objfile, name);
@@ -2545,7 +2605,7 @@ static void
 dw2_expand_symtabs_matching (struct objfile *objfile,
 			     int (*file_matcher) (const char *, void *),
 			     int (*name_matcher) (const char *, void *),
-			     domain_enum kind,
+			     enum search_domain kind,
 			     void *data)
 {
   int i;
@@ -2559,30 +2619,31 @@ dw2_expand_symtabs_matching (struct objfile *objfile,
     return;
   index = dwarf2_per_objfile->index_table;
 
-  for (i = 0; i < (dwarf2_per_objfile->n_comp_units
-		   + dwarf2_per_objfile->n_type_comp_units); ++i)
-    {
-      int j;
-      struct dwarf2_per_cu_data *per_cu = dw2_get_cu (i);
-      struct quick_file_names *file_data;
+  if (file_matcher != NULL)
+    for (i = 0; i < (dwarf2_per_objfile->n_comp_units
+		     + dwarf2_per_objfile->n_type_comp_units); ++i)
+      {
+	int j;
+	struct dwarf2_per_cu_data *per_cu = dw2_get_cu (i);
+	struct quick_file_names *file_data;
 
-      per_cu->v.quick->mark = 0;
-      if (per_cu->v.quick->symtab)
-	continue;
+	per_cu->v.quick->mark = 0;
+	if (per_cu->v.quick->symtab)
+	  continue;
 
-      file_data = dw2_get_file_names (objfile, per_cu);
-      if (file_data == NULL)
-	continue;
+	file_data = dw2_get_file_names (objfile, per_cu);
+	if (file_data == NULL)
+	  continue;
 
-      for (j = 0; j < file_data->num_file_names; ++j)
-	{
-	  if (file_matcher (file_data->file_names[j], data))
-	    {
-	      per_cu->v.quick->mark = 1;
-	      break;
-	    }
-	}
-    }
+	for (j = 0; j < file_data->num_file_names; ++j)
+	  {
+	    if (file_matcher (file_data->file_names[j], data))
+	      {
+		per_cu->v.quick->mark = 1;
+		break;
+	      }
+	  }
+      }
 
   for (iter = 0; iter < index->symbol_table_slots; ++iter)
     {
@@ -2608,7 +2669,7 @@ dw2_expand_symtabs_matching (struct objfile *objfile,
 	  struct dwarf2_per_cu_data *per_cu;
 
 	  per_cu = dw2_get_cu (MAYBE_SWAP (vec[vec_idx + 1]));
-	  if (per_cu->v.quick->mark)
+	  if (file_matcher == NULL || per_cu->v.quick->mark)
 	    dw2_instantiate_symtab (objfile, per_cu);
 	}
     }
@@ -2637,36 +2698,6 @@ dw2_find_pc_sect_symtab (struct objfile *objfile,
 	     paddress (get_objfile_arch (objfile), pc));
 
   return dw2_instantiate_symtab (objfile, data);
-}
-
-static void
-dw2_map_symbol_names (struct objfile *objfile,
-		      void (*fun) (const char *, void *),
-		      void *data)
-{
-  offset_type iter;
-  struct mapped_index *index;
-
-  dw2_setup (objfile);
-
-  /* index_table is NULL if OBJF_READNOW.  */
-  if (!dwarf2_per_objfile->index_table)
-    return;
-  index = dwarf2_per_objfile->index_table;
-
-  for (iter = 0; iter < index->symbol_table_slots; ++iter)
-    {
-      offset_type idx = 2 * iter;
-      const char *name;
-      offset_type *vec, vec_len, vec_idx;
-
-      if (index->symbol_table[idx] == 0 && index->symbol_table[idx + 1] == 0)
-	continue;
-
-      name = (index->constant_pool + MAYBE_SWAP (index->symbol_table[idx]));
-
-      (*fun) (name, data);
-    }
 }
 
 static void
@@ -2725,7 +2756,6 @@ const struct quick_symbol_functions dwarf2_gdb_index_functions =
   dw2_map_matching_symbols,
   dw2_expand_symtabs_matching,
   dw2_find_pc_sect_symtab,
-  dw2_map_symbol_names,
   dw2_map_symbol_filenames
 };
 
@@ -3105,7 +3135,7 @@ lookup_signatured_type (struct objfile *objfile, ULONGEST sig)
   if (dwarf2_per_objfile->signatured_types == NULL)
     {
       complaint (&symfile_complaints,
-		 _("missing `.debug_types' section for DW_FORM_sig8 die"));
+		 _("missing `.debug_types' section for DW_FORM_ref_sig8 die"));
       return 0;
     }
 
@@ -4217,7 +4247,7 @@ skip_one_die (gdb_byte *buffer, gdb_byte *info_ptr,
 	  break;
 	case DW_FORM_data8:
 	case DW_FORM_ref8:
-	case DW_FORM_sig8:
+	case DW_FORM_ref_sig8:
 	  info_ptr += 8;
 	  break;
 	case DW_FORM_string:
@@ -4587,6 +4617,44 @@ compute_delayed_physnames (struct dwarf2_cu *cu)
     }
 }
 
+/* Check for GCC >= 4.0.  */
+
+static int
+producer_is_gcc_ge_4_0 (struct dwarf2_cu *cu)
+{
+  const char *cs;
+  int major, minor;
+
+  if (cu->producer == NULL)
+    {
+      /* For unknown compilers expect their behavior is not compliant.  For GCC
+	 this case can also happen for -gdwarf-4 type units supported since
+	 gcc-4.5.  */
+
+      return 0;
+    }
+
+  /* Skip any identifier after "GNU " - such as "C++" or "Java".  */
+
+  if (strncmp (cu->producer, "GNU ", strlen ("GNU ")) != 0)
+    {
+      /* For non-GCC compilers expect their behavior is not compliant.  */
+
+      return 0;
+    }
+  cs = &cu->producer[strlen ("GNU ")];
+  while (*cs && !isdigit (*cs))
+    cs++;
+  if (sscanf (cs, "%d.%d", &major, &minor) != 2)
+    {
+      /* Not recognized as GCC.  */
+
+      return 0;
+    }
+
+  return major >= 4;
+}
+
 /* Generate full symbol information for PST and CU, whose DIEs have
    already been loaded into memory.  */
 
@@ -4626,13 +4694,26 @@ process_full_comp_unit (struct dwarf2_per_cu_data *per_cu)
 
   symtab = end_symtab (highpc + baseaddr, objfile, SECT_OFF_TEXT (objfile));
 
-  /* Set symtab language to language from DW_AT_language.
-     If the compilation is from a C file generated by language preprocessors,
-     do not set the language if it was already deduced by start_subfile.  */
-  if (symtab != NULL
-      && !(cu->language == language_c && symtab->language != language_c))
+  if (symtab != NULL)
     {
-      symtab->language = cu->language;
+      /* Set symtab language to language from DW_AT_language.  If the
+	 compilation is from a C file generated by language preprocessors, do
+	 not set the language if it was already deduced by start_subfile.  */
+      if (!(cu->language == language_c && symtab->language != language_c))
+	symtab->language = cu->language;
+
+      /* GCC-4.0 has started to support -fvar-tracking.  GCC-3.x still can
+	 produce DW_AT_location with location lists but it can be possibly
+	 invalid without -fvar-tracking.
+
+	 For -gdwarf-4 type units LOCATIONS_VALID indication is fortunately not
+	 needed, it would be wrong due to missing DW_AT_producer there.
+
+	 Still one can confuse GDB by using non-standard GCC compilation
+	 options - this waits on GCC PR other/32998 (-frecord-gcc-switches).
+	 */ 
+      if (cu->has_loclist && producer_is_gcc_ge_4_0 (cu))
+	symtab->locations_valid = 1;
     }
 
   if (dwarf2_per_objfile->using_index)
@@ -4990,7 +5071,7 @@ dwarf2_compute_name (char *name, struct die_info *die, struct dwarf2_cu *cu,
 	    {
 	      struct type *type = read_type_die (die, cu);
 
-	      c_type_print_args (type, buf, 0, cu->language);
+	      c_type_print_args (type, buf, 1, cu->language);
 
 	      if (cu->language == language_java)
 		{
@@ -5982,7 +6063,8 @@ dwarf2_get_pc_bounds (struct die_info *die, CORE_ADDR *lowpc,
 	}
     }
 
-  if (high < low)
+  /* read_partial_die has also the strict LOW < HIGH requirement.  */
+  if (high <= low)
     return 0;
 
   /* When using the GNU linker, .gnu.linkonce. sections are used to
@@ -6208,6 +6290,81 @@ dwarf2_record_block_ranges (struct die_info *die, struct block *block,
     }
 }
 
+/* Check for GCC PR debug/45124 fix which is not present in any G++ version up
+   to 4.5.any while it is present already in G++ 4.6.0 - the PR has been fixed
+   during 4.6.0 experimental.  */
+
+static int
+producer_is_gxx_lt_4_6 (struct dwarf2_cu *cu)
+{
+  const char *cs;
+  int major, minor, release;
+
+  if (cu->producer == NULL)
+    {
+      /* For unknown compilers expect their behavior is DWARF version
+	 compliant.
+
+	 GCC started to support .debug_types sections by -gdwarf-4 since
+	 gcc-4.5.x.  As the .debug_types sections are missing DW_AT_producer
+	 for their space efficiency GDB cannot workaround gcc-4.5.x -gdwarf-4
+	 combination.  gcc-4.5.x -gdwarf-4 binaries have DW_AT_accessibility
+	 interpreted incorrectly by GDB now - GCC PR debug/48229.  */
+
+      return 0;
+    }
+
+  /* Skip any identifier after "GNU " - such as "C++" or "Java".  */
+
+  if (strncmp (cu->producer, "GNU ", strlen ("GNU ")) != 0)
+    {
+      /* For non-GCC compilers expect their behavior is DWARF version
+	 compliant.  */
+
+      return 0;
+    }
+  cs = &cu->producer[strlen ("GNU ")];
+  while (*cs && !isdigit (*cs))
+    cs++;
+  if (sscanf (cs, "%d.%d.%d", &major, &minor, &release) != 3)
+    {
+      /* Not recognized as GCC.  */
+
+      return 0;
+    }
+
+  return major < 4 || (major == 4 && minor < 6);
+}
+
+/* Return the default accessibility type if it is not overriden by
+   DW_AT_accessibility.  */
+
+static enum dwarf_access_attribute
+dwarf2_default_access_attribute (struct die_info *die, struct dwarf2_cu *cu)
+{
+  if (cu->header.version < 3 || producer_is_gxx_lt_4_6 (cu))
+    {
+      /* The default DWARF 2 accessibility for members is public, the default
+	 accessibility for inheritance is private.  */
+
+      if (die->tag != DW_TAG_inheritance)
+	return DW_ACCESS_public;
+      else
+	return DW_ACCESS_private;
+    }
+  else
+    {
+      /* DWARF 3+ defines the default accessibility a different way.  The same
+	 rules apply now for DW_TAG_inheritance as for the members and it only
+	 depends on the container kind.  */
+
+      if (die->parent->tag == DW_TAG_class_type)
+	return DW_ACCESS_private;
+      else
+	return DW_ACCESS_public;
+    }
+}
+
 /* Add an aggregate field to the field list.  */
 
 static void
@@ -6238,23 +6395,19 @@ dwarf2_add_field (struct field_info *fip, struct die_info *die,
     }
   fip->nfields++;
 
-  /* Handle accessibility and virtuality of field.
-     The default accessibility for members is public, the default
-     accessibility for inheritance is private.  */
-  if (die->tag != DW_TAG_inheritance)
-    new_field->accessibility = DW_ACCESS_public;
-  else
-    new_field->accessibility = DW_ACCESS_private;
-  new_field->virtuality = DW_VIRTUALITY_none;
-
   attr = dwarf2_attr (die, DW_AT_accessibility, cu);
   if (attr)
     new_field->accessibility = DW_UNSND (attr);
+  else
+    new_field->accessibility = dwarf2_default_access_attribute (die, cu);
   if (new_field->accessibility != DW_ACCESS_public)
     fip->non_public_fields = 1;
+
   attr = dwarf2_attr (die, DW_AT_virtuality, cu);
   if (attr)
     new_field->virtuality = DW_UNSND (attr);
+  else
+    new_field->virtuality = DW_VIRTUALITY_none;
 
   fp = &new_field->field;
 
@@ -6570,6 +6723,7 @@ dwarf2_add_member_fn (struct field_info *fip, struct die_info *die,
   char *fieldname;
   struct nextfnfield *new_fnfield;
   struct type *this_type;
+  enum dwarf_access_attribute accessibility;
 
   if (cu->language == language_ada)
     error (_("unexpected member function in Ada type"));
@@ -6668,16 +6822,17 @@ dwarf2_add_member_fn (struct field_info *fip, struct die_info *die,
   /* Get accessibility.  */
   attr = dwarf2_attr (die, DW_AT_accessibility, cu);
   if (attr)
+    accessibility = DW_UNSND (attr);
+  else
+    accessibility = dwarf2_default_access_attribute (die, cu);
+  switch (accessibility)
     {
-      switch (DW_UNSND (attr))
-	{
-	case DW_ACCESS_private:
-	  fnp->is_private = 1;
-	  break;
-	case DW_ACCESS_protected:
-	  fnp->is_protected = 1;
-	  break;
-	}
+    case DW_ACCESS_private:
+      fnp->is_private = 1;
+      break;
+    case DW_ACCESS_protected:
+      fnp->is_protected = 1;
+      break;
     }
 
   /* Check for artificial methods.  */
@@ -8849,7 +9004,7 @@ load_partial_dies (bfd *abfd, gdb_byte *buffer, gdb_byte *info_ptr,
       if (parent_die == NULL
 	  && part_die->has_specification == 0
 	  && part_die->is_declaration == 0
-	  && (part_die->tag == DW_TAG_typedef
+	  && ((part_die->tag == DW_TAG_typedef && !part_die->has_children)
 	      || part_die->tag == DW_TAG_base_type
 	      || part_die->tag == DW_TAG_subrange_type))
 	{
@@ -8861,6 +9016,20 @@ load_partial_dies (bfd *abfd, gdb_byte *buffer, gdb_byte *info_ptr,
 	  info_ptr = locate_pdi_sibling (part_die, buffer, info_ptr, abfd, cu);
 	  continue;
 	}
+
+      /* The exception for DW_TAG_typedef with has_children above is
+	 a workaround of GCC PR debug/47510.  In the case of this complaint
+	 type_name_no_tag_or_error will error on such types later.
+
+	 GDB skipped children of DW_TAG_typedef by the shortcut above and then
+	 it could not find the child DIEs referenced later, this is checked
+	 above.  In correct DWARF DW_TAG_typedef should have no children.  */
+
+      if (part_die->tag == DW_TAG_typedef && part_die->has_children)
+	complaint (&symfile_complaints,
+		   _("DW_TAG_typedef has childen - GCC PR debug/47510 bug "
+		     "- DIE at 0x%x [in module %s]"),
+		   part_die->offset, cu->objfile->name);
 
       /* If we're at the second level, and we're an enumerator, and
 	 our parent has no specification (meaning possibly lives in a
@@ -9127,19 +9296,41 @@ read_partial_die (struct partial_die_info *part_die,
 	}
     }
 
-  /* When using the GNU linker, .gnu.linkonce. sections are used to
-     eliminate duplicate copies of functions and vtables and such.
-     The linker will arbitrarily choose one and discard the others.
-     The AT_*_pc values for such functions refer to local labels in
-     these sections.  If the section from that file was discarded, the
-     labels are not in the output, so the relocs get a value of 0.
-     If this is a discarded function, mark the pc bounds as invalid,
-     so that GDB will ignore it.  */
-  if (has_low_pc_attr && has_high_pc_attr
-      && part_die->lowpc < part_die->highpc
-      && (part_die->lowpc != 0
-	  || dwarf2_per_objfile->has_section_at_zero))
-    part_die->has_pc_info = 1;
+  if (has_low_pc_attr && has_high_pc_attr)
+    {
+      /* When using the GNU linker, .gnu.linkonce. sections are used to
+	 eliminate duplicate copies of functions and vtables and such.
+	 The linker will arbitrarily choose one and discard the others.
+	 The AT_*_pc values for such functions refer to local labels in
+	 these sections.  If the section from that file was discarded, the
+	 labels are not in the output, so the relocs get a value of 0.
+	 If this is a discarded function, mark the pc bounds as invalid,
+	 so that GDB will ignore it.  */
+      if (part_die->lowpc == 0 && !dwarf2_per_objfile->has_section_at_zero)
+	{
+	  struct gdbarch *gdbarch = get_objfile_arch (cu->objfile);
+
+	  complaint (&symfile_complaints,
+		     _("DW_AT_low_pc %s is zero "
+		       "for DIE at 0x%x [in module %s]"),
+		     paddress (gdbarch, part_die->lowpc),
+		     part_die->offset, cu->objfile->name);
+	}
+      /* dwarf2_get_pc_bounds has also the strict low < high requirement.  */
+      else if (part_die->lowpc >= part_die->highpc)
+	{
+	  struct gdbarch *gdbarch = get_objfile_arch (cu->objfile);
+
+	  complaint (&symfile_complaints,
+		     _("DW_AT_low_pc %s is not < DW_AT_high_pc %s "
+		       "for DIE at 0x%x [in module %s]"),
+		     paddress (gdbarch, part_die->lowpc),
+		     paddress (gdbarch, part_die->highpc),
+		     part_die->offset, cu->objfile->name);
+	}
+      else
+	part_die->has_pc_info = 1;
+    }
 
   return info_ptr;
 }
@@ -9161,7 +9352,7 @@ find_partial_die_in_comp_unit (unsigned int offset, struct dwarf2_cu *cu)
 /* Find a partial DIE at OFFSET, which may or may not be in CU,
    except in the case of .debug_types DIEs which do not reference
    outside their CU (they do however referencing other types via
-   DW_FORM_sig8).  */
+   DW_FORM_ref_sig8).  */
 
 static struct partial_die_info *
 find_partial_die (unsigned int offset, struct dwarf2_cu *cu)
@@ -9340,6 +9531,25 @@ fixup_partial_die (struct partial_die_info *part_die,
 	  || part_die->tag == DW_TAG_union_type))
     guess_partial_die_structure_name (part_die, cu);
 
+  /* GCC might emit a nameless struct or union that has a linkage
+     name.  See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=47510.  */
+  if (part_die->name == NULL
+      && (part_die->tag == DW_TAG_structure_type
+	  || part_die->tag == DW_TAG_union_type
+	  || part_die->tag == DW_TAG_class_type)
+      && part_die->linkage_name != NULL)
+    {
+      char *demangled;
+
+      demangled = cplus_demangle (part_die->linkage_name, DMGL_TYPES);
+      if (demangled)
+	{
+	  part_die->name = obsavestring (demangled, strlen (demangled),
+					 &cu->objfile->objfile_obstack);
+	  xfree (demangled);
+	}
+    }
+
   part_die->fixup_called = 1;
 }
 
@@ -9464,7 +9674,7 @@ read_attribute_value (struct attribute *attr, unsigned form,
       DW_ADDR (attr) = cu->header.offset + read_8_bytes (abfd, info_ptr);
       info_ptr += 8;
       break;
-    case DW_FORM_sig8:
+    case DW_FORM_ref_sig8:
       /* Convert the signature to something we can record in DW_UNSND
 	 for later lookup.
          NOTE: This is NULL if the type wasn't found.  */
@@ -10341,6 +10551,14 @@ psymtab_include_file_name (const struct line_header *lh, int file_index,
   return include_name;
 }
 
+/* Ignore this record_line request.  */
+
+static void
+noop_record_line (struct subfile *subfile, int line, CORE_ADDR pc)
+{
+  return;
+}
+
 /* Decode the Line Number Program (LNP) for the given line_header
    structure and CU.  The actual information extracted and the type
    of structures created from the LNP depends on the value of PST.
@@ -10376,6 +10594,8 @@ dwarf_decode_lines (struct line_header *lh, const char *comp_dir, bfd *abfd,
   struct gdbarch *gdbarch = get_objfile_arch (objfile);
   const int decode_for_pst_p = (pst != NULL);
   struct subfile *last_subfile = NULL, *first_subfile = current_subfile;
+  void (*p_record_line) (struct subfile *subfile, int line, CORE_ADDR pc)
+    = record_line;
 
   baseaddr = ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile));
 
@@ -10445,13 +10665,13 @@ dwarf_decode_lines (struct line_header *lh, const char *comp_dir, bfd *abfd,
 			{
 			  addr = gdbarch_addr_bits_remove (gdbarch, address);
 			  if (last_subfile)
-			    record_line (last_subfile, 0, addr);
+			    (*p_record_line) (last_subfile, 0, addr);
 			  last_subfile = current_subfile;
 			}
 		      /* Append row to matrix using current values.  */
 		      addr = check_cu_functions (address, cu);
 		      addr = gdbarch_addr_bits_remove (gdbarch, addr);
-		      record_line (current_subfile, line, addr);
+		      (*p_record_line) (current_subfile, line, addr);
 		    }
 		}
 	      basic_block = 0;
@@ -10468,10 +10688,27 @@ dwarf_decode_lines (struct line_header *lh, const char *comp_dir, bfd *abfd,
 	      switch (extended_op)
 		{
 		case DW_LNE_end_sequence:
+		  p_record_line = record_line;
 		  end_sequence = 1;
 		  break;
 		case DW_LNE_set_address:
 		  address = read_address (abfd, line_ptr, cu, &bytes_read);
+
+		  if (address == 0 && !dwarf2_per_objfile->has_section_at_zero)
+		    {
+		      /* This line table is for a function which has been
+			 GCd by the linker.  Ignore it.  PR gdb/12528 */
+
+		      long line_offset
+			= line_ptr - dwarf2_per_objfile->line.buffer;
+
+		      complaint (&symfile_complaints,
+				 _(".debug_line address at offset 0x%lx is 0 "
+				   "[in module %s]"),
+				 line_offset, cu->objfile->name);
+		      p_record_line = noop_record_line;
+		    }
+
 		  op_index = 0;
 		  line_ptr += bytes_read;
 		  address += baseaddr;
@@ -10528,12 +10765,12 @@ dwarf_decode_lines (struct line_header *lh, const char *comp_dir, bfd *abfd,
 			{
 			  addr = gdbarch_addr_bits_remove (gdbarch, address);
 			  if (last_subfile)
-			    record_line (last_subfile, 0, addr);
+			    (*p_record_line) (last_subfile, 0, addr);
 			  last_subfile = current_subfile;
 			}
 		      addr = check_cu_functions (address, cu);
 		      addr = gdbarch_addr_bits_remove (gdbarch, addr);
-		      record_line (current_subfile, line, addr);
+		      (*p_record_line) (current_subfile, line, addr);
 		    }
 		}
 	      basic_block = 0;
@@ -10632,7 +10869,7 @@ dwarf_decode_lines (struct line_header *lh, const char *comp_dir, bfd *abfd,
           if (!decode_for_pst_p)
 	    {
 	      addr = gdbarch_addr_bits_remove (gdbarch, address);
-	      record_line (current_subfile, 0, addr);
+	      (*p_record_line) (current_subfile, 0, addr);
 	    }
         }
     }
@@ -10789,6 +11026,9 @@ var_decode_location (struct attribute *attr, struct symbol *sym,
 
   dwarf2_symbol_mark_computed (attr, sym, cu);
   SYMBOL_CLASS (sym) = LOC_COMPUTED;
+
+  if (SYMBOL_COMPUTED_OPS (sym) == &dwarf2_loclist_funcs)
+    cu->has_loclist = 1;
 }
 
 /* Given a pointer to a DWARF information entry, figure out if we need
@@ -11447,7 +11687,7 @@ lookup_die_type (struct die_info *die, struct attribute *attr,
 
       this_type = get_die_type_at_offset (offset, cu->per_cu);
     }
-  else if (attr->form == DW_FORM_sig8)
+  else if (attr->form == DW_FORM_ref_sig8)
     {
       struct signatured_type *sig_type = DW_SIGNATURED_TYPE (attr);
       struct dwarf2_cu *sig_cu;
@@ -11910,7 +12150,11 @@ dwarf2_name (struct die_info *die, struct dwarf2_cu *cu)
   struct attribute *attr;
 
   attr = dwarf2_attr (die, DW_AT_name, cu);
-  if (!attr || !DW_STRING (attr))
+  if ((!attr || !DW_STRING (attr))
+      && die->tag != DW_TAG_class_type
+      && die->tag != DW_TAG_interface_type
+      && die->tag != DW_TAG_structure_type
+      && die->tag != DW_TAG_union_type)
     return NULL;
 
   switch (die->tag)
@@ -11961,9 +12205,39 @@ dwarf2_name (struct die_info *die, struct dwarf2_cu *cu)
 	 structures or unions.  These were of the form "._%d" in GCC 4.1,
 	 or simply "<anonymous struct>" or "<anonymous union>" in GCC 4.3
 	 and GCC 4.4.  We work around this problem by ignoring these.  */
-      if (strncmp (DW_STRING (attr), "._", 2) == 0
-	  || strncmp (DW_STRING (attr), "<anonymous", 10) == 0)
+      if (attr && DW_STRING (attr)
+	  && (strncmp (DW_STRING (attr), "._", 2) == 0
+	      || strncmp (DW_STRING (attr), "<anonymous", 10) == 0))
 	return NULL;
+
+      /* GCC might emit a nameless typedef that has a linkage name.  See
+	 http://gcc.gnu.org/bugzilla/show_bug.cgi?id=47510.  */
+      if (!attr || DW_STRING (attr) == NULL)
+	{
+	  char *demangled = NULL;
+
+	  attr = dwarf2_attr (die, DW_AT_linkage_name, cu);
+	  if (attr == NULL)
+	    attr = dwarf2_attr (die, DW_AT_MIPS_linkage_name, cu);
+
+	  if (attr == NULL || DW_STRING (attr) == NULL)
+	    return NULL;
+
+	  /* Avoid demangling DW_STRING (attr) the second time on a second
+	     call for the same DIE.  */
+	  if (!DW_STRING_IS_CANONICAL (attr))
+	    demangled = cplus_demangle (DW_STRING (attr), DMGL_TYPES);
+
+	  if (demangled)
+	    {
+	      /* FIXME: we already did this for the partial symbol... */
+	      DW_STRING (attr)
+		= obsavestring (demangled, strlen (demangled),
+				&cu->objfile->objfile_obstack);
+	      DW_STRING_IS_CANONICAL (attr) = 1;
+	      xfree (demangled);
+	    }
+	}
       break;
 
     default:
@@ -12487,8 +12761,8 @@ dwarf_form_name (unsigned form)
       return "DW_FORM_exprloc";
     case DW_FORM_flag_present:
       return "DW_FORM_flag_present";
-    case DW_FORM_sig8:
-      return "DW_FORM_sig8";
+    case DW_FORM_ref_sig8:
+      return "DW_FORM_ref_sig8";
     default:
       return "DW_FORM_<unknown>";
     }
@@ -13039,7 +13313,7 @@ dump_die_shallow (struct ui_file *f, int indent, struct die_info *die)
 	  fprintf_unfiltered (f, "section offset: %s",
 			      pulongest (DW_UNSND (&die->attrs[i])));
 	  break;
-	case DW_FORM_sig8:
+	case DW_FORM_ref_sig8:
 	  if (DW_SIGNATURED_TYPE (&die->attrs[i]) != NULL)
 	    fprintf_unfiltered (f, "signatured type, offset: 0x%x",
 				DW_SIGNATURED_TYPE (&die->attrs[i])->offset);
@@ -13241,7 +13515,7 @@ follow_die_ref_or_sig (struct die_info *src_die, struct attribute *attr,
 
   if (is_ref_attr (attr))
     die = follow_die_ref (src_die, attr, ref_cu);
-  else if (attr->form == DW_FORM_sig8)
+  else if (attr->form == DW_FORM_ref_sig8)
     die = follow_die_sig (src_die, attr, ref_cu);
   else
     {
@@ -13272,7 +13546,7 @@ follow_die_offset (unsigned int offset, struct dwarf2_cu **ref_cu)
     {
       /* .debug_types CUs cannot reference anything outside their CU.
 	 If they need to, they have to reference a signatured type via
-	 DW_FORM_sig8.  */
+	 DW_FORM_ref_sig8.  */
       if (! offset_in_cu_p (&cu->header, offset))
 	return NULL;
     }
@@ -14629,7 +14903,10 @@ prepare_one_comp_unit (struct dwarf2_cu *cu, struct die_info *comp_unit_die)
   if (attr)
     set_cu_language (DW_UNSND (attr), cu);
   else
-    set_cu_language (language_minimal, cu);
+    {
+      cu->language = language_minimal;
+      cu->language_defn = language_def (cu->language);
+    }
 }
 
 /* Release one cached compilation unit, CU.  We unlink it from the tree
@@ -15074,13 +15351,16 @@ struct strtab_entry
   const char *str;
 };
 
-/* Hash function for a strtab_entry.  */
+/* Hash function for a strtab_entry.
+
+   Function is used only during write_hash_table so no index format backward
+   compatibility is needed.  */
 
 static hashval_t
 hash_strtab_entry (const void *e)
 {
   const struct strtab_entry *entry = e;
-  return mapped_index_string_hash (entry->str);
+  return mapped_index_string_hash (INT_MAX, entry->str);
 }
 
 /* Equality function for a strtab_entry.  */
@@ -15218,12 +15498,15 @@ cleanup_mapped_symtab (void *p)
 }
 
 /* Find a slot in SYMTAB for the symbol NAME.  Returns a pointer to
-   the slot.  */
+   the slot.
+   
+   Function is used only during write_hash_table so no index format backward
+   compatibility is needed.  */
 
 static struct symtab_index_entry **
 find_slot (struct mapped_symtab *symtab, const char *name)
 {
-  offset_type index, step, hash = mapped_index_string_hash (name);
+  offset_type index, step, hash = mapped_index_string_hash (INT_MAX, name);
 
   index = hash & (symtab->size - 1);
   step = ((hash * 17) & (symtab->size - 1)) | 1;
@@ -15284,7 +15567,7 @@ add_index_entry (struct mapped_symtab *symtab, const char *name,
   /* Don't push an index twice.  Due to how we add entries we only
      have to check the last one.  */ 
   if (VEC_empty (offset_type, (*slot)->cu_indices)
-      || VEC_length (offset_type, (*slot)->cu_indices) != cu_index)
+      || VEC_last (offset_type, (*slot)->cu_indices) != cu_index)
     VEC_safe_push (offset_type, (*slot)->cu_indices, cu_index);
 }
 
@@ -15636,8 +15919,9 @@ write_psymtabs_to_index (struct objfile *objfile, const char *dir)
   htab_t cu_index_htab;
   struct psymtab_cu_index_map *psymtab_cu_index_map;
 
-  if (!objfile->psymtabs)
+  if (!objfile->psymtabs || !objfile->psymtabs_addrmap)
     return;
+
   if (dwarf2_per_objfile->using_index)
     error (_("Cannot use an index to create the index"));
 
@@ -15751,7 +16035,7 @@ write_psymtabs_to_index (struct objfile *objfile, const char *dir)
   total_len = size_of_contents;
 
   /* The version number.  */
-  val = MAYBE_SWAP (4);
+  val = MAYBE_SWAP (5);
   obstack_grow (&contents, &val, sizeof (val));
 
   /* The offset of the CU list from the start of the file.  */
@@ -15797,75 +16081,10 @@ write_psymtabs_to_index (struct objfile *objfile, const char *dir)
   do_cleanups (cleanup);
 }
 
-/* The mapped index file format is designed to be directly mmap()able
-   on any architecture.  In most cases, a datum is represented using a
-   little-endian 32-bit integer value, called an offset_type.  Big
-   endian machines must byte-swap the values before using them.
-   Exceptions to this rule are noted.  The data is laid out such that
-   alignment is always respected.
-
-   A mapped index consists of several sections.
-
-   1. The file header.  This is a sequence of values, of offset_type
-   unless otherwise noted:
-
-   [0] The version number, currently 4.  Versions 1, 2 and 3 are
-   obsolete.
-   [1] The offset, from the start of the file, of the CU list.
-   [2] The offset, from the start of the file, of the types CU list.
-   Note that this section can be empty, in which case this offset will
-   be equal to the next offset.
-   [3] The offset, from the start of the file, of the address section.
-   [4] The offset, from the start of the file, of the symbol table.
-   [5] The offset, from the start of the file, of the constant pool.
-
-   2. The CU list.  This is a sequence of pairs of 64-bit
-   little-endian values, sorted by the CU offset.  The first element
-   in each pair is the offset of a CU in the .debug_info section.  The
-   second element in each pair is the length of that CU.  References
-   to a CU elsewhere in the map are done using a CU index, which is
-   just the 0-based index into this table.  Note that if there are
-   type CUs, then conceptually CUs and type CUs form a single list for
-   the purposes of CU indices.
-
-   3. The types CU list.  This is a sequence of triplets of 64-bit
-   little-endian values.  In a triplet, the first value is the CU
-   offset, the second value is the type offset in the CU, and the
-   third value is the type signature.  The types CU list is not
-   sorted.
-
-   4. The address section.  The address section consists of a sequence
-   of address entries.  Each address entry has three elements.
-   [0] The low address.  This is a 64-bit little-endian value.
-   [1] The high address.  This is a 64-bit little-endian value.
-       Like DW_AT_high_pc, the value is one byte beyond the end.
-   [2] The CU index.  This is an offset_type value.
-
-   5. The symbol table.  This is a hash table.  The size of the hash
-   table is always a power of 2.  The initial hash and the step are
-   currently defined by the `find_slot' function.
-
-   Each slot in the hash table consists of a pair of offset_type
-   values.  The first value is the offset of the symbol's name in the
-   constant pool.  The second value is the offset of the CU vector in
-   the constant pool.
-
-   If both values are 0, then this slot in the hash table is empty.
-   This is ok because while 0 is a valid constant pool index, it
-   cannot be a valid index for both a string and a CU vector.
-
-   A string in the constant pool is stored as a \0-terminated string,
-   as you'd expect.
-
-   A CU vector in the constant pool is a sequence of offset_type
-   values.  The first value is the number of CU indices in the vector.
-   Each subsequent value is the index of a CU in the CU list.  This
-   element in the hash table is used to indicate which CUs define the
-   symbol.
-
-   6. The constant pool.  This is simply a bunch of bytes.  It is
-   organized so that alignment is correct: CU vectors are stored
-   first, followed by strings.  */
+/* Implementation of the `save gdb-index' command.
+   
+   Note that the file format used by this command is documented in the
+   GDB manual.  Any changes here must be documented there.  */
 
 static void
 save_gdb_index_command (char *arg, int from_tty)

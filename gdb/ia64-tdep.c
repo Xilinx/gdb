@@ -933,11 +933,12 @@ rse_address_add(CORE_ADDR addr, int nslots)
   return new_addr;
 }
 
-static void
+static enum register_status
 ia64_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
                            int regnum, gdb_byte *buf)
 {
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
+  enum register_status status;
 
   if (regnum >= V32_REGNUM && regnum <= V127_REGNUM)
     {
@@ -952,12 +953,21 @@ ia64_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
 	     found sequentially in memory starting at $bof.  This
 	     isn't always true, but without libunwind, this is the
 	     best we can do.  */
+	  enum register_status status;
 	  ULONGEST cfm;
 	  ULONGEST bsp;
 	  CORE_ADDR reg;
-	  regcache_cooked_read_unsigned (regcache, IA64_BSP_REGNUM, &bsp);
-	  regcache_cooked_read_unsigned (regcache, IA64_CFM_REGNUM, &cfm);
-	  
+
+	  status = regcache_cooked_read_unsigned (regcache,
+						  IA64_BSP_REGNUM, &bsp);
+	  if (status != REG_VALID)
+	    return status;
+
+	  status = regcache_cooked_read_unsigned (regcache,
+						  IA64_CFM_REGNUM, &cfm);
+	  if (status != REG_VALID)
+	    return status;
+
 	  /* The bsp points at the end of the register frame so we
 	     subtract the size of frame from it to get start of
 	     register frame.  */
@@ -979,7 +989,9 @@ ia64_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
     {
       ULONGEST unatN_val;
       ULONGEST unat;
-      regcache_cooked_read_unsigned (regcache, IA64_UNAT_REGNUM, &unat);
+      status = regcache_cooked_read_unsigned (regcache, IA64_UNAT_REGNUM, &unat);
+      if (status != REG_VALID)
+	return status;
       unatN_val = (unat & (1LL << (regnum - IA64_NAT0_REGNUM))) != 0;
       store_unsigned_integer (buf, register_size (gdbarch, regnum),
 			      byte_order, unatN_val);
@@ -990,8 +1002,12 @@ ia64_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
       ULONGEST bsp;
       ULONGEST cfm;
       CORE_ADDR gr_addr = 0;
-      regcache_cooked_read_unsigned (regcache, IA64_BSP_REGNUM, &bsp);
-      regcache_cooked_read_unsigned (regcache, IA64_CFM_REGNUM, &cfm);
+      status = regcache_cooked_read_unsigned (regcache, IA64_BSP_REGNUM, &bsp);
+      if (status != REG_VALID)
+	return status;
+      status = regcache_cooked_read_unsigned (regcache, IA64_CFM_REGNUM, &cfm);
+      if (status != REG_VALID)
+	return status;
 
       /* The bsp points at the end of the register frame so we
 	 subtract the size of frame from it to get start of register frame.  */
@@ -1028,8 +1044,12 @@ ia64_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
       ULONGEST bsp, vbsp;
       ULONGEST cfm;
       CORE_ADDR reg;
-      regcache_cooked_read_unsigned (regcache, IA64_BSP_REGNUM, &bsp);
-      regcache_cooked_read_unsigned (regcache, IA64_CFM_REGNUM, &cfm);
+      status = regcache_cooked_read_unsigned (regcache, IA64_BSP_REGNUM, &bsp);
+      if (status != REG_VALID)
+	return status;
+      status = regcache_cooked_read_unsigned (regcache, IA64_CFM_REGNUM, &cfm);
+      if (status != REG_VALID)
+	return status;
 
       /* The bsp points at the end of the register frame so we
 	 subtract the size of frame from it to get beginning of frame.  */
@@ -1043,8 +1063,12 @@ ia64_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
       ULONGEST cfm;
       ULONGEST prN_val;
       CORE_ADDR reg;
-      regcache_cooked_read_unsigned (regcache, IA64_PR_REGNUM, &pr);
-      regcache_cooked_read_unsigned (regcache, IA64_CFM_REGNUM, &cfm);
+      status = regcache_cooked_read_unsigned (regcache, IA64_PR_REGNUM, &pr);
+      if (status != REG_VALID)
+	return status;
+      status = regcache_cooked_read_unsigned (regcache, IA64_CFM_REGNUM, &cfm);
+      if (status != REG_VALID)
+	return status;
 
       if (VP16_REGNUM <= regnum && regnum <= VP63_REGNUM)
 	{
@@ -1062,6 +1086,8 @@ ia64_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
     }
   else
     memset (buf, 0, register_size (gdbarch, regnum));
+
+  return REG_VALID;
 }
 
 static void
@@ -1132,7 +1158,8 @@ ia64_pseudo_register_write (struct gdbarch *gdbarch, struct regcache *regcache,
 	     collection from the computed address.  */
 	  if (nat_addr >= bsp)
 	    {
-	      regcache_cooked_read_unsigned (regcache, IA64_RNAT_REGNUM,
+	      regcache_cooked_read_unsigned (regcache,
+					     IA64_RNAT_REGNUM,
 					     &nat_collection);
 	      if (natN_val)
 		nat_collection |= natN_mask;
@@ -1196,14 +1223,23 @@ ia64_convert_register_p (struct gdbarch *gdbarch, int regno, struct type *type)
 	  && type != ia64_ext_type (gdbarch));
 }
 
-static void
+static int
 ia64_register_to_value (struct frame_info *frame, int regnum,
-                         struct type *valtype, gdb_byte *out)
+			struct type *valtype, gdb_byte *out,
+			int *optimizedp, int *unavailablep)
 {
   struct gdbarch *gdbarch = get_frame_arch (frame);
   char in[MAX_REGISTER_SIZE];
-  frame_register_read (frame, regnum, in);
+
+  /* Convert to TYPE.  */
+  if (!get_frame_register_bytes (frame, regnum, 0,
+				 register_size (gdbarch, regnum),
+				 in, optimizedp, unavailablep))
+    return 0;
+
   convert_typed_floating (in, ia64_ext_type (gdbarch), out, valtype);
+  *optimizedp = *unavailablep = 0;
+  return 1;
 }
 
 static void
@@ -2139,6 +2175,7 @@ ia64_frame_prev_register (struct frame_info *this_frame, void **this_cache,
 static const struct frame_unwind ia64_frame_unwind =
 {
   NORMAL_FRAME,
+  default_frame_unwind_stop_reason,
   &ia64_frame_this_id,
   &ia64_frame_prev_register,
   NULL,
@@ -2330,6 +2367,7 @@ ia64_sigtramp_frame_sniffer (const struct frame_unwind *self,
 static const struct frame_unwind ia64_sigtramp_frame_unwind =
 {
   SIGTRAMP_FRAME,
+  default_frame_unwind_stop_reason,
   ia64_sigtramp_frame_this_id,
   ia64_sigtramp_frame_prev_register,
   NULL,
@@ -3015,6 +3053,7 @@ ia64_libunwind_frame_sniffer (const struct frame_unwind *self,
 static const struct frame_unwind ia64_libunwind_frame_unwind =
 {
   NORMAL_FRAME,
+  default_frame_unwind_stop_reason,
   ia64_libunwind_frame_this_id,
   ia64_libunwind_frame_prev_register,
   NULL,
@@ -3103,6 +3142,7 @@ ia64_libunwind_sigtramp_frame_sniffer (const struct frame_unwind *self,
 static const struct frame_unwind ia64_libunwind_sigtramp_frame_unwind =
 {
   SIGTRAMP_FRAME,
+  default_frame_unwind_stop_reason,
   ia64_libunwind_sigtramp_frame_this_id,
   ia64_libunwind_sigtramp_frame_prev_register,
   NULL,

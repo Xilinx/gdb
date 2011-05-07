@@ -149,6 +149,19 @@ enum bptype
 
     /* Event for JIT compiled code generation or deletion.  */
     bp_jit_event,
+
+    /* Breakpoint is placed at the STT_GNU_IFUNC resolver.  When hit GDB
+       inserts new bp_gnu_ifunc_resolver_return at the caller.
+       bp_gnu_ifunc_resolver is still being kept here as a different thread
+       may still hit it before bp_gnu_ifunc_resolver_return is hit by the
+       original thread.  */
+    bp_gnu_ifunc_resolver,
+
+    /* On its hit GDB now know the resolved address of the target
+       STT_GNU_IFUNC function.  Associated bp_gnu_ifunc_resolver can be
+       deleted now and the breakpoint moved to the target function entry
+       point.  */
+    bp_gnu_ifunc_resolver_return,
   };
 
 /* States of enablement of breakpoint.  */
@@ -217,6 +230,10 @@ struct bp_target_info
      adjustment is stripping an alternate ISA marker from the PC which
      is used to determine the type of breakpoint to insert.  */
   CORE_ADDR placed_address;
+
+  /* If this is a ranged breakpoint, then this field contains the
+     length of the range that will be watched for execution.  */
+  int length;
 
   /* If the breakpoint lives in memory and reading that memory would
      give back the breakpoint, instead of the original contents, then
@@ -326,7 +343,8 @@ struct bp_location
   CORE_ADDR address;
 
   /* For hardware watchpoints, the size of the memory region being
-     watched.  */
+     watched.  For hardware ranged breakpoints, the size of the
+     breakpoint range.  */
   int length;
 
   /* Type of hardware watchpoint.  */
@@ -384,12 +402,18 @@ struct breakpoint_ops
 
   /* Return non-zero if the debugger should tell the user that this
      breakpoint was hit.  */
-  int (*breakpoint_hit) (struct breakpoint *);
+  int (*breakpoint_hit) (const struct bp_location *, struct address_space *,
+			 CORE_ADDR);
 
   /* Tell how many hardware resources (debug registers) are needed
      for this breakpoint.  If this function is not provided, then
      the breakpoint or watchpoint needs one debug register.  */
   int (*resources_needed) (const struct bp_location *);
+
+  /* Tell whether we can downgrade from a hardware watchpoint to a software
+     one.  If not, the user will not be able to enable the watchpoint when
+     there are not enough hardware resources available.  */
+  int (*works_in_software_mode) (const struct breakpoint *);
 
   /* The normal print routine for this breakpoint, called when we
      hit it.  */
@@ -398,6 +422,20 @@ struct breakpoint_ops
   /* Display information about this breakpoint, for "info
      breakpoints".  */
   void (*print_one) (struct breakpoint *, struct bp_location **);
+
+  /* Display extra information about this breakpoint, below the normal
+     breakpoint description in "info breakpoints".
+
+     In the example below, the "address range" line was printed
+     by print_one_detail_ranged_breakpoint.
+
+     (gdb) info breakpoints
+     Num     Type           Disp Enb Address    What
+     2       hw breakpoint  keep y              in main at test-watch.c:70
+	     address range: [0x10000458, 0x100004c7]
+
+   */
+  void (*print_one_detail) (const struct breakpoint *, struct ui_out *);
 
   /* Display information about this breakpoint after setting it
      (roughly speaking; this is called from "mention").  */
@@ -472,6 +510,8 @@ struct breakpoint
     /* Non-zero means a silent breakpoint (don't print frame info
        if we stop here).  */
     unsigned char silent;
+    /* Non-zero means display ADDR_STRING to the user verbatim.  */
+    unsigned char display_canonical;
     /* Number of stops at this breakpoint that should
        be continued automatically before really stopping.  */
     int ignore_count;
@@ -487,6 +527,11 @@ struct breakpoint
 
     /* String we used to set the breakpoint (malloc'd).  */
     char *addr_string;
+
+    /* For a ranged breakpoint, the string we used to find
+       the end of the range (malloc'd).  */
+    char *addr_string_range_end;
+
     /* Architecture we used to set the breakpoint.  */
     struct gdbarch *gdbarch;
     /* Language we used to set the breakpoint.  */
@@ -611,6 +656,9 @@ struct breakpoint
 
     /* Whether this watchpoint is exact (see target_exact_watchpoints).  */
     int exact;
+
+    /* The mask address for a masked hardware watchpoint.  */
+    CORE_ADDR hw_wp_mask;
   };
 
 typedef struct breakpoint *breakpoint_p;
@@ -888,6 +936,10 @@ extern int breakpoint_thread_match (struct address_space *,
 
 extern void until_break_command (char *, int, int);
 
+extern void update_breakpoint_locations (struct breakpoint *b,
+					 struct symtabs_and_lines sals,
+					 struct symtabs_and_lines sals_end);
+
 extern void breakpoint_re_set (void);
 
 extern void breakpoint_re_set_thread (struct breakpoint *);
@@ -916,6 +968,10 @@ extern void breakpoint_auto_delete (bpstat);
 /* Return the chain of command lines to execute when this breakpoint
    is hit.  */
 extern struct command_line *breakpoint_commands (struct breakpoint *b);
+
+/* Return a string image of DISP.  The string is static, and thus should
+   NOT be deallocated after use.  */
+const char *bpdisp_text (enum bpdisp disp);
 
 extern void break_command (char *, int);
 

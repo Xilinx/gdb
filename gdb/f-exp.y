@@ -517,9 +517,9 @@ variable:	name_not_typename
 			      if (msymbol != NULL)
 				write_exp_msymbol (msymbol);
 			      else if (!have_full_symbols () && !have_partial_symbols ())
-				error ("No symbol table is loaded.  Use the \"file\" command.");
+				error (_("No symbol table is loaded.  Use the \"file\" command."));
 			      else
-				error ("No symbol \"%s\" in current context.",
+				error (_("No symbol \"%s\" in current context."),
 				       copy_name ($1.stoken));
 			    }
 			}
@@ -758,14 +758,14 @@ parse_number (p, len, parsed_float, putithere)
       if (RANGE_CHECK && n != 0)
 	{
 	  if ((unsigned_p && (unsigned)prevn >= (unsigned)n))
-	    range_error("Overflow on numeric constant.");	 
+	    range_error (_("Overflow on numeric constant."));
 	}
       prevn = n;
     }
   
   /* If the number is too big to be an int, or it's got an l suffix
      then it's a long.  Work out if this has to be a long by
-     shifting right and and seeing if anything remains, and the
+     shifting right and seeing if anything remains, and the
      target int size is different to the target long size.
      
      In the expression below, we could have tested
@@ -919,7 +919,7 @@ growbuf_by_size (count)
    a string, it is simply doubled (I.E. 'this''is''one''string') */
 
 static int
-match_string_literal ()
+match_string_literal (void)
 {
   char *tokptr = lexptr;
 
@@ -951,7 +951,7 @@ match_string_literal ()
 /* Read one token, getting characters through lexptr.  */
 
 static int
-yylex ()
+yylex (void)
 {
   int c;
   int namelen;
@@ -1099,7 +1099,7 @@ yylex ()
 	    
 	    memcpy (err_copy, tokstart, p - tokstart);
 	    err_copy[p - tokstart] = 0;
-	    error ("Invalid number \"%s\".", err_copy);
+	    error (_("Invalid number \"%s\"."), err_copy);
 	  }
 	lexptr = p;
 	return toktype;
@@ -1133,7 +1133,7 @@ yylex ()
   if (!(c == '_' || c == '$' || c ==':'
 	|| (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')))
     /* We must have come across a bad character (e.g. ';').  */
-    error ("Invalid character '%c' in expression.", c);
+    error (_("Invalid character '%c' in expression."), c);
   
   namelen = 0;
   for (c = tokstart[namelen];
@@ -1224,5 +1224,5 @@ yyerror (msg)
   if (prev_lexptr)
     lexptr = prev_lexptr;
 
-  error ("A %s in expression, near `%s'.", (msg ? msg : "error"), lexptr);
+  error (_("A %s in expression, near `%s'."), (msg ? msg : "error"), lexptr);
 }

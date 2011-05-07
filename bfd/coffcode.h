@@ -658,7 +658,10 @@ sec_to_styp_flags (const char *sec_name, flagword sec_flags)
 
   /* FIXME: There is no gas syntax to specify the debug section flag.  */
   if (is_dbg)
-      sec_flags = SEC_DEBUGGING | SEC_READONLY;
+    {
+      sec_flags &= (SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD);
+      sec_flags |= SEC_DEBUGGING | SEC_READONLY;
+    }
 
   /* skip LOAD */
   /* READONLY later */
@@ -1860,12 +1863,14 @@ coff_set_alignment_hook (bfd * abfd ATTRIBUTE_UNUSED,
       file_ptr oldpos = bfd_tell (abfd);
       bfd_size_type relsz = bfd_coff_relsz (abfd);
 
-      bfd_seek (abfd, (file_ptr) hdr->s_relptr, 0);
+      if (bfd_seek (abfd, (file_ptr) hdr->s_relptr, 0) != 0)
+	return;
       if (bfd_bread (& dst, relsz, abfd) != relsz)
 	return;
 
       coff_swap_reloc_in (abfd, &dst, &n);
-      bfd_seek (abfd, oldpos, 0);
+      if (bfd_seek (abfd, oldpos, 0) != 0)
+	return;
       section->reloc_count = hdr->s_nreloc = n.r_vaddr - 1;
       section->rel_filepos += relsz;
     }
@@ -3295,6 +3300,8 @@ coff_compute_section_file_positions (bfd * abfd)
       if (!(current->flags & SEC_HAS_CONTENTS))
 	continue;
 
+      current->rawsize = current->size;
+
 #ifdef COFF_IMAGE_WITH_PE
       /* Make sure we skip empty sections in a PE image.  */
       if (current->size == 0)
@@ -3361,7 +3368,7 @@ coff_compute_section_file_positions (bfd * abfd)
 
 #ifdef COFF_IMAGE_WITH_PE
       /* Set the padded size.  */
-      current->size = (current->size + page_size -1) & -page_size;
+      current->size = (current->size + page_size - 1) & -page_size;
 #endif
 
       sofar += current->size;
@@ -4894,6 +4901,11 @@ coff_slurp_symbol_table (bfd * abfd)
 		  && src->u.syment.n_value == 0
 		  && src->u.syment.n_scnum == 0)
 		break;
+#ifdef RS6000COFF_C
+              /* XCOFF specific: deleted entry.  */
+              if (src->u.syment.n_value == C_NULL_VALUE)
+                break;
+#endif
 	      /* Fall through.  */
 	    case C_EXTDEF:	/* External definition.  */
 	    case C_ULABEL:	/* Undefined label.  */

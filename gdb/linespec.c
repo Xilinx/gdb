@@ -41,6 +41,8 @@
 #include "mi/mi-cmds.h"
 #include "target.h"
 #include "arch-utils.h"
+#include <ctype.h>
+#include "cli/cli-utils.h"
 
 /* We share this one with symtab.c, but it is not exported widely.  */
 
@@ -58,25 +60,23 @@ static char *locate_first_half (char **argptr, int *is_quote_enclosed);
 static struct symtabs_and_lines decode_objc (char **argptr,
 					     int funfirstline,
 					     struct symtab *file_symtab,
-					     char ***canonical,
+					     struct linespec_result *canonical,
 					     char *saved_arg);
 
 static struct symtabs_and_lines decode_compound (char **argptr,
 						 int funfirstline,
-						 char ***canonical,
+						 struct linespec_result *canonical,
 						 char *saved_arg,
-						 char *p,
-						 int *not_found_ptr);
+						 char *p);
 
 static struct symbol *lookup_prefix_sym (char **argptr, char *p);
 
 static struct symtabs_and_lines find_method (int funfirstline,
-					     char ***canonical,
+					     struct linespec_result *canonical,
 					     char *saved_arg,
 					     char *copy,
 					     struct type *t,
-					     struct symbol *sym_class,
-					     int *not_found_ptr);
+					     struct symbol *sym_class);
 
 static void cplusplus_error (const char *name, const char *fmt, ...)
      ATTRIBUTE_NORETURN ATTRIBUTE_PRINTF (2, 3);
@@ -95,48 +95,52 @@ static int add_constructors (int method_counter, struct type *t,
 			     struct symbol **sym_arr);
 
 static void build_canonical_line_spec (struct symtab_and_line *,
-				       char *, char ***);
+				       char *, struct linespec_result *);
 
 static char *find_toplevel_char (char *s, char c);
 
 static int is_objc_method_format (const char *s);
 
 static struct symtabs_and_lines decode_line_2 (struct symbol *[],
-					       int, int, char ***);
+					       int, int,
+					       struct linespec_result *);
 
 static struct symtab *symtab_from_filename (char **argptr,
-					    char *p, int is_quote_enclosed,
-					    int *not_found_ptr);
+					    char *p, int is_quote_enclosed);
+
+static struct symbol *find_function_symbol (char **argptr, char *p,
+					    int is_quote_enclosed);
 
 static struct
 symtabs_and_lines decode_all_digits (char **argptr,
 				     struct symtab *default_symtab,
 				     int default_line,
-				     char ***canonical,
+				     struct linespec_result *canonical,
 				     struct symtab *file_symtab,
 				     char *q);
 
 static struct symtabs_and_lines decode_dollar (char *copy,
 					       int funfirstline,
 					       struct symtab *default_symtab,
-					       char ***canonical,
+					       struct linespec_result *canonical,
 					       struct symtab *file_symtab);
 
-static int decode_label (char *copy, char ***canonical,
+static int decode_label (struct symbol *function_symbol,
+			 char *copy, struct linespec_result *canonical,
 			 struct symtabs_and_lines *result);
 
 static struct symtabs_and_lines decode_variable (char *copy,
 						 int funfirstline,
-						 char ***canonical,
-						 struct symtab *file_symtab,
-						 int *not_found_ptr);
+						 struct linespec_result *canonical,
+						 struct symtab *file_symtab);
 
 static struct
 symtabs_and_lines symbol_found (int funfirstline,
-				char ***canonical,
+				struct linespec_result *canonical,
 				char *copy,
 				struct symbol *sym,
-				struct symtab *file_symtab);
+				struct symtab *file_symtab,
+				struct symbol *function_symbol);
 
 static struct
 symtabs_and_lines minsym_found (int funfirstline,
@@ -213,6 +217,19 @@ find_methods (struct type *t, char *name, enum language language,
   int i1 = 0;
   int ibase;
   char *class_name = type_name_no_tag (t);
+  struct cleanup *cleanup;
+  char *canon;
+
+  /* NAME is typed by the user: it needs to be canonicalized before
+     passing to lookup_symbol.  */
+  canon = cp_canonicalize_string (name);
+  if (canon != NULL)
+    {
+      name = canon;
+      cleanup = make_cleanup (xfree, name);
+    }
+  else
+    cleanup = make_cleanup (null_cleanup, NULL);
 
   /* Ignore this class if it doesn't have a name.  This is ugly, but
      unless we figure out how to get the physname without the name of
@@ -275,6 +292,7 @@ find_methods (struct type *t, char *name, enum language language,
       i1 += find_methods (TYPE_BASECLASS (t, ibase), name,
 			  language, sym_arr + i1);
 
+  do_cleanups (cleanup);
   return i1;
 }
 
@@ -389,7 +407,7 @@ add_constructors (int method_counter, struct type *t,
 
 static void
 build_canonical_line_spec (struct symtab_and_line *sal, char *symname,
-			   char ***canonical)
+			   struct linespec_result *canonical)
 {
   char **canonical_arr;
   char *canonical_name;
@@ -398,11 +416,11 @@ build_canonical_line_spec (struct symtab_and_line *sal, char *symname,
 
   if (s == (struct symtab *) NULL
       || s->filename == (char *) NULL
-      || canonical == (char ***) NULL)
+      || canonical == NULL)
     return;
 
   canonical_arr = (char **) xmalloc (sizeof (char *));
-  *canonical = canonical_arr;
+  canonical->canonical = canonical_arr;
 
   filename = s->filename;
   if (symname != NULL)
@@ -482,7 +500,7 @@ is_objc_method_format (const char *s)
 
 static struct symtabs_and_lines
 decode_line_2 (struct symbol *sym_arr[], int nelts, int funfirstline,
-	       char ***canonical)
+	       struct linespec_result *canonical)
 {
   struct symtabs_and_lines values, return_values;
   char *args, *arg1;
@@ -508,7 +526,7 @@ decode_line_2 (struct symbol *sym_arr[], int nelts, int funfirstline,
       canonical_arr = (char **) xmalloc (nelts * sizeof (char *));
       make_cleanup (xfree, canonical_arr);
       memset (canonical_arr, 0, nelts * sizeof (char *));
-      *canonical = canonical_arr;
+      canonical->canonical = canonical_arr;
     }
 
   i = 0;
@@ -663,6 +681,65 @@ find_method_overload_end (char *p)
 
   return p;
 }
+
+/* Does P point to a sequence of characters which implies the end
+   of a name?  Terminals include "if" and "thread" clauses. */
+
+static int
+name_end (char *p)
+{
+  while (isspace (*p))
+    ++p;
+  if (*p == 'i' && p[1] == 'f'
+      && (isspace (p[2]) || p[2] == '\0' || p[2] == '('))
+    return 1;
+
+  if (strncmp (p, "thread", 6) == 0
+      && (isspace (p[6]) || p[6] == '\0'))
+    return 1;
+
+  return 0;
+}
+
+/* Keep important information used when looking up a name.  This includes
+   template parameters, overload information, and important keywords.  */
+
+static char *
+keep_name_info (char *ptr)
+{
+  char *p = ptr;
+  char *start = ptr;
+
+  /* Keep any template parameters.  */
+  if (name_end (ptr))
+    return remove_trailing_whitespace (start, ptr);
+
+  while (isspace (*p))
+    ++p;
+  if (*p == '<')
+    ptr = p = find_template_name_end (ptr);
+
+  if (name_end (ptr))
+    return remove_trailing_whitespace (start, ptr);
+
+  /* Keep method overload information.  */
+  if (*p == '(')
+    ptr = p = find_method_overload_end (p);
+
+  if (name_end (ptr))
+    return remove_trailing_whitespace (start, ptr);
+
+  /* Keep important keywords.  */  
+  while (isspace (*p))
+    ++p;
+  if (strncmp (p, "const", 5) == 0
+      && (isspace (p[5]) || p[5] == '\0'
+	  || strchr (get_gdb_completer_quote_characters (), p[5]) != NULL))
+    ptr = p = p + 5;
+
+  return remove_trailing_whitespace (start, ptr);
+}
+
 
 /* The parser of linespec itself.  */
 
@@ -702,12 +779,7 @@ find_method_overload_end (char *p)
 
    Note that it is possible to return zero for the symtab
    if no file is validly specified.  Callers must check that.
-   Also, the line number returned may be invalid.  
- 
-   If NOT_FOUND_PTR is not null, store a boolean true/false value at
-   the location, based on whether or not failure occurs due to an
-   unknown function or file.  In the case where failure does occur due
-   to an unknown function or file, do not issue an error message.  */
+   Also, the line number returned may be invalid.  */
 
 /* We allow single quotes in various places.  This is a hideous
    kludge, which exists because the completer can't yet deal with the
@@ -716,7 +788,7 @@ find_method_overload_end (char *p)
 
 struct symtabs_and_lines
 decode_line_1 (char **argptr, int funfirstline, struct symtab *default_symtab,
-	       int default_line, char ***canonical, int *not_found_ptr)
+	       int default_line, struct linespec_result *canonical)
 {
   char *p;
   char *q;
@@ -736,8 +808,12 @@ decode_line_1 (char **argptr, int funfirstline, struct symtab *default_symtab,
   /* The "first half" of the linespec.  */
   char *first_half;
 
-  if (not_found_ptr)
-    *not_found_ptr = 0;
+  /* If we are parsing `function:label', this holds the symbol for the
+     function.  */
+  struct symbol *function_symbol = NULL;
+  /* If FUNCTION_SYMBOL is not NULL, then this is the exception that
+     was thrown when trying to parse a filename.  */
+  volatile struct gdb_exception file_exception;
 
   /* Defaults have defaults.  */
 
@@ -799,7 +875,7 @@ decode_line_1 (char **argptr, int funfirstline, struct symtab *default_symtab,
 	  if (is_quote_enclosed)
 	    ++saved_arg;
 	  values = decode_compound (argptr, funfirstline, canonical,
-				    saved_arg, p, not_found_ptr);
+				    saved_arg, p);
 	  if (is_quoted && **argptr == '\'')
 	    *argptr = *argptr + 1;
 	  return values;
@@ -808,8 +884,19 @@ decode_line_1 (char **argptr, int funfirstline, struct symtab *default_symtab,
       /* No, the first part is a filename; set file_symtab to be that file's
 	 symtab.  Also, move argptr past the filename.  */
 
-      file_symtab = symtab_from_filename (argptr, p, is_quote_enclosed,
-					  not_found_ptr);
+      TRY_CATCH (file_exception, RETURN_MASK_ERROR)
+	{
+	  file_symtab = symtab_from_filename (argptr, p, is_quote_enclosed);
+	}
+      /* If that failed, maybe we have `function:label'.  */
+      if (file_exception.reason < 0)
+	{
+	  function_symbol = find_function_symbol (argptr, p, is_quote_enclosed);
+	  /* If we did not find a function, re-throw the original
+	     exception.  */
+	  if (!function_symbol)
+	    throw_exception (file_exception);
+	}
 
       /* Check for single quotes on the non-filename part.  */
       if (!is_quoted)
@@ -823,6 +910,8 @@ decode_line_1 (char **argptr, int funfirstline, struct symtab *default_symtab,
     }
 
   /* file_symtab is specified file's symtab, or 0 if no file specified.
+     If we are parsing `function:symbol', then FUNCTION_SYMBOL is the
+     function before the `:'.
      arg no longer contains the file name.  */
 
   /* If the filename was quoted, we must re-check the quotation.  */
@@ -844,7 +933,8 @@ decode_line_1 (char **argptr, int funfirstline, struct symtab *default_symtab,
   while (*q >= '0' && *q <= '9')
     q++;
 
-  if (q != *argptr && (*q == 0 || *q == ' ' || *q == '\t' || *q == ','))
+  if (q != *argptr && (*q == 0 || *q == ' ' || *q == '\t' || *q == ',')
+      && function_symbol == NULL)
     /* We found a token consisting of all digits -- at least one digit.  */
     return decode_all_digits (argptr, default_symtab, default_line,
 			      canonical, file_symtab, q);
@@ -871,17 +961,8 @@ decode_line_1 (char **argptr, int funfirstline, struct symtab *default_symtab,
       p = skip_quoted (*argptr);
     }
 
-  /* Keep any template parameters.  */
-  if (*p == '<')
-    p = find_template_name_end (p);
-
-  /* Keep method overload information.  */
-  if (*p == '(')
-    p = find_method_overload_end (p);
-
-  /* Make sure we keep important kewords like "const".  */
-  if (strncmp (p, " const", 6) == 0)
-    p += 6;
+  /* Keep any important naming information.  */
+  p = keep_name_info (p);
 
   copy = (char *) alloca (p - *argptr + 1);
   memcpy (copy, *argptr, p - *argptr);
@@ -904,7 +985,7 @@ decode_line_1 (char **argptr, int funfirstline, struct symtab *default_symtab,
      (e.g. HP-UX millicode routines such as $$dyncall), or it may
      be history value, or it may be a convenience variable.  */
 
-  if (*copy == '$')
+  if (*copy == '$' && function_symbol == NULL)
     return decode_dollar (copy, funfirstline, default_symtab,
 			  canonical, file_symtab);
 
@@ -914,15 +995,17 @@ decode_line_1 (char **argptr, int funfirstline, struct symtab *default_symtab,
   if (!file_symtab)
     {
       struct symtabs_and_lines label_result;
-      if (decode_label (copy, canonical, &label_result))
+      if (decode_label (function_symbol, copy, canonical, &label_result))
 	return label_result;
     }
+
+  if (function_symbol)
+    throw_exception (file_exception);
 
   /* Look up that token as a variable.
      If file specified, use that file's per-file block to start with.  */
 
-  return decode_variable (copy, funfirstline, canonical,
-			  file_symtab, not_found_ptr);
+  return decode_variable (copy, funfirstline, canonical, file_symtab);
 }
 
 
@@ -1057,6 +1140,10 @@ locate_first_half (char **argptr, int *is_quote_enclosed)
 	    error (_("malformed template specification in command"));
 	  p = temp_end;
 	}
+
+      if (p[0] == '(')
+	p = find_method_overload_end (p);
+
       /* Check for a colon and a plus or minus and a [ (which
          indicates an Objective-C method).  */
       if (is_objc_method_format (p))
@@ -1117,7 +1204,7 @@ locate_first_half (char **argptr, int *is_quote_enclosed)
 
 struct symtabs_and_lines
 decode_objc (char **argptr, int funfirstline, struct symtab *file_symtab,
-	     char ***canonical, char *saved_arg)
+	     struct linespec_result *canonical, char *saved_arg)
 {
   struct symtabs_and_lines values;
   struct symbol **sym_arr = NULL;
@@ -1223,8 +1310,9 @@ decode_objc (char **argptr, int funfirstline, struct symtab *file_symtab,
    pointing to "AAA::inA::fun" and P pointing to "::inA::fun".  */
 
 static struct symtabs_and_lines
-decode_compound (char **argptr, int funfirstline, char ***canonical,
-		 char *saved_arg, char *p, int *not_found_ptr)
+decode_compound (char **argptr, int funfirstline,
+		 struct linespec_result *canonical,
+		 char *the_real_saved_arg, char *p)
 {
   struct symtabs_and_lines values;
   char *p2;
@@ -1235,6 +1323,23 @@ decode_compound (char **argptr, int funfirstline, char ***canonical,
   struct symbol *sym_class;
   struct type *t;
   char *saved_java_argptr = NULL;
+  char *saved_arg;
+
+  /* If the user specified any completer quote characters in the input,
+     strip them.  They are superfluous.  */
+  saved_arg = alloca (strlen (the_real_saved_arg) + 1);
+  {
+    char *dst = saved_arg;
+    char *src = the_real_saved_arg;
+    char *quotes = get_gdb_completer_quote_characters ();
+    while (*src != '\0')
+      {
+	if (strchr (quotes, *src) == NULL)
+	  *dst++ = *src;
+	++src;
+      }
+    *dst = '\0';
+  }
 
   /* First check for "global" namespace specification, of the form
      "::foo".  If found, skip over the colons and jump to normal
@@ -1251,8 +1356,10 @@ decode_compound (char **argptr, int funfirstline, char ***canonical,
         find_method.
 
      2) AAA::inA isn't the name of a class.  In that case, either the
-        user made a typo or AAA::inA is the name of a namespace.
-        Either way, we just look up AAA::inA::fun with lookup_symbol.
+        user made a typo, AAA::inA is the name of a namespace, or it is
+        the name of a minimal symbol.
+        We just look up AAA::inA::fun with lookup_symbol.  If that fails,
+        try lookup_minimal_symbol.
 
      Thus, our first task is to find everything before the last set of
      double-colons and figure out if it's the name of a class.  So we
@@ -1273,6 +1380,8 @@ decode_compound (char **argptr, int funfirstline, char ***canonical,
 
   while (1)
     {
+      static char *break_characters = " \t(";
+
       /* Move pointer up to next possible class/namespace token.  */
 
       p = p2 + 1;	/* Restart with old value +1.  */
@@ -1283,8 +1392,9 @@ decode_compound (char **argptr, int funfirstline, char ***canonical,
       /* PASS2: p2->"::fun", p->":fun" */
 
       /* Move pointer ahead to next double-colon.  */
-      while (*p && (p[0] != ' ') && (p[0] != '\t') && (p[0] != '\'')
-	     && (*p != '('))
+      while (*p
+	     && strchr (break_characters, *p) == NULL
+	     && strchr (get_gdb_completer_quote_characters (), *p) == NULL)
 	{
 	  if (current_language->la_language == language_cplus)
 	    p += cp_validate_operator (p);
@@ -1308,9 +1418,12 @@ decode_compound (char **argptr, int funfirstline, char ***canonical,
 	  else if ((p[0] == ':') && (p[1] == ':'))
 	    break;	/* Found double-colon.  */
 	  else
-	    /* PASS2: We'll keep getting here, until p->"", at which point
-	       we exit this loop.  */
-	    p++;
+	    {
+	      /* PASS2: We'll keep getting here, until P points to one of the
+		 break characters, at which point we exit this loop.  */
+	      if (*p && strchr (break_characters, *p) == NULL)
+		p++;
+	    }
 	}
 
       if (*p != ':')
@@ -1319,7 +1432,7 @@ decode_compound (char **argptr, int funfirstline, char ***canonical,
 			   unsuccessfully all the components of the
 			   string, and p->""(PASS2).  */
 
-      /* We get here if p points to ' ', '\t', '\'', "::" or ""(i.e
+      /* We get here if p points to one of the break characters or "" (i.e.,
 	 string ended).  */
       /* Save restart for next time around.  */
       p2 = p;
@@ -1379,18 +1492,8 @@ decode_compound (char **argptr, int funfirstline, char ***canonical,
 	      p += cp_validate_operator (p - 8) - 8;
 	    }
 
-	  /* Keep any template parameters.  */
-	  if (*p == '<')
-	    p = find_template_name_end (p);
-
-	  /* Keep method overload information.  */
-	  a = strchr (p, '(');
-	  if (a != NULL)
-	    p = find_method_overload_end (a);
-
-	  /* Make sure we keep important kewords like "const".  */
-	  if (strncmp (p, " const", 6) == 0)
-	    p += 6;
+	  /* Keep any important naming information.  */
+	  p = keep_name_info (p);
 
 	  /* Java may append typenames,  so assume that if there is
 	     anything else left in *argptr, it must be a typename.  */
@@ -1444,7 +1547,7 @@ decode_compound (char **argptr, int funfirstline, char ***canonical,
 	 we'll lookup the whole string in the symbol tables.  */
 
       values = find_method (funfirstline, canonical, saved_arg,
-			    copy, t, sym_class, not_found_ptr);
+			    copy, t, sym_class);
       if (saved_java_argptr != NULL && values.nelts == 1)
 	{
 	  /* The user specified a specific return type for a java method.
@@ -1470,6 +1573,10 @@ decode_compound (char **argptr, int funfirstline, char ***canonical,
   /* We couldn't find a class, so we're in case 2 above.  We check the
      entire name as a symbol instead.  */
 
+  if (current_language->la_language == language_cplus
+      || current_language->la_language == language_java)
+    p = keep_name_info (p);
+
   copy = (char *) alloca (p - saved_arg2 + 1);
   memcpy (copy, saved_arg2, p - saved_arg2);
   /* Note: if is_quoted should be true, we snuff out quote here
@@ -1479,15 +1586,22 @@ decode_compound (char **argptr, int funfirstline, char ***canonical,
   *argptr = (*p == '\'') ? p + 1 : p;
 
   /* Look up entire name.  */
-  sym = lookup_symbol (copy, 0, VAR_DOMAIN, 0);
+  sym = lookup_symbol (copy, get_selected_block (0), VAR_DOMAIN, 0);
   if (sym)
-    return symbol_found (funfirstline, canonical, copy, sym, NULL);
+    return symbol_found (funfirstline, canonical, copy, sym, NULL, NULL);
+  else
+    {
+      struct minimal_symbol *msym;
 
-  /* Couldn't find any interpretation as classes/namespaces, so give
-     up.  The quotes are important if copy is empty.  */
-  if (not_found_ptr)
-    *not_found_ptr = 1;
-  cplusplus_error (saved_arg,
+      /* Couldn't find any interpretation as classes/namespaces.  As a last
+	 resort, try the minimal symbol tables.  */
+      msym = lookup_minimal_symbol (copy, NULL, NULL);
+      if (msym != NULL)
+	return minsym_found (funfirstline, msym);
+    }    
+
+  /* Couldn't find a minimal symbol, either, so give up.  */
+  cplusplus_error (the_real_saved_arg,
 		   "Can't find member of namespace, "
 		   "class, struct, or union named \"%s\"\n",
 		   copy);
@@ -1526,7 +1640,7 @@ lookup_prefix_sym (char **argptr, char *p)
   /* At this point p1->"::inA::fun", p->"inA::fun" copy->"AAA",
      argptr->"inA::fun".  */
 
-  sym = lookup_symbol (copy, 0, STRUCT_DOMAIN, 0);
+  sym = lookup_symbol (copy, get_selected_block (0), STRUCT_DOMAIN, 0);
   if (sym == NULL)
     {
       /* Typedefs are in VAR_DOMAIN so the above symbol lookup will
@@ -1554,9 +1668,9 @@ lookup_prefix_sym (char **argptr, char *p)
    symbol is SYM_CLASS.  */
 
 static struct symtabs_and_lines
-find_method (int funfirstline, char ***canonical, char *saved_arg,
-	     char *copy, struct type *t, struct symbol *sym_class,
-	     int *not_found_ptr)
+find_method (int funfirstline, struct linespec_result *canonical,
+	     char *saved_arg,
+	     char *copy, struct type *t, struct symbol *sym_class)
 {
   struct symtabs_and_lines values;
   struct symbol *sym = NULL;
@@ -1594,20 +1708,32 @@ find_method (int funfirstline, char ***canonical, char *saved_arg,
       /* If we were given a specific overload instance, use that
 	 (or error if no matches were found).  Otherwise ask the user
 	 which one to use.  */
-      if (strchr (saved_arg, '(') != NULL)
+      if (strchr (copy, '('))
 	{
 	  int i;
-	  char *name = saved_arg;
-	  char *canon = cp_canonicalize_string (name);
+	  char *name;
+	  char *canon;
 	  struct cleanup *cleanup;
 
+	  /* Construct the proper search name based on SYM_CLASS and COPY.
+	     SAVED_ARG may contain a valid name, but that name might not be
+	     what is actually stored in the symbol table.  For example,
+	     if SAVED_ARG (and SYM_CLASS) were found via an import
+	     ("using namespace" in C++), then the physname of
+	     SYM_CLASS ("A::myclass") may not be the same as SAVED_ARG
+	     ("myclass").  */
+	  name = xmalloc (strlen (SYMBOL_NATURAL_NAME (sym_class))
+			  + 2 /* "::" */ + strlen (copy) + 1);
+	  strcpy (name, SYMBOL_NATURAL_NAME (sym_class));
+	  strcat (name, "::");
+	  strcat (name, copy);
+	  canon = cp_canonicalize_string (name);
 	  if (canon != NULL)
 	    {
+	      xfree (name);
 	      name = canon;
-	      cleanup = make_cleanup (xfree, canon);
 	    }
-	  else
-	    cleanup = make_cleanup (null_cleanup, NULL);
+	  cleanup = make_cleanup (xfree, name);
 
 	  for (i = 0; i < i1; ++i)
 	    {
@@ -1632,8 +1758,6 @@ find_method (int funfirstline, char ***canonical, char *saved_arg,
     }
   else
     {
-      if (not_found_ptr)
-        *not_found_ptr = 1;
       if (copy[0] == '~')
 	cplusplus_error (saved_arg,
 			 "the class `%s' does not have destructor defined\n",
@@ -1648,14 +1772,10 @@ find_method (int funfirstline, char ***canonical, char *saved_arg,
 
 
 /* Return the symtab associated to the filename given by the substring
-   of *ARGPTR ending at P, and advance ARGPTR past that filename.  If
-   NOT_FOUND_PTR is not null and the source file is not found, store
-   boolean true at the location pointed to and do not issue an
-   error message.  */
+   of *ARGPTR ending at P, and advance ARGPTR past that filename.  */
 
 static struct symtab *
-symtab_from_filename (char **argptr, char *p, int is_quote_enclosed, 
-		      int *not_found_ptr)
+symtab_from_filename (char **argptr, char *p, int is_quote_enclosed)
 {
   char *p1;
   char *copy;
@@ -1679,8 +1799,6 @@ symtab_from_filename (char **argptr, char *p, int is_quote_enclosed,
   file_symtab = lookup_symtab (copy);
   if (file_symtab == 0)
     {
-      if (not_found_ptr)
-	*not_found_ptr = 1;
       if (!have_full_symbols () && !have_partial_symbols ())
 	throw_error (NOT_FOUND_ERROR,
 		     _("No symbol table is loaded.  "
@@ -1697,6 +1815,44 @@ symtab_from_filename (char **argptr, char *p, int is_quote_enclosed,
   return file_symtab;
 }
 
+/* Look up a function symbol in *ARGPTR.  If found, advance *ARGPTR
+   and return the symbol.  If not found, return NULL.  */
+
+static struct symbol *
+find_function_symbol (char **argptr, char *p, int is_quote_enclosed)
+{
+  char *p1;
+  char *copy;
+  struct symbol *function_symbol;
+
+  p1 = p;
+  while (p != *argptr && p[-1] == ' ')
+    --p;
+  if ((*p == '"') && is_quote_enclosed)
+    --p;
+  copy = (char *) alloca (p - *argptr + 1);
+  memcpy (copy, *argptr, p - *argptr);
+  /* It may have the ending quote right after the file name.  */
+  if ((is_quote_enclosed && copy[p - *argptr - 1] == '"')
+      || copy[p - *argptr - 1] == '\'')
+    copy[p - *argptr - 1] = 0;
+  else
+    copy[p - *argptr] = 0;
+
+  function_symbol = lookup_symbol (copy, get_selected_block (0),
+				   VAR_DOMAIN, 0);
+  if (!function_symbol || SYMBOL_CLASS (function_symbol) != LOC_BLOCK)
+    return NULL;
+
+  /* Discard the file name from the arg.  */
+  p = p1 + 1;
+  while (*p == ' ' || *p == '\t')
+    p++;
+  *argptr = p;
+
+  return function_symbol;
+}
+
 
 
 /* This decodes a line where the argument is all digits (possibly
@@ -1705,7 +1861,7 @@ symtab_from_filename (char **argptr, char *p, int is_quote_enclosed,
 
 static struct symtabs_and_lines
 decode_all_digits (char **argptr, struct symtab *default_symtab,
-		   int default_line, char ***canonical,
+		   int default_line, struct linespec_result *canonical,
 		   struct symtab *file_symtab, char *q)
 
 {
@@ -1794,7 +1950,7 @@ decode_all_digits (char **argptr, struct symtab *default_symtab,
 
 static struct symtabs_and_lines
 decode_dollar (char *copy, int funfirstline, struct symtab *default_symtab,
-	       char ***canonical, struct symtab *file_symtab)
+	       struct linespec_result *canonical, struct symtab *file_symtab)
 {
   LONGEST valx;
   int index = 0;
@@ -1831,7 +1987,7 @@ decode_dollar (char *copy, int funfirstline, struct symtab *default_symtab,
       need_canonical = 1;
       /* Symbol was found --> jump to normal symbol processing.  */
       if (sym)
-	return symbol_found (funfirstline, canonical, copy, sym, NULL);
+	return symbol_found (funfirstline, canonical, copy, sym, NULL, NULL);
 
       /* If symbol was not found, look in minimal symbol tables.  */
       msymbol = lookup_minimal_symbol (copy, NULL, NULL);
@@ -1867,6 +2023,8 @@ decode_dollar (char *copy, int funfirstline, struct symtab *default_symtab,
 
 /* A helper for decode_line_1 that tries to find a label.  The label
    is searched for in the current block.
+   FUNCTION_SYMBOL is the enclosing function; or NULL if none
+   specified.
    COPY is the name of the label to find.
    CANONICAL is the same as the "canonical" argument to decode_line_1.
    RESULT is a pointer to a symtabs_and_lines structure which will be
@@ -1874,26 +2032,42 @@ decode_dollar (char *copy, int funfirstline, struct symtab *default_symtab,
    This function returns 1 if a label was found, 0 otherwise.  */
 
 static int
-decode_label (char *copy, char ***canonical, struct symtabs_and_lines *result)
+decode_label (struct symbol *function_symbol, char *copy,
+	      struct linespec_result *canonical,
+	      struct symtabs_and_lines *result)
 {
   struct symbol *sym;
+  struct block *block;
 
-  sym = lookup_symbol (copy, get_selected_block (0), LABEL_DOMAIN, 0);
+  if (function_symbol)
+    block = SYMBOL_BLOCK_VALUE (function_symbol);
+  else
+    {
+      block = get_selected_block (0);
+      for (;
+	   block && !BLOCK_FUNCTION (block);
+	   block = BLOCK_SUPERBLOCK (block))
+	;
+      if (!block)
+	return 0;
+      function_symbol = BLOCK_FUNCTION (block);
+    }
+
+  sym = lookup_symbol (copy, block, LABEL_DOMAIN, 0);
 
   if (sym != NULL)
-    *result = symbol_found (0, canonical, copy, sym, NULL);
+    *result = symbol_found (0, canonical, copy, sym, NULL, function_symbol);
 
   return sym != NULL;
 }
 
 /* Decode a linespec that's a variable.  If FILE_SYMTAB is non-NULL,
-   look in that symtab's static variables first.  If NOT_FOUND_PTR is
-   not NULL and the function cannot be found, store boolean true in
-   the location pointed to and do not issue an error message.  */ 
+   look in that symtab's static variables first.  */ 
 
 static struct symtabs_and_lines
-decode_variable (char *copy, int funfirstline, char ***canonical,
-		 struct symtab *file_symtab, int *not_found_ptr)
+decode_variable (char *copy, int funfirstline,
+		 struct linespec_result *canonical,
+		 struct symtab *file_symtab)
 {
   struct symbol *sym;
   struct minimal_symbol *msymbol;
@@ -1906,15 +2080,12 @@ decode_variable (char *copy, int funfirstline, char ***canonical,
 		       VAR_DOMAIN, 0);
 
   if (sym != NULL)
-    return symbol_found (funfirstline, canonical, copy, sym, file_symtab);
+    return symbol_found (funfirstline, canonical, copy, sym, file_symtab, NULL);
 
   msymbol = lookup_minimal_symbol (copy, NULL, NULL);
 
   if (msymbol != NULL)
     return minsym_found (funfirstline, msymbol);
-
-  if (not_found_ptr)
-    *not_found_ptr = 1;
 
   if (!have_full_symbols ()
       && !have_partial_symbols ()
@@ -1934,8 +2105,9 @@ decode_variable (char *copy, int funfirstline, char ***canonical,
    corresponding struct symtabs_and_lines.  */
 
 static struct symtabs_and_lines
-symbol_found (int funfirstline, char ***canonical, char *copy,
-	      struct symbol *sym, struct symtab *file_symtab)
+symbol_found (int funfirstline, struct linespec_result *canonical, char *copy,
+	      struct symbol *sym, struct symtab *file_symtab,
+	      struct symbol *function_symbol)
 {
   struct symtabs_and_lines values;
   
@@ -1965,7 +2137,32 @@ symbol_found (int funfirstline, char ***canonical, char *copy,
     }
   else
     {
-      if (funfirstline && SYMBOL_CLASS (sym) != LOC_LABEL)
+      if (SYMBOL_CLASS (sym) == LOC_LABEL && SYMBOL_VALUE_ADDRESS (sym) != 0)
+	{
+	  /* We know its line number.  */
+	  values.sals = (struct symtab_and_line *)
+	    xmalloc (sizeof (struct symtab_and_line));
+	  values.nelts = 1;
+	  init_sal (&values.sals[0]);
+	  values.sals[0].symtab = SYMBOL_SYMTAB (sym);
+	  values.sals[0].line = SYMBOL_LINE (sym);
+	  values.sals[0].pc = SYMBOL_VALUE_ADDRESS (sym);
+	  values.sals[0].pspace = SYMTAB_PSPACE (SYMBOL_SYMTAB (sym));
+	  values.sals[0].explicit_pc = 1;
+
+	  if (canonical)
+	    {
+	      canonical->special_display = 1;
+	      canonical->canonical = xmalloc (sizeof (char *));
+	      canonical->canonical[0]
+		= xstrprintf ("%s:%s",
+			      SYMBOL_NATURAL_NAME (function_symbol),
+			      SYMBOL_NATURAL_NAME (sym));
+	    }
+
+	  return values;
+	}
+      else if (funfirstline)
 	error (_("\"%s\" is not a function"), copy);
       else if (SYMBOL_LINE (sym) != 0)
 	{
@@ -2019,4 +2216,10 @@ minsym_found (int funfirstline, struct minimal_symbol *msymbol)
 
   values.nelts = 1;
   return values;
+}
+
+void
+init_linespec_result (struct linespec_result *lr)
+{
+  memset (lr, 0, sizeof (*lr));
 }

@@ -654,8 +654,14 @@ print_frame_info (struct frame_info *frame, int print_level,
     }
 
   if (print_what != LOCATION)
-    set_default_breakpoint (1, sal.pspace,
-			    get_frame_pc (frame), sal.symtab, sal.line);
+    {
+      CORE_ADDR pc;
+
+      if (get_frame_pc_if_available (frame, &pc))
+	set_default_breakpoint (1, sal.pspace, pc, sal.symtab, sal.line);
+      else
+	set_default_breakpoint (0, 0, 0, 0, 0);
+    }
 
   annotate_frame_end ();
 
@@ -740,9 +746,13 @@ find_frame_funname (struct frame_info *frame, char **funname,
     }
   else
     {
-      struct minimal_symbol *msymbol = 
-	lookup_minimal_symbol_by_pc (get_frame_address_in_block (frame));
+      struct minimal_symbol *msymbol;
+      CORE_ADDR pc;
 
+      if (!get_frame_address_in_block_if_available (frame, &pc))
+	return;
+
+      msymbol = lookup_minimal_symbol_by_pc (pc);
       if (msymbol != NULL)
 	{
 	  *funname = SYMBOL_PRINT_NAME (msymbol);
@@ -763,6 +773,10 @@ print_frame (struct frame_info *frame, int print_level,
   struct cleanup *old_chain, *list_chain;
   struct value_print_options opts;
   struct symbol *func;
+  CORE_ADDR pc = 0;
+  int pc_p;
+
+  pc_p = get_frame_pc_if_available (frame, &pc);
 
   stb = ui_out_stream_new (uiout);
   old_chain = make_cleanup_ui_out_stream_delete (stb);
@@ -770,7 +784,7 @@ print_frame (struct frame_info *frame, int print_level,
   find_frame_funname (frame, &funname, &funlang, &func);
 
   annotate_frame_begin (print_level ? frame_relative_level (frame) : 0,
-			gdbarch, get_frame_pc (frame));
+			gdbarch, pc);
 
   list_chain = make_cleanup_ui_out_tuple_begin_end (uiout, "frame");
 
@@ -782,11 +796,15 @@ print_frame (struct frame_info *frame, int print_level,
     }
   get_user_print_options (&opts);
   if (opts.addressprint)
-    if (frame_show_address (frame, sal) || !sal.symtab
+    if (!sal.symtab
+	|| frame_show_address (frame, sal)
 	|| print_what == LOC_AND_ADDRESS)
       {
 	annotate_frame_address ();
-	ui_out_field_core_addr (uiout, "addr", gdbarch, get_frame_pc (frame));
+	if (pc_p)
+	  ui_out_field_core_addr (uiout, "addr", gdbarch, pc);
+	else
+	  ui_out_field_string (uiout, "addr", "<unavailable>");
 	annotate_frame_address_end ();
 	ui_out_text (uiout, " in ");
       }
@@ -836,7 +854,7 @@ print_frame (struct frame_info *frame, int print_level,
       annotate_frame_source_end ();
     }
 
-  if (!funname || (!sal.symtab || !sal.symtab->filename))
+  if (pc_p && (!funname || (!sal.symtab || !sal.symtab->filename)))
     {
 #ifdef PC_SOLIB
       char *lib = PC_SOLIB (get_frame_pc (frame));
@@ -1013,6 +1031,9 @@ frame_info (char *addr_exp, int from_tty)
   int selected_frame_p;
   struct gdbarch *gdbarch;
   struct cleanup *back_to = make_cleanup (null_cleanup, NULL);
+  CORE_ADDR frame_pc;
+  int frame_pc_p;
+  CORE_ADDR caller_pc;
 
   fi = parse_frame_specification_1 (addr_exp, "No stack.", &selected_frame_p);
   gdbarch = get_frame_arch (fi);
@@ -1031,11 +1052,10 @@ frame_info (char *addr_exp, int from_tty)
        get_frame_pc().  */
     pc_regname = "pc";
 
+  frame_pc_p = get_frame_pc_if_available (fi, &frame_pc);
   find_frame_sal (fi, &sal);
   func = get_frame_function (fi);
-  /* FIXME: cagney/2002-11-28: Why bother?  Won't sal.symtab contain
-     the same value?  */
-  s = find_pc_symtab (get_frame_pc (fi));
+  s = sal.symtab;
   if (func)
     {
       funname = SYMBOL_PRINT_NAME (func);
@@ -1056,11 +1076,11 @@ frame_info (char *addr_exp, int from_tty)
 	    }
 	}
     }
-  else
+  else if (frame_pc_p)
     {
       struct minimal_symbol *msymbol;
 
-      msymbol = lookup_minimal_symbol_by_pc (get_frame_pc (fi));
+      msymbol = lookup_minimal_symbol_by_pc (frame_pc);
       if (msymbol != NULL)
 	{
 	  funname = SYMBOL_PRINT_NAME (msymbol);
@@ -1081,7 +1101,10 @@ frame_info (char *addr_exp, int from_tty)
   fputs_filtered (paddress (gdbarch, get_frame_base (fi)), gdb_stdout);
   printf_filtered (":\n");
   printf_filtered (" %s = ", pc_regname);
-  fputs_filtered (paddress (gdbarch, get_frame_pc (fi)), gdb_stdout);
+  if (frame_pc_p)
+    fputs_filtered (paddress (gdbarch, get_frame_pc (fi)), gdb_stdout);
+  else
+    fputs_filtered ("<unavailable>", gdb_stdout);
 
   wrap_here ("   ");
   if (funname)
@@ -1096,7 +1119,10 @@ frame_info (char *addr_exp, int from_tty)
   puts_filtered ("; ");
   wrap_here ("    ");
   printf_filtered ("saved %s ", pc_regname);
-  fputs_filtered (paddress (gdbarch, frame_unwind_caller_pc (fi)), gdb_stdout);
+  if (frame_unwind_caller_pc_if_available (fi, &caller_pc))
+    fputs_filtered (paddress (gdbarch, caller_pc), gdb_stdout);
+  else
+    fputs_filtered ("<unavailable>", gdb_stdout);
   printf_filtered ("\n");
 
   if (calling_frame_info == NULL)
@@ -1186,6 +1212,7 @@ frame_info (char *addr_exp, int from_tty)
   {
     enum lval_type lval;
     int optimized;
+    int unavailable;
     CORE_ADDR addr;
     int realnum;
     int count;
@@ -1202,9 +1229,9 @@ frame_info (char *addr_exp, int from_tty)
 	/* Find out the location of the saved stack pointer with out
            actually evaluating it.  */
 	frame_register_unwind (fi, gdbarch_sp_regnum (gdbarch),
-			       &optimized, &lval, &addr,
+			       &optimized, &unavailable, &lval, &addr,
 			       &realnum, NULL);
-	if (!optimized && lval == not_lval)
+	if (!optimized && !unavailable && lval == not_lval)
 	  {
 	    enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
 	    int sp_size = register_size (gdbarch, gdbarch_sp_regnum (gdbarch));
@@ -1212,7 +1239,7 @@ frame_info (char *addr_exp, int from_tty)
 	    CORE_ADDR sp;
 
 	    frame_register_unwind (fi, gdbarch_sp_regnum (gdbarch),
-				   &optimized, &lval, &addr,
+				   &optimized, &unavailable, &lval, &addr,
 				   &realnum, value);
 	    /* NOTE: cagney/2003-05-22: This is assuming that the
                stack pointer was packed as an unsigned integer.  That
@@ -1223,14 +1250,14 @@ frame_info (char *addr_exp, int from_tty)
 	    printf_filtered ("\n");
 	    need_nl = 0;
 	  }
-	else if (!optimized && lval == lval_memory)
+	else if (!optimized && !unavailable && lval == lval_memory)
 	  {
 	    printf_filtered (" Previous frame's sp at ");
 	    fputs_filtered (paddress (gdbarch, addr), gdb_stdout);
 	    printf_filtered ("\n");
 	    need_nl = 0;
 	  }
-	else if (!optimized && lval == lval_register)
+	else if (!optimized && !unavailable && lval == lval_register)
 	  {
 	    printf_filtered (" Previous frame's sp in %s\n",
 			     gdbarch_register_name (gdbarch, realnum));
@@ -1248,11 +1275,11 @@ frame_info (char *addr_exp, int from_tty)
 	{
 	  /* Find out the location of the saved register without
              fetching the corresponding value.  */
-	  frame_register_unwind (fi, i, &optimized, &lval, &addr, &realnum,
-				 NULL);
+	  frame_register_unwind (fi, i, &optimized, &unavailable,
+				 &lval, &addr, &realnum, NULL);
 	  /* For moment, only display registers that were saved on the
 	     stack.  */
-	  if (!optimized && lval == lval_memory)
+	  if (!optimized && !unavailable && lval == lval_memory)
 	    {
 	      if (count == 0)
 		puts_filtered (" Saved registers:\n ");
@@ -1602,6 +1629,14 @@ print_frame_local_vars (struct frame_info *frame, int num_tabs,
 {
   struct print_variable_and_value_data cb_data;
   struct block *block;
+  CORE_ADDR pc;
+
+  if (!get_frame_pc_if_available (frame, &pc))
+    {
+      fprintf_filtered (stream,
+			_("PC unavailable, cannot determine locals.\n"));
+      return;
+    }
 
   block = get_frame_block (frame, 0);
   if (block == 0)
@@ -1754,6 +1789,13 @@ print_frame_arg_vars (struct frame_info *frame, struct ui_file *stream)
 {
   struct print_variable_and_value_data cb_data;
   struct symbol *func;
+  CORE_ADDR pc;
+
+  if (!get_frame_pc_if_available (frame, &pc))
+    {
+      fprintf_filtered (stream, _("PC unavailable, cannot determine args.\n"));
+      return;
+    }
 
   func = get_frame_function (frame);
   if (func == NULL)
@@ -2141,6 +2183,10 @@ get_frame_language (void)
 
   if (frame)
     {
+      volatile struct gdb_exception ex;
+      CORE_ADDR pc = 0;
+      struct symtab *s;
+
       /* We determine the current frame language by looking up its
          associated symtab.  To retrieve this symtab, we use the frame
          PC.  However we cannot use the frame PC as is, because it
@@ -2149,11 +2195,22 @@ get_frame_language (void)
          we rely on get_frame_address_in_block(), it provides us with
          a PC that is guaranteed to be inside the frame's code
          block.  */
-      CORE_ADDR pc = get_frame_address_in_block (frame);
-      struct symtab *s = find_pc_symtab (pc);
 
-      if (s)
-	return s->language;
+      TRY_CATCH (ex, RETURN_MASK_ERROR)
+	{
+	  pc = get_frame_address_in_block (frame);
+	}
+      if (ex.reason < 0)
+	{
+	  if (ex.error != NOT_AVAILABLE_ERROR)
+	    throw_exception (ex);
+	}
+      else
+	{
+	  s = find_pc_symtab (pc);
+	  if (s != NULL)
+	    return s->language;
+	}
     }
 
   return language_unknown;

@@ -24,7 +24,8 @@
 #include "hw-base.h"
 
 
-struct hw_handle_mapping {
+struct hw_handle_mapping
+{
   cell_word external;
   struct hw *phandle;
   struct hw_instance *ihandle;
@@ -32,7 +33,8 @@ struct hw_handle_mapping {
 };
 
 
-struct hw_handle_data {
+struct hw_handle_data
+{
   int nr_mappings;
   struct hw_handle_mapping *mappings;
 };
@@ -155,7 +157,7 @@ hw_handle_add_ihandle (struct hw *hw,
 		       struct hw_instance *internal)
 {
   struct hw_handle_data *db = hw->handles_of_hw;
-  if (hw_handle_2ihandle (hw, internal) != 0) 
+  if (hw_handle_2ihandle (hw, internal) != 0)
     {
       hw_abort (hw, "attempting to add an ihandle already in the data base");
     }
@@ -177,7 +179,7 @@ hw_handle_add_phandle (struct hw *hw,
 		       struct hw *internal)
 {
   struct hw_handle_data *db = hw->handles_of_hw;
-  if (hw_handle_2phandle (hw, internal) != 0) 
+  if (hw_handle_2phandle (hw, internal) != 0)
     {
       hw_abort (hw, "attempting to add a phandle already in the data base");
     }
@@ -234,5 +236,3 @@ hw_handle_remove_phandle (struct hw *hw,
     }
   hw_abort (hw, "attempt to remove nonexistant phandle");
 }
-
-

@@ -395,6 +395,8 @@ strip_bg_char (char **args)
 void
 post_create_inferior (struct target_ops *target, int from_tty)
 {
+  volatile struct gdb_exception ex;
+
   /* Be sure we own the terminal in case write operations are performed.  */ 
   target_terminal_ours ();
 
@@ -404,8 +406,16 @@ post_create_inferior (struct target_ops *target, int from_tty)
      don't need to.  */
   target_find_description ();
 
-  /* Now that we know the register layout, retrieve current PC.  */
-  stop_pc = regcache_read_pc (get_current_regcache ());
+  /* Now that we know the register layout, retrieve current PC.  But
+     if the PC is unavailable (e.g., we're opening a core file with
+     missing registers info), ignore it.  */
+  stop_pc = 0;
+  TRY_CATCH (ex, RETURN_MASK_ERROR)
+    {
+      stop_pc = regcache_read_pc (get_current_regcache ());
+    }
+  if (ex.reason < 0 && ex.error != NOT_AVAILABLE_ERROR)
+    throw_exception (ex);
 
   if (exec_bfd)
     {
@@ -1384,7 +1394,7 @@ print_return_value (struct type *func_type, struct type *value_type)
   /* FIXME: 2003-09-27: When returning from a nested inferior function
      call, it's possible (with no help from the architecture vector)
      to locate and return/print a "struct return" value.  This is just
-     a more complicated case of what is already being done in in the
+     a more complicated case of what is already being done in the
      inferior function call code.  In fact, when inferior function
      calls are made async, this will likely be made the norm.  */
 

@@ -59,7 +59,8 @@ struct bfin_uart
 #define mmr_base()      offsetof(struct bfin_uart, dll)
 #define mmr_offset(mmr) (offsetof(struct bfin_uart, mmr) - mmr_base())
 
-static const char * const mmr_names[] = {
+static const char * const mmr_names[] =
+{
   "UART_DLL", "UART_DLH", "UART_GCTL", "UART_LCR", "UART_MCR", "UART_LSR",
   "UART_MSR", "UART_SCR", "UART_IER_SET", "UART_IER_CLEAR", "UART_THR",
   "UART_RBR",
@@ -96,10 +97,10 @@ bfin_uart_io_write_buffer (struct hw *me, const void *source,
       uart->ier |= value;
       break;
     case mmr_offset(ier_clear):
-      dv_w1c_2 (&uart->ier, value, 0);
+      dv_w1c_2 (&uart->ier, value, -1);
       break;
     case mmr_offset(lsr):
-      dv_w1c_2 (valuep, value, TEMT | THRE | DR);
+      dv_w1c_2 (valuep, value, TFI | BI | FE | PE | OE);
       break;
     case mmr_offset(rbr):
       /* XXX: Writes are ignored ?  */
@@ -196,7 +197,8 @@ bfin_uart_dma_write_buffer (struct hw *me, const void *source,
   return ret;
 }
 
-static const struct hw_port_descriptor bfin_uart_ports[] = {
+static const struct hw_port_descriptor bfin_uart_ports[] =
+{
   { "tx",   DV_PORT_TX,   0, output_port, },
   { "rx",   DV_PORT_RX,   0, output_port, },
   { "stat", DV_PORT_STAT, 0, output_port, },
@@ -252,7 +254,8 @@ bfin_uart_finish (struct hw *me)
   uart->lsr = 0x0060;
 }
 
-const struct hw_descriptor dv_bfin_uart2_descriptor[] = {
+const struct hw_descriptor dv_bfin_uart2_descriptor[] =
+{
   {"bfin_uart2", bfin_uart_finish,},
   {NULL, NULL},
 };

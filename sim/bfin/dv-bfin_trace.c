@@ -56,7 +56,8 @@ struct bfin_trace
 #define mmr_base()      offsetof(struct bfin_trace, tbufctl)
 #define mmr_offset(mmr) (offsetof(struct bfin_trace, mmr) - mmr_base())
 
-static const char * const mmr_names[] = {
+static const char * const mmr_names[] =
+{
   "TBUFCTL", "TBUFSTAT", [mmr_offset (tbuf) / 4] = "TBUF",
 };
 #define mmr_name(off) (mmr_names[(off) / 4] ? : "<INV>")
@@ -199,7 +200,8 @@ bfin_trace_finish (struct hw *me)
   attach_bfin_trace_regs (me, trace);
 }
 
-const struct hw_descriptor dv_bfin_trace_descriptor[] = {
+const struct hw_descriptor dv_bfin_trace_descriptor[] =
+{
   {"bfin_trace", bfin_trace_finish,},
   {NULL, NULL},
 };

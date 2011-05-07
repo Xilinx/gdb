@@ -5074,7 +5074,7 @@ fi
 if test ""; then
   hardware=""
 else
-  hardware="core pal glue"
+  hardware="cfi core pal glue"
 fi
 hardware="$hardware \
 	bfin_cec \
@@ -5087,6 +5087,7 @@ hardware="$hardware \
 	bfin_emac \
 	bfin_eppi \
 	bfin_evt \
+	bfin_gpio \
 	bfin_gptimer \
 	bfin_jtag \
 	bfin_mmu \
@@ -5150,7 +5151,7 @@ fi
 fi
 
 
-for ac_func in getuid getgid geteuid getegid setuid setgid mmap munmap
+for ac_func in getuid getgid geteuid getegid setuid setgid mmap munmap kill pread
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"

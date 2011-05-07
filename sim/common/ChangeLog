@@ -1,3 +1,60 @@
+2011-04-14  Mike Frysinger  <vapier@gentoo.org>
+
+	* sim-options.c (complete_option_list, sim_complete_command):
+	New functions.
+
+2011-04-02  Mike Frysinger  <vapier@gentoo.org>
+
+	* dv-glue.c: Fix up style.
+
+2011-04-02  Mike Frysinger  <vapier@gentoo.org>
+
+	* hw-alloc.c (hw_alloc_data): Adjust brace.
+	* hw-base.c (hw_base_data): Likewise.
+	(generic_hw_unit_decode): Fix indentation.
+	* hw-device.h (_hw_unit, enum, hw): Adjust braces.
+	* hw-events.c (hw_event, hw_event_data): Likewise.
+	* hw-handles.c (hw_handle_mapping, hw_handle_data): Likewise.
+	* hw-instances.c (hw_instance_data): Likewise.
+	* hw-instances.h (hw_instance): Likewise.
+	* hw-main.h (hw_descriptor, enum): Likewise.
+	* hw-ports.c (hw_port_edge, hw_port_data, empty_hw_ports): Likewise.
+	* hw-ports.h (hw_port_descriptor): Likewise.
+	* hw-properties.c (hw_property_data): Likewise.
+	* hw-properties.h (enum, hw_property, _ihandle_runtime_property_spec,
+	_range_property_spec, _reg_property_spec): Likewise.
+	* hw-tree.c (_name_specifier, printer): Likewise.
+	(split_device_specifier, parse_string_property, hw_tree_traverse,
+	print_size, print_reg_property, print_string, print_properties):
+	Fix indentation.
+
+2011-03-29  Mike Frysinger  <vapier@gentoo.org>
+
+	* aclocal.m4 (SIM_AC_OPTION_HARDWARE): Add cfi to default list.
+	* Make-common.in (dv-cfi.o): New rule.
+	* dv-cfi.c, dv-cfi.h: New files.
+
+2011-03-21  Kevin Buettner  <kevinb@redhat.com>
+
+	* gennltvals.sh: Search sys/_default_fcntl.h, in addition to
+	fcntl.h and sys/fcntl.h, for constants.
+	* nltvals.def: Regenerate.
+	* sim-io.c (sim_io_stat, sim_io_fstat): New functions.
+	* sim-io.h (sys/types.h, sys/stat.h): Include.
+	(sim_io_stat, sim_io_fstat): Declare.
+
+2011-03-14  Mike Frysinger  <vapier@gentoo.org>
+
+	* callback.c, cgen-engine.h, dv-core.c, dv-glue.c, dv-pal.c,
+	hw-base.c, hw-device.c, hw-device.h, hw-handles.c, hw-instances.c,
+	hw-ports.c, hw-ports.h, hw-properties.c, hw-tree.c, nrun.c,
+	run-sim.h, run.c, sim-alu.h, sim-assert.h, sim-base.h, sim-basics.h,
+	sim-config.c, sim-core.c, sim-core.h, sim-engine.h, sim-events.c,
+	sim-events.h, sim-fpu.c, sim-hw.c, sim-inline.h, sim-load.c,
+	sim-memopt.c, sim-n-core.h, sim-options.c, sim-profile.c,
+	sim-signal.c, sim-trace.c, sim-trace.h, sim-utils.c, sim-watch.c,
+	syscall.c: Trim trailing whitespace.
+
 2011-03-05  Mike Frysinger  <vapier@gentoo.org>
 
 	* gennltvals.sh: Handle bfin targets.

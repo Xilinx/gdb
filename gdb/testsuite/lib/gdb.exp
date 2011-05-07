@@ -137,9 +137,8 @@ proc gdb_unload {} {
     gdb_expect 60 {
 	-re "No executable file now\[^\r\n\]*\[\r\n\]" { exp_continue }
 	-re "No symbol file now\[^\r\n\]*\[\r\n\]" { exp_continue }
-	-re "A program is being debugged already..*Kill it.*y or n. $"\
-	    { send_gdb "y\n"
-		verbose "\t\tKilling previous program being debugged"
+	-re "A program is being debugged already.*Are you sure you want to change the file.*y or n. $" {
+	    send_gdb "y\n"
 	    exp_continue
 	}
 	-re "Discard symbol table from .*y or n.*$" {
@@ -378,6 +377,11 @@ proc gdb_breakpoint { function args } {
 		send_gdb "$pending_response\n"
 		exp_continue
 	}
+	-re "A problem internal to GDB has been detected" {
+		fail "setting breakpoint at $function in runto (GDB internal error)"
+		gdb_internal_error_resync
+		return 0
+	}
 	-re "$gdb_prompt $" {
 		if { $no_message == 0 } {
 			fail "setting breakpoint at $function"
@@ -591,6 +595,10 @@ proc gdb_test_multiple { command message user_code } {
 
     if [string match "*\[\r\n\]" $command] {
 	error "Invalid trailing newline in \"$message\" test"
+    }
+
+    if [string match "*\[\r\n\]*" $message] {
+	error "Invalid newline in \"$message\" test"
     }
 
     # TCL/EXPECT WART ALERT
@@ -1312,24 +1320,8 @@ proc default_gdb_start { } {
     global gdb_prompt
     global timeout
     global gdb_spawn_id;
-    global env
 
     gdb_stop_suppressing_tests;
-
-    set env(LC_CTYPE) C
-
-    # Don't let a .inputrc file or an existing setting of INPUTRC mess up
-    # the test results.  Even if /dev/null doesn't exist on the particular
-    # platform, the readline library will use the default setting just by
-    # failing to open the file.  OTOH, opening /dev/null successfully will
-    # also result in the default settings being used since nothing will be
-    # read from this file.
-    set env(INPUTRC) "/dev/null"
-
-    # The gdb.base/readline.exp arrow key test relies on the standard VT100
-    # bindings, so make sure that an appropriate terminal is selected.
-    # The same bug doesn't show up if we use ^P / ^N instead.
-    set env(TERM) "vt100"
 
     verbose "Spawning $GDB $INTERNAL_GDBFLAGS $GDBFLAGS"
 
@@ -2661,6 +2653,54 @@ proc shlib_symbol_file { libname } {
     return $libname
 }
 
+# Return the filename to download to the target and load for this
+# executable.  Normally just BINFILE unless it is renamed to something
+# else for this target.
+
+proc exec_target_file { binfile } {
+    return $binfile
+}
+
+# Return the filename GDB will load symbols from when debugging this
+# executable.  Normally just BINFILE unless executables for this target
+# have separate files for symbols.
+
+proc exec_symbol_file { binfile } {
+    return $binfile
+}
+
+# Rename the executable file.  Normally this is just BINFILE1 being renamed
+# to BINFILE2, but some targets require multiple binary files.
+proc gdb_rename_execfile { binfile1 binfile2 } {
+    catch { file rename -force \
+	    [exec_target_file ${binfile1}] \
+	    [exec_target_file ${binfile2}] }
+    if { [exec_target_file ${binfile1}] != [exec_symbol_file ${binfile1}] } {
+	catch { file rename -force \
+		[exec_symbol_file ${binfile1}] \
+		[exec_symbol_file ${binfile2}] }
+    }
+}
+
+# "Touch" the executable file to update the date.  Normally this is just
+# BINFILE, but some targets require multiple files.
+proc gdb_touch_execfile { binfile } {
+    catch { file copy -force \
+	    [exec_target_file ${binfile}] \
+	    [exec_target_file ${binfile}.tmp] }
+    catch { file rename -force \
+	    [exec_target_file ${binfile}.tmp] \
+	    [exec_target_file ${binfile}] }
+    if { [exec_target_file ${binfile}] != [exec_symbol_file ${binfile}] } {
+	catch { file copy -force \
+		[exec_symbol_file ${binfile}] \
+		[exec_symbol_file ${binfile}.tmp] }
+	catch { file rename -force \
+		[exec_symbol_file ${binfile}.tmp] \
+		[exec_symbol_file ${binfile}] }
+    }
+}
+
 # gdb_download
 #
 # Copy a file to the remote target and return its target filename.
@@ -2797,10 +2837,34 @@ proc gdb_init { args } {
 	set banned_variables_traced 1
     }
 
-    # We set LC_ALL and LANG to C so that we get the same messages as
-    # expected.
+    # We set LC_ALL, LC_CTYPE, and LANG to C so that we get the same
+    # messages as expected.
     setenv LC_ALL C
+    setenv LC_CTYPE C
     setenv LANG C
+
+    # Don't let a .inputrc file or an existing setting of INPUTRC mess up
+    # the test results.  Even if /dev/null doesn't exist on the particular
+    # platform, the readline library will use the default setting just by
+    # failing to open the file.  OTOH, opening /dev/null successfully will
+    # also result in the default settings being used since nothing will be
+    # read from this file.
+    setenv INPUTRC "/dev/null"
+
+    # The gdb.base/readline.exp arrow key test relies on the standard VT100
+    # bindings, so make sure that an appropriate terminal is selected.
+    # The same bug doesn't show up if we use ^P / ^N instead.
+    setenv TERM "vt100"
+
+    # Some tests (for example gdb.base/maint.exp) shell out from gdb to use
+    # grep.  Clear GREP_OPTIONS to make the behavoiur predictable, 
+    # especially having color output turned on can cause tests to fail.
+    setenv GREP_OPTIONS ""
+
+    # Clear $gdbserver_reconnect_p.
+    global gdbserver_reconnect_p
+    set gdbserver_reconnect_p 1
+    unset gdbserver_reconnect_p
 
     return [eval default_gdb_init $args];
 }

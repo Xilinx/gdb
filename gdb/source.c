@@ -335,6 +335,32 @@ show_directories_command (struct ui_file *file, int from_tty,
   show_directories_1 (NULL, from_tty);
 }
 
+/* Forget line positions and file names for the symtabs in a
+   particular objfile.  */
+
+void
+forget_cached_source_info_for_objfile (struct objfile *objfile)
+{
+  struct symtab *s;
+
+  ALL_OBJFILE_SYMTABS (objfile, s)
+    {
+      if (s->line_charpos != NULL)
+	{
+	  xfree (s->line_charpos);
+	  s->line_charpos = NULL;
+	}
+      if (s->fullname != NULL)
+	{
+	  xfree (s->fullname);
+	  s->fullname = NULL;
+	}
+
+      if (objfile->sf)
+	objfile->sf->qf->forget_cached_source_info (objfile);
+    }
+}
+
 /* Forget what we learned about line positions in source files, and
    which directories contain them; must check again now since files
    may be found in a different directory now.  */
@@ -349,22 +375,7 @@ forget_cached_source_info (void)
   ALL_PSPACES (pspace)
     ALL_PSPACE_OBJFILES (pspace, objfile)
     {
-      for (s = objfile->symtabs; s != NULL; s = s->next)
-	{
-	  if (s->line_charpos != NULL)
-	    {
-	      xfree (s->line_charpos);
-	      s->line_charpos = NULL;
-	    }
-	  if (s->fullname != NULL)
-	    {
-	      xfree (s->fullname);
-	      s->fullname = NULL;
-	    }
-	}
-
-      if (objfile->sf)
-	objfile->sf->qf->forget_cached_source_info (objfile);
+      forget_cached_source_info_for_objfile (objfile);
     }
 
   last_source_visited = NULL;
@@ -569,15 +580,10 @@ add_path (char *dirname, char **which_path, int parse_separators)
 	p = *which_path;
 	while (1)
 	  {
-	    /* FIXME: strncmp loses in interesting ways on MS-DOS and
-	       MS-Windows because of case-insensitivity and two different
-	       but functionally identical slash characters.  We need a
-	       special filesystem-dependent file-name comparison function.
-
-	       Actually, even on Unix I would use realpath() or its work-
-	       alike before comparing.  Then all the code above which
+	    /* FIXME: we should use realpath() or its work-alike
+	       before comparing.  Then all the code above which
 	       removes excess slashes and dots could simply go away.  */
-	    if (!strncmp (p, name, len)
+	    if (!filename_ncmp (p, name, len)
 		&& (p[len] == '\0' || p[len] == DIRNAME_SEPARATOR))
 	      {
 		/* Found it in the search path, remove old copy.  */
@@ -1150,30 +1156,6 @@ find_source_lines (struct symtab *s, int desc)
   if (mtime && mtime < st.st_mtime)
     warning (_("Source file is more recent than executable."));
 
-#ifdef LSEEK_NOT_LINEAR
-  {
-    char c;
-
-    /* Have to read it byte by byte to find out where the chars live.  */
-
-    line_charpos[0] = lseek (desc, 0, SEEK_CUR);
-    nlines = 1;
-    while (myread (desc, &c, 1) > 0)
-      {
-	if (c == '\n')
-	  {
-	    if (nlines == lines_allocated)
-	      {
-		lines_allocated *= 2;
-		line_charpos =
-		  (int *) xrealloc ((char *) line_charpos,
-				    sizeof (int) * lines_allocated);
-	      }
-	    line_charpos[nlines++] = lseek (desc, 0, SEEK_CUR);
-	  }
-      }
-  }
-#else /* lseek linear.  */
   {
     struct cleanup *old_cleanups;
 
@@ -1212,53 +1194,13 @@ find_source_lines (struct symtab *s, int desc)
       }
     do_cleanups (old_cleanups);
   }
-#endif /* lseek linear.  */
+
   s->nlines = nlines;
   s->line_charpos =
     (int *) xrealloc ((char *) line_charpos, nlines * sizeof (int));
 
 }
 
-/* Return the character position of a line LINE in symtab S.
-   Return 0 if anything is invalid.  */
-
-#if 0				/* Currently unused */
-
-int
-source_line_charpos (struct symtab *s, int line)
-{
-  if (!s)
-    return 0;
-  if (!s->line_charpos || line <= 0)
-    return 0;
-  if (line > s->nlines)
-    line = s->nlines;
-  return s->line_charpos[line - 1];
-}
-
-/* Return the line number of character position POS in symtab S.  */
-
-int
-source_charpos_line (struct symtab *s, int chr)
-{
-  int line = 0;
-  int *lnp;
-
-  if (s == 0 || s->line_charpos == 0)
-    return 0;
-  lnp = s->line_charpos;
-  /* Files are usually short, so sequential search is Ok.  */
-  while (line < s->nlines && *lnp <= chr)
-    {
-      line++;
-      lnp++;
-    }
-  if (line >= s->nlines)
-    line = s->nlines;
-  return line;
-}
-
-#endif /* 0 */
 
 
 /* Get full pathname and line number positions for a symtab.

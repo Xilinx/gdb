@@ -944,7 +944,7 @@ read_xcoff_symtab (struct partial_symtab *pst)
     ((struct coff_symfile_info *) objfile->deprecated_sym_private)->strtbl;
   char *debugsec =
     ((struct coff_symfile_info *) objfile->deprecated_sym_private)->debugsec;
-  char *debugfmt = bfd_xcoff_is_xcoff64 (abfd) ? "XCOFF64" : "XCOFF";
+  const char *debugfmt = bfd_xcoff_is_xcoff64 (abfd) ? "XCOFF64" : "XCOFF";
 
   struct internal_syment symbol[1];
   union internal_auxent main_aux;
@@ -1585,7 +1585,11 @@ process_xcoff_symbol (struct coff_symbol *cs, struct objfile *objfile)
 	     where we need to, which is not necessarily super-clean,
 	     but seems workable enough.  */
 
-	  if (*name == ':' || (pp = (char *) strchr (name, ':')) == NULL)
+	  if (*name == ':')
+	    return NULL;
+
+	  pp = strchr (name, ':');
+	  if (pp == NULL)
 	    return NULL;
 
 	  ++pp;
@@ -2619,7 +2623,7 @@ scan_xcoff_symtab (struct objfile *objfile)
 	    swap_sym (&symbol, &main_aux[0], &namestring, &sraw_symbol,
 		      &ssymnum, objfile);
 
-	    p = (char *) strchr (namestring, ':');
+	    p = strchr (namestring, ':');
 	    if (!p)
 	      continue;			/* Not a debugging symbol.   */
 

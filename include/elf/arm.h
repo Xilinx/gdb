@@ -226,6 +226,8 @@ START_RELOC_NUMBERS (elf_arm_reloc_type)
   RELOC_NUMBER (R_ARM_ME_TOO,	        128)   /* obsolete */
   RELOC_NUMBER (R_ARM_THM_TLS_DESCSEQ  ,129)
 
+  RELOC_NUMBER (R_ARM_IRELATIVE,      	160)
+
   /* Extensions?  R=read-only?  */
   RELOC_NUMBER (R_ARM_RXPC25,         	249)
   RELOC_NUMBER (R_ARM_RSBREL32,       	250)
@@ -322,5 +324,14 @@ enum
 #define ELF_STRING_ARM_unwind_info      ".ARM.extab"
 #define ELF_STRING_ARM_unwind_once      ".gnu.linkonce.armexidx."
 #define ELF_STRING_ARM_unwind_info_once ".gnu.linkonce.armextab."
+
+enum arm_st_branch_type {
+  ST_BRANCH_TO_ARM,
+  ST_BRANCH_TO_THUMB,
+  ST_BRANCH_LONG
+};
+
+#define ARM_SYM_BRANCH_TYPE(SYM) \
+  ((enum arm_st_branch_type) (SYM)->st_target_internal)
 
 #endif /* _ELF_ARM_H */

@@ -417,7 +417,7 @@ F:void:write_pc:struct regcache *regcache, CORE_ADDR val:regcache, val
 # serious shakedown.
 m:void:virtual_frame_pointer:CORE_ADDR pc, int *frame_regnum, LONGEST *frame_offset:pc, frame_regnum, frame_offset:0:legacy_virtual_frame_pointer::0
 #
-M:void:pseudo_register_read:struct regcache *regcache, int cookednum, gdb_byte *buf:regcache, cookednum, buf
+M:enum register_status:pseudo_register_read:struct regcache *regcache, int cookednum, gdb_byte *buf:regcache, cookednum, buf
 M:void:pseudo_register_write:struct regcache *regcache, int cookednum, const gdb_byte *buf:regcache, cookednum, buf
 #
 v:int:num_regs:::0:-1
@@ -484,7 +484,7 @@ F:int:get_longjmp_target:struct frame_info *frame, CORE_ADDR *pc:frame, pc
 v:int:believe_pcc_promotion:::::::
 #
 m:int:convert_register_p:int regnum, struct type *type:regnum, type:0:generic_convert_register_p::0
-f:void:register_to_value:struct frame_info *frame, int regnum, struct type *type, gdb_byte *buf:frame, regnum, type, buf:0
+f:int:register_to_value:struct frame_info *frame, int regnum, struct type *type, gdb_byte *buf, int *optimizedp, int *unavailablep:frame, regnum, type, buf, optimizedp, unavailablep:0
 f:void:value_to_register:struct frame_info *frame, int regnum, struct type *type, const gdb_byte *buf:frame, regnum, type, buf:0
 # Construct a value representing the contents of register REGNUM in
 # frame FRAME, interpreted as type TYPE.  The routine needs to

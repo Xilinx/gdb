@@ -284,6 +284,12 @@ extern struct frame_info *frame_find_by_id (struct frame_id id);
    This replaced: frame->pc; */
 extern CORE_ADDR get_frame_pc (struct frame_info *);
 
+/* Same as get_frame_pc, but return a boolean indication of whether
+   the PC is actually available, instead of throwing an error.  */
+
+extern int get_frame_pc_if_available (struct frame_info *frame,
+				      CORE_ADDR *pc);
+
 /* An address (not necessarily aligned to an instruction boundary)
    that falls within THIS frame's code block.
 
@@ -299,6 +305,15 @@ extern CORE_ADDR get_frame_pc (struct frame_info *);
 
 extern CORE_ADDR get_frame_address_in_block (struct frame_info *this_frame);
 
+/* Same as get_frame_address_in_block, but returns a boolean
+   indication of whether the frame address is determinable (when the
+   PC is unavailable, it will not be), instead of possibly throwing an
+   error trying to read an unavailable PC.  */
+
+extern int
+  get_frame_address_in_block_if_available (struct frame_info *this_frame,
+					   CORE_ADDR *pc);
+
 /* The frame's inner-most bound.  AKA the stack-pointer.  Confusingly
    known as top-of-stack.  */
 
@@ -308,6 +323,13 @@ extern CORE_ADDR get_frame_sp (struct frame_info *);
    address of the function containing that resume address, or zero if
    that function isn't known.  */
 extern CORE_ADDR get_frame_func (struct frame_info *fi);
+
+/* Same as get_frame_func, but returns a boolean indication of whether
+   the frame function is determinable (when the PC is unavailable, it
+   will not be), instead of possibly throwing an error trying to read
+   an unavailable PC.  */
+
+extern int get_frame_func_if_available (struct frame_info *fi, CORE_ADDR *);
 
 /* Closely related to the resume address, various symbol table
    attributes that are determined by the PC.  Note that for a normal
@@ -435,11 +457,18 @@ enum unwind_stop_reason
        error.  But that's a project for another day.  */
     UNWIND_NULL_ID,
 
+    /* This frame is the outermost.  */
+    UNWIND_OUTERMOST,
+
     /* All the conditions after this point are considered errors;
        abnormal stack termination.  If a backtrace stops for one
        of these reasons, we'll let the user know.  This marker
        is not a valid stop reason.  */
     UNWIND_FIRST_ERROR,
+
+    /* Can't unwind further, because that would require knowing the
+       values of registers or memory that haven't been collected.  */
+    UNWIND_UNAVAILABLE,
 
     /* This frame ID looks like it ought to belong to a NEXT frame,
        but we got it for a PREV frame.  Normally, this is a sign of
@@ -471,7 +500,8 @@ const char *frame_stop_reason_string (enum unwind_stop_reason);
    fetch/compute the value.  Instead just return the location of the
    value.  */
 extern void frame_register_unwind (struct frame_info *frame, int regnum,
-				   int *optimizedp, enum lval_type *lvalp,
+				   int *optimizedp, int *unavailablep,
+				   enum lval_type *lvalp,
 				   CORE_ADDR *addrp, int *realnump,
 				   gdb_byte *valuep);
 
@@ -507,7 +537,8 @@ extern ULONGEST get_frame_register_unsigned (struct frame_info *frame,
    VALUEP is NULL, the registers value is not fetched/computed.  */
 
 extern void frame_register (struct frame_info *frame, int regnum,
-			    int *optimizedp, enum lval_type *lvalp,
+			    int *optimizedp, int *unavailablep,
+			    enum lval_type *lvalp,
 			    CORE_ADDR *addrp, int *realnump,
 			    gdb_byte *valuep);
 
@@ -518,10 +549,13 @@ extern void put_frame_register (struct frame_info *frame, int regnum,
 				const gdb_byte *buf);
 
 /* Read LEN bytes from one or multiple registers starting with REGNUM
-   in frame FRAME, starting at OFFSET, into BUF.  */
+   in frame FRAME, starting at OFFSET, into BUF.  If the register
+   contents are optimized out or unavailable, set *OPTIMIZEDP,
+   *UNAVAILABLEP accordingly.  */
 extern int get_frame_register_bytes (struct frame_info *frame, int regnum,
 				     CORE_ADDR offset, int len,
-				     gdb_byte *myaddr);
+				     gdb_byte *myaddr,
+				     int *optimizedp, int *unavailablep);
 
 /* Write LEN bytes to one or multiple registers starting with REGNUM
    in frame FRAME, starting at OFFSET, into BUF.  */
@@ -534,6 +568,14 @@ extern void put_frame_register_bytes (struct frame_info *frame, int regnum,
    specific register.  */
 
 extern CORE_ADDR frame_unwind_caller_pc (struct frame_info *frame);
+
+/* Same as frame_unwind_caller_pc, but returns a boolean indication of
+   whether the caller PC is determinable (when the PC is unavailable,
+   it will not be), instead of possibly throwing an error trying to
+   read unavailable memory or registers.  */
+
+extern int frame_unwind_caller_pc_if_available (struct frame_info *this_frame,
+						CORE_ADDR *pc);
 
 /* Discard the specified frame.  Restoring the registers to the state
    of the caller.  */
@@ -654,12 +696,14 @@ extern int deprecated_pc_in_call_dummy (struct gdbarch *gdbarch, CORE_ADDR pc);
 /* FIXME: cagney/2003-02-02: Should be deprecated or replaced with a
    function called get_frame_register_p().  This slightly weird (and
    older) variant of get_frame_register() returns zero (indicating the
-   register is unavailable) if either: the register isn't cached; or
-   the register has been optimized out.  Problem is, neither check is
-   exactly correct.  A register can't be optimized out (it may not
-   have been saved as part of a function call); The fact that a
-   register isn't in the register cache doesn't mean that the register
-   isn't available (it could have been fetched from memory).  */
+   register value is unavailable/invalid) if either: the register
+   isn't cached; or the register has been optimized out; or the
+   register contents are unavailable (because they haven't been
+   collected in a traceframe).  Problem is, neither check is exactly
+   correct.  A register can't be optimized out (it may not have been
+   saved as part of a function call); The fact that a register isn't
+   in the register cache doesn't mean that the register isn't
+   available (it could have been fetched from memory).  */
 
 extern int frame_register_read (struct frame_info *frame, int regnum,
 				gdb_byte *buf);

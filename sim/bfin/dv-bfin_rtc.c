@@ -44,7 +44,8 @@ struct bfin_rtc
 #define mmr_base()      offsetof(struct bfin_rtc, stat)
 #define mmr_offset(mmr) (offsetof(struct bfin_rtc, mmr) - mmr_base())
 
-static const char * const mmr_names[] = {
+static const char * const mmr_names[] =
+{
   "RTC_STAT", "RTC_ICTL", "RTC_ISTAT", "RTC_SWCNT", "RTC_ALARM", "RTC_PREN",
 };
 #define mmr_name(off) mmr_names[(off) / 4]
@@ -79,7 +80,7 @@ bfin_rtc_io_write_buffer (struct hw *me, const void *source,
       /* XXX: Ignore these since we are wired to host.  */
       break;
     case mmr_offset(istat):
-      dv_w1c_2 (value16p, value, 1 << 14);
+      dv_w1c_2 (value16p, value, ~(1 << 14));
       break;
     case mmr_offset(alarm):
       break;
@@ -138,7 +139,8 @@ bfin_rtc_io_read_buffer (struct hw *me, void *dest,
   return nr_bytes;
 }
 
-static const struct hw_port_descriptor bfin_rtc_ports[] = {
+static const struct hw_port_descriptor bfin_rtc_ports[] =
+{
   { "rtc", 0, 0, output_port, },
   { NULL, 0, 0, 0, },
 };
@@ -188,7 +190,8 @@ bfin_rtc_finish (struct hw *me)
   /* Initialize the RTC.  */
 }
 
-const struct hw_descriptor dv_bfin_rtc_descriptor[] = {
+const struct hw_descriptor dv_bfin_rtc_descriptor[] =
+{
   {"bfin_rtc", bfin_rtc_finish,},
   {NULL, NULL},
 };

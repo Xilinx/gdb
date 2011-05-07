@@ -822,7 +822,7 @@ struct dwarf_debug_section
 /* Map of uncompressed DWARF debug section name to compressed one.  It
    is terminated by NULL uncompressed_name.  */
 
-extern struct dwarf_debug_section dwarf_debug_sections[];
+extern const struct dwarf_debug_section dwarf_debug_sections[];
 /* Extracted from init.c.  */
 /* Extracted from libbfd.c.  */
 bfd_boolean bfd_write_bigendian_4byte_int (bfd *, unsigned int);
@@ -1412,6 +1412,7 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_ARM_LDC_SB_G1",
   "BFD_RELOC_ARM_LDC_SB_G2",
   "BFD_RELOC_ARM_V4BX",
+  "BFD_RELOC_ARM_IRELATIVE",
   "BFD_RELOC_ARM_IMMEDIATE",
   "BFD_RELOC_ARM_ADRL_IMMEDIATE",
   "BFD_RELOC_ARM_T32_IMMEDIATE",
@@ -1704,6 +1705,10 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_C6000_DSBT_INDEX",
   "BFD_RELOC_C6000_PREL31",
   "BFD_RELOC_C6000_COPY",
+  "BFD_RELOC_C6000_JUMP_SLOT",
+  "BFD_RELOC_C6000_EHTYPE",
+  "BFD_RELOC_C6000_PCR_H16",
+  "BFD_RELOC_C6000_PCR_L16",
   "BFD_RELOC_C6000_ALIGN",
   "BFD_RELOC_C6000_FPHEAD",
   "BFD_RELOC_C6000_NOCMP",

@@ -60,7 +60,8 @@ struct bfin_nfc
 #define mmr_offset(mmr) (offsetof(struct bfin_nfc, mmr) - mmr_base())
 #define mmr_idx(mmr)    (mmr_offset (mmr) / 4)
 
-static const char * const mmr_names[] = {
+static const char * const mmr_names[] =
+{
   "NFC_CTL", "NFC_STAT", "NFC_IRQSTAT", "NFC_IRQMASK", "NFC_ECC0", "NFC_ECC1",
   "NFC_ECC2", "NFC_ECC3", "NFC_COUNT", "NFC_RST", "NFC_PGCTL", "NFC_READ",
   [mmr_idx (addr)] = "NFC_ADDR", "NFC_CMD", "NFC_DATA_WR", "NFC_DATA_RD",
@@ -107,7 +108,7 @@ bfin_nfc_io_write_buffer (struct hw *me, const void *source, int space,
       *valuep = value;
       break;
     case mmr_offset(irqstat):
-      dv_w1c_2 (valuep, value, 0);
+      dv_w1c_2 (valuep, value, -1);
       break;
     default:
       dv_bfin_mmr_invalid (me, addr, nr_bytes, true);
@@ -179,7 +180,8 @@ bfin_nfc_dma_write_buffer (struct hw *me, const void *source,
   return nr_bytes;
 }
 
-static const struct hw_port_descriptor bfin_nfc_ports[] = {
+static const struct hw_port_descriptor bfin_nfc_ports[] =
+{
   { "stat", 0, 0, output_port, },
   { NULL, 0, 0, 0, },
 };
@@ -235,7 +237,8 @@ bfin_nfc_finish (struct hw *me)
   nfc->irqmask = 0x001F;
 }
 
-const struct hw_descriptor dv_bfin_nfc_descriptor[] = {
+const struct hw_descriptor dv_bfin_nfc_descriptor[] =
+{
   {"bfin_nfc", bfin_nfc_finish,},
   {NULL, NULL},
 };

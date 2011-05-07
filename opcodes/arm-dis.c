@@ -45,6 +45,14 @@
 #define NUM_ELEM(a)     (sizeof (a) / sizeof (a)[0])
 #endif
 
+/* Cached mapping symbol state.  */
+enum map_type
+{
+  MAP_ARM,
+  MAP_THUMB,
+  MAP_DATA
+};
+
 struct arm_private_data
 {
   /* The features to use when disassembling optional instructions.  */
@@ -53,6 +61,13 @@ struct arm_private_data
   /* Whether any mapping symbols are present in the provided symbol
      table.  -1 if we do not know yet, otherwise 0 or 1.  */
   int has_mapping_symbols;
+
+  /* Track the last type (although this doesn't seem to be useful) */
+  enum map_type last_type;
+
+  /* Tracking symbol table information */
+  int last_mapping_sym;
+  bfd_vma last_mapping_addr;
 };
 
 struct opcode32
@@ -1321,6 +1336,7 @@ static const struct opcode16 thumb_opcodes[] =
        %H		print a 16-bit immediate from hw2[3:0],hw1[11:0]
        %S		print a possibly-shifted Rm
 
+       %L		print address for a ldrd/strd instruction
        %a		print the address of a plain load/store
        %w		print the width and signedness of a core load/store
        %m		print register mask for ldm/stm
@@ -1549,10 +1565,10 @@ static const struct opcode32 thumb32_opcodes[] =
   {ARM_EXT_V6T2, 0xe9100000, 0xffd00000, "ldmdb%c\t%16-19r%21'!, %m"},
   {ARM_EXT_V6T2, 0xe9c00000, 0xffd000ff, "strd%c\t%12-15r, %8-11r, [%16-19r]"},
   {ARM_EXT_V6T2, 0xe9d00000, 0xffd000ff, "ldrd%c\t%12-15r, %8-11r, [%16-19r]"},
-  {ARM_EXT_V6T2, 0xe9400000, 0xff500000, "strd%c\t%12-15r, %8-11r, [%16-19r, #%23`-%0-7W]%21'!"},
-  {ARM_EXT_V6T2, 0xe9500000, 0xff500000, "ldrd%c\t%12-15r, %8-11r, [%16-19r, #%23`-%0-7W]%21'!"},
-  {ARM_EXT_V6T2, 0xe8600000, 0xff700000, "strd%c\t%12-15r, %8-11r, [%16-19r], #%23`-%0-7W"},
-  {ARM_EXT_V6T2, 0xe8700000, 0xff700000, "ldrd%c\t%12-15r, %8-11r, [%16-19r], #%23`-%0-7W"},
+  {ARM_EXT_V6T2, 0xe9400000, 0xff500000, "strd%c\t%12-15r, %8-11r, [%16-19r, #%23`-%0-7W]%21'!%L"},
+  {ARM_EXT_V6T2, 0xe9500000, 0xff500000, "ldrd%c\t%12-15r, %8-11r, [%16-19r, #%23`-%0-7W]%21'!%L"},
+  {ARM_EXT_V6T2, 0xe8600000, 0xff700000, "strd%c\t%12-15r, %8-11r, [%16-19r], #%23`-%0-7W%L"},
+  {ARM_EXT_V6T2, 0xe8700000, 0xff700000, "ldrd%c\t%12-15r, %8-11r, [%16-19r], #%23`-%0-7W%L"},
   {ARM_EXT_V6T2, 0xf8000000, 0xff100000, "str%w%c.w\t%12-15r, %a"},
   {ARM_EXT_V6T2, 0xf8100000, 0xfe100000, "ldr%w%c.w\t%12-15r, %a"},
 
@@ -1641,18 +1657,6 @@ static unsigned int ifthen_next_state;
 /* The address of the insn for which the IT state is valid.  */
 static bfd_vma ifthen_address;
 #define IFTHEN_COND ((ifthen_state >> 4) & 0xf)
-
-/* Cached mapping symbol state.  */
-enum map_type
-{
-  MAP_ARM,
-  MAP_THUMB,
-  MAP_DATA
-};
-
-enum map_type last_type;
-int last_mapping_sym = -1;
-bfd_vma last_mapping_addr = 0;
 
 
 /* Functions.  */
@@ -3718,7 +3722,7 @@ psr_name (int regno)
     case 9: return "PSP";
     case 16: return "PRIMASK";
     case 17: return "BASEPRI";
-    case 18: return "BASEPRI_MASK";
+    case 18: return "BASEPRI_MAX";
     case 19: return "FAULTMASK";
     case 20: return "CONTROL";
     default: return "<unknown>";
@@ -4273,6 +4277,21 @@ print_insn_thumb32 (bfd_vma pc, struct disassemble_info *info, long given)
 		}
 		break;
 
+	      case 'L':
+		/* PR binutils/12534
+		   If we have a PC relative offset in an LDRD or STRD
+		   instructions then display the decoded address.  */
+		if (((given >> 16) & 0xf) == 0xf)
+		  {
+		    bfd_vma offset = (given & 0xff) * 4;
+
+		    if ((given & (1 << 23)) == 0)
+		      offset = - offset;
+		    func (stream, "\t; ");
+		    info->print_address_func ((pc & ~3) + 4 + offset, info);
+		  }
+		break;
+
 	      default:
 		abort ();
 	      }
@@ -4525,9 +4544,12 @@ get_sym_code_type (struct disassemble_info *info,
   type = ELF_ST_TYPE (es->internal_elf_sym.st_info);
 
   /* If the symbol has function type then use that.  */
-  if (type == STT_FUNC || type == STT_ARM_TFUNC)
+  if (type == STT_FUNC || type == STT_GNU_IFUNC)
     {
-      *map_type = (type == STT_ARM_TFUNC) ? MAP_THUMB : MAP_ARM;
+      if (ARM_SYM_BRANCH_TYPE (&es->internal_elf_sym) == ST_BRANCH_TO_THUMB)
+	*map_type = MAP_THUMB;
+      else
+	*map_type = MAP_ARM;
       return TRUE;
     }
 
@@ -4632,6 +4654,8 @@ print_insn (bfd_vma pc, struct disassemble_info *info, bfd_boolean little)
       select_arm_features (info->mach, & private.features);
 
       private.has_mapping_symbols = -1;
+      private.last_mapping_sym = -1;
+      private.last_mapping_addr = 0;
 
       info->private_data = & private;
     }
@@ -4655,8 +4679,8 @@ print_insn (bfd_vma pc, struct disassemble_info *info, bfd_boolean little)
       /* Start scanning at the start of the function, or wherever
 	 we finished last time.  */
       start = info->symtab_pos + 1;
-      if (start < last_mapping_sym)
-	start = last_mapping_sym;
+      if (start < private_data->last_mapping_sym)
+	start = private_data->last_mapping_sym;
       found = FALSE;
 
       /* First, look for mapping symbols.  */
@@ -4751,10 +4775,10 @@ print_insn (bfd_vma pc, struct disassemble_info *info, bfd_boolean little)
 	    }
 	}
 
-      last_mapping_sym = last_sym;
-      last_type = type;
-      is_thumb = (last_type == MAP_THUMB);
-      is_data = (last_type == MAP_DATA);
+      private_data->last_mapping_sym = last_sym;
+      private_data->last_type = type;
+      is_thumb = (private_data->last_type == MAP_THUMB);
+      is_data = (private_data->last_type == MAP_DATA);
 
       /* Look a little bit ahead to see if we should print out
 	 two or four bytes of data.  If there's a symbol,
@@ -4807,7 +4831,9 @@ print_insn (bfd_vma pc, struct disassemble_info *info, bfd_boolean little)
 	  es = *(elf_symbol_type **)(info->symbols);
 	  type = ELF_ST_TYPE (es->internal_elf_sym.st_info);
 
-	  is_thumb = (type == STT_ARM_TFUNC) || (type == STT_ARM_16BIT);
+	  is_thumb = ((ARM_SYM_BRANCH_TYPE (&es->internal_elf_sym)
+		       == ST_BRANCH_TO_THUMB)
+		      || type == STT_ARM_16BIT);
 	}
     }
 

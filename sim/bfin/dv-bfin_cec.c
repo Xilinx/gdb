@@ -39,7 +39,8 @@ struct bfin_cec
 #define mmr_base()      offsetof(struct bfin_cec, evt_override)
 #define mmr_offset(mmr) (offsetof(struct bfin_cec, mmr) - mmr_base())
 
-static const char * const mmr_names[] = {
+static const char * const mmr_names[] =
+{
   "EVT_OVERRIDE", "IMASK", "IPEND", "ILAT", "IPRIO",
 };
 #define mmr_name(off) mmr_names[(off) / 4]
@@ -99,7 +100,7 @@ bfin_cec_io_write_buffer (struct hw *me, const void *source,
       /* Read-only register.  */
       break;
     case mmr_offset(ilat):
-      dv_w1c_4 (&cec->ilat, value, 0);
+      dv_w1c_4 (&cec->ilat, value, 0xffee);
       break;
     case mmr_offset(iprio):
       cec->iprio = (value & IVG_UNMASKABLE_B);
@@ -127,7 +128,8 @@ bfin_cec_io_read_buffer (struct hw *me, void *dest,
   return nr_bytes;
 }
 
-static const struct hw_port_descriptor bfin_cec_ports[] = {
+static const struct hw_port_descriptor bfin_cec_ports[] =
+{
   { "emu",   IVG_EMU,   0, input_port, },
   { "rst",   IVG_RST,   0, input_port, },
   { "nmi",   IVG_NMI,   0, input_port, },
@@ -205,12 +207,14 @@ bfin_cec_finish (struct hw *me)
   cec->ipend = IVG_RST_B | IVG_IRPTEN_B;
 }
 
-const struct hw_descriptor dv_bfin_cec_descriptor[] = {
+const struct hw_descriptor dv_bfin_cec_descriptor[] =
+{
   {"bfin_cec", bfin_cec_finish,},
   {NULL, NULL},
 };
 
-static const char * const excp_decoded[] = {
+static const char * const excp_decoded[] =
+{
   [VEC_SYS        ] = "Custom exception 0 (system call)",
   [VEC_EXCPT01    ] = "Custom exception 1 (software breakpoint)",
   [VEC_EXCPT02    ] = "Custom exception 2 (KGDB hook)",

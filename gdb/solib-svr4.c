@@ -143,7 +143,7 @@ svr4_same (struct so_list *gdb, struct so_list *inferior)
 /* link map access functions.  */
 
 static CORE_ADDR
-LM_ADDR_FROM_LINK_MAP (struct so_list *so)
+lm_addr_from_link_map (struct so_list *so)
 {
   struct link_map_offsets *lmo = svr4_fetch_link_map_offsets ();
   struct type *ptr_type = builtin_type (target_gdbarch)->builtin_data_ptr;
@@ -153,7 +153,7 @@ LM_ADDR_FROM_LINK_MAP (struct so_list *so)
 }
 
 static int
-HAS_LM_DYNAMIC_FROM_LINK_MAP (void)
+has_lm_dynamic_from_link_map (void)
 {
   struct link_map_offsets *lmo = svr4_fetch_link_map_offsets ();
 
@@ -161,7 +161,7 @@ HAS_LM_DYNAMIC_FROM_LINK_MAP (void)
 }
 
 static CORE_ADDR
-LM_DYNAMIC_FROM_LINK_MAP (struct so_list *so)
+lm_dynamic_from_link_map (struct so_list *so)
 {
   struct link_map_offsets *lmo = svr4_fetch_link_map_offsets ();
   struct type *ptr_type = builtin_type (target_gdbarch)->builtin_data_ptr;
@@ -171,19 +171,19 @@ LM_DYNAMIC_FROM_LINK_MAP (struct so_list *so)
 }
 
 static CORE_ADDR
-LM_ADDR_CHECK (struct so_list *so, bfd *abfd)
+lm_addr_check (struct so_list *so, bfd *abfd)
 {
   if (so->lm_info->l_addr == (CORE_ADDR)-1)
     {
       struct bfd_section *dyninfo_sect;
       CORE_ADDR l_addr, l_dynaddr, dynaddr;
 
-      l_addr = LM_ADDR_FROM_LINK_MAP (so);
+      l_addr = lm_addr_from_link_map (so);
 
-      if (! abfd || ! HAS_LM_DYNAMIC_FROM_LINK_MAP ())
+      if (! abfd || ! has_lm_dynamic_from_link_map ())
 	goto set_addr;
 
-      l_dynaddr = LM_DYNAMIC_FROM_LINK_MAP (so);
+      l_dynaddr = lm_dynamic_from_link_map (so);
 
       dyninfo_sect = bfd_get_section_by_name (abfd, ".dynamic");
       if (dyninfo_sect == NULL)
@@ -237,11 +237,11 @@ LM_ADDR_CHECK (struct so_list *so, bfd *abfd)
 
 	     Even on PPC it must be zero-aligned at least for MINPAGESIZE.  */
 
+	  l_addr = l_dynaddr - dynaddr;
+
 	  if ((l_addr & (minpagesize - 1)) == 0
 	      && (l_addr & align) == ((l_dynaddr - dynaddr) & align))
 	    {
-	      l_addr = l_dynaddr - dynaddr;
-
 	      if (info_verbose)
 		printf_unfiltered (_("Using PIC (Position Independent Code) "
 				     "prelink displacement %s for \"%s\".\n"),
@@ -249,9 +249,20 @@ LM_ADDR_CHECK (struct so_list *so, bfd *abfd)
 				   so->so_name);
 	    }
 	  else
-	    warning (_(".dynamic section for \"%s\" "
-		       "is not at the expected address "
-		       "(wrong library or version mismatch?)"), so->so_name);
+	    {
+	      /* There is no way to verify the library file matches.  prelink
+		 can during prelinking of an unprelinked file (or unprelinking
+		 of a prelinked file) shift the DYNAMIC segment by arbitrary
+		 offset without any page size alignment.  There is no way to
+		 find out the ELF header and/or Program Headers for a limited
+		 verification if it they match.  One could do a verification
+		 of the DYNAMIC segment.  Still the found address is the best
+		 one GDB could find.  */
+
+	      warning (_(".dynamic section for \"%s\" "
+			 "is not at the expected address "
+			 "(wrong library or version mismatch?)"), so->so_name);
+	    }
 	}
 
     set_addr:
@@ -262,7 +273,7 @@ LM_ADDR_CHECK (struct so_list *so, bfd *abfd)
 }
 
 static CORE_ADDR
-LM_NEXT (struct so_list *so)
+lm_next (struct so_list *so)
 {
   struct link_map_offsets *lmo = svr4_fetch_link_map_offsets ();
   struct type *ptr_type = builtin_type (target_gdbarch)->builtin_data_ptr;
@@ -272,7 +283,7 @@ LM_NEXT (struct so_list *so)
 }
 
 static CORE_ADDR
-LM_PREV (struct so_list *so)
+lm_prev (struct so_list *so)
 {
   struct link_map_offsets *lmo = svr4_fetch_link_map_offsets ();
   struct type *ptr_type = builtin_type (target_gdbarch)->builtin_data_ptr;
@@ -282,7 +293,7 @@ LM_PREV (struct so_list *so)
 }
 
 static CORE_ADDR
-LM_NAME (struct so_list *so)
+lm_name (struct so_list *so)
 {
   struct link_map_offsets *lmo = svr4_fetch_link_map_offsets ();
   struct type *ptr_type = builtin_type (target_gdbarch)->builtin_data_ptr;
@@ -292,14 +303,14 @@ LM_NAME (struct so_list *so)
 }
 
 static int
-IGNORE_FIRST_LINK_MAP_ENTRY (struct so_list *so)
+ignore_first_link_map_entry (struct so_list *so)
 {
   /* Assume that everything is a library if the dynamic loader was loaded
      late by a static executable.  */
   if (exec_bfd && bfd_get_section_by_name (exec_bfd, ".dynamic") == NULL)
     return 0;
 
-  return LM_PREV (so) == 0;
+  return lm_prev (so) == 0;
 }
 
 /* Per pspace SVR4 specific data.  */
@@ -943,7 +954,7 @@ svr4_keep_data_in_core (CORE_ADDR vaddr, unsigned long size)
   struct so_list *new;
   struct cleanup *old_chain;
   struct link_map_offsets *lmo;
-  CORE_ADDR lm_name;
+  CORE_ADDR name_lm;
 
   info = get_svr4_info ();
 
@@ -966,10 +977,10 @@ svr4_keep_data_in_core (CORE_ADDR vaddr, unsigned long size)
   new->lm_info->lm = xzalloc (lmo->link_map_size);
   make_cleanup (xfree, new->lm_info->lm);
   read_memory (ldsomap, new->lm_info->lm, lmo->link_map_size);
-  lm_name = LM_NAME (new);
+  name_lm = lm_name (new);
   do_cleanups (old_chain);
 
-  return (lm_name >= vaddr && lm_name < vaddr + size);
+  return (name_lm >= vaddr && name_lm < vaddr + size);
 }
 
 /*
@@ -1147,9 +1158,9 @@ svr4_current_sos (void)
 
       read_memory (lm, new->lm_info->lm, lmo->link_map_size);
 
-      next_lm = LM_NEXT (new);
+      next_lm = lm_next (new);
 
-      if (LM_PREV (new) != prev_lm)
+      if (lm_prev (new) != prev_lm)
 	{
 	  warning (_("Corrupted shared library list"));
 	  free_so (new);
@@ -1161,7 +1172,7 @@ svr4_current_sos (void)
          SVR4, it has no name.  For others (Solaris 2.3 for example), it
          does have a name, so we can no longer use a missing name to
          decide when to ignore it.  */
-      else if (IGNORE_FIRST_LINK_MAP_ENTRY (new) && ldsomap == 0)
+      else if (ignore_first_link_map_entry (new) && ldsomap == 0)
 	{
 	  info->main_lm_addr = new->lm_info->lm_addr;
 	  free_so (new);
@@ -1172,7 +1183,7 @@ svr4_current_sos (void)
 	  char *buffer;
 
 	  /* Extract this shared object's name.  */
-	  target_read_string (LM_NAME (new), &buffer,
+	  target_read_string (lm_name (new), &buffer,
 			      SO_NAME_MAX_PATH_SIZE - 1, &errcode);
 	  if (errcode != 0)
 	    warning (_("Can't read pathname for load map: %s."),
@@ -1276,7 +1287,8 @@ svr4_in_dynsym_resolve_code (CORE_ADDR pc)
 	   && pc < info->interp_text_sect_high)
 	  || (pc >= info->interp_plt_sect_low
 	      && pc < info->interp_plt_sect_high)
-	  || in_plt_section (pc, NULL));
+	  || in_plt_section (pc, NULL)
+	  || in_gnu_ifunc_stub (pc));
 }
 
 /* Given an executable's ABFD and target, compute the entry-point
@@ -1472,7 +1484,7 @@ enable_break (struct svr4_info *info, int from_tty)
 	    {
 	      load_addr_found = 1;
 	      loader_found_in_list = 1;
-	      load_addr = LM_ADDR_CHECK (so, tmp_bfd);
+	      load_addr = lm_addr_check (so, tmp_bfd);
 	      break;
 	    }
 	  so = so->next;
@@ -2258,9 +2270,9 @@ static void
 svr4_relocate_section_addresses (struct so_list *so,
                                  struct target_section *sec)
 {
-  sec->addr    = svr4_truncate_ptr (sec->addr    + LM_ADDR_CHECK (so,
+  sec->addr    = svr4_truncate_ptr (sec->addr    + lm_addr_check (so,
 								  sec->bfd));
-  sec->endaddr = svr4_truncate_ptr (sec->endaddr + LM_ADDR_CHECK (so,
+  sec->endaddr = svr4_truncate_ptr (sec->endaddr + lm_addr_check (so,
 								  sec->bfd));
 }
 

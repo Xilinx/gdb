@@ -70,8 +70,6 @@
 extern int hex2bin (const char *hex, gdb_byte *bin, int count);
 extern int bin2hex (const gdb_byte *bin, char *hex, int count);
 
-extern void stop_tracing ();
-
 /* Maximum length of an agent aexpression.
    This accounts for the fact that packets are limited to 400 bytes
    (which includes everything -- including the checksum), and assumes
@@ -218,7 +216,7 @@ char *stop_reason_names[] = {
 };
 
 struct trace_status *
-current_trace_status ()
+current_trace_status (void)
 {
   return &trace_status;
 }
@@ -236,7 +234,7 @@ free_traceframe_info (struct traceframe_info *info)
     }
 }
 
-/* Free and and clear the traceframe info cache of the current
+/* Free and clear the traceframe info cache of the current
    traceframe.  */
 
 static void
@@ -270,26 +268,24 @@ set_traceframe_context (struct frame_info *trace_frame)
 {
   CORE_ADDR trace_pc;
 
-  if (trace_frame == NULL)	/* Cease debugging any trace buffers.  */
-    {
-      traceframe_fun = 0;
-      traceframe_sal.pc = traceframe_sal.line = 0;
-      traceframe_sal.symtab = NULL;
-      clear_internalvar (lookup_internalvar ("trace_func"));
-      clear_internalvar (lookup_internalvar ("trace_file"));
-      set_internalvar_integer (lookup_internalvar ("trace_line"), -1);
-      return;
-    }
-
   /* Save as globals for internal use.  */
-  trace_pc = get_frame_pc (trace_frame);
-  traceframe_sal = find_pc_line (trace_pc, 0);
-  traceframe_fun = find_pc_function (trace_pc);
+  if (trace_frame != NULL
+      && get_frame_pc_if_available (trace_frame, &trace_pc))
+    {
+      traceframe_sal = find_pc_line (trace_pc, 0);
+      traceframe_fun = find_pc_function (trace_pc);
 
-  /* Save linenumber as "$trace_line", a debugger variable visible to
-     users.  */
-  set_internalvar_integer (lookup_internalvar ("trace_line"),
-			   traceframe_sal.line);
+      /* Save linenumber as "$trace_line", a debugger variable visible to
+	 users.  */
+      set_internalvar_integer (lookup_internalvar ("trace_line"),
+			       traceframe_sal.line);
+    }
+  else
+    {
+      init_sal (&traceframe_sal);
+      traceframe_fun = NULL;
+      set_internalvar_integer (lookup_internalvar ("trace_line"), -1);
+    }
 
   /* Save func name as "$trace_func", a debugger variable visible to
      users.  */
@@ -1124,7 +1120,7 @@ add_local_symbols (struct collection_list *collect,
       block = block_for_pc (pc);
       if (block == NULL)
 	{
-	  warning (_("Can't collect args; no symbol table info available.\n"));
+	  warning (_("Can't collect args; no symbol table info available."));
 	  return;
 	}
 
@@ -2337,7 +2333,7 @@ scope_info (char *args, int from_tty)
     error (_("requires an argument (function, "
 	     "line or *addr) to define a scope"));
 
-  sals = decode_line_1 (&args, 1, NULL, 0, NULL, NULL);
+  sals = decode_line_1 (&args, 1, NULL, 0, NULL);
   if (sals.nelts == 0)
     return;		/* Presumably decode_line_1 has already warned.  */
 

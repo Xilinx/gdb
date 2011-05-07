@@ -47,6 +47,7 @@
 #include "target.h"
 #include "gdbcore.h"		/* for bfd stuff */
 #include "libaout.h"		/* FIXME Secret internal BFD stuff for a.out */
+#include "filenames.h"
 #include "objfiles.h"
 #include "buildsym.h"
 #include "stabsread.h"
@@ -346,7 +347,7 @@ add_old_header_file (char *name, int instance)
   int i;
 
   for (i = 0; i < N_HEADER_FILES (current_objfile); i++)
-    if (strcmp (p[i].name, name) == 0 && instance == p[i].instance)
+    if (filename_cmp (p[i].name, name) == 0 && instance == p[i].instance)
       {
 	add_this_object_header_file (i);
 	return;
@@ -1401,24 +1402,16 @@ read_dbx_symtab (struct objfile *objfile)
 	  goto record_it;
 
 	case N_UNDF | N_EXT:
-	  if (nlist.n_value != 0)
-	    {
-	      /* This is a "Fortran COMMON" symbol.  See if the target
-		 environment knows where it has been relocated to.  */
+	  /* The case (nlist.n_value != 0) is a "Fortran COMMON" symbol.
+	     We used to rely on the target to tell us whether it knows
+	     where the symbol has been relocated to, but none of the
+	     target implementations actually provided that operation.
+	     So we just ignore the symbol, the same way we would do if
+	     we had a target-side symbol lookup which returned no match.
 
-	      CORE_ADDR reladdr;
-
-	      namestring = set_namestring (objfile, &nlist);
-	      if (target_lookup_symbol (namestring, &reladdr))
-		{
-		  continue;	/* Error in lookup; ignore symbol for now.  */
-		}
-	      nlist.n_type ^= (N_BSS ^ N_UNDF);	/* Define it as a
-						   bss-symbol.  */
-	      nlist.n_value = reladdr;
-	      goto bss_ext_symbol;
-	    }
-	  continue;		/* Just undefined, not COMMON.  */
+	     All other symbols (with nlist.n_value == 0), are really
+	     undefined, and so we ignore them too.  */
+	  continue;
 
 	case N_UNDF:
 	  if (processing_acc_compilation && nlist.n_strx == 1)
@@ -1473,7 +1466,7 @@ read_dbx_symtab (struct objfile *objfile)
 	    CORE_ADDR valu;
 	    static int prev_so_symnum = -10;
 	    static int first_so_symnum;
-	    char *p;
+	    const char *p;
 	    static char *dirname_nso;
 	    int prev_textlow_not_set;
 
@@ -1530,8 +1523,8 @@ read_dbx_symtab (struct objfile *objfile)
 	       If pst exists, is empty, and has a filename ending in '/',
 	       we assume the previous N_SO was a directory name.  */
 
-	    p = strrchr (namestring, '/');
-	    if (p && *(p + 1) == '\000')
+	    p = lbasename (namestring);
+	    if (p != namestring && *p == '\000')
 	      {
 		/* Save the directory name SOs locally, then save it into
 		   the psymtab when it's created below.  */
@@ -1620,13 +1613,13 @@ read_dbx_symtab (struct objfile *objfile)
 	       things like "break c-exp.y:435" need to work (I
 	       suppose the psymtab_include_list could be hashed or put
 	       in a binary tree, if profiling shows this is a major hog).  */
-	    if (pst && strcmp (namestring, pst->filename) == 0)
+	    if (pst && filename_cmp (namestring, pst->filename) == 0)
 	      continue;
 	    {
 	      int i;
 
 	      for (i = 0; i < includes_used; i++)
-		if (strcmp (namestring, psymtab_include_list[i]) == 0)
+		if (filename_cmp (namestring, psymtab_include_list[i]) == 0)
 		  {
 		    i = -1;
 		    break;
@@ -3289,6 +3282,7 @@ process_one_symbol (int type, int desc, CORE_ADDR valu, char *name,
 
      Generally this is used so that an alias can refer to its main
      symbol.  */
+  gdb_assert (name);
   if (name[0] == '#')
     {
       /* Initialize symbol reference names and determine if this is a

@@ -296,8 +296,9 @@ static int is_root_p (struct varobj *var);
 
 #if HAVE_PYTHON
 
-static struct varobj *
-varobj_add_child (struct varobj *var, const char *name, struct value *value);
+static struct varobj *varobj_add_child (struct varobj *var,
+					const char *name,
+					struct value *value);
 
 #endif /* HAVE_PYTHON */
 
@@ -784,7 +785,6 @@ instantiate_pretty_printer (PyObject *constructor, struct value *value)
   printer = PyObject_CallFunctionObjArgs (constructor, val_obj, NULL);
   Py_DECREF (val_obj);
   return printer;
-  return NULL;
 }
 
 #endif
@@ -1026,6 +1026,7 @@ update_dynamic_varobj_children (struct varobj *var,
   for (; to < 0 || i < to + 1; ++i)
     {
       PyObject *item;
+      int force_done = 0;
 
       /* See if there was a leftover from last time.  */
       if (var->saved_item)
@@ -1037,7 +1038,48 @@ update_dynamic_varobj_children (struct varobj *var,
 	item = PyIter_Next (var->child_iter);
 
       if (!item)
-	break;
+	{
+	  /* Normal end of iteration.  */
+	  if (!PyErr_Occurred ())
+	    break;
+
+	  /* If we got a memory error, just use the text as the
+	     item.  */
+	  if (PyErr_ExceptionMatches (gdbpy_gdb_memory_error))
+	    {
+	      PyObject *type, *value, *trace;
+	      char *name_str, *value_str;
+
+	      PyErr_Fetch (&type, &value, &trace);
+	      value_str = gdbpy_exception_to_string (type, value);
+	      Py_XDECREF (type);
+	      Py_XDECREF (value);
+	      Py_XDECREF (trace);
+	      if (!value_str)
+		{
+		  gdbpy_print_stack ();
+		  break;
+		}
+
+	      name_str = xstrprintf ("<error at %d>", i);
+	      item = Py_BuildValue ("(ss)", name_str, value_str);
+	      xfree (name_str);
+	      xfree (value_str);
+	      if (!item)
+		{
+		  gdbpy_print_stack ();
+		  break;
+		}
+
+	      force_done = 1;
+	    }
+	  else
+	    {
+	      /* Any other kind of error.  */
+	      gdbpy_print_stack ();
+	      break;
+	    }
+	}
 
       /* We don't want to push the extra child on any report list.  */
       if (to < 0 || i < to)
@@ -1051,7 +1093,10 @@ update_dynamic_varobj_children (struct varobj *var,
 	  inner = make_cleanup_py_decref (item);
 
 	  if (!PyArg_ParseTuple (item, "sO", &name, &py_v))
-	    error (_("Invalid item from the child list"));
+	    {
+	      gdbpy_print_stack ();
+	      error (_("Invalid item from the child list"));
+	    }
 
 	  v = convert_value_from_python (py_v);
 	  if (v == NULL)
@@ -1071,6 +1116,9 @@ update_dynamic_varobj_children (struct varobj *var,
 	     element.  */
 	  break;
 	}
+
+      if (force_done)
+	break;
     }
 
   if (i < VEC_length (varobj_p, var->children))
@@ -1349,6 +1397,10 @@ install_visualizer (struct varobj *var, PyObject *constructor,
 static void
 install_default_visualizer (struct varobj *var)
 {
+  /* Do not install a visualizer on a CPLUS_FAKE_CHILD.  */
+  if (CPLUS_FAKE_CHILD (var))
+    return;
+
   if (pretty_printing)
     {
       PyObject *pretty_printer = NULL;
@@ -1380,6 +1432,10 @@ static void
 construct_visualizer (struct varobj *var, PyObject *constructor)
 {
   PyObject *pretty_printer;
+
+  /* Do not install a visualizer on a CPLUS_FAKE_CHILD.  */
+  if (CPLUS_FAKE_CHILD (var))
+    return;
 
   Py_INCREF (constructor);
   if (constructor == Py_None)

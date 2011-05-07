@@ -153,6 +153,9 @@ struct elf_link_hash_entry
   /* Symbol st_other value, symbol visibility.  */
   unsigned int other : 8;
 
+  /* The symbol's st_target_internal value (see Elf_Internal_Sym).  */
+  unsigned int target_internal : 8;
+
   /* Symbol is referenced by a non-shared object (other than the object
      in which it is defined).  */
   unsigned int ref_regular : 1;
@@ -1473,6 +1476,15 @@ enum
   Tag_compatibility = 32
 };
 
+/* The following struct stores information about every SystemTap section
+   found in the object file.  */
+struct sdt_note
+{
+  struct sdt_note *next;
+  bfd_size_type size;
+  bfd_byte data[1];
+};
+
 /* Some private data is stashed away for future use using the tdata pointer
    in the bfd structure.  */
 
@@ -1630,10 +1642,15 @@ struct elf_obj_tdata
   bfd_size_type build_id_size;
   bfd_byte *build_id;
 
+  /* Linked-list containing information about every Systemtap section
+     found in the object file.  Each section corresponds to one entry
+     in the list.  */
+  struct sdt_note *sdt_note_head;
+
   /* True if the bfd contains symbols that have the STT_GNU_IFUNC
-     symbol type.  Used to set the osabi field in the ELF header
-     structure.  */
-  bfd_boolean has_ifunc_symbols;
+     symbol type or STB_GNU_UNIQUE binding.  Used to set the osabi
+     field in the ELF header structure.  */
+  bfd_boolean has_gnu_symbols;
 
   /* An identifier used to distinguish different target
      specific extensions to this structure.  */
@@ -2388,7 +2405,7 @@ extern asection _bfd_elf_large_com_section;
 	    rel_hdr = _bfd_elf_single_rel_hdr (input_section);		\
 	    rel_hdr->sh_size -= rel_hdr->sh_entsize;			\
 									\
-	    memmove (rel, rel + 1, (relend - rel) * sizeof (*rel));	\
+	    memmove (rel, rel + 1, (relend - rel - 1) * sizeof (*rel));	\
 									\
 	    input_section->reloc_count--;				\
 	    relend--;							\
