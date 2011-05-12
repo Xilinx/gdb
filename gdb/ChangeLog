@@ -1,3 +1,112 @@
+2011-05-12  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2read.c (read_common_block): Fix formatting.
+
+2011-05-12  Kwok Cheung Yeung  <kcy@codesourcery.com>
+
+	* breakpoint.c (disable_breakpoint): Disable all locations
+  	associated with a tracepoint on target if a trace experiment is
+	running.
+ 	(disable_command): Disable a specific tracepoint location on target if
+ 	a trace	experiment is running.
+ 	(do_enable_breakpoint): Enable all locations associated with a
+ 	tracepoint on target if a trace experiment is running.
+ 	(enable_command) Enable a specific tracepoint location on target if a
+ 	trace experiment is running.
+ 	* target.c (update_current_target): Add INHERIT and de_fault clauses for
+ 	to_supports_enable_disable_tracepoint, to_enable_tracepoint and
+	to_disable_tracepoint.
+ 	* target.h: Add declaration of struct bp_location.
+ 	(struct target_ops): Add new functions
+	to_supports_enable_disable_tracepoint, to_enable_tracepoint and
+ 	to_disable_tracepoint to target operations.
+	(target_supports_enable_disable_tracepoint): New macro.
+ 	(target_enable_tracepoint): New macro.
+ 	(target_disable_tracepoint): New macro.
+ 	* remote.c (struct remote_state): Add new field.
+	(remote_enable_disable_tracepoint_feature): New.
+	(remote_protocol_features): Add new entry.
+	(remote_supports_enable_disable_tracepoint): New.
+	(remote_enable_tracepoint): New.
+ 	(remote_disable_tracepoint): New.
+ 	(init_remote_ops): Add remote_enable_tracepoint,
+	remote_disable_tracepoint and remote_supports_enable_disable_tracepoint
+	to remote operations.
+ 	* tracepoint.c (start_tracing): Allow tracing to start without any
+ 	tracepoints enabled with just a warning if they can be re-enabled
+	later.
+ 	* NEWS: Add news item for the new behaviour of the enable and disable
+ 	GDB commands when applied to tracepoints.
+ 	Add news items for the new remote packets QTEnable and QTDisable.
+
+2011-05-11  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* config.in: Regenerate.
+	* configure: Regenerate.
+	* configure.ac <--with-system-readline> (for readline_echoing_p):
+	Remove the test.
+	* tui/tui-io.c (tui_old_readline_echoing_p): Rename to ...
+	(tui_old_rl_echoing_p): ... here.
+	(tui_setup_io): Rename extern declaration readline_echoing_p to
+	_rl_echoing_p.  Adjust assignments for the both renames.
+
+2011-05-11  Thiago Jung Bauermann  <bauerman@br.ibm.com>
+
+	* symtab.c (lookup_symtab): Run cleanup before returning.
+
+2011-05-11  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2read.c (handle_data_member_location): New function.
+	(dwarf2_add_field): Use it.
+	(read_common_block): Likewise.
+
+2011-05-11  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Make addrs->SECTINDEX always defined.
+	* symfile.c (relative_addr_info_to_section_offsets): Check for
+	SECTINDEX -1, not for zero ADDR.
+	(addrs_section_compar): Remove checking for invalid SECTINDEX.
+	(addr_info_make_relative): Set SECTINDEX to -1 for unmatched entries.
+	* symfile.h (struct section_addr_info) <sectindex>: Update the comment
+	on its validity.
+
+2011-05-10  Doug Evans  <dje@google.com>
+
+	* linux-thread-db.c: Whitespace cleanup.
+	(try_thread_db_load_1): Fix comment.
+
+	* linux-thread-db.c (set_libthread_db_search_path): New function.
+	(_initialize_thread_db): Add setter for libthread-db-search-path.
+
+2011-05-09  Doug Evans  <dje@google.com>
+
+	* NEWS: Mention --with-iconv-bin.
+	* configure.ac: New option --with-iconv-bin.
+	* configure: Regenerate.
+	* config.in: Regenerate.
+	* defs.h (relocate_gdb_directory): Declare.
+	* main.c (relocate_gdb_directory): Renamed from relocate_directory,
+	removed progname parameter, and exported.  All callers updated.
+	* charset.c (find_charset_names): Use --with-iconv-bin if specified.
+
+	* linux-nat.c (lin_lwp_attach_lwp): For !WIPSTOPPED case,
+	adding missing call to restore_child_signals_mask.
+
+2011-05-09  Pedro Alves  <pedro@codesourcery.com>
+
+	* inferior.h (wait_for_inferior): Remove `thread_exec_as_sigtrap'
+	parameter.
+	* infrun.c (proceed, start_remote): Adjust.
+	(wait_for_inferior): Remove `thread_exec_as_sigtrap' parameter,
+	and adjust to not handle it.
+	* solib-irix.c (irix_solib_create_inferior_hook): Adjust.
+	* solib-osf.c (osf_solib_create_inferior_hook): Adjust.
+	* solib-sunos.c (sunos_solib_create_inferior_hook): Adjust.
+	* solib-svr4.c (svr4_solib_create_inferior_hook): Adjust.
+	* windows-nat.c (do_initial_windows_stuff): Adjust.
+	* infcmd.c (attach_command): Adjust.
+	(notice_new_inferior): Adjust.
+
 2011-05-06  Ulrich Weigand  <uweigand@de.ibm.com>
 
 	* ppc-linux-tdep.c (ppu2spu_prev_register): Handle pseudo registers.

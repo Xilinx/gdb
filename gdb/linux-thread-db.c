@@ -75,6 +75,17 @@
 
 static char *libthread_db_search_path;
 
+static void
+set_libthread_db_search_path (char *ignored, int from_tty,
+			      struct cmd_list_element *c)
+{
+  if (*libthread_db_search_path == '\0')
+    {
+      xfree (libthread_db_search_path);
+      libthread_db_search_path = xstrdup (LIBTHREAD_DB_SEARCH_PATH);
+    }
+}
+
 /* If non-zero, print details of libthread_db processing.  */
 
 static int libthread_db_debug;
@@ -85,7 +96,6 @@ show_libthread_db_debug (struct ui_file *file, int from_tty,
 {
   fprintf_filtered (file, _("libthread-db debugging is %s.\n"), value);
 }
-
 
 /* If we're running on GNU/Linux, we must explicitly attach to any new
    threads.  */
@@ -639,7 +649,7 @@ dladdr_to_soname (const void *addr)
   return NULL;
 }
 
-/* Attempt to initialize dlopen()ed libthread_db, described by HANDLE.
+/* Attempt to initialize dlopen()ed libthread_db, described by INFO.
    Return 1 on success.
    Failure could happen if libthread_db does not have symbols we expect,
    or when it refuses to work with the current inferior (e.g. due to
@@ -801,7 +811,6 @@ try_thread_db_load (const char *library)
   delete_thread_db_info (GET_PID (inferior_ptid));
   return 0;
 }
-
 
 /* Search libthread_db_search_path for libthread_db which "agrees"
    to work on current inferior.  */
@@ -1719,8 +1728,10 @@ _initialize_thread_db (void)
 Set search path for libthread_db."), _("\
 Show the current search path or libthread_db."), _("\
 This path is used to search for libthread_db to be loaded into \
-gdb itself."),
-			    NULL,
+gdb itself.\n\
+Its value is a colon (':') separate list of directories to search.\n\
+Setting the search path to an empty list resets it to its default value."),
+			    set_libthread_db_search_path,
 			    NULL,
 			    &setlist, &showlist);
 

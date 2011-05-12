@@ -433,6 +433,29 @@ AC_SEARCH_LIBS(dlgetmodinfo, [dl xpdl])
 
 AM_ICONV
 
+# GDB may fork/exec the iconv program to get the list of supported character
+# sets.  Allow the user to specify where to find it.
+# There are several factors affecting the choice of option name:
+# - There is already --with-libiconv-prefix but we can't use it, it specifies
+#   the build-time location of libiconv files.
+# - The program we need to find is iconv, which comes with glibc.  The user
+#   doesn't necessarily have libiconv installed.  Therefore naming this
+#   --with-libiconv-foo feels wrong.
+# - We want the path to be relocatable, but GDB_AC_DEFINE_RELOCATABLE is
+#   defined to work on directories not files (though it really doesn't know
+#   the difference).
+# - Calling this --with-iconv-prefix is perceived to cause too much confusion
+#   with --with-libiconv-prefix.
+# Putting these together is why the option name is --with-iconv-bin.
+
+AC_ARG_WITH(iconv-bin,
+AS_HELP_STRING([--with-iconv-bin=PATH], [specify where to find the iconv program]),
+[iconv_bin="${withval}"
+ AC_DEFINE_UNQUOTED([ICONV_BIN], ["${iconv_bin}"],
+                    [Path of directory of iconv program.])
+ GDB_AC_DEFINE_RELOCATABLE(ICONV_BIN, iconv, ${iconv_bin})
+])
+
 # On alpha-osf, it appears that libtermcap and libcurses are not compatible.
 # There is a very specific comment in /usr/include/curses.h explaining that
 # termcap routines built into libcurses must not be used.
@@ -539,21 +562,6 @@ if test "$with_system_readline" = yes; then
   READLINE_DEPS=
   READLINE_CFLAGS=
   READLINE_TEXI_INCFLAG=
-
-  # readline-6.0 started to use the name `_rl_echoing_p'.
-  # `$(READLINE_DIR)/' of bundled readline would not resolve in configure.
-
-  AC_MSG_CHECKING([for readline_echoing_p])
-  save_LIBS=$LIBS
-  LIBS="$LIBS $READLINE"
-  AC_LINK_IFELSE(AC_LANG_PROGRAM(,[[extern int readline_echoing_p;
-				    return readline_echoing_p;]]),
-		 [READLINE_ECHOING_P=yes],
-		 [READLINE_ECHOING_P=no
-		  AC_DEFINE([readline_echoing_p], [_rl_echoing_p],
-			    [readline-6.0 started to use different name.])])
-  LIBS="$save_LIBS"
-  AC_MSG_RESULT([$READLINE_ECHOING_P])
 else
   READLINE='$(READLINE_DIR)/libreadline.a'
   READLINE_DEPS='$(READLINE)'
