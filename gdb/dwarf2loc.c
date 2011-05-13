@@ -286,6 +286,16 @@ dwarf_expr_dwarf_call (struct dwarf_expr_context *ctx, size_t die_offset)
 		     ctx->get_frame_pc, ctx->baton);
 }
 
+/* Callback function for dwarf2_evaluate_loc_desc.  */
+
+static struct type *
+dwarf_expr_get_base_type (struct dwarf_expr_context *ctx, size_t die_offset)
+{
+  struct dwarf_expr_baton *debaton = ctx->baton;
+
+  return dwarf2_get_die_type (die_offset, debaton->per_cu);
+}
+
 struct piece_closure
 {
   /* Reference count.  */
@@ -313,6 +323,7 @@ allocate_piece_closure (struct dwarf2_per_cu_data *per_cu,
 			int addr_size)
 {
   struct piece_closure *c = XZALLOC (struct piece_closure);
+  int i;
 
   c->refc = 1;
   c->per_cu = per_cu;
@@ -321,6 +332,9 @@ allocate_piece_closure (struct dwarf2_per_cu_data *per_cu,
   c->pieces = XCALLOC (n_pieces, struct dwarf_expr_piece);
 
   memcpy (c->pieces, pieces, n_pieces * sizeof (struct dwarf_expr_piece));
+  for (i = 0; i < n_pieces; ++i)
+    if (c->pieces[i].location == DWARF_VALUE_STACK)
+      value_incref (c->pieces[i].v.value);
 
   return c;
 }
@@ -576,7 +590,7 @@ read_pieced_value (struct value *v)
 	case DWARF_VALUE_REGISTER:
 	  {
 	    struct gdbarch *arch = get_frame_arch (frame);
-	    int gdb_regnum = gdbarch_dwarf2_reg_to_regnum (arch, p->v.value);
+	    int gdb_regnum = gdbarch_dwarf2_reg_to_regnum (arch, p->v.regno);
 	    int reg_offset = source_offset;
 
 	    if (gdbarch_byte_order (arch) == BFD_ENDIAN_BIG
@@ -609,7 +623,7 @@ read_pieced_value (struct value *v)
 	    else
 	      {
 		error (_("Unable to access DWARF register number %s"),
-		       paddress (arch, p->v.value));
+		       paddress (arch, p->v.regno));
 	      }
 	  }
 	  break;
@@ -623,7 +637,6 @@ read_pieced_value (struct value *v)
 
 	case DWARF_VALUE_STACK:
 	  {
-	    struct gdbarch *gdbarch = get_type_arch (value_type (v));
 	    size_t n = this_size;
 
 	    if (n > c->addr_size - source_offset)
@@ -634,18 +647,11 @@ read_pieced_value (struct value *v)
 	      {
 		/* Nothing.  */
 	      }
-	    else if (source_offset == 0)
-	      store_unsigned_integer (buffer, n,
-				      gdbarch_byte_order (gdbarch),
-				      p->v.value);
 	    else
 	      {
-		gdb_byte bytes[sizeof (ULONGEST)];
+		const gdb_byte *val_bytes = value_contents_all (p->v.value);
 
-		store_unsigned_integer (bytes, n + source_offset,
-					gdbarch_byte_order (gdbarch),
-					p->v.value);
-		memcpy (buffer, bytes + source_offset, n);
+		intermediate_buffer = val_bytes + source_offset;
 	      }
 	  }
 	  break;
@@ -776,7 +782,7 @@ write_pieced_value (struct value *to, struct value *from)
 	case DWARF_VALUE_REGISTER:
 	  {
 	    struct gdbarch *arch = get_frame_arch (frame);
-	    int gdb_regnum = gdbarch_dwarf2_reg_to_regnum (arch, p->v.value);
+	    int gdb_regnum = gdbarch_dwarf2_reg_to_regnum (arch, p->v.regno);
 	    int reg_offset = dest_offset;
 
 	    if (gdbarch_byte_order (arch) == BFD_ENDIAN_BIG
@@ -816,7 +822,7 @@ write_pieced_value (struct value *to, struct value *from)
 	    else
 	      {
 		error (_("Unable to write to DWARF register number %s"),
-		       paddress (arch, p->v.value));
+		       paddress (arch, p->v.regno));
 	      }
 	  }
 	  break;
@@ -1033,6 +1039,12 @@ free_pieced_value_closure (struct value *v)
   --c->refc;
   if (c->refc == 0)
     {
+      int i;
+
+      for (i = 0; i < c->n_pieces; ++i)
+	if (c->pieces[i].location == DWARF_VALUE_STACK)
+	  value_free (c->pieces[i].v.value);
+
       xfree (c->pieces);
       xfree (c);
     }
@@ -1074,7 +1086,7 @@ dwarf2_evaluate_loc_desc_full (struct type *type, struct frame_info *frame,
   struct value *retval;
   struct dwarf_expr_baton baton;
   struct dwarf_expr_context *ctx;
-  struct cleanup *old_chain;
+  struct cleanup *old_chain, *value_chain;
   struct objfile *objfile = dwarf2_per_cu_objfile (per_cu);
   volatile struct gdb_exception ex;
 
@@ -1094,6 +1106,7 @@ dwarf2_evaluate_loc_desc_full (struct type *type, struct frame_info *frame,
 
   ctx = new_dwarf_expr_context ();
   old_chain = make_cleanup_free_dwarf_expr_context (ctx);
+  value_chain = make_cleanup_value_free_to_mark (value_mark ());
 
   ctx->gdbarch = get_objfile_arch (objfile);
   ctx->addr_size = dwarf2_per_cu_addr_size (per_cu);
@@ -1106,6 +1119,7 @@ dwarf2_evaluate_loc_desc_full (struct type *type, struct frame_info *frame,
   ctx->get_frame_pc = dwarf_expr_frame_pc;
   ctx->get_tls_address = dwarf_expr_tls_address;
   ctx->dwarf_call = dwarf_expr_dwarf_call;
+  ctx->get_base_type = dwarf_expr_get_base_type;
 
   TRY_CATCH (ex, RETURN_MASK_ERROR)
     {
@@ -1115,6 +1129,7 @@ dwarf2_evaluate_loc_desc_full (struct type *type, struct frame_info *frame,
     {
       if (ex.error == NOT_AVAILABLE_ERROR)
 	{
+	  do_cleanups (old_chain);
 	  retval = allocate_value (type);
 	  mark_value_bytes_unavailable (retval, 0, TYPE_LENGTH (type));
 	  return retval;
@@ -1137,6 +1152,9 @@ dwarf2_evaluate_loc_desc_full (struct type *type, struct frame_info *frame,
 
       c = allocate_piece_closure (per_cu, ctx->num_pieces, ctx->pieces,
 				  ctx->addr_size);
+      /* We must clean up the value chain after creating the piece
+	 closure but before allocating the result.  */
+      do_cleanups (value_chain);
       retval = allocate_computed_value (type, &pieced_value_funcs, c);
       VALUE_FRAME_ID (retval) = frame_id;
       set_value_offset (retval, byte_offset);
@@ -1148,11 +1166,12 @@ dwarf2_evaluate_loc_desc_full (struct type *type, struct frame_info *frame,
 	case DWARF_VALUE_REGISTER:
 	  {
 	    struct gdbarch *arch = get_frame_arch (frame);
-	    ULONGEST dwarf_regnum = dwarf_expr_fetch (ctx, 0);
+	    ULONGEST dwarf_regnum = value_as_long (dwarf_expr_fetch (ctx, 0));
 	    int gdb_regnum = gdbarch_dwarf2_reg_to_regnum (arch, dwarf_regnum);
 
 	    if (byte_offset != 0)
 	      error (_("cannot use offset on synthetic pointer to register"));
+	    do_cleanups (value_chain);
 	    if (gdb_regnum != -1)
 	      retval = value_from_register (type, gdb_regnum, frame);
 	    else
@@ -1166,6 +1185,7 @@ dwarf2_evaluate_loc_desc_full (struct type *type, struct frame_info *frame,
 	    CORE_ADDR address = dwarf_expr_fetch_address (ctx, 0);
 	    int in_stack_memory = dwarf_expr_fetch_in_stack_memory (ctx, 0);
 
+	    do_cleanups (value_chain);
 	    retval = allocate_value_lazy (type);
 	    VALUE_LVAL (retval) = lval_memory;
 	    if (in_stack_memory)
@@ -1176,26 +1196,30 @@ dwarf2_evaluate_loc_desc_full (struct type *type, struct frame_info *frame,
 
 	case DWARF_VALUE_STACK:
 	  {
-	    ULONGEST value = dwarf_expr_fetch (ctx, 0);
-	    bfd_byte *contents, *tem;
-	    size_t n = ctx->addr_size;
+	    struct value *value = dwarf_expr_fetch (ctx, 0);
+	    gdb_byte *contents;
+	    const gdb_byte *val_bytes;
+	    size_t n = TYPE_LENGTH (value_type (value));
 
 	    if (byte_offset + TYPE_LENGTH (type) > n)
 	      invalid_synthetic_pointer ();
 
-	    tem = alloca (n);
-	    store_unsigned_integer (tem, n,
-				    gdbarch_byte_order (ctx->gdbarch),
-				    value);
-
-	    tem += byte_offset;
+	    val_bytes = value_contents_all (value);
+	    val_bytes += byte_offset;
 	    n -= byte_offset;
+
+	    /* Preserve VALUE because we are going to free values back
+	       to the mark, but we still need the value contents
+	       below.  */
+	    value_incref (value);
+	    do_cleanups (value_chain);
+	    make_cleanup_value_free (value);
 
 	    retval = allocate_value (type);
 	    contents = value_contents_raw (retval);
 	    if (n > TYPE_LENGTH (type))
 	      n = TYPE_LENGTH (type);
-	    memcpy (contents, tem, n);
+	    memcpy (contents, val_bytes, n);
 	  }
 	  break;
 
@@ -1208,6 +1232,7 @@ dwarf2_evaluate_loc_desc_full (struct type *type, struct frame_info *frame,
 	    if (byte_offset + TYPE_LENGTH (type) > n)
 	      invalid_synthetic_pointer ();
 
+	    do_cleanups (value_chain);
 	    retval = allocate_value (type);
 	    contents = value_contents_raw (retval);
 
@@ -1221,6 +1246,7 @@ dwarf2_evaluate_loc_desc_full (struct type *type, struct frame_info *frame,
 	  break;
 
 	case DWARF_VALUE_OPTIMIZED_OUT:
+	  do_cleanups (value_chain);
 	  retval = allocate_value (type);
 	  VALUE_LVAL (retval) = not_lval;
 	  set_value_optimized_out (retval, 1);
@@ -1343,6 +1369,7 @@ dwarf2_loc_desc_needs_frame (const gdb_byte *data, unsigned short size,
 
   ctx = new_dwarf_expr_context ();
   old_chain = make_cleanup_free_dwarf_expr_context (ctx);
+  make_cleanup_value_free_to_mark (value_mark ());
 
   ctx->gdbarch = get_objfile_arch (objfile);
   ctx->addr_size = dwarf2_per_cu_addr_size (per_cu);

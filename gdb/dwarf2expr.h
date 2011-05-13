@@ -51,7 +51,7 @@ enum dwarf_value_location
 
 struct dwarf_stack_value
 {
-  ULONGEST value;
+  struct value *value;
 
   /* Non-zero if the piece is in memory and is known to be
      on the program's stack.  It is always ok to set this to zero.
@@ -110,6 +110,13 @@ struct dwarf_expr_context
      the DIE at DIE_OFFSET in the CU from CTX.  Do not touch STACK while it
      being passed to and returned from the called DWARF subroutine.  */
   void (*dwarf_call) (struct dwarf_expr_context *ctx, size_t die_offset);
+
+  /* Return the base type given by the indicated DIE.  This can throw
+     an exception if the DIE is invalid or does not represent a base
+     type.  If can also be NULL in the special case where the
+     callbacks are not performing evaluation, and thus it is
+     meaningful to substitute a stub type of the correct size.  */
+  struct type *(*get_base_type) (struct dwarf_expr_context *ctx, size_t die);
 
 #if 0
   /* Not yet implemented.  */
@@ -180,9 +187,11 @@ struct dwarf_expr_piece
       int in_stack_memory;
     } mem;
 
-    /* The piece's register number or literal value, for
-       DWARF_VALUE_REGISTER or DWARF_VALUE_STACK pieces.  */
-    ULONGEST value;
+    /* The piece's register number, for DWARF_VALUE_REGISTER pieces.  */
+    int regno;
+
+    /* The piece's literal value, for DWARF_VALUE_STACK pieces.  */
+    struct value *value;
 
     struct
     {
@@ -214,12 +223,12 @@ void free_dwarf_expr_context (struct dwarf_expr_context *ctx);
 struct cleanup *
     make_cleanup_free_dwarf_expr_context (struct dwarf_expr_context *ctx);
 
-void dwarf_expr_push (struct dwarf_expr_context *ctx, ULONGEST value,
-		      int in_stack_memory);
-void dwarf_expr_pop (struct dwarf_expr_context *ctx);
+void dwarf_expr_push_address (struct dwarf_expr_context *ctx,
+			      CORE_ADDR value,
+			      int in_stack_memory);
 void dwarf_expr_eval (struct dwarf_expr_context *ctx, const gdb_byte *addr,
 		      size_t len);
-ULONGEST dwarf_expr_fetch (struct dwarf_expr_context *ctx, int n);
+struct value *dwarf_expr_fetch (struct dwarf_expr_context *ctx, int n);
 CORE_ADDR dwarf_expr_fetch_address (struct dwarf_expr_context *ctx, int n);
 int dwarf_expr_fetch_in_stack_memory (struct dwarf_expr_context *ctx, int n);
 
