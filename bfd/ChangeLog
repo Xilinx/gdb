@@ -1,3 +1,78 @@
+2011-05-20  Bernd Schmidt  <bernds@codesourcery.com>
+
+	* elf32-tic6x.c (elf32_tic6x_howto_table): Add entries for
+	R_C6000_PCR_H16 and R_C6000_PCR_L16.
+	(elf32_tic6x_relocate_section): Handle them.
+
+2011-05-18  Nick Clifton  <nickc@redhat.com>
+
+	PR ld/12761
+	* elflink.c (elf_link_add_object_symbols): Process .gnu.warning
+	sections when building shared libraries.
+
+2011-05-18  Rafał Krypa  <r.krypa@samsung.com>
+
+	PR ld/12778
+	* elf32-arm.c (elf32_arm_gc_sweep_hook): Use the computed dynamic
+	reloc pointer.
+
+2011-05-18  Tristan Gingold  <gingold@adacore.com>
+
+	* xcofflink.c (xcoff_link_add_symbols): Handle C_DWARF symbols.
+	(xcoff_sweep): Always keep dwarf sections.
+	(xcoff_link_input_bfd): Handle dwarf symbols and sections.
+
+2011-05-18  Tristan Gingold  <gingold@adacore.com>
+
+	* libxcoff.h (struct xcoff_dwsect_name): New type.
+	(XCOFF_DWSECT_NBR_NAMES): New macro.
+	(xcoff_dwsect_names): Declare.
+	* coffcode.h (sec_to_styp_flags): Handle xcoff dwarf sections.
+	(styp_to_sec_flags): Ditto.
+	(coff_new_section_hook): Ditto.
+	(coff_slurp_symbol_table): Handle C_DWARF and C_INFO.
+	* coff-rs6000.c (xcoff_dwsect_name): New variable.
+
+2011-05-17  Tomohiro Kashiwada  <kikairoya@gmail.com>
+
+	PR ld/12759
+	* elf32-rx.c (ignore_lma): New variable.
+	(bfd_elf32_rx_set_target_flags): Add ignore_lma parameter.
+	(rx_modify_program_headers): Only copy the LMA into the VMA if
+	ignore_lma is true.
+
+2011-05-17  Alan Modra  <amodra@gmail.com>
+
+	PR ld/12760
+	* coff-aux.c (coff_m68k_aux_link_add_one_symbol): Adjust "notice" call.
+	* elflink.c (elf_link_add_object_symbols): Likewise.
+	* linker.c (_bfd_generic_link_add_one_symbol): Likewise.
+
+2011-05-16  Alan Modra  <amodra@gmail.com>
+
+	* linker.c (_bfd_generic_link_add_one_symbol): Don't init u.undef.weak.
+
+2011-05-15  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* elfxx-mips.c (_bfd_mips_elf_check_relocs): Record both local and
+	global GOT entries for GOT_PAGE relocations against global symbols.
+
+2011-05-13  Bernd Schmidt  <bernds@codesourcery.com>
+
+	* config.bfd (tic6x-*-elf, tic6x-*-uclinux): New.
+	(tic6x-*-*): Replaced by these.
+	* elf32-tic6x.c (elf32_tic6x_set_osabi): New static function.
+	(elf32_tic6x_check_relocs): Create dynamic sections if -shared.
+	(elf_backend_relocs_compatible, elf_backend_post_process_headers):
+	Define.
+	(elf32_bed, TARGET_LITTLE_SYM, TARGET_LITTLE_NAME, TARGET_BIG_SYM,
+	TARGET_BIG_NAME, ELF_OSABI): Redefine twice, and include
+	"elf32-target.h" two more times.
+	* configure.in: Handle bfd_elf32_tic6x_linux_be_vec,
+	bfd_elf32_tic6x_linux_le_vec, bfd_elf32_tic6x_elf_be_vec and
+	bfd_elf32_tic6x_elf_le_vec.
+	* configure: Regenerate.
+
 2011-05-13  Jan Beulich  <jbeulich@novell.com>
 
 	* config.bfd: Add targets x86_64-*-pe and x86_64-*-pep.
@@ -66,7 +141,7 @@
 	* elf.c (_bfd_elf_section_offset): Check SEC_ELF_REVERSE_COPY.
 
 	* elflink.c (elf_link_input_bfd): Reverse copy .ctors/.dtors
-	sections if needed. 
+	sections if needed.
 
 	* section.c (SEC_ELF_REVERSE_COPY): New.
 	* bfd-in2.h: Regenerated.

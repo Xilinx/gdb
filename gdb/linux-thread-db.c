@@ -812,64 +812,170 @@ try_thread_db_load (const char *library)
   return 0;
 }
 
+/* Subroutine of try_thread_db_load_from_pdir to simplify it.
+   Try loading libthread_db from the same directory as OBJ.
+   The result is true for success.  */
+
+static int
+try_thread_db_load_from_pdir_1 (struct objfile *obj)
+{
+  struct cleanup *cleanup;
+  char *path, *cp;
+  int result;
+
+  if (obj->name[0] != '/')
+    {
+      warning (_("Expected absolute pathname for libpthread in the"
+		 " inferior, but got %s."), obj->name);
+      return 0;
+    }
+
+  path = xmalloc (strlen (obj->name) + 1 + strlen (LIBTHREAD_DB_SO) + 1);
+  cleanup = make_cleanup (xfree, path);
+
+  strcpy (path, obj->name);
+  cp = strrchr (path, '/');
+  /* This should at minimum hit the first character.  */
+  gdb_assert (cp != NULL);
+  strcpy (cp + 1, LIBTHREAD_DB_SO);
+  result = try_thread_db_load (path);
+
+  do_cleanups (cleanup);
+  return result;
+}
+
+/* Handle $pdir in libthread-db-search-path.
+   Look for libthread_db in the directory of libpthread.
+   The result is true for success.  */
+
+static int
+try_thread_db_load_from_pdir (void)
+{
+  struct objfile *obj;
+
+  ALL_OBJFILES (obj)
+    if (libpthread_name_p (obj->name))
+      {
+	if (try_thread_db_load_from_pdir_1 (obj))
+	  return 1;
+
+	/* We may have found the separate-debug-info version of
+	   libpthread, and it may live in a directory without a matching
+	   libthread_db.  */
+	if (obj->separate_debug_objfile_backlink != NULL)
+	  return try_thread_db_load_from_pdir_1 (obj->separate_debug_objfile_backlink);
+
+	return 0;
+      }
+
+  return 0;
+}
+
+/* Handle $sdir in libthread-db-search-path.
+   Look for libthread_db in the system dirs, or wherever a plain
+   dlopen(file_without_path) will look.
+   The result is true for success.  */
+
+static int
+try_thread_db_load_from_sdir (void)
+{
+  return try_thread_db_load (LIBTHREAD_DB_SO);
+}
+
+/* Try to load libthread_db from directory DIR of length DIR_LEN.
+   The result is true for success.  */
+
+static int
+try_thread_db_load_from_dir (const char *dir, size_t dir_len)
+{
+  struct cleanup *cleanup;
+  char *path;
+  int result;
+
+  path = xmalloc (dir_len + 1 + strlen (LIBTHREAD_DB_SO) + 1);
+  cleanup = make_cleanup (xfree, path);
+
+  memcpy (path, dir, dir_len);
+  path[dir_len] = '/';
+  strcpy (path + dir_len + 1, LIBTHREAD_DB_SO);
+  result = try_thread_db_load (path);
+
+  do_cleanups (cleanup);
+  return result;
+}
+
 /* Search libthread_db_search_path for libthread_db which "agrees"
-   to work on current inferior.  */
+   to work on current inferior.
+   The result is true for success.  */
 
 static int
 thread_db_load_search (void)
 {
-  char path[PATH_MAX];
   const char *search_path = libthread_db_search_path;
   int rc = 0;
 
   while (*search_path)
     {
       const char *end = strchr (search_path, ':');
+      const char *this_dir = search_path;
+      size_t this_dir_len;
 
       if (end)
 	{
-	  size_t len = end - search_path;
-
-          if (len + 1 + strlen (LIBTHREAD_DB_SO) + 1 > sizeof (path))
-            {
-              char *cp = xmalloc (len + 1);
-
-              memcpy (cp, search_path, len);
-              cp[len] = '\0';
-              warning (_("libthread_db_search_path component too long,"
-                         " ignored: %s."), cp);
-              xfree (cp);
-              search_path += len + 1;
-              continue;
-            }
-	  memcpy (path, search_path, len);
-	  path[len] = '\0';
-	  search_path += len + 1;
+	  this_dir_len = end - search_path;
+	  search_path += this_dir_len + 1;
 	}
       else
 	{
-          size_t len = strlen (search_path);
-
-          if (len + 1 + strlen (LIBTHREAD_DB_SO) + 1 > sizeof (path))
-            {
-              warning (_("libthread_db_search_path component too long,"
-                         " ignored: %s."), search_path);
-              break;
-            }
-	  memcpy (path, search_path, len + 1);
-	  search_path += len;
+	  this_dir_len = strlen (this_dir);
+	  search_path += this_dir_len;
 	}
-      strcat (path, "/");
-      strcat (path, LIBTHREAD_DB_SO);
-      if (try_thread_db_load (path))
+
+      if (this_dir_len == sizeof ("$pdir") - 1
+	  && strncmp (this_dir, "$pdir", this_dir_len) == 0)
 	{
-	  rc = 1;
-	  break;
+	  if (try_thread_db_load_from_pdir ())
+	    {
+	      rc = 1;
+	      break;
+	    }
+	}
+      else if (this_dir_len == sizeof ("$sdir") - 1
+	       && strncmp (this_dir, "$sdir", this_dir_len) == 0)
+	{
+	  if (try_thread_db_load_from_sdir ())
+	    {
+	      rc = 1;
+	      break;
+	    }
+	}
+      else
+	{
+	  if (try_thread_db_load_from_dir (this_dir, this_dir_len))
+	    {
+	      rc = 1;
+	      break;
+	    }
 	}
     }
-  if (rc == 0)
-    rc = try_thread_db_load (LIBTHREAD_DB_SO);
+
+  if (libthread_db_debug)
+    printf_unfiltered (_("thread_db_load_search returning %d\n"), rc);
   return rc;
+}
+
+/* Return non-zero if the inferior has a libpthread.  */
+
+static int
+has_libpthread (void)
+{
+  struct objfile *obj;
+
+  ALL_OBJFILES (obj)
+    if (libpthread_name_p (obj->name))
+      return 1;
+
+  return 0;
 }
 
 /* Attempt to load and initialize libthread_db.
@@ -878,7 +984,6 @@ thread_db_load_search (void)
 static int
 thread_db_load (void)
 {
-  struct objfile *obj;
   struct thread_db_info *info;
 
   info = get_thread_db_info (GET_PID (inferior_ptid));
@@ -898,39 +1003,15 @@ thread_db_load (void)
   if (thread_db_load_search ())
     return 1;
 
-  /* None of the libthread_db's on our search path, not the system default
-     ones worked.  If the executable is dynamically linked against
-     libpthread, try loading libthread_db from the same directory.  */
-
-  ALL_OBJFILES (obj)
-    if (libpthread_name_p (obj->name))
-      {
-	char path[PATH_MAX], *cp;
-
-	gdb_assert (strlen (obj->name) < sizeof (path));
-	strcpy (path, obj->name);
-	cp = strrchr (path, '/');
-
-	if (cp == NULL)
-	  {
-	    warning (_("Expected absolute pathname for libpthread in the"
-		       " inferior, but got %s."), path);
-	  }
-	else if (cp + 1 + strlen (LIBTHREAD_DB_SO) + 1 > path + sizeof (path))
-	  {
-	    warning (_("Unexpected: path to libpthread in the inferior is"
-		       " too long: %s"), path);
-	  }
-	else
-	  {
-	    strcpy (cp + 1, LIBTHREAD_DB_SO);
-	    if (try_thread_db_load (path))
-	      return 1;
-	  }
-	warning (_("Unable to find libthread_db matching inferior's thread"
-		   " library, thread debugging will not be available."));
-	return 0;
+  /* We couldn't find a libthread_db.
+     If the inferior has a libpthread warn the user.  */
+  if (has_libpthread ())
+    {
+      warning (_("Unable to find libthread_db matching inferior's thread"
+		 " library, thread debugging will not be available."));
+      return 0;
     }
+
   /* Either this executable isn't using libpthread at all, or it is
      statically linked.  Since we can't easily distinguish these two cases,
      no warning is issued.  */

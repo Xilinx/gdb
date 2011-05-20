@@ -470,9 +470,6 @@ struct signatured_type
 {
   ULONGEST signature;
 
-  /* Offset in .debug_types of the TU (type_unit) for this type.  */
-  unsigned int offset;
-
   /* Offset in .debug_types of the type defined by this TU.  */
   unsigned int type_offset;
 
@@ -1918,7 +1915,6 @@ create_signatured_type_table_from_index (struct objfile *objfile,
       type_sig = OBSTACK_ZALLOC (&objfile->objfile_obstack,
 				 struct signatured_type);
       type_sig->signature = signature;
-      type_sig->offset = offset;
       type_sig->type_offset = type_offset;
       type_sig->per_cu.from_debug_types = 1;
       type_sig->per_cu.offset = offset;
@@ -3093,13 +3089,24 @@ create_debug_types_hash_table (struct objfile *objfile)
       type_sig = obstack_alloc (&objfile->objfile_obstack, sizeof (*type_sig));
       memset (type_sig, 0, sizeof (*type_sig));
       type_sig->signature = signature;
-      type_sig->offset = offset;
       type_sig->type_offset = type_offset;
       type_sig->per_cu.objfile = objfile;
       type_sig->per_cu.from_debug_types = 1;
+      type_sig->per_cu.offset = offset;
 
       slot = htab_find_slot (types_htab, type_sig, INSERT);
       gdb_assert (slot != NULL);
+      if (*slot != NULL)
+	{
+	  const struct signatured_type *dup_sig = *slot;
+
+	  complaint (&symfile_complaints,
+		     _("debug type entry at offset 0x%x is duplicate to the "
+		       "entry at offset 0x%x, signature 0x%s"),
+		     offset, dup_sig->per_cu.offset,
+		     phex (signature, sizeof (signature)));
+	  gdb_assert (signature == dup_sig->signature);
+	}
       *slot = type_sig;
 
       if (dwarf2_die_debug)
@@ -3264,8 +3271,8 @@ process_psymtab_comp_unit (struct objfile *objfile,
 
   if (this_cu->from_debug_types)
     {
-      /* offset,length haven't been set yet for type units.  */
-      this_cu->offset = cu.header.offset;
+      /* LENGTH has not been set yet for type units.  */
+      gdb_assert (this_cu->offset == cu.header.offset);
       this_cu->length = cu.header.length + cu.header.initial_length_size;
     }
   else if (comp_unit_die->tag == DW_TAG_partial_unit)
@@ -3390,7 +3397,7 @@ process_type_comp_unit (void **slot, void *info)
   gdb_assert (dwarf2_per_objfile->types.readin);
   process_psymtab_comp_unit (objfile, this_cu,
 			     dwarf2_per_objfile->types.buffer,
-			     dwarf2_per_objfile->types.buffer + entry->offset,
+			     dwarf2_per_objfile->types.buffer + this_cu->offset,
 			     dwarf2_per_objfile->types.size);
 
   return 1;
@@ -4609,10 +4616,10 @@ compute_delayed_physnames (struct dwarf2_cu *cu)
   struct delayed_method_info *mi;
   for (i = 0; VEC_iterate (delayed_method_info, cu->method_list, i, mi) ; ++i)
     {
-      char *physname;
+      const char *physname;
       struct fn_fieldlist *fn_flp
 	= &TYPE_FN_FIELDLIST (mi->type, mi->fnfield_index);
-      physname = (char *) dwarf2_physname ((char *) mi->name, mi->die, cu);
+      physname = dwarf2_physname ((char *) mi->name, mi->die, cu);
       fn_flp->fn_fields[mi->index].physname = physname ? physname : "";
     }
 }
@@ -6542,7 +6549,7 @@ dwarf2_add_field (struct field_info *fip, struct die_info *die,
 	 (so through at least 3.2.1) incorrectly generate
 	 DW_TAG_variable tags.  */
 
-      char *physname;
+      const char *physname;
 
       /* Get name of field.  */
       fieldname = dwarf2_name (die, cu);
@@ -6563,7 +6570,7 @@ dwarf2_add_field (struct field_info *fip, struct die_info *die,
 	}
 
       /* Get physical name.  */
-      physname = (char *) dwarf2_physname (fieldname, die, cu);
+      physname = dwarf2_physname (fieldname, die, cu);
 
       /* The name is already allocated along with this objfile, so we don't
 	 need to duplicate it for the type.  */
@@ -6792,7 +6799,7 @@ dwarf2_add_member_fn (struct field_info *fip, struct die_info *die,
     }
   else
     {
-      char *physname = (char *) dwarf2_physname (fieldname, die, cu);
+      const char *physname = dwarf2_physname (fieldname, die, cu);
       fnp->physname = physname ? physname : "";
     }
 
@@ -11703,7 +11710,7 @@ lookup_die_type (struct die_info *die, struct attribute *attr,
 	       die->offset, cu->objfile->name);
 
       gdb_assert (sig_type->per_cu.from_debug_types);
-      offset = sig_type->offset + sig_type->type_offset;
+      offset = sig_type->per_cu.offset + sig_type->type_offset;
       this_type = get_die_type_at_offset (offset, &sig_type->per_cu);
     }
   else
@@ -13330,7 +13337,7 @@ dump_die_shallow (struct ui_file *f, int indent, struct die_info *die)
 	case DW_FORM_ref_sig8:
 	  if (DW_SIGNATURED_TYPE (&die->attrs[i]) != NULL)
 	    fprintf_unfiltered (f, "signatured type, offset: 0x%x",
-				DW_SIGNATURED_TYPE (&die->attrs[i])->offset);
+			  DW_SIGNATURED_TYPE (&die->attrs[i])->per_cu.offset);
 	  else
 	    fprintf_unfiltered (f, "signatured type, offset: unknown");
 	  break;
@@ -13671,22 +13678,8 @@ struct type *
 dwarf2_get_die_type (unsigned int die_offset,
 		     struct dwarf2_per_cu_data *per_cu)
 {
-  struct dwarf2_cu *cu = per_cu->cu;
-  struct die_info *die;
-  struct type *result;
-
   dw2_setup (per_cu->objfile);
-
-  die = follow_die_offset (die_offset, &cu);
-  if (!die)
-    error (_("Dwarf Error: Cannot find DIE at 0x%x referenced in module %s"),
-	   die_offset, per_cu->cu->objfile->name);
-
-  result = get_die_type (die, cu);
-  if (result == NULL)
-    result = read_type_die_1 (die, cu);
-
-  return result;
+  return get_die_type_at_offset (die_offset, per_cu);
 }
 
 /* Follow the signature attribute ATTR in SRC_DIE.
@@ -13752,7 +13745,7 @@ lookup_signatured_type_at_offset (struct objfile *objfile, unsigned int offset)
   /* This is only used to lookup previously recorded types.
      If we didn't find it, it's our bug.  */
   gdb_assert (type_sig != NULL);
-  gdb_assert (offset == type_sig->offset);
+  gdb_assert (offset == type_sig->per_cu.offset);
 
   return type_sig;
 }
@@ -13791,7 +13784,7 @@ read_signatured_type (struct objfile *objfile,
   struct cleanup *back_to, *free_cu_cleanup;
 
   dwarf2_read_section (objfile, &dwarf2_per_objfile->types);
-  types_ptr = dwarf2_per_objfile->types.buffer + type_sig->offset;
+  types_ptr = dwarf2_per_objfile->types.buffer + type_sig->per_cu.offset;
 
   gdb_assert (type_sig->per_cu.cu == NULL);
 
@@ -15919,7 +15912,7 @@ write_one_signatured_type (void **slot, void *d)
 		  psymtab->n_static_syms, info->cu_index,
 		  1);
 
-  store_unsigned_integer (val, 8, BFD_ENDIAN_LITTLE, entry->offset);
+  store_unsigned_integer (val, 8, BFD_ENDIAN_LITTLE, entry->per_cu.offset);
   obstack_grow (info->types_list, val, 8);
   store_unsigned_integer (val, 8, BFD_ENDIAN_LITTLE, entry->type_offset);
   obstack_grow (info->types_list, val, 8);

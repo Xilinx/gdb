@@ -3,6 +3,20 @@
 
 *** Changes since GDB 7.3
 
+* libthread-db-search-path now supports two special values: $sdir and $pdir.
+  $sdir specifies the default system locations of shared libraries.
+  $pdir specifies the directory where the libpthread used by the application
+  lives.
+
+  GDB no longer looks in $sdir and $pdir after it has searched the directories
+  mentioned in libthread-db-search-path.  If you want to search those
+  directories, they must be specified in libthread-db-search-path.
+  The default value of libthread-db-search-path on GNU/Linux and Solaris
+  systems is now "$sdir:$pdir".
+
+  $pdir is not supported by gdbserver, it is currently ignored.
+  $sdir is supported by gdbserver.
+
 * New configure option --with-iconv-bin.
   When using the internationalization support like the one in the GNU C
   library, GDB will invoke the "iconv" program to get a list of supported
@@ -26,6 +40,10 @@
 watch EXPRESSION mask MASK_VALUE
   The watch command now supports the mask argument which allows creation
   of masked watchpoints, if the current architecture supports this feature.
+
+info auto-load-scripts [REGEXP]
+  This command was formerly named "maintenance print section-scripts".
+  It is now generally useful and is no longer a maintenance-only command.
 
 * Tracepoints can now be enabled and disabled at any time after a trace
   experiment has been started using the standard "enable" and "disable"

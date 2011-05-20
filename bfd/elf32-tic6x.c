@@ -528,8 +528,32 @@ static reloc_howto_type elf32_tic6x_howto_table[] =
 	 0,			/* src_mask */
 	 0xffffffff,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
-  EMPTY_HOWTO (29),
-  EMPTY_HOWTO (30),
+  HOWTO (R_C6000_PCR_H16,	/* type */
+	 16,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 16,			/* bitsize */
+	 TRUE,			/* pc_relative */
+	 7,			/* bitpos */
+	 complain_overflow_dont,/* complain_on_overflow */
+	 bfd_elf_generic_reloc,	/* special_function */
+	 "R_C6000_PCR_H16",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 0x007fff80,		/* dst_mask */
+	 TRUE),			/* pcrel_offset */
+  HOWTO (R_C6000_PCR_L16,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 16,			/* bitsize */
+	 TRUE,			/* pc_relative */
+	 7,			/* bitpos */
+	 complain_overflow_dont,/* complain_on_overflow */
+	 bfd_elf_generic_reloc,	/* special_function */
+	 "R_C6000_PCR_L16",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 0x007fff80,		/* dst_mask */
+	 TRUE),			/* pcrel_offset */
   EMPTY_HOWTO (31),
   EMPTY_HOWTO (32),
   EMPTY_HOWTO (33),
@@ -1112,8 +1136,8 @@ static reloc_howto_type elf32_tic6x_howto_table_rel[] =
 	 0,			/* src_mask */
 	 0xffffffff,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
-  EMPTY_HOWTO (29),
-  EMPTY_HOWTO (30),
+  EMPTY_HOWTO (R_C6000_PCR_H16),
+  EMPTY_HOWTO (R_C6000_PCR_L16),
   EMPTY_HOWTO (31),
   EMPTY_HOWTO (32),
   EMPTY_HOWTO (33),
@@ -2264,7 +2288,7 @@ elf32_tic6x_relocate_section (bfd *output_bfd,
       Elf_Internal_Sym *sym;
       asection *sec;
       struct elf_link_hash_entry *h;
-      bfd_vma off, relocation;
+      bfd_vma off, off2, relocation;
       bfd_boolean unresolved_reloc;
       bfd_reloc_status_type r;
       struct bfd_link_hash_entry *sbh;
@@ -2376,6 +2400,20 @@ elf32_tic6x_relocate_section (bfd *output_bfd,
 			 + input_section->output_offset
 			 + rel->r_offset) & 0x1f;
 	  unresolved_reloc = FALSE;
+	  break;
+
+	case R_C6000_PCR_H16:
+	case R_C6000_PCR_L16:
+	  off = (input_section->output_section->vma
+		 + input_section->output_offset
+		 + rel->r_offset);
+	  /* These must be calculated as R = S - FP(FP(PC) - A).
+	     PC, here, is the value we just computed in OFF.  RELOCATION
+	     has the address of S + A. */
+	  relocation -= rel->r_addend;
+	  off2 = ((off & ~(bfd_vma)0x1f) - rel->r_addend) & (bfd_vma)~0x1f;
+	  off2 = relocation - off2;
+	  relocation = off + off2;
 	  break;
 
 	case R_C6000_DSBT_INDEX:
@@ -2764,7 +2802,7 @@ elf32_tic6x_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
   /* Create dynamic sections for relocatable executables so that we can
      copy relocations.  */
-  if (elf32_tic6x_using_dsbt (abfd)
+  if ((info->shared || elf32_tic6x_using_dsbt (abfd))
       && ! htab->elf.dynamic_sections_created)
     {
       if (! _bfd_elf_link_create_dynamic_sections (abfd, info))
@@ -4439,6 +4477,14 @@ elf32_tic6x_write_section (bfd *output_bfd,
   return TRUE;
 }
 
+static void
+elf32_tic6x_set_osabi (bfd *abfd, struct bfd_link_info *link_info)
+{
+  if (link_info == NULL || link_info->relocatable)
+    return;
+  _bfd_elf_set_osabi (abfd, link_info);
+}
+
 #define TARGET_LITTLE_SYM	bfd_elf32_tic6x_le_vec
 #define TARGET_LITTLE_NAME	"elf32-tic6x-le"
 #define TARGET_BIG_SYM		bfd_elf32_tic6x_be_vec
@@ -4488,6 +4534,7 @@ elf32_tic6x_write_section (bfd *output_bfd,
 #define elf_backend_section_from_bfd_section \
   elf32_tic6x_section_from_bfd_section
 #define elf_backend_relocate_section	elf32_tic6x_relocate_section
+#define elf_backend_relocs_compatible	_bfd_elf_relocs_compatible
 #define elf_backend_finish_dynamic_symbol \
   elf32_tic6x_finish_dynamic_symbol
 #define elf_backend_always_size_sections \
@@ -4506,5 +4553,42 @@ elf32_tic6x_write_section (bfd *output_bfd,
 #define elf_backend_omit_section_dynsym elf32_tic6x_link_omit_section_dynsym
 #define elf_backend_plt_sym_val		elf32_tic6x_plt_sym_val
 
+#include "elf32-target.h"
+
+#undef elf32_bed
+#define	elf32_bed		elf32_tic6x_linux_bed
+
+#undef TARGET_LITTLE_SYM
+#define	TARGET_LITTLE_SYM		bfd_elf32_tic6x_linux_le_vec
+#undef TARGET_LITTLE_NAME
+#define	TARGET_LITTLE_NAME		"elf32-tic6x-linux-le"
+#undef TARGET_BIG_SYM
+#define TARGET_BIG_SYM			bfd_elf32_tic6x_linux_be_vec
+#undef TARGET_BIG_NAME
+#define	TARGET_BIG_NAME			"elf32-tic6x-linux-be"
+#undef ELF_OSABI
+#define	ELF_OSABI			ELFOSABI_C6000_LINUX
+
+#undef elf_backend_post_process_headers
+#define elf_backend_post_process_headers	elf32_tic6x_set_osabi
+
+#include "elf32-target.h"
+
+#undef elf32_bed
+#define	elf32_bed		elf32_tic6x_elf_bed
+
+#undef TARGET_LITTLE_SYM
+#define	TARGET_LITTLE_SYM		bfd_elf32_tic6x_elf_le_vec
+#undef TARGET_LITTLE_NAME
+#define	TARGET_LITTLE_NAME		"elf32-tic6x-elf-le"
+#undef TARGET_BIG_SYM
+#define TARGET_BIG_SYM			bfd_elf32_tic6x_elf_be_vec
+#undef TARGET_BIG_NAME
+#define	TARGET_BIG_NAME			"elf32-tic6x-elf-be"
+#undef ELF_OSABI
+#define	ELF_OSABI			ELFOSABI_C6000_ELFABI
+
+#undef elf_backend_post_process_headers
+#define elf_backend_post_process_headers	elf32_tic6x_set_osabi
 
 #include "elf32-target.h"

@@ -1,3 +1,188 @@
+2011-05-20  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix -readnow for -gdwarf-4 unused type units.
+	* dwarf2read.c (struct signatured_type): Remove the field offset.
+	(create_signatured_type_table_from_index): Remove its initialization.
+	(create_debug_types_hash_table): Likewise.  Initialize per_cu.offset
+	instead.  Add a complaint call.
+	(process_psymtab_comp_unit): Change assignment to gdb_assert.
+	(process_type_comp_unit, lookup_die_type, dump_die_shallow)
+	(lookup_signatured_type_at_offset, read_signatured_type)
+	(write_one_signatured_type): Update the field for per_cu.
+
+2011-05-19  Tom Tromey  <tromey@redhat.com>
+
+	* python/py-inferior.c (python_inferior_exit): Use
+	target_gdbarch.
+	(python_on_resume): Likewise.
+
+2011-05-19  Matt Rice  <ratmice@gmail.com>
+
+        * breakpoint.c (bpstat_do_actions_1): Call prevent_dont_repeat.
+
+2011-05-19  Hui Zhu  <teawater@gmail.com>
+
+	* tracepoint.c (tfile_trace_find): Return directly when num is -1.
+
+2011-05-19  Hui Zhu  <teawater@gmail.com>
+
+	* xcoffread.c (read_xcoff_symtab): Initialize fcn_aux_saved.
+
+2011-05-18  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2read.c (dwarf2_add_field): Constify.
+	* value.c (value_static_field): Constify.
+	* gdbtypes.h (struct main_type) <field.field_location.physname>:
+	Now const.
+	* ax-gdb.c (gen_static_field): Constify
+
+2011-05-18  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* linux-nat.c (kill_callback): Use SIGKILL first.
+
+2011-05-18  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-lang.c (print_it_exception): Avoid use of sprintf.
+
+2011-05-18  Tom Tromey  <tromey@redhat.com>
+
+	* value.c (value_fn_field): Constify.
+	* symtab.c (gdb_mangle_name): Constify.
+	* stabsread.c (update_method_name_from_physname): Make 'physname'
+	argument const.
+	* p-typeprint.c (pascal_type_print_method_args): Make arguments
+	const.  Use explicit fputc_filtered loop.
+	(pascal_type_print_base): Constify.
+	* p-lang.h (pascal_type_print_method_args): Update.
+	* linespec.c (add_matching_methods): Constify.
+	(add_constructors): Likewise.
+	* jv-typeprint.c (java_type_print_base): Constify.
+	* gdbtypes.h (struct cplus_struct_type)
+	<fn_fieldlist.fn_field.physname>: Now const.
+	* dwarf2read.c (compute_delayed_physnames): Constify.
+	(dwarf2_add_member_fn): Likewise.
+	* c-typeprint.c (c_type_print_base): Constify.  Use cleanups.
+
+2011-05-18  Pedro Alves  <pedro@codesourcery.com>
+
+	* infrun.c (resume): Mention which is the current thread, and its
+	current PC in debug output.
+	(prepare_to_proceed): Mention the thread switching in debug
+	output.
+
+2011-05-18  Tom Tromey  <tromey@redhat.com>
+
+	* linux-thread-db.c (try_thread_db_load_from_pdir_1): Fix absolute
+	path check.  Use xmalloc and cleanups.
+	(try_thread_db_load_from_dir): Use xmalloc and cleanups.
+
+2011-05-17  Tom Tromey  <tromey@redhat.com>
+
+	* cp-valprint.c (cp_print_value_fields): Catch errors from
+	value_static_field.
+
+2011-05-17  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2read.c (dwarf2_get_die_type): Call
+	get_die_type_at_offset.
+	* dwarf2expr.c (dwarf_get_base_type): Handle NULL return from
+	get_base_type function.
+
+2011-05-17  Tomas Martinec  <fyzmat@gmail.com>
+
+	* infrun.c (handle_inferior_event) <handling deferred step>: Clear
+	trap_expected.
+
+2011-05-16  Doug Evans  <dje@google.com>
+
+	* python/py-auto-load.c (source_section_scripts): Mention objfile
+	name in warning.
+
+2011-05-15  Doug Evans  <dje@google.com>
+
+	* linux-thread-db.c (try_thread_db_load_from_pdir_1): New function.
+	(try_thread_db_load_from_pdir): Call it.  If unable to find
+	libthread_db in directory of libpthread, see if we're looking at
+	the separate-debug-info copy.
+
+	* python/py-autoload.c (print_script): Print "Missing" instead of
+	"No" for missing scripts.
+	(info_auto_load_scripts): Tweak "Loaded" column to fit "Missing".
+
+2011-05-13  Doug Evans  <dje@google.com>
+
+	* ui-file.c (stdio_file_write_async_safe): Add comment.
+
+2011-05-14  Hui Zhu  <teawater@gmail.com>
+
+	* ui-file.c (stdio_file_write_async_safe): Add empty check for build.
+
+2011-05-13  Doug Evans  <dje@google.com>
+
+	Support $pdir and $sdir in libthread-db-search-path.
+	* NEWS: Mention $sdir,$pdir.
+	* gdb_thread_db.h (LIBTHREAD_DB_SEARCH_PATH): Add $sdir:$pdir.
+	* linux-thread-db.c (try_thread_db_load_from_pdir): New function.
+	(try_thread_db_load_from_sdir): New function.
+	(try_thread_db_load_from_dir): New function.
+	(thread_db_load_search): Handle $pdir, $sdir.  Remove trying of
+	system directories if search of libthread-db-search-path fails,
+	that is now done via $sdir.
+	(has_libpthread): New function.
+	(thread_db_load): Remove search for libthread_db in directory of
+	libpthread, that is now done via $pdir.
+
+	* NEWS: Mention "info auto-load-scripts".
+	* python/py-auto-load.c (struct auto_load_pspace_info): New member
+	script_not_found_warning_printed.
+	(init_loaded_scripts_info): Renamed from create_loaded_scripts_hash,
+	all callers updated.  Initialize script_not_found_warning_printed.
+	(get_auto_load_pspace_data_for_loading): New function.
+	(maybe_add_script): New function.
+	(source_section_scripts): Simplify.  Only print one warning regardless
+	of the number of auto-load scripts not found.
+	(clear_section_scripts): Clear script_not_found_warning_printed.
+	(auto_load_objfile_script): Record script in hash table.
+	(count_matching_scripts): New function.
+	(maybe_print_script): Renamed from maybe_print_section_script, all
+	callers updated.  Rewrite to use ui_out_*.
+	(info_auto_load_scripts): Renamed from
+	maintenance_print_section_scripts, all callers updated.
+	(gdbpy_initialize_auto_load): "maintenance print section-scripts"
+	renamed as "info auto-load-scripts".
+
+2011-05-13  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2expr.c (read_uleb128): Cast intermediate result.
+	(read_sleb128): Likewise.
+
+2011-05-13  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2loc.c (disassemble_dwarf_expression): Fix instruction
+	offset display.
+
+2011-05-13  Doug Evans  <dje@google.com>
+
+	* linux-nat.c (debug_linux_nat_async): Delete.
+	Replace all references to use debug_linux_nat instead.
+	(show_debug_linux_nat_async): Delete.
+	(sigchld_handler): Call ui_file_write_async_safe instead of
+	fprintf_unfiltered.
+	(_initialize_linux_nat): Remove `set debug lin-lwp-async'.
+	* ui-file.c (struct ui_file): New member to_write_async_safe.
+	(null_file_write_async_safe): New function.
+	(ui_file_write_async_safe): New function.
+	(set_ui_file_write_async_safe): New function.
+	(ui_file_new): Initialize to_write_async_safe.
+	(stdio_file_write_async_safe): New function.
+	(struct stdio_file): New member fd.
+	(stdio_file_new): Initialize to_write_async_safe, fd.
+	(stdio_file_read, stdio_file_isatty): New stdio->fd instead of calling
+	fileno.
+	* ui-file.h (ui_file_write_async_safe_ftype): New typedef.
+	(set_ui_file_write_async_safe): Declare.
+	(ui_file_write_async_safe): Declare.
+
 2011-05-13  Tom Tromey  <tromey@redhat.com>
 
 	* utils.c (do_value_free): New function.
