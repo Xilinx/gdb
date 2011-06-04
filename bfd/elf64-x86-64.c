@@ -2399,13 +2399,13 @@ elf_x86_64_size_dynamic_sections (bfd *output_bfd,
 		{
 		  srel = elf_section_data (p->sec)->sreloc;
 		  srel->size += p->count * bed->s->sizeof_rela;
-		  if ((p->sec->output_section->flags & SEC_READONLY) != 0)
+		  if ((p->sec->output_section->flags & SEC_READONLY) != 0
+		      && (info->flags & DF_TEXTREL) == 0)
 		    {
 		      info->flags |= DF_TEXTREL;
 		      if (info->warn_shared_textrel && info->shared)
 			info->callbacks->einfo (_("%P: %B: warning: relocation in readonly section `%A'.\n"),
 						p->sec->owner, p->sec);
-		      break;
 		    }
 		}
 	    }
@@ -3863,6 +3863,7 @@ elf_x86_64_relocate_section (bfd *output_bfd,
 	  break;
 
 	case R_X86_64_TPOFF32:
+	case R_X86_64_TPOFF64:
 	  BFD_ASSERT (info->executable);
 	  relocation = elf_x86_64_tpoff (info, relocation);
 	  break;

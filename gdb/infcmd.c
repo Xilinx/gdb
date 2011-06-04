@@ -55,6 +55,8 @@
 #include "valprint.h"
 #include "inline-frame.h"
 #include "tracepoint.h"
+#include "inf-loop.h"
+#include "continuations.h"
 
 /* Functions exported for general use, in inferior.h: */
 
@@ -889,23 +891,21 @@ step_1 (int skip_subroutines, int single_inst, char *count_string)
     {
       for (; count > 0; count--)
 	{
-	  struct thread_info *tp;
-
 	  step_once (skip_subroutines, single_inst, count, thread);
 
-	  if (target_has_execution
-	      && !ptid_equal (inferior_ptid, null_ptid))
-	    tp = inferior_thread ();
+	  if (!target_has_execution)
+	    break;
 	  else
-	    tp = NULL;
-
-	  if (!tp || !tp->control.stop_step || !tp->step_multi)
 	    {
-	      /* If we stopped for some reason that is not stepping
-		 there are no further steps to make.  */
-	      if (tp)
-		tp->step_multi = 0;
-	      break;
+	      struct thread_info *tp = inferior_thread ();
+
+	      if (!tp->control.stop_step || !tp->step_multi)
+		{
+		  /* If we stopped for some reason that is not stepping
+		     there are no further steps to make.  */
+		  tp->step_multi = 0;
+		  break;
+		}
 	    }
 	}
 
@@ -940,7 +940,7 @@ struct step_1_continuation_args
    proceed(), via step_once().  Basically it is like step_once and
    step_1_continuation are co-recursive.  */
 static void
-step_1_continuation (void *args)
+step_1_continuation (void *args, int err)
 {
   struct step_1_continuation_args *a = args;
 
@@ -949,7 +949,8 @@ step_1_continuation (void *args)
       struct thread_info *tp;
 
       tp = inferior_thread ();
-      if (tp->step_multi && tp->control.stop_step)
+      if (!err
+	  && tp->step_multi && tp->control.stop_step)
 	{
 	  /* There are more steps to make, and we did stop due to
 	     ending a stepping range.  Do another step.  */
@@ -960,8 +961,9 @@ step_1_continuation (void *args)
       tp->step_multi = 0;
     }
 
-  /* We either stopped for some reason that is not stepping, or there
-     are no further steps to make.  Cleanup.  */
+  /* We either hit an error, or stopped for some reason that is
+     not stepping, or there are no further steps to make.
+     Cleanup.  */
   if (!a->single_inst || a->skip_subroutines)
     delete_longjmp_breakpoint (a->thread);
 }
@@ -996,12 +998,23 @@ step_once (int skip_subroutines, int single_inst, int count, int thread)
 	  if (!skip_subroutines && !single_inst
 	      && inline_skipped_frames (inferior_ptid))
 	    {
+	      ptid_t resume_ptid;
+
+	      /* Pretend that we've ran.  */
+	      resume_ptid = user_visible_resume_ptid (1);
+	      set_running (resume_ptid, 1);
+
 	      step_into_inline_frame (inferior_ptid);
 	      if (count > 1)
 		step_once (skip_subroutines, single_inst, count - 1, thread);
 	      else
-		/* Pretend that we've stopped.  */
-		normal_stop ();
+		{
+		  /* Pretend that we've stopped.  */
+		  normal_stop ();
+
+		  if (target_can_async_p ())
+		    inferior_event_handler (INF_EXEC_COMPLETE, NULL);
+		}
 	      return;
 	    }
 
@@ -1235,14 +1248,22 @@ signal_command (char *signum_exp, int from_tty)
   proceed ((CORE_ADDR) -1, oursig, 0);
 }
 
+/* Continuation args to be passed to the "until" command
+   continuation.  */
+struct until_next_continuation_args
+{
+  /* The thread that was current when the command was executed.  */
+  int thread;
+};
+
 /* A continuation callback for until_next_command.  */
 
 static void
-until_next_continuation (void *arg)
+until_next_continuation (void *arg, int err)
 {
-  struct thread_info *tp = arg;
+  struct until_next_continuation_args *a = arg;
 
-  delete_longjmp_breakpoint (tp->num);
+  delete_longjmp_breakpoint (a->thread);
 }
 
 /* Proceed until we reach a different source line with pc greater than
@@ -1305,8 +1326,13 @@ until_next_command (int from_tty)
 
   if (target_can_async_p () && is_running (inferior_ptid))
     {
+      struct until_next_continuation_args *cont_args;
+
       discard_cleanups (old_chain);
-      add_continuation (tp, until_next_continuation, tp, NULL);
+      cont_args = XNEW (struct until_next_continuation_args);
+      cont_args->thread = inferior_thread ()->num;
+
+      add_continuation (tp, until_next_continuation, cont_args, xfree);
     }
   else
     do_cleanups (old_chain);
@@ -1447,62 +1473,69 @@ print_return_value (struct type *func_type, struct type *value_type)
    impossible to do all the stuff as part of the finish_command
    function itself.  The only chance we have to complete this command
    is in fetch_inferior_event, which is called by the event loop as
-   soon as it detects that the target has stopped.  This function is
-   called via the cmd_continuation pointer.  */
+   soon as it detects that the target has stopped.  */
 
 struct finish_command_continuation_args
 {
+  /* The thread that as current when the command was executed.  */
+  int thread;
   struct breakpoint *breakpoint;
   struct symbol *function;
 };
 
 static void
-finish_command_continuation (void *arg)
+finish_command_continuation (void *arg, int err)
 {
   struct finish_command_continuation_args *a = arg;
-  struct thread_info *tp = NULL;
-  bpstat bs = NULL;
 
-  if (!ptid_equal (inferior_ptid, null_ptid)
-      && target_has_execution
-      && is_stopped (inferior_ptid))
+  if (!err)
     {
-      tp = inferior_thread ();
-      bs = tp->control.stop_bpstat;
-    }
+      struct thread_info *tp = NULL;
+      bpstat bs = NULL;
 
-  if (bpstat_find_breakpoint (bs, a->breakpoint) != NULL
-      && a->function != NULL)
-    {
-      struct type *value_type;
-
-      value_type = TYPE_TARGET_TYPE (SYMBOL_TYPE (a->function));
-      if (!value_type)
-	internal_error (__FILE__, __LINE__,
-			_("finish_command: function has no target type"));
-
-      if (TYPE_CODE (value_type) != TYPE_CODE_VOID)
+      if (!ptid_equal (inferior_ptid, null_ptid)
+	  && target_has_execution
+	  && is_stopped (inferior_ptid))
 	{
-	  volatile struct gdb_exception ex;
-
-	  TRY_CATCH (ex, RETURN_MASK_ALL)
-	    {
-	      /* print_return_value can throw an exception in some
-		 circumstances.  We need to catch this so that we still
-		 delete the breakpoint.  */
-	      print_return_value (SYMBOL_TYPE (a->function), value_type);
-	    }
-	  if (ex.reason < 0)
-	    exception_print (gdb_stdout, ex);
+	  tp = inferior_thread ();
+	  bs = tp->control.stop_bpstat;
 	}
+
+      if (bpstat_find_breakpoint (bs, a->breakpoint) != NULL
+	  && a->function != NULL)
+	{
+	  struct type *value_type;
+
+	  value_type = TYPE_TARGET_TYPE (SYMBOL_TYPE (a->function));
+	  if (!value_type)
+	    internal_error (__FILE__, __LINE__,
+			    _("finish_command: function has no target type"));
+
+	  if (TYPE_CODE (value_type) != TYPE_CODE_VOID)
+	    {
+	      volatile struct gdb_exception ex;
+
+	      TRY_CATCH (ex, RETURN_MASK_ALL)
+		{
+		  /* print_return_value can throw an exception in some
+		     circumstances.  We need to catch this so that we still
+		     delete the breakpoint.  */
+		  print_return_value (SYMBOL_TYPE (a->function), value_type);
+		}
+	      if (ex.reason < 0)
+		exception_print (gdb_stdout, ex);
+	    }
+	}
+
+      /* We suppress normal call of normal_stop observer and do it
+	 here so that the *stopped notification includes the return
+	 value.  */
+      if (bs != NULL && tp->control.proceed_to_finish)
+	observer_notify_normal_stop (bs, 1 /* print frame */);
     }
 
-  /* We suppress normal call of normal_stop observer and do it here so
-     that the *stopped notification includes the return value.  */
-  if (bs != NULL && tp->control.proceed_to_finish)
-    observer_notify_normal_stop (bs, 1 /* print frame */);
   delete_breakpoint (a->breakpoint);
-  delete_longjmp_breakpoint (inferior_thread ()->num);
+  delete_longjmp_breakpoint (a->thread);
 }
 
 static void
@@ -1518,11 +1551,8 @@ finish_backward (struct symbol *function)
 {
   struct symtab_and_line sal;
   struct thread_info *tp = inferior_thread ();
-  struct breakpoint *breakpoint;
-  struct cleanup *old_chain;
   CORE_ADDR pc;
   CORE_ADDR func_addr;
-  int back_up;
 
   pc = get_frame_pc (get_current_frame ());
 
@@ -1532,8 +1562,7 @@ finish_backward (struct symbol *function)
 
   sal = find_pc_line (func_addr, 0);
 
-  /* We don't need a return value.  */
-  tp->control.proceed_to_finish = 0;
+  tp->control.proceed_to_finish = 1;
   /* Special case: if we're sitting at the function entry point,
      then all we need to do is take a reverse singlestep.  We
      don't need to set a breakpoint, and indeed it would do us
@@ -1547,33 +1576,25 @@ finish_backward (struct symbol *function)
     {
       struct frame_info *frame = get_selected_frame (NULL);
       struct gdbarch *gdbarch = get_frame_arch (frame);
+      struct symtab_and_line sr_sal;
 
-      /* Set breakpoint and continue.  */
-      breakpoint =
-	set_momentary_breakpoint (gdbarch, sal,
-				  get_stack_frame_id (frame),
-				  bp_breakpoint);
-      /* Tell the breakpoint to keep quiet.  We won't be done
-         until we've done another reverse single-step.  */
-      breakpoint_set_silent (breakpoint, 1);
-      old_chain = make_cleanup_delete_breakpoint (breakpoint);
+      /* Set a step-resume at the function's entry point.  Once that's
+	 hit, we'll do one more step backwards.  */
+      init_sal (&sr_sal);
+      sr_sal.pc = sal.pc;
+      sr_sal.pspace = get_frame_program_space (frame);
+      insert_step_resume_breakpoint_at_sal (gdbarch,
+					    sr_sal, null_frame_id);
+
       proceed ((CORE_ADDR) -1, TARGET_SIGNAL_DEFAULT, 0);
-      /* We will be stopped when proceed returns.  */
-      back_up = (bpstat_find_breakpoint (tp->control.stop_bpstat, breakpoint)
-		 != NULL);
-      do_cleanups (old_chain);
     }
   else
-    back_up = 1;
-  if (back_up)
     {
-      /* If in fact we hit the step-resume breakpoint (and not
-	 some other breakpoint), then we're almost there --
-	 we just need to back up by one more single-step.  */
+      /* We're almost there -- we just need to back up by one more
+	 single-step.  */
       tp->control.step_range_start = tp->control.step_range_end = 1;
       proceed ((CORE_ADDR) -1, TARGET_SIGNAL_DEFAULT, 1);
     }
-  return;
 }
 
 /* finish_forward -- helper function for finish_command.  */
@@ -1605,6 +1626,7 @@ finish_forward (struct symbol *function, struct frame_info *frame)
   tp->control.proceed_to_finish = 1;
   cargs = xmalloc (sizeof (*cargs));
 
+  cargs->thread = thread;
   cargs->breakpoint = breakpoint;
   cargs->function = function;
   add_continuation (tp, finish_command_continuation, cargs,
@@ -1613,7 +1635,7 @@ finish_forward (struct symbol *function, struct frame_info *frame)
 
   discard_cleanups (old_chain);
   if (!target_can_async_p ())
-    do_all_continuations ();
+    do_all_continuations (0);
 }
 
 /* "finish": Set a temporary breakpoint at the place the selected
@@ -1640,10 +1662,6 @@ finish_command (char *arg, int from_tty)
      error out.  */
   if (async_exec && !target_can_async_p ())
     error (_("Asynchronous execution not supported on this target."));
-
-  /* Don't try to async in reverse.  */
-  if (async_exec && execution_direction == EXEC_REVERSE)
-    error (_("Asynchronous 'finish' not supported in reverse."));
 
   /* If we are not asked to run in the bg, then prepare to run in the
      foreground, synchronously.  */
@@ -2410,9 +2428,12 @@ struct attach_command_continuation_args
 };
 
 static void
-attach_command_continuation (void *args)
+attach_command_continuation (void *args, int err)
 {
   struct attach_command_continuation_args *a = args;
+
+  if (err)
+    return;
 
   attach_command_post_wait (a->args, a->from_tty, a->async_exec);
 }

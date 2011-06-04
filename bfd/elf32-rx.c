@@ -28,6 +28,11 @@
 
 #define RX_OPCODE_BIG_ENDIAN 0
 
+/* This is a meta-target that's used only with objcopy, to avoid the
+   endian-swap we would otherwise get.  We check for this in
+   rx_elf_object_p().  */
+const bfd_target bfd_elf32_rx_be_ns_vec;
+
 #ifdef DEBUG
 char * rx_get_reloc (long);
 void rx_dump_symtab (bfd *, void *, void *);
@@ -2954,8 +2959,65 @@ elf32_rx_machine (bfd * abfd)
 static bfd_boolean
 rx_elf_object_p (bfd * abfd)
 {
+  int i;
+  unsigned int u;
+  Elf_Internal_Phdr *phdr = elf_tdata (abfd)->phdr;
+  int nphdrs = elf_elfheader (abfd)->e_phnum;
+  sec_ptr bsec;
+
+  /* We never want to automatically choose the non-swapping big-endian
+     target.  The user can only get that explicitly, such as with -I
+     and objcopy.  */
+  if (abfd->xvec == &bfd_elf32_rx_be_ns_vec
+      && abfd->target_defaulted)
+    return FALSE;
+
   bfd_default_set_arch_mach (abfd, bfd_arch_rx,
 			     elf32_rx_machine (abfd));
+
+  /* For each PHDR in the object, we must find some section that
+     corresponds (based on matching file offsets) and use its VMA
+     information to reconstruct the p_vaddr field we clobbered when we
+     wrote it out.  */
+  for (i=0; i<nphdrs; i++)
+    {
+      for (u=0; u<elf_tdata(abfd)->num_elf_sections; u++)
+	{
+	  Elf_Internal_Shdr *sec = elf_tdata(abfd)->elf_sect_ptr[u];
+
+	  if (phdr[i].p_offset <= (bfd_vma) sec->sh_offset
+	      && (bfd_vma)sec->sh_offset <= phdr[i].p_offset + (phdr[i].p_filesz - 1))
+	    {
+	      /* Found one!  The difference between the two addresses,
+		 plus the difference between the two file offsets, is
+		 enough information to reconstruct the lma.  */
+
+	      /* Example where they aren't:
+		 PHDR[1] = lma fffc0100 offset 00002010 size 00000100
+		 SEC[6]  = vma 00000050 offset 00002050 size 00000040
+
+		 The correct LMA for the section is fffc0140 + (2050-2010).
+	      */
+
+	      phdr[i].p_vaddr = sec->sh_addr + (sec->sh_offset - phdr[i].p_offset);
+	      break;
+	    }
+	}
+
+      /* We must update the bfd sections as well, so we don't stop
+	 with one match.  */
+      bsec = abfd->sections;
+      while (bsec)
+	{
+	  if (phdr[i].p_vaddr <= bsec->lma
+	      && bsec->vma <= phdr[i].p_vaddr + (phdr[i].p_filesz - 1))
+	    {
+	      bsec->lma = phdr[i].p_paddr + (bsec->vma - phdr[i].p_vaddr);
+	    }
+	  bsec = bsec->next;
+	}
+    }
+
   return TRUE;
 }
  
@@ -3384,5 +3446,23 @@ elf32_rx_modify_program_headers (bfd * abfd ATTRIBUTE_UNUSED,
 #define bfd_elf32_set_section_contents		rx_set_section_contents
 #define bfd_elf32_bfd_final_link		rx_final_link
 #define bfd_elf32_bfd_relax_section		elf32_rx_relax_section_wrapper
+
+#include "elf32-target.h"
+
+/* We define a second big-endian target that doesn't have the custom
+   section get/set hooks, for times when we want to preserve the
+   pre-swapped .text sections (like objcopy).  */
+
+#undef  TARGET_BIG_SYM
+#define TARGET_BIG_SYM		bfd_elf32_rx_be_ns_vec
+#undef  TARGET_BIG_NAME
+#define TARGET_BIG_NAME		"elf32-rx-be-ns"
+#undef  TARGET_LITTLE_SYM
+
+#undef bfd_elf32_get_section_contents
+#undef bfd_elf32_set_section_contents
+
+#undef	elf32_bed
+#define elf32_bed				elf32_rx_be_ns_bed
 
 #include "elf32-target.h"

@@ -1,3 +1,150 @@
+2011-06-03  Joel Brobecker  <brobecker@adacore.com>  (obvious fix)
+
+	From Stephen Kitt  <steve@sk2.org>
+	* gdb.base/help.exp: Adjust following some spelling corrections
+	in GDB.
+
+2011-06-01  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.base/ending-run.exp: Match __uClibc_main for uClibc.
+
+2010-05-31  Keith Seitz  <keiths@redhat.com>
+
+	PR c++/12750
+	* gdb.cp/static-method.cc: New file.
+	* gdb.cp/static-method.exp: New file.
+
+2010-05-31  Keith Seitz  <keiths@redhat.com>
+
+	PR symtab/12704
+	* gdb.cp/anon-ns.cc: New file.
+	* gdb.cp/anon-ns.exp: New file.
+
+2011-05-31  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.arch/i386-dr3-watch.c: New file.
+	* gdb.arch/i386-dr3-watch.exp: New file.
+
+2011-05-30  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.base/callfuncs.c (t_structs_fc): New.
+	(t_structs_dc, t_structs_ldc): New.
+	(t_double_many_args):
+	(DEF_FUNC_MANY_ARGS_1, DEF_FUNC_MANY_ARGS_2): Define.
+	(DEF_FUNC_MANY_ARGS_3, DEF_FUNC_VALUES_1): Define.
+	(DEF_FUNC_VALUES_2, DEF_FUNC_VALUES_3): Define.
+	* gdb.base/callfuncs.exp: Call new functions.
+
+2011-05-30  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.base/callfuncs.exp (rerun_and_prepare): New.
+	Call rerun_and_prepare for each test to isolate effects.
+
+2011-05-30  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.base/varargs.c (find_max_float_real): New.
+	(find_max_double_real, find_max_long_double_real): New.
+	* gdb.base/varargs.exp: Call these new added functions.
+	* lib/gdb.exp (setup_kfail_for_target): New.
+
+2011-05-30  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.base/funcargs.c (callca, callcb, callcc): New.
+	(callcd, callce, callcf, callc1a, callc1b): New.
+	(callc2a, callc2b): New.
+	* gdb.base/funcargs.exp (complex_args): New.
+	(complex_integral_args, complex_float_integral_args): New.
+	* lib/gdb.exp (support_complex_tests): New.  Determine
+	whether to run test cases on _Complex types.
+
+2011-05-27  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.threads/leader-exit.c: New file.
+	* gdb.threads/leader-exit.exp: New file.
+
+2011-05-27  Marek Polacek  <mpolacek@redhat.com>
+
+        * gdb.mi/mi-nonstop.exp: Replace gdb_test_multiple with mi_gdb_test.
+
+2011-05-27  Marek Polacek  <mpolacek@redhat.com>
+
+	* gdb.mi/mi-nonstop-exit.exp: Remove the `-gdb-show non-stop' testcase,
+	remove the `supported' variable.
+	* gdb.mi/mi-nonstop.exp: Likewise.
+	* gdb.mi/mi-ns-stale-regcache.exp: Likewise.
+	* gdb.mi/mi-nsintrall.exp: Likewise.
+	* gdb.mi/mi-nsmoribund.exp: Likewise.
+	* gdb.mi/mi-nsthrexec.exp: Likewise.
+
+2011-05-26  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.reverse/finish-reverse-bkpt.exp: New test.
+
+2011-05-26  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.reverse/next-reverse-bkpt-over-sr.exp: New test.
+
+2011-05-24  Keith Seitz  <keiths@redhat.com>
+
+	PR breakpoint/12803
+	* gdb.cp/cmpd-minsyms.cc (a): New method.
+	(b): New method.
+	(c): New method.
+	* gdb.cp/cmpd-minsyms.exp: Add tests for new methods.
+
+2011-05-24  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.base/commands.exp (watchpoint_command_test): Check that the
+	watchpoint's command list didn't execute when the watchpoint went
+	out of scope.
+
+2011-05-24  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	Centralize -DSYMBOL_PREFIX=\"_\" additional flags in gdb.exp.
+	* lib/gdb.exp (gdb_target_symbol_prefix_flags): New procedure.
+	* gdb.arch/i386-bp_permanent.exp: Use gdb_target_symbol_prefix_flags.
+	* gdb.arch/i386-gnu-cfi.exp: Likewise.
+	* gdb.arch/i386-permbkpt.exp: Likewise.
+	* gdb.arch/i386-prologue.exp: Likewise.
+	* gdb.arch/i386-size-overlap.exp: Likewise.
+	* gdb.arch/i386-size.exp: Likewise.
+	* gdb.arch/i386-unwind.exp: Likewise.
+	* gdb.reverse/i386-precsave.exp: Likewise.
+	* gdb.reverse/i386-reverse.exp: Likewise.
+	* gdb.reverse/i386-sse-reverse.exp: Likewise.
+	* gdb.reverse/i387-env-reverse.exp: Likewise.
+	* gdb.reverse/i387-stack-reverse.exp: Likewise.
+
+2011-05-24  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.trace/tfile.exp: Add test that opening the basic.tf trace
+	file doesn't error, using MI.
+
+2011-05-23  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.base/charset.exp (string_display): Add tests to assign to
+	arrays.
+	* gdb.base/charset.c (short_array, int_array, long_array): New.
+
+2011-05-20  Pedro Alves  <pedro@codesourcery.com>
+
+	Cope with async mode.
+
+	* gdb.mi/mi-break.exp (test_breakpoint_commands): Split gdb_test
+	into gdb_test + mi_expect_stop.
+
+2011-05-20  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.mi/basics.c: Don't include stdio.h or unistd.h.
+	(callme): Remove printf call.
+
+2011-05-20  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* lib/gdb.exp (gdb_test_list_exact): Suggest use of double
+	quote pattern to avoid problems with Cygwin/mingw expect versions.
+	* gdb.base/default.exp (show convenience): Use double
+	quote pattern for regular expressions.
+
 2011-05-20  Jan Kratochvil  <jan.kratochvil@redhat.com>
 
 	Fix -readnow for -gdwarf-4 unused type units.

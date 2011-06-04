@@ -1,3 +1,39 @@
+2011-05-27  Mike Frysinger  <vapier@gentoo.org>
+
+	* sim-options.c (standard_option_handler): Remove arg[0] check
+	when freeing simulator_sysroot.  Only strdup arg when arg[0] is
+	not an empty string, otherwise assign "" back to it.
+
+2011-05-26  Mike Frysinger  <vapier@gentoo.org>
+
+	* nltvals.def: Regenerate to include Blackfin syscalls again.
+
+2011-05-25  Mike Frysinger  <vapier@gentoo.org>
+
+	* sim-trace.c (OPTION_TRACE_SYSCALL): New enum.
+	(trace_options): Handle "trace-syscall" with OPTION_TRACE_SYSCALL.
+	(trace_option_handler): Handle OPTION_TRACE_SYSCALL.
+	(trace_idx_to_str): Likewise.
+	* sim-trace.h (TRACE_SYSCALL_IDX): New enum.
+	(TRACE_syscall): Define.
+	(WITH_TRACE_SYSCALL_P): Likewise.
+	(TRACE_SYSCALL_P): Likewise.
+
+2011-05-23  Mike Frysinger  <vapier@gentoo.org>
+
+	* dv-glue.c (hw_glue_finish): Move "name" to function scope and
+	remove now-unnecessary sub-scope for glue->type setting.
+	Check to see if the "reg" property exists before we use it, and
+	if it doesn't exist, error out for "glue" devices.
+
+2011-05-23  Mike Frysinger  <vapier@gentoo.org>
+
+	* dv-glue.c (hw_glue_finish): Set type to glue_or when name is
+	glue-or, and set type to glue_xor when name is glue-xor.
+	(hw_glue_port_event): Return immediately when type is glue_io
+	or unmatched.  Handle glue_or and glue_xor types.  Move HW_TRACE
+	and hw_port_event calls from glue_and to end of function.
+
 2011-05-11  Mike Frysinger  <vapier@gentoo.org>
 
 	* callback.c, dv-pal.c, dv-sockser.c, hw-base.c, hw-device.c,

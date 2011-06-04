@@ -1099,8 +1099,8 @@ proc gdb_test_exact { args } {
 # of text per element and then strip trailing \r\n's.
 # Example:
 # gdb_test_list_exact "foo" "bar" \
-#     {[^\r\n]+[\r\n]+} \
-#     {[^\r\n]+} \
+#    "\[^\r\n\]+\[\r\n\]+" \
+#    "\[^\r\n\]+" \
 #     { \
 #	{expected result 1} \
 #	{expected result 2} \
@@ -1484,6 +1484,47 @@ proc skip_shlib_tests {} {
     }
 
     return 1
+}
+
+# Return 1 if _Complex types are supported, otherwise, return 0.
+
+proc support_complex_tests {} {
+    global support_complex_tests_saved
+
+    # Use the cached value, if it exists.
+    if [info exists support_complex_tests_saved] {
+        verbose "returning saved $support_complex_tests_saved" 2
+        return $support_complex_tests_saved
+    }
+
+    # Set up, compile, and execute a test program containing _Complex types.
+    # Include the current process ID in the file names to prevent conflicts
+    # with invocations for multiple testsuites.
+    set src complex[pid].c
+    set exe complex[pid].x
+
+    set f [open $src "w"]
+    puts $f "int main() {"
+    puts $f "_Complex float cf;"
+    puts $f "_Complex double cd;"
+    puts $f "_Complex long double cld;"
+    puts $f "  return 0; }"
+    close $f
+
+    verbose "compiling testfile $src" 2
+    set compile_flags {debug nowarnings quiet}
+    set lines [gdb_compile $src $exe executable $compile_flags]
+    file delete $src
+    file delete $exe
+
+    if ![string match "" $lines] then {
+        verbose "testfile compilation failed, returning 0" 2
+        set support_complex_tests_saved 0
+    } else {
+	set support_complex_tests_saved 1
+    }
+
+    return $support_complex_tests_saved
 }
 
 # Return 1 if target is ILP32.
@@ -2955,6 +2996,14 @@ proc setup_xfail_format { format } {
     return $ret;
 }
 
+# Like setup_kfail, but only call setup_kfail conditionally if
+# istarget[TARGET] returns true.
+proc setup_kfail_for_target { PR target } {
+    if { [istarget $target] } {
+	setup_kfail $PR $target
+    }
+}
+
 proc gdb_step_for_stub { } {
     global gdb_prompt;
 
@@ -3658,3 +3707,19 @@ proc core_find {binfile {deletefiles {}} {arg ""}} {
     }
     return $destcore
 }
+
+# gdb_target_symbol_prefix_flags returns a string that can be added
+# to gdb_compile options to define SYMBOL_PREFIX macro value
+# symbol_prefix_flags returns a string that can be added
+# for targets that use underscore as symbol prefix.
+# TODO: find out automatically if the target needs this.
+
+proc gdb_target_symbol_prefix_flags {} {
+    if { [istarget "*-*-cygwin*"] || [istarget "i?86-*-mingw*"]
+	 || [istarget "*-*-msdosdjgpp*"] || [istarget "*-*-go32*"] } {
+	return "additional_flags=-DSYMBOL_PREFIX=\"_\""
+    } else {
+	return ""
+    }
+}
+

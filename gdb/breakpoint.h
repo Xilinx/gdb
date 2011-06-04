@@ -29,6 +29,7 @@ struct value;
 struct block;
 struct breakpoint_object;
 struct get_number_or_range_state;
+struct thread_info;
 
 /* This is the maximum number of bytes a breakpoint instruction can
    take.  Feel free to increase it.  It's just used in a few places to
@@ -68,9 +69,12 @@ enum bptype
     bp_exception_resume,
 
     /* Used by wait_for_inferior for stepping over subroutine calls,
-       for stepping over signal handlers, and for skipping
-       prologues.  */
+       and for skipping prologues.  */
     bp_step_resume,
+
+    /* Used by wait_for_inferior for stepping over signal
+       handlers.  */
+    bp_hp_step_resume,
 
     /* Used to detect when a watchpoint expression has gone out of
        scope.  These breakpoints are usually not visible to the user.
@@ -721,6 +725,9 @@ enum bpstat_what_main_action
        BPSTAT_WHAT_KEEP_CHECKING.  */
     BPSTAT_WHAT_CLEAR_LONGJMP_RESUME,
 
+    /* Clear step resume breakpoint, and keep checking.  */
+    BPSTAT_WHAT_STEP_RESUME,
+
     /* Rather than distinguish between noisy and silent stops here, it
        might be cleaner to have bpstat_print make that decision (also
        taking into account stop_print_frame and source_only).  But the
@@ -733,8 +740,14 @@ enum bpstat_what_main_action
     /* Stop and print.  */
     BPSTAT_WHAT_STOP_NOISY,
 
-    /* Clear step resume breakpoint, and keep checking.  */
-    BPSTAT_WHAT_STEP_RESUME,
+    /* Clear step resume breakpoint, and keep checking.  High-priority
+       step-resume breakpoints are used when even if there's a user
+       breakpoint at the current PC when we set the step-resume
+       breakpoint, we don't want to re-handle any breakpoint other
+       than the step-resume when it's hit; instead we want to move
+       past the breakpoint.  This is used in the case of skipping
+       signal handlers.  */
+    BPSTAT_WHAT_HP_STEP_RESUME,
   };
 
 /* An enum indicating the kind of "stack dummy" stop.  This is a bit
@@ -1052,7 +1065,7 @@ extern void delete_std_terminate_breakpoint (void);
 
 /* These functions respectively disable or reenable all currently
    enabled watchpoints.  When disabled, the watchpoints are marked
-   call_disabled.  When reenabled, they are marked enabled.
+   call_disabled.  When re-enabled, they are marked enabled.
 
    The intended client of these functions is call_function_by_hand.
 
@@ -1066,7 +1079,7 @@ extern void delete_std_terminate_breakpoint (void);
    and that can cause execution control to become very confused.
 
    Note that if a user sets breakpoints in an interactively called
-   function, the call_disabled watchpoints will have been reenabled
+   function, the call_disabled watchpoints will have been re-enabled
    when the first such breakpoint is reached.  However, on targets
    that are unable to unwind through the call dummy frame, watches
    of stack-based storage may then be deleted, because gdb will
@@ -1150,10 +1163,6 @@ extern int ep_is_catchpoint (struct breakpoint *);
 /* Enable breakpoints and delete when hit.  Called with ARG == NULL
    deletes all breakpoints.  */
 extern void delete_command (char *arg, int from_tty);
-
-/* Pull all H/W watchpoints from the target.  Return non-zero if the
-   remove fails.  */
-extern int remove_hw_watchpoints (void);
 
 /* Manage a software single step breakpoint (or two).  Insert may be
    called twice before remove is called.  */

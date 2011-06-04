@@ -27,32 +27,7 @@
 #include "sim-hw.h"
 #include "devices.h"
 #include "dv-bfin_cec.h"
-#include "dv-bfin_ctimer.h"
-#include "dv-bfin_dma.h"
 #include "dv-bfin_dmac.h"
-#include "dv-bfin_ebiu_amc.h"
-#include "dv-bfin_ebiu_ddrc.h"
-#include "dv-bfin_ebiu_sdc.h"
-#include "dv-bfin_emac.h"
-#include "dv-bfin_eppi.h"
-#include "dv-bfin_evt.h"
-#include "dv-bfin_gpio.h"
-#include "dv-bfin_gptimer.h"
-#include "dv-bfin_jtag.h"
-#include "dv-bfin_mmu.h"
-#include "dv-bfin_nfc.h"
-#include "dv-bfin_otp.h"
-#include "dv-bfin_pll.h"
-#include "dv-bfin_ppi.h"
-#include "dv-bfin_rtc.h"
-#include "dv-bfin_sic.h"
-#include "dv-bfin_spi.h"
-#include "dv-bfin_trace.h"
-#include "dv-bfin_twi.h"
-#include "dv-bfin_uart.h"
-#include "dv-bfin_uart2.h"
-#include "dv-bfin_wdog.h"
-#include "dv-bfin_wp.h"
 
 static const MACH bfin_mach;
 
@@ -746,6 +721,7 @@ static const struct bfin_dev_layout bfin_core_dev[] =
   CORE_DEVICE (evt, EVT),
   CORE_DEVICE (jtag, JTAG),
   CORE_DEVICE (mmu, MMU),
+  CORE_DEVICE (pfmon, PFMON),
   CORE_DEVICE (trace, TRACE),
   CORE_DEVICE (wp, WP),
 };
@@ -902,6 +878,7 @@ static const struct bfrom bf51x_roms[] =
 };
 static const struct bfrom bf526_roms[] =
 {
+  BFROM (526, 2, 0x1000000),
   BFROM (526, 1, 0x1000000),
   BFROM (526, 0, 0x1000000),
   BFROM_STUB,
@@ -943,9 +920,11 @@ static const struct bfrom bf538_roms[] =
 };
 static const struct bfrom bf54x_roms[] =
 {
+  BFROM (54x, 4, 0),
   BFROM (54x, 2, 0),
   BFROM (54x, 1, 0),
   BFROM (54x, 0, 0),
+  BFROMA (0xffa14000, 54x_l1, 4, 0),
   BFROMA (0xffa14000, 54x_l1, 2, 0),
   BFROMA (0xffa14000, 54x_l1, 1, 0),
   BFROMA (0xffa14000, 54x_l1, 0, 0),

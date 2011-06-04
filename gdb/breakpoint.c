@@ -64,6 +64,7 @@
 #include "xml-syscall.h"
 #include "parser-defs.h"
 #include "cli/cli-utils.h"
+#include "continuations.h"
 
 /* readline include files */
 #include "readline/readline.h"
@@ -176,7 +177,7 @@ static void hbreak_command (char *, int);
 
 static void thbreak_command (char *, int);
 
-static void do_enable_breakpoint (struct breakpoint *, enum bpdisp);
+static void enable_breakpoint_disp (struct breakpoint *, enum bpdisp);
 
 static void stop_command (char *arg, int from_tty);
 
@@ -2016,20 +2017,6 @@ remove_breakpoints_pid (int pid)
 }
 
 int
-remove_hw_watchpoints (void)
-{
-  struct bp_location *bl, **blp_tmp;
-  int val = 0;
-
-  ALL_BP_LOCATIONS (bl, blp_tmp)
-  {
-    if (bl->inserted && bl->loc_type == bp_loc_hardware_watchpoint)
-      val |= remove_breakpoint (bl, mark_uninserted);
-  }
-  return val;
-}
-
-int
 reattach_breakpoints (int pid)
 {
   struct cleanup *old_chain;
@@ -2429,7 +2416,7 @@ update_breakpoints_after_exec (void)
       }
 
     /* Step-resume breakpoints are meaningless after an exec().  */
-    if (b->type == bp_step_resume)
+    if (b->type == bp_step_resume || b->type == bp_hp_step_resume)
       {
 	delete_breakpoint (b);
 	continue;
@@ -3517,6 +3504,7 @@ print_it_typical (bpstat bs)
     case bp_exception:
     case bp_exception_resume:
     case bp_step_resume:
+    case bp_hp_step_resume:
     case bp_watchpoint_scope:
     case bp_call_dummy:
     case bp_std_terminate:
@@ -3880,6 +3868,8 @@ watchpoint_check (void *p)
 		   " deleted because the program has left the block in\n\
 which its expression is valid.\n");     
 
+      /* Make sure the watchpoint's commands aren't executed.  */
+      decref_counted_command_line (&b->commands);
       watchpoint_del_at_next_stop (b);
 
       return WP_DELETED;
@@ -4501,6 +4491,15 @@ bpstat_what (bpstat bs_head)
 	      this_action = BPSTAT_WHAT_SINGLE;
 	    }
 	  break;
+	case bp_hp_step_resume:
+	  if (bs->stop)
+	    this_action = BPSTAT_WHAT_HP_STEP_RESUME;
+	  else
+	    {
+	      /* It is for the wrong frame.  */
+	      this_action = BPSTAT_WHAT_SINGLE;
+	    }
+	  break;
 	case bp_watchpoint_scope:
 	case bp_thread_event:
 	case bp_overlay_event:
@@ -4769,6 +4768,7 @@ bptype_string (enum bptype type)
     {bp_exception, "exception"},
     {bp_exception_resume, "exception resume"},
     {bp_step_resume, "step resume"},
+    {bp_hp_step_resume, "high-priority step resume"},
     {bp_watchpoint_scope, "watchpoint scope"},
     {bp_call_dummy, "call dummy"},
     {bp_std_terminate, "std::terminate"},
@@ -4904,6 +4904,7 @@ print_one_breakpoint_location (struct breakpoint *b,
       case bp_exception:
       case bp_exception_resume:
       case bp_step_resume:
+      case bp_hp_step_resume:
       case bp_watchpoint_scope:
       case bp_call_dummy:
       case bp_std_terminate:
@@ -5713,6 +5714,7 @@ allocate_bp_location (struct breakpoint *bpt)
     case bp_exception:
     case bp_exception_resume:
     case bp_step_resume:
+    case bp_hp_step_resume:
     case bp_watchpoint_scope:
     case bp_call_dummy:
     case bp_std_terminate:
@@ -7239,6 +7241,7 @@ mention (struct breakpoint *b)
       case bp_exception:
       case bp_exception_resume:
       case bp_step_resume:
+      case bp_hp_step_resume:
       case bp_call_dummy:
       case bp_std_terminate:
       case bp_watchpoint_scope:
@@ -9505,7 +9508,7 @@ struct until_break_command_continuation_args
    care of cleaning up the temporary breakpoints set up by the until
    command.  */
 static void
-until_break_command_continuation (void *arg)
+until_break_command_continuation (void *arg, int err)
 {
   struct until_break_command_continuation_args *a = arg;
 
@@ -10824,13 +10827,56 @@ make_cleanup_delete_breakpoint (struct breakpoint *b)
   return make_cleanup (do_delete_breakpoint_cleanup, b);
 }
 
-/* A callback for map_breakpoint_numbers that calls
-   delete_breakpoint.  */
+/* Iterator function to call a user-provided callback function once
+   for each of B and its related breakpoints.  */
+
+static void
+iterate_over_related_breakpoints (struct breakpoint *b,
+				  void (*function) (struct breakpoint *,
+						    void *),
+				  void *data)
+{
+  struct breakpoint *related;
+
+  related = b;
+  do
+    {
+      struct breakpoint *next;
+
+      /* FUNCTION may delete RELATED.  */
+      next = related->related_breakpoint;
+
+      if (next == related)
+	{
+	  /* RELATED is the last ring entry.  */
+	  function (related, data);
+
+	  /* FUNCTION may have deleted it, so we'd never reach back to
+	     B.  There's nothing left to do anyway, so just break
+	     out.  */
+	  break;
+	}
+      else
+	function (related, data);
+
+      related = next;
+    }
+  while (related != b);
+}
 
 static void
 do_delete_breakpoint (struct breakpoint *b, void *ignore)
 {
   delete_breakpoint (b);
+}
+
+/* A callback for map_breakpoint_numbers that calls
+   delete_breakpoint.  */
+
+static void
+do_map_delete_breakpoint (struct breakpoint *b, void *ignore)
+{
+  iterate_over_related_breakpoints (b, do_delete_breakpoint, NULL);
 }
 
 void
@@ -10864,7 +10910,7 @@ delete_command (char *arg, int from_tty)
 	}
     }
   else
-    map_breakpoint_numbers (arg, do_delete_breakpoint, NULL);
+    map_breakpoint_numbers (arg, do_map_delete_breakpoint, NULL);
 }
 
 static int
@@ -11428,6 +11474,7 @@ breakpoint_re_set_one (void *bint)
     case bp_call_dummy:
     case bp_std_terminate:
     case bp_step_resume:
+    case bp_hp_step_resume:
     case bp_longjmp:
     case bp_longjmp_resume:
     case bp_exception:
@@ -11599,25 +11646,8 @@ map_breakpoint_numbers (char *args, void (*function) (struct breakpoint *,
 	  ALL_BREAKPOINTS_SAFE (b, tmp)
 	    if (b->number == num)
 	      {
-		struct breakpoint *related_breakpoint;
-
 		match = 1;
-		related_breakpoint = b;
-		do
-		  {
-		    struct breakpoint *next_related_b;
-
-		    /* FUNCTION can be also delete_breakpoint.  */
-		    next_related_b = related_breakpoint->related_breakpoint;
-		    function (related_breakpoint, data);
-
-		    /* For delete_breakpoint of the last entry of the ring we
-		       were traversing we would never get back to B.  */
-		    if (next_related_b == related_breakpoint)
-		      break;
-		    related_breakpoint = next_related_b;
-		  }
-		while (related_breakpoint != b);
+		function (b, data);
 		break;
 	      }
 	  if (match == 0)
@@ -11701,13 +11731,21 @@ disable_breakpoint (struct breakpoint *bpt)
   observer_notify_breakpoint_modified (bpt);
 }
 
+/* A callback for iterate_over_related_breakpoints.  */
+
+static void
+do_disable_breakpoint (struct breakpoint *b, void *ignore)
+{
+  disable_breakpoint (b);
+}
+
 /* A callback for map_breakpoint_numbers that calls
    disable_breakpoint.  */
 
 static void
 do_map_disable_breakpoint (struct breakpoint *b, void *ignore)
 {
-  disable_breakpoint (b);
+  iterate_over_related_breakpoints (b, do_disable_breakpoint, NULL);
 }
 
 static void
@@ -11739,7 +11777,7 @@ disable_command (char *args, int from_tty)
 }
 
 static void
-do_enable_breakpoint (struct breakpoint *bpt, enum bpdisp disposition)
+enable_breakpoint_disp (struct breakpoint *bpt, enum bpdisp disposition)
 {
   int target_resources_ok;
 
@@ -11800,7 +11838,13 @@ do_enable_breakpoint (struct breakpoint *bpt, enum bpdisp disposition)
 void
 enable_breakpoint (struct breakpoint *bpt)
 {
-  do_enable_breakpoint (bpt, bpt->disposition);
+  enable_breakpoint_disp (bpt, bpt->disposition);
+}
+
+static void
+do_enable_breakpoint (struct breakpoint *bpt, void *arg)
+{
+  enable_breakpoint (bpt);
 }
 
 /* A callback for map_breakpoint_numbers that calls
@@ -11809,7 +11853,7 @@ enable_breakpoint (struct breakpoint *bpt)
 static void
 do_map_enable_breakpoint (struct breakpoint *b, void *ignore)
 {
-  enable_breakpoint (b);
+  iterate_over_related_breakpoints (b, do_enable_breakpoint, NULL);
 }
 
 /* The enable command enables the specified breakpoints (or all defined
@@ -11845,27 +11889,39 @@ enable_command (char *args, int from_tty)
 }
 
 static void
-enable_once_breakpoint (struct breakpoint *bpt, void *ignore)
+do_enable_breakpoint_disp (struct breakpoint *bpt, void *arg)
 {
-  do_enable_breakpoint (bpt, disp_disable);
+  enum bpdisp disp = *(enum bpdisp *) arg;
+
+  enable_breakpoint_disp (bpt, disp);
+}
+
+static void
+do_map_enable_once_breakpoint (struct breakpoint *bpt, void *ignore)
+{
+  enum bpdisp disp = disp_disable;
+
+  iterate_over_related_breakpoints (bpt, do_enable_breakpoint_disp, &disp);
 }
 
 static void
 enable_once_command (char *args, int from_tty)
 {
-  map_breakpoint_numbers (args, enable_once_breakpoint, NULL);
+  map_breakpoint_numbers (args, do_map_enable_once_breakpoint, NULL);
 }
 
 static void
-enable_delete_breakpoint (struct breakpoint *bpt, void *ignore)
+do_map_enable_delete_breakpoint (struct breakpoint *bpt, void *ignore)
 {
-  do_enable_breakpoint (bpt, disp_del);
+  enum bpdisp disp = disp_del;
+
+  iterate_over_related_breakpoints (bpt, do_enable_breakpoint_disp, &disp);
 }
 
 static void
 enable_delete_command (char *args, int from_tty)
 {
-  map_breakpoint_numbers (args, enable_delete_breakpoint, NULL);
+  map_breakpoint_numbers (args, do_map_enable_delete_breakpoint, NULL);
 }
 
 static void
@@ -12391,7 +12447,7 @@ delete_trace_command (char *arg, int from_tty)
 	}
     }
   else
-    map_breakpoint_numbers (arg, do_delete_breakpoint, NULL);
+    map_breakpoint_numbers (arg, do_map_delete_breakpoint, NULL);
 }
 
 /* Helper function for trace_pass_command.  */
@@ -12941,7 +12997,7 @@ If a breakpoint is hit while enabled in this fashion, it becomes disabled."),
 Disable some breakpoints.\n\
 Arguments are breakpoint numbers with spaces in between.\n\
 To disable all breakpoints, give no argument.\n\
-A disabled breakpoint is not forgotten, but has no effect until reenabled."),
+A disabled breakpoint is not forgotten, but has no effect until re-enabled."),
 		  &disablelist, "disable ", 1, &cmdlist);
   add_com_alias ("dis", "disable", class_breakpoint, 1);
   add_com_alias ("disa", "disable", class_breakpoint, 1);
@@ -12950,13 +13006,13 @@ A disabled breakpoint is not forgotten, but has no effect until reenabled."),
 Disable some breakpoints.\n\
 Arguments are breakpoint numbers with spaces in between.\n\
 To disable all breakpoints, give no argument.\n\
-A disabled breakpoint is not forgotten, but has no effect until reenabled."));
+A disabled breakpoint is not forgotten, but has no effect until re-enabled."));
 
   add_cmd ("breakpoints", class_alias, disable_command, _("\
 Disable some breakpoints.\n\
 Arguments are breakpoint numbers with spaces in between.\n\
 To disable all breakpoints, give no argument.\n\
-A disabled breakpoint is not forgotten, but has no effect until reenabled.\n\
+A disabled breakpoint is not forgotten, but has no effect until re-enabled.\n\
 This command may be abbreviated \"disable\"."),
 	   &disablelist);
 

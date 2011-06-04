@@ -3427,6 +3427,7 @@ arm_stub_is_thumb (enum elf32_arm_stub_type stub_type)
     case arm_stub_long_branch_v4t_thumb_arm:
     case arm_stub_short_branch_v4t_thumb_arm:
     case arm_stub_long_branch_v4t_thumb_arm_pic:
+    case arm_stub_long_branch_v4t_thumb_tls_pic:
     case arm_stub_long_branch_thumb_only_pic:
       return TRUE;
     case arm_stub_none:
@@ -8303,7 +8304,7 @@ elf32_arm_final_link_relocate (reloc_howto_type *           howto,
 		     case, mode switching is performed by the stub.  */
 		  if (branch_type == ST_BRANCH_TO_THUMB && !stub_entry)
 		    value |= (1 << 28);
-		  else
+		  else if (stub_entry || branch_type != ST_BRANCH_UNKNOWN)
 		    {
 		      value &= ~(bfd_vma)(1 << 28);
 		      value |= (1 << 24);
@@ -9304,6 +9305,9 @@ elf32_arm_final_link_relocate (reloc_howto_type *           howto,
 	    || ELF32_R_TYPE(rel->r_info) == R_ARM_THM_TLS_CALL)
 	  {
 	    bfd_signed_vma offset;
+	    /* TLS stubs are arm mode.  The original symbol is a
+	       data object, so branch_type is bogus.  */
+	    branch_type = ST_BRANCH_TO_ARM;
 	    enum elf32_arm_stub_type stub_type
 	      = arm_type_of_stub (info, input_section, rel,
 				  st_type, &branch_type,
@@ -9348,16 +9352,25 @@ elf32_arm_final_link_relocate (reloc_howto_type *           howto,
 			   input_section->output_offset
 			   + rel->r_offset + 4);
 	    
-		/* Round up the offset to a word boundary */
-		offset = (offset + 2) & ~2;
+		if (stub_type != arm_stub_none
+		    && arm_stub_is_thumb (stub_type))
+		  {
+		    lower_insn = 0xd000;
+		  }
+		else
+		  {
+		    lower_insn = 0xc000;
+		    /* Round up the offset to a word boundary */
+		    offset = (offset + 2) & ~2;
+		  }
+
 		neg = offset < 0;
 		upper_insn = (0xf000
 			      | ((offset >> 12) & 0x3ff)
 			      | (neg << 10));
-		lower_insn = (0xc000
-			      | (((!((offset >> 23) & 1)) ^ neg) << 13)
+		lower_insn |= (((!((offset >> 23) & 1)) ^ neg) << 13)
 			      | (((!((offset >> 22) & 1)) ^ neg) << 11)
-			      | ((offset >> 1) & 0x7ff));
+			      | ((offset >> 1) & 0x7ff);
 		bfd_put_16 (input_bfd, upper_insn, hit_data);
 		bfd_put_16 (input_bfd, lower_insn, hit_data + 2);
 		return bfd_reloc_ok;
@@ -10220,7 +10233,7 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
 		    - relocation;
 		  addend += msec->output_section->vma + msec->output_offset;
 
-		  /* Cases here must match those in the preceeding
+		  /* Cases here must match those in the preceding
 		     switch statement.  */
 		  switch (r_type)
 		    {
@@ -15118,12 +15131,16 @@ elf32_arm_swap_symbol_in (bfd * abfd,
 
   /* New EABI objects mark thumb function symbols by setting the low bit of
      the address.  */
-  if ((ELF_ST_TYPE (dst->st_info) == STT_FUNC
-       || ELF_ST_TYPE (dst->st_info) == STT_GNU_IFUNC)
-      && (dst->st_value & 1))
+  if (ELF_ST_TYPE (dst->st_info) == STT_FUNC
+      || ELF_ST_TYPE (dst->st_info) == STT_GNU_IFUNC)
     {
-      dst->st_value &= ~(bfd_vma) 1;
-      dst->st_target_internal = ST_BRANCH_TO_THUMB;
+      if (dst->st_value & 1)
+	{
+	  dst->st_value &= ~(bfd_vma) 1;
+	  dst->st_target_internal = ST_BRANCH_TO_THUMB;
+	}
+      else
+	dst->st_target_internal = ST_BRANCH_TO_ARM;
     }
   else if (ELF_ST_TYPE (dst->st_info) == STT_ARM_TFUNC)
     {
@@ -15133,7 +15150,7 @@ elf32_arm_swap_symbol_in (bfd * abfd,
   else if (ELF_ST_TYPE (dst->st_info) == STT_SECTION)
     dst->st_target_internal = ST_BRANCH_LONG;
   else
-    dst->st_target_internal = ST_BRANCH_TO_ARM;
+    dst->st_target_internal = ST_BRANCH_UNKNOWN;
 
   return TRUE;
 }
@@ -15431,7 +15448,7 @@ elf32_arm_merge_private_bfd_data (bfd * ibfd, bfd * obfd)
   bfd_boolean flags_compatible = TRUE;
   asection *sec;
 
-  /* Check if we have the same endianess.  */
+  /* Check if we have the same endianness.  */
   if (! _bfd_generic_verify_endian_match (ibfd, obfd))
     return FALSE;
 

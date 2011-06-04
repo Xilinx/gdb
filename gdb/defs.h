@@ -730,44 +730,6 @@ extern struct command_line *read_command_lines_1 (char * (*) (void), int,
 
 extern void free_command_lines (struct command_line **);
 
-/* To continue the execution commands when running gdb asynchronously.
-   A continuation structure contains a pointer to a function to be called 
-   to finish the command, once the target has stopped.  Such mechanism is
-   used by the finish and until commands, and in the remote protocol
-   when opening an extended-remote connection.  */
-
-struct continuation;
-struct thread_info;
-struct inferior;
-
-/* From utils.c */
-
-/* Thread specific continuations.  */
-
-extern void add_continuation (struct thread_info *,
-			      void (*)(void *), void *,
-			      void (*)(void *));
-extern void do_all_continuations (void);
-extern void do_all_continuations_thread (struct thread_info *);
-extern void discard_all_continuations (void);
-extern void discard_all_continuations_thread (struct thread_info *);
-
-extern void add_intermediate_continuation (struct thread_info *,
-					   void (*)(void *), void *,
-					   void (*)(void *));
-extern void do_all_intermediate_continuations (void);
-extern void do_all_intermediate_continuations_thread (struct thread_info *);
-extern void discard_all_intermediate_continuations (void);
-extern void discard_all_intermediate_continuations_thread (struct thread_info *);
-
-/* Inferior specific (any thread) continuations.  */
-
-extern void add_inferior_continuation (void (*) (void *),
-				       void *,
-				       void (*) (void *));
-extern void do_all_inferior_continuations (void);
-extern void discard_all_inferior_continuations (struct inferior *inf);
-
 /* String containing the current directory (what getwd would return).  */
 
 extern char *current_directory;

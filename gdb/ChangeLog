@@ -1,3 +1,526 @@
+2011-06-03  Joel Brobecker  <brobecker@adacore.com>  (obvious fix)
+
+	From Stephen Kitt  <steve@sk2.org>
+	* breakpoint.c, breakpoint.h, cli/cli-dump.c, dwarf2expr.c,
+	gdbarch.c, gdbarch.sh, remote.c: Various spelling fixes.
+
+2011-06-03  Joel Brobecker  <brobecker@adacore.com>
+
+	* dwarf2expr.c (execute_stack_op) [DW_OP_deref]: Handle
+	the case where ADDR_SIZE is different from TYPE_LENGTH (type).
+
+2011-06-03  Tom Tromey  <tromey@redhat.com>
+
+	* python/py-inferior.c (python_inferior_exit): Use inferior's exit
+	code fields.
+	* python/py-exitedevent.c (create_exited_event_object): Change
+	type of 'exit_code'.  Optionally add exit_code attribute.
+	(emit_exited_event): Change type of 'exit_code'.
+	* python/py-event.h (emit_exited_event): Update.
+	* mi/mi-interp.c (mi_inferior_exit): Print exit code.
+	* infrun.c (handle_inferior_event): Set exit code fields on
+	inferior.
+	* inferior.h (struct inferior) <has_exit_code, exit_code>: New
+	fields.
+	* inferior.c (exit_inferior_1): Initialize new fields.
+
+2011-06-03  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2expr.c (get_signed_type): New function.
+	(execute_stack_op) <DW_OP_shra>: Always perform a signed shift.
+
+2011-06-02  Keith Seitz  <keiths@redhat.com>
+
+	* objc-lang.c (find_methods): Increment objfile_csym earlier.
+
+2011-06-02  Pedro Alves  <pedro@codesourcery.com>
+
+	* top.h (simplified_command_loop): Delete declaration.
+
+2011-06-01  Mike Frysinger  <vapier@gentoo.org>
+
+	* remote-sim.c (gdbsim_open): Add the strlen of " --sysroot=" and
+	gdb_sysroot to the "len" variable.  Append both to "arg_buf".
+
+2011-06-01  Yao Qi  <yao@codesourcery.com>
+
+	* objfiles.h (obj_section_addr): Update reference to objfile from
+	`abfd' to `obfd'.
+	(obj_section_endaddr): Likewise.
+
+2011-06-01  Daniel Jacobowitz  <drow@false.org>
+
+	* MAINTAINERS: Update my email address and affiliation.  Also
+	update Ian Lance Taylor's affiliation.  Use UTF-8 for ludo@gnu.org.
+
+2010-05-31  Keith Seitz  <keiths@redhat.com>
+
+	PR c++/12750
+	* linespec.c (get_search_block): New function.
+	(find_methods): Add FILE_SYMTATB parameter and use it and
+	get_search_block to pass an appropriate block to
+	lookup_symbol_in_namespace.
+	(decode_line_1): Record if *ARGPTR is single-quote enclosed.
+	Check if *ARGPTR starts with a filename first.
+	If it does, call locate_first_half again to locate the next
+	"first half" of the linespec.
+	Pass FILE_SYMTATB to decode_objc and decode_compound.
+	Swallow the trailing single-quote if IS_SQUOTE_ENCLOSED.
+	(locate_first_half): Stop on the first colon seen.
+	(decode_compound): Add FILE_SYMTAB parameter.
+	Pass FILE_SYMTAB to lookup_prefix_sym and find_method.
+	(lookup_prefix_sym): Add FILE_SYMTAB parameter and use
+	get_search_block with lookup_symbol.
+	(find_method): Add FILE_SYMTAB parameter and pass it to
+	find_methods.
+	(decode_objc): Use get_search_block.
+
+2010-05-31  Keith Seitz  <keiths@redhat.com>
+
+	PR symtab/12704
+	* cp-namespace.c (ANONYMOUS_NAMESPACE_LEN): Remove.
+	(cp_scan_for_anonymous_namespaces): Use CP_ANONYMOUS_NAMESPACE_STR
+	and CP_ANONYMOUS_NAMESPACE_LEN.
+	(cp_is_anonymous): Likewise.
+	* cp-support.h (CP_ANONYMOUS_NAMESPACE_STR): Define.
+	(CP_ANONYMOUS_NAMESPACE_LEN): Define.
+	* dwarf2read.c (namespace_name): Likewise.
+	(fixup_partial_die): Likewise.
+	* linespec.c (decode_compound): If CP_ANONYMOUS_NAMESPACE_STR is
+	seen in the input, keep it.
+
+2011-05-30  Pedro Alves  <pedro@codesourcery.com>
+
+	* target.h (enum inferior_event_type): Delete INF_QUIT_REQ.
+	* inf-loop.h (inferior_event_handler_wrapper): Delete.
+	* inf-loop.c (inferior_event_handler_wrapper): Delete.
+	(inferior_event_handler): Don't handle INF_QUIT_REQ.
+	* remote.c (_initialize_remote): Register
+	async_remote_interrupt_twice directly as
+	sigint_remote_twice_token event.
+
+2011-05-30  Pedro Alves  <pedro@codesourcery.com>
+
+	* target.h (enum inferior_event_type): Delete INF_ERROR.
+	* inf-loop.c (inferior_event_handler): Don't handle INF_ERROR.
+
+2011-05-30  Pedro Alves  <pedro@codesourcery.com>
+
+	* interps.c (interp_set): Don't cancel continuations.
+
+2011-05-30  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* linux-nat.c (linux_lwp_is_zombie): Use xsnprintf.
+
+2011-05-30  Pedro Alves  <pedro@codesourcery.com>
+
+	* continuations.h (continuation_ftype): Add `err' parameter.
+	Document parameters.
+	(do_all_continuations, do_all_continuations_thread)
+	(do_all_intermediate_continuations)
+	(do_all_intermediate_continuations_thread)
+	(do_all_inferior_continuations): Add `err' parameter.
+	* continuations.c (do_my_continuations_1, do_my_continuations)
+	(do_all_inferior_continuations, do_all_continuations_ptid)
+	(do_all_continuations_thread_callback)
+	(do_all_continuations_thread, do_all_continuations)
+	(do_all_intermediate_continuations_thread_callback)
+	(do_all_intermediate_continuations_thread)
+	(do_all_intermediate_continuations): Add `err' parameter, and pass
+	it down all the way to the continuations proper.
+	* inf-loop.c (inferior_event_handler): If fetching an inferior
+	event throws an error, don't pop the target, and still call the
+	continuations, but with `err' set.  Adjust all other continuation
+	calls.
+	* breakpoint.c (until_break_command_continuation): Add `err'
+	parameter.
+	* infcmd.c (step_1_continuation): Add `err' parameter.  Don't
+	issue another step if `err' is set.
+	(struct until_next_continuation_args): New.
+	(until_next_continuation): Add `err' parameter.  Adjust.
+	(until_next_command): Adjust.
+	(struct finish_command_continuation_args): Add `thread' field.
+	(finish_command_continuation): Add `err' parameter.  Handle it.
+	(finish_forward): Adjust.
+	(attach_command_continuation): Add `err' parameter.  Handle it.
+	* infrun.c (infrun_thread_stop_requested_callback): Adjust to
+	cancel the continuations.
+	* interps.c (interp_set): Adjust to cancel the continuations.
+	* thread.c (clear_thread_inferior_resources): Adjust to cancel the
+	continuations rather than discarding.
+	(free_thread): Don't clear thread inferior resources here.
+	(delete_thread_1): Do it here instead.  And do it before removing
+	the thread from the threads list.  Tag the thread as exited before
+	clearing thread inferior resources.
+
+2011-05-30  Joel Brobecker  <brobecker@adacore.com>
+
+	* infcall.c (call_function_by_hand): Rephrase error message.
+
+2011-05-27  Pedro Alves  <pedro@codesourcery.com>
+
+	* defs.h (struct thread_info, struct inferior): Delete forward
+	declarations.
+	* breakpoint.h (struct thread_info): New forward declaration.
+	* observer.sh (struct inferior): New forward declaration.
+	* python/python-internal.h (struct inferior): New forward
+	declaration.
+
+2011-05-27  Pedro Alves  <pedro@codesourcery.com>
+
+	* defs.h (struct continuation, continuation_ftype)
+	(continuation_free_arg_ftype, add_continuation)
+	(do_all_continuations, do_all_continuations_thread)
+	(discard_all_continuations, discard_all_continuations_thread)
+	(add_intermediate_continuation, do_all_intermediate_continuations)
+	(do_all_intermediate_continuations_thread)
+	(discard_all_intermediate_continuations)
+	(discard_all_intermediate_continuations_thread)
+	(add_inferior_continuation, do_all_inferior_continuations)
+	(discard_all_inferior_continuations): Move to ...
+	* continuations.h: ... this new file.
+	* breakpoint.c, continuations.c, event-top.c, inf-loop.c,
+	infcmd.c, inferior.c, infrun.c, interps.c: Include
+	continuations.h.
+
+2011-05-27  Jan Kratochvil  <jan.kratochvil@redhat.com>
+	    Doug Evans  <dje@google.com>
+
+	Fix PR 10970, PR 12702.
+	* linux-nat.c (linux_lwp_is_zombie): New function.
+	(wait_lwp): Initialize status.  New variable prev_mask.  Block signals.
+	Check for linux_lwp_is_zombie.  Use WNOHANG and sigsuspend.
+
+2011-05-27  Pedro Alves  <pedro@codesourcery.com>
+
+	* defs.h (continuation_ftype, continuation_free_arg_ftype): New
+	typedefs.
+	(add_continuation, add_intermediate_continuation)
+	(add_inferior_continuation): Use them.
+	* continuations.c (struct continuation): Use them.
+	(make_continuation_ftype): Delete.
+	(make_continuation, add_inferior_continuation, add_continuation)
+	(add_intermediate_continuation): Use continuation_ftype and
+	continuation_free_arg_ftype.  Rename parameters to shorter names.
+
+2011-05-27  Pedro Alves  <pedro@codesourcery.com>
+
+	* continuations.c (make_continuation): Make it return void.
+	(do_my_continuations): Rename to ...
+	(do_my_continuations_1): ... this.  Remove old_chain parameter and
+	adjust.
+	(do_my_continuations): New.
+	(discard_my_continuations): Rename to ...
+	(discard_my_continuations_1): ... this.  Remove old_chain
+	parameter and adjust.
+	(discard_my_continuations): New.
+	(add_inferior_continuation): Simplify.
+	(do_all_inferior_continuations): Reimplement on top
+	do_my_continuations.
+	(discard_all_inferior_continuations): Simplify.
+	(add_continuation): Simplify.
+	(do_all_continuations_ptid): Simplify.
+	(discard_all_continuations_thread_callback): Simplify.
+	(add_intermediate_continuation): Simplify.
+	(discard_all_intermediate_continuations_thread_callback):
+	Simplify.
+
+2011-05-27  Pedro Alves  <pedro@codesourcery.com>
+
+	* utils.c (struct continuation, add_continuation)
+	(add_inferior_continuation)
+	(do_all_inferior_continuations, discard_all_inferior_continuations)
+	(restore_thread_cleanup, do_all_continuations_ptid)
+	(do_all_continuations_thread_callback)
+	(do_all_continuations_thread, do_all_continuations)
+	(discard_all_continuations_thread_callback)
+	(discard_all_continuations_thread, discard_all_continuations)
+	(add_intermediate_continuation)
+	(do_all_intermediate_continuations_thread_callback)
+	(do_all_intermediate_continuations_thread)
+	(do_all_intermediate_continuations)
+	(discard_all_intermediate_continuations_thread_callback)
+	(discard_all_intermediate_continuations_thread)
+	(discard_all_intermediate_continuations): Move to ...
+	* continuations.c: ... this new file, and adjust to no longer
+	implement continuations on top of cleanups.
+	* Makefile.in (SFILES): Add continuations.c.
+	(COMMON_OBS): Add continuations.o.
+
+2011-05-26  Pedro Alves  <pedro@codesourcery.com>
+
+	* inferior.h (enum exec_direction_kind): Delete EXEC_ERROR.
+	* infrun.c (show_exec_direction_func): Don't handle EXEC_ERROR.
+	Internal error on invalid values.
+	* reverse.c: Don't handle EXEC_ERROR.
+	* mi/mi-main.c: Don't handle EXEC_ERROR.
+
+2011-05-26  Pedro Alves  <pedro@codesourcery.com>
+
+	* record.c: Include event-loop.h, inf-loop.h.
+	(record_beneath_to_async): New global.
+	(tmp_to_async): New global.
+	(record_async_inferior_event_token): New global.
+	(record_open_1): Don't error out if async is enabled.
+	(record_open): Handle to_async.  Create an async event source in
+	the event loop.
+	(record_close): Delete the async event source.
+	(record_resumed): New global.
+	(record_execution_dir): New global.
+	(record_resume, record_core_resume): Set them.  Register the
+	target on the event loop.
+	(record_wait): Rename to ...
+	(record_wait_1): ... this.  Add more debug output.  Handle
+	TARGET_WNOHANG, and the target beneath returning
+	TARGET_WAITKIND_IGNORE.
+	(record_wait): Reimplement on top of record_wait_1.
+	(record_async_mask_value): New global.
+	(record_async, record_async_mask, record_can_async_p)
+	(record_is_async_p, record_execution_direction): New functions.
+	(init_record_ops, init_record_core_ops): Install new methods.
+	* infrun.c (fetch_inferior_event): Temporarily switch the global
+	execution direction to the direction the target was going.
+	(execution_direction): Change type to int.
+	* target.c (default_execution_direction): New function.
+	(update_current_target): Inherit and de_fault
+	to_execution_direction.
+	* target.h (struct target_ops) <to_execution_direction>: New
+	field.
+	(target_execution_direction): New macro.
+	* inferior.h (execution_direction): Change type to int.
+
+2011-05-26  Pedro Alves  <pedro@codesourcery.com>
+
+	* infcall.c (call_function_by_hand): Don't allow calling functions
+	in reverse execution mode.
+
+2011-05-26  Pedro Alves  <pedro@codesourcery.com>
+
+	* infcmd.c (finish_command): Allow async finish in reverse.
+
+2011-05-26  Yao Qi  <yao@codesourcery.com>
+
+	* gdb_thread_db.h: Delete.  Move to ...
+	* common/gdb_thread_db.h: ... here.
+
+2011-05-26  Pedro Alves  <pedro@codesourcery.com>
+
+	* infcmd.c (finish_backward): Set a step-resume breakpoint at the
+	function's entry point instead of a manually managed momentary
+	breakpoint, and only ever issue one proceed call.
+	* infrun.c (handle_inferior_event) <BPSTAT_WHAT_STEP_RESUME>: If
+	doing a reverse-finish, switch to stepi mode, to do another step.
+	(insert_step_resume_breakpoint_at_sal): Make public.
+	(normal_stop): No need to save function value return registers if
+	going reverse.
+	* inferior.h (insert_step_resume_breakpoint_at_sal): Declare.
+
+2011-05-26  Pedro Alves  <pedro@codesourcery.com>
+
+	* breakpoint.h (enum bptype) <bp_hp_step_resume>: New.
+	(enum bpstat_what_main_action): Move BPSTAT_WHAT_STEP_RESUME
+	before BPSTAT_WHAT_STOP_SILENT.  Add BPSTAT_WHAT_HP_STEP_RESUME
+	at the end.
+	* breakpoint.c (update_breakpoints_after_exec): Also delete hp
+	step-resume breakpoints.
+	(print_it_typical): Handle bp_hp_step_resume.
+	(bpstat_what): Ditto.
+	(bptype_string): Ditto.
+	(print_one_breakpoint_location): Ditto.
+	(allocate_bp_location): Ditto.
+	(mention): Ditto.
+	(breakpoint_re_set_one): Ditto.
+	* infrun.c (handle_inferior_event): Adjust.  Split
+	BPSTAT_WHAT_STEP_RESUME handling in BPSTAT_WHAT_STEP_RESUME and
+	BPSTAT_WHAT_HP_STEP_RESUME.
+	(insert_step_resume_breakpoint_at_sal): Rename to ...
+	(insert_step_resume_breakpoint_at_sal_1): ... this.  Add bptype
+	parameter.  Handle it.
+	(insert_step_resume_breakpoint_at_sal): Reimplement on top of
+	insert_step_resume_breakpoint_at_sal_1.
+	(insert_step_resume_breakpoint_at_frame): Rename to ...
+	(insert_hp_step_resume_breakpoint_at_frame): ... this.  Adjust to
+	set a high-priority step-resume breakpoint.
+	(insert_step_resume_breakpoint_at_frame): Adjust comment.
+	(insert_step_resume_breakpoint_at_caller): Ditto.
+
+2011-05-26  Pedro Alves  <pedro@codesourcery.com>
+
+	* breakpoint.c (iterate_over_related_breakpoints): New.
+	(do_map_delete_breakpoint): New.
+	(delete_command): Pass do_map_delete_breakpoint to
+	map_breakpoint_numbers.
+	(do_disable_breakpoint): New.
+	(do_map_disable_breakpoint): Iterate over the breakpoint's related
+	breakpoints.
+	(do_enable_breakpoint): Rename to ...
+	(enable_breakpoint_disp): ... this.
+	(enable_breakpoint): Adjust.
+	(do_enable_breakpoint): New.
+	(enable_once_breakpoint): Delete.
+	(do_map_enable_breakpoint): New.
+	(do_map_enable_once_breakpoint): New.
+	(enable_once_command, enable_delete_command)
+	(delete_trace_command): Iterate over the breakpoint's related
+	breakpoints.
+
+2011-05-26  Pedro Alves  <pedro@codesourcery.com>
+
+	* alpha-tdep.c (alpha_cannot_fetch_register): Don't return true
+	for ALPHA_ZERO_REGNUM.
+	(alpha_supply_int_regs): Explicitly supply zero as the value for
+	ALPHA_ZERO_REGNUM in the register cache.
+	* alpha-nat.c (fetch_osf_core_registers): Ditto.
+
+2011-05-26  Yao Qi  <yao@codesourcery.com>
+
+	* gdb/gdb_thread_db.h: Remove HAVE_UINTPTR_T.
+
+2011-05-26  Tristan Gingold  <gingold@adacore.com>
+
+	* symfile.h (struct dwarf2_section_names): New type.
+	(struct dwarf2_debug_sections): New type.
+	(dwarf2_has_info): Add parameter.
+	* dwarf2read.c (dwarf2_elf_names): New variable.
+	(INFO_SECTION, ABBREV_SECTION, LINE_SECTION, LOC_SECTION)
+	(MACINFO_SECTION, STR_SECTION, RANGES_SECTION, TYPES_SECTION)
+	(FRAME_SECTION, EH_FRAME_SECTION, GDB_INDEX_SECTION): Remove.
+	(dwarf2_has_info): Add names parameter.  Pass names
+	to dwarf2_locate_sections.
+	(section_is_p): Rewrite using the names parameter.
+	(dwarf2_locate_sections): Use section names from the names parameter.
+	* coffread.c (coff_symfile_read): Adjust call to dwarf2_has_info.
+	* elfread.c (read_psyms): Ditto.
+	* machoread.c (macho_symfile_read): Ditto.
+
+2011-05-25  Andreas Schwab  <schwab@redhat.com>
+
+	PR gdb/8677
+	* event-loop.c (handle_file_event): Don't handle POLLHUP as error.
+
+2011-05-24  Keith Seitz  <keiths@redhat.com>
+
+	PR breakpoint/12803
+	* linespec.c (keep_name_info): Add handling for "volatile" keyword.
+	(decode_compound): Unconditionally call	keep_name_info.
+
+2011-05-24  Pedro Alves  <pedro@codesourcery.com>
+
+	* breakpoint.c (watchpoint_check): If the watchpoint went out of
+	scope, clear its command list.
+	(map_breakpoint_numbers): Don't walk the related breakpoints list
+	of each breakpoint.
+
+2011-05-24  Tom Tromey  <tromey@redhat.com>
+
+	* MAINTAINERS: Move Jim Blandy to past maintainers.
+
+2011-05-24  Tristan Gingold  <gingold@adacore.com>
+
+	* symfile.h (enum dwarf2_section_enum): New type.
+	(dwarf2_get_section_info): New prototype.
+	* dwarf2read.c (dwarf2_get_section_info): Replace parameter
+	section_name by sect.  Use a switch to select the info.
+	* dwarf2-frame.c (warf2_get_section_info): Remove prototype.
+	(dwarf2_build_frame_info): Adjust calls to dwarf2_get_section_info.
+
+2011-05-24  Pedro Alves  <pedro@codesourcery.com>
+
+	* solib-svr4.c (svr4_solib_create_inferior_hook): Skip setting
+	shared library event breakpoint if there's no execution.
+
+2011-05-24  Thiago Jung Bauermann  <bauerman@br.ibm.com>
+
+	* breakpont.c (remove_hw_watchpoints): Remove unused function.
+	* breakpoint.h remove_hw_watchpoints(): Remove prototype.
+
+2011-05-23  Tom Tromey  <tromey@redhat.com>
+
+	* c-lang.c (evaluate_subexp_c): Use expect_type if it is not
+	NULL.
+
+2011-05-23  Doug Evans  <dje@google.com>
+
+	* python/lib/gdb/printing.py (register_pretty_printer): Add missing
+	entry for RuntimeError to doc string.
+
+2011-05-23  Jerome Guitton  <guitton@adacore.com>
+
+	* sparc-tdep.c (sparc_skip_stack_check): Recognize a new instruction
+	sequence for probing loops.
+
+2011-05-23  Pedro Alves  <pedro@codesourcery.com>
+
+	* infrun.c (user_visible_resume_ptid): Fix typos in describing
+	comment.
+
+2011-05-21  Mark Kettenis  <kettenis@gnu.org>
+
+	* sparc-nat.c (sparc_fetch_inferior_registers): Explicitly supply
+	zero as the value for %g0 in the register cache.
+	* sparc-tdep.c (sparc32_supply_gregset): Likewise.
+	* sparc64-tdep.c (sparc64_supply_gregset): Likewise.
+
+2011-05-20  Pedro Alves  <pedro@codesourcery.com>
+
+	* infrun.c (proceed): Set previous_inferior_ptid here.
+	(init_wait_for_inferior): Initialize previous_inferior_ptid from
+	inferior_ptid, not null_ptid.
+	(wait_for_inferior): Don't initialize previous_inferior_ptid here.
+	(fetch_inferior_event): Nor here.
+
+2011-05-20  Pedro Alves  <pedro@codesourcery.com>
+
+	* inf-loop.c (inferior_event_handler): Only output a message if
+	verbose.
+
+2011-05-20  Luis Machado  <lgustavo@codesourcery.com>
+
+	* MAINTAINERS: Update my e-mail address.
+
+2011-05-20  Pedro Alves  <pedro@codesourcery.com>
+
+	* infrun.c (proceed): Switch the inferior event loop to
+	INF_EXEC_COMPLETE if the target refused to resume from a
+	vfork/fork.
+
+2011-05-20  Pedro Alves  <pedro@codesourcery.com>
+
+	* infcmd.c: Include "inf-loop.h".
+	(step_once): When stepping into an inline subroutine, pretend the
+	target has run.  If the target can async, switch the inferior
+	event loop to INF_EXEC_COMPLETE.
+	* inferior.h (user_visible_resume_ptid): Declare.
+	* infrun.c (user_visible_resume_ptid): New function, factored out
+	from `resume'.
+	(resume): Use it.
+	* mi/mi-main.c (mi_execute_async_cli_command): Remove assertion
+	that the current thread is running.  Merge async and sync
+	branches.
+
+2011-05-20  Pedro Alves  <pedro@codesourcery.com>
+
+	* infcmd.c (step_1): Simplify synchronous case.
+
+2011-05-20  Pedro Alves  <pedro@codesourcery.com>
+
+	* tracepoint.c: Include exceptions.h.
+	(TFILE_PID): Move higher in file.
+	(tfile_open): Delay pushing the tfile target until we're assured
+	the tfile header is present in the file.  Wrap reading the initial
+	newline-terminated lines in TRY_CATCH.  Pop the target if the
+	initial setup failed.  Add the tfile's thread immediately
+	aftwards, before any non-essential setup.  Don't skip
+	post_create_inferior if there are no traceframes present in the
+	file.
+	(tfile_close): Remove redundant check for null before xfree call.
+	(tfile_thread_alive): New function.
+	(init_tfile_ops): Register it as to_thread_alive callback.
+
+2011-05-20  Pedro Alves  <pedro@codesourcery.com>
+
+	* tracepoint.c (tfile_open): Delete #if 0'd code.
+
 2011-05-20  Jan Kratochvil  <jan.kratochvil@redhat.com>
 
 	Fix -readnow for -gdwarf-4 unused type units.

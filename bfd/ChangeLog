@@ -1,3 +1,174 @@
+2011-06-04  Alan Modra  <amodra@gmail.com>
+
+	* archures.c (bfd_arch_get_compatible): If one arch is unknown,
+	return the other arch.
+	* elfcode.h (elf_object_p): Allow explicit match to generic ELF
+	target.
+
+2011-06-03  Bertram Felgenhauer  <bertram.felgenhauer@gmail.com>
+
+	PR ld/12682
+	* hash.c (higher_primer_number): Add more, small, prime numbers.
+	(bfd_hash_set_default_size): Likewise.
+
+2011-06-02  Nick Clifton  <nickc@redhat.com>
+
+	* coff-mcore.c: Fix spelling typo.
+	* coff-stgo32.c: Likewise.
+	* elf32-arm.c: Likewise.
+	* elf32-avr.c: Likewise.
+	* elf-m68hc1x.c: Likewise.
+	* elf32-mcore.c: Likewise.
+	* elf32-mep.c: Likewise.
+	* elf32-mt.c: Likewise.
+	* elf32-ppc.c: Likewise.
+	* elf32-xtensa.c: Likewise.
+	* elf64-ppc.c: Likewise.
+	* elfxx-mips.c: Likewise.
+	* netbsd.h: Likewise.
+	* nlmcode.h: Likewise.
+	* vms-alpha.c: Likewise.
+	* po/bfd.pot: Regenerate.
+	* po/SRC-POTFILES.in: Regenerate.
+
+2011-06-01  DJ Delorie  <dj@redhat.com>
+
+	* config.bfd: Add bfd_elf32_rx_be_ns_vec.
+	* target.c: Likewise.
+	* configure.in: Likewise.
+	* configure.in: Regenerate.
+	* elf32-rx.c: Add elf32-rx-be-ns target.
+	(rx_elf_object_p): Never allow the be-ns target by default,
+	only allow it if the user requests it.
+
+2011-06-01  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf32-i386.c (elf_i386_size_dynamic_sections): Properly warn
+	relocation in readonly section in a shared object.
+	* elf64-x86-64.c (elf_x86_64_size_dynamic_sections): Likewise.
+
+2011-05-31  Nick Clifton  <nickc@redhat.com>
+
+	* archive.c (adjust_relative_path): Fix comment to prevent it
+	corrupting the auto-generated bfd.h.
+
+2011-05-31  Paul Brook  <paul@codesourcery.com>
+
+	* elf32-arm.c (elf32_arm_final_link_relocate): Only do bl conversion
+	for known functions.
+	(elf32_arm_swap_symbol_in): Only set ST_BRANCH_TO_ARM for function
+	symbols.
+
+2011-05-31  Paul Brook  <paul@codesourcery.com>
+
+	* elf32-arm.c (arm_stub_is_thumb): Add
+	arm_stub_long_branch_v4t_thumb_tls_pic.
+	(elf32_arm_final_link_relocate): TLS stubs are always ARM.
+	Handle Thumb stubs.
+
+2011-05-27  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/12710
+	* archive.c (_bfd_get_elt_at_filepos): Set correct error value if
+	unable to read a file pointed to by an entry in a thin archive.
+	(adjust_relative_path): Use lrealpath to canonicalize paths.
+	Handle the case where the reference path is above the current
+	path in the directory tree.
+
+2011-05-26  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/12809
+	* elf64-x86-64.c (elf_x86_64_relocate_section): Handle
+	R_X86_64_TPOFF64 in executable.
+
+2011-05-26  Alan Modra  <amodra@gmail.com>
+
+	* elf-bfd.h (SYMBOL_REFERENCES_LOCAL): Remove most of comment.
+	* elflink.c (_bfd_elf_symbol_refs_local_p): Expand
+	local_protected comment.
+
+2011-05-25  Tristan Gingold  <gingold@adacore.com>
+
+	* configure.in (bfd_elf32_ia64_big_vec, bfd_elf32_ia64_hpux_big_vec)
+	(bfd_elf64_ia64_big_vec, bfd_elf64_ia64_hpux_big_vec)
+	(bfd_elf64_ia64_little_vec, bfd_elf64_ia64_vms_vec): Add elfxx-ia64.lo
+	* Makefile.am (BFD64_BACKENDS): Add elfxx-ia64.lo
+	(BFD64_BACKENDS_CFILES): Add elfxx-ia64.c
+	(elf32-ia64.c): Created from elfnn-ia64.c
+	(elf64-ia64.c): Likewise.
+	* elfxx-ia64.h: New file.
+	* elfxx-ia64.c: Split with elfnn-ia64.c.  Keep only the following
+	functions.Includes elfxx-ia64.h.
+	(elfNN_ia64_reloc): Renames to ia64_elf_reloc.  Adjust error message.
+	(IA64_HOWTO): Adjust.
+	(lookup_howto): Renames to ia64_elf_lookup_howto.  Make it public.
+	(elfNN_ia64_reloc_type_lookup): Renames to
+	ia64_elf_reloc_type_lookup. Make it public. Adjust calls.
+	(elfNN_ia64_reloc_name_lookup): Renames to
+	ia64_elf_reloc_name_lookup. Make it public.
+	(elfNN_ia64_relax_br): Renames to ia64_elf_relax_br.  Make it public.
+	(elfNN_ia64_relax_brl): Renames to ia64_elf_relax_brl. Make it
+	public.
+	(elfNN_ia64_relax_ldxmov): Renames to ia64_elf_relax_ldxmov.
+	Move it and make it public.  Move prototype to elfxx-ia64.h
+	(elfNN_ia64_install_value): Renames to ia64_elf_install_value.
+	Move prototype to elfxx-ia64.h
+	* elfnn-ia64.c: New file, split from elfxx-ia64.c.
+	(elfNN_ia64_info_to_howto): Adjust calls.
+	(elfNN_ia64_relax_section): Adjust calls.
+	(count_dyn_reloc): Fix typo.
+	(elfNN_ia64_relocate_section): Adjust calls.
+	(elfNN_ia64_finish_dynamic_symbol): Likewise.
+	(bfd_elfNN_bfd_reloc_type_lookup)
+	(bfd_elfNN_bfd_reloc_name_lookup): Adjust macros.
+	* configure: Regenerate.
+	* Makefile.in: Regenerate.
+
+2011-05-23  DJ Delorie  <dj@redhat.com>
+
+	* elf32-rx.c (rx_elf_object_p): When reading an RX object in, undo
+	the vma/lma swapping done in elf32_rx_modify_program_headers.
+
+2011-05-23  Nick Clifton  <nickc@redhat.com>
+
+	* elf-m10300.c (mn10300_elf_mkobject): New function.
+	(bfd_elf32_mkobject): Define.
+
+2011-05-23  Alan Modra  <amodra@gmail.com>
+
+	* elf-bfd.h: Comment typo fix.
+	* elf32-ppc.c (struct ppc_elf_dyn_relocs): Delete.  Replace with
+	struct elf_dyn_relocs throughout.
+	* elf64-ppc.c (struct ppc_dyn_relocs): Likewise.
+
+2011-05-23  Alan Modra  <amodra@gmail.com>
+
+	* elf32-frv.c: Use info->callbacks->einfo throughout file in linker
+	functions rather than warning callback or _bfd_error_handler.
+	* elf32-ppc.c: Likewise.
+	* elf64-ppc.c: Likewise.
+	* elf32-ppc.c (ppc_elf_tls_optimize): Use %H in __tls_get_addr lost
+	arg error.
+	* elf64-ppc.c (ppc64_elf_tls_optimize): Likewise.
+
+2011-05-23  Alan Modra  <amodra@gmail.com>
+
+	PR 12763
+	* elf.c (assign_file_positions_for_load_sections): Set sh_offset for
+	.tbss, and page align same for all SHT_NOBITS sections.
+
+2011-05-21  Alan Modra  <amodra@gmail.com>
+
+	PR 12763
+	* elf.c (_bfd_elf_make_section_from_shdr): Set up TLS section LMAs
+	from PT_TLS header.
+	(_bfd_elf_map_sections_to_segments): Don't create a final PT_LOAD
+	segment if just for .tbss.
+	(assign_file_positions_for_load_sections): Don't report "can't
+	allocate in segment" errors for .tbss.
+	(assign_file_positions_for_non_load_sections): Don't set p_filesz
+	from SHT_NOBITS section filepos.
+
 2011-05-20  Bernd Schmidt  <bernds@codesourcery.com>
 
 	* elf32-tic6x.c (elf32_tic6x_howto_table): Add entries for

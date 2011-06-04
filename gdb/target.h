@@ -201,13 +201,9 @@ extern char *target_waitstatus_to_string (const struct target_waitstatus *);
    deal with.  */
 enum inferior_event_type
   {
-    /* There is a request to quit the inferior, abandon it.  */
-    INF_QUIT_REQ,
     /* Process a normal inferior event which will result in target_wait
        being called.  */
     INF_REG_EVENT,
-    /* Deal with an error on the inferior.  */
-    INF_ERROR,
     /* We are called because a timer went off.  */
     INF_TIMER,
     /* We are called to do stuff after the inferior stops.  */
@@ -640,6 +636,11 @@ struct target_ops
 
     /* Can target execute in reverse?  */
     int (*to_can_execute_reverse) (void);
+
+    /* The direction the target is currently executing.  Must be
+       implemented on targets that support reverse execution and async
+       mode.  The default simply returns forward execution.  */
+    enum exec_direction_kind (*to_execution_direction) (void);
 
     /* Does this target support debugging multiple processes
        simultaneously?  */
@@ -1270,6 +1271,9 @@ int target_supports_non_stop (void);
 
 #define target_async_mask(MASK)	\
   (current_target.to_async_mask (MASK))
+
+#define target_execution_direction() \
+  (current_target.to_execution_direction ())
 
 /* Converts a process id to a string.  Usually, the string just contains
    `process xyz', but on some systems it may contain

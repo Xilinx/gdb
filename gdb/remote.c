@@ -6229,7 +6229,7 @@ check_binary_download (CORE_ADDR addr)
 	  {
 	    if (remote_debug)
 	      fprintf_unfiltered (gdb_stdlog,
-				  "binary downloading suppported by target\n");
+				  "binary downloading supported by target\n");
 	    remote_protocol_packets[PACKET_X].support = PACKET_ENABLE;
 	  }
 	break;
@@ -10627,7 +10627,7 @@ _initialize_remote (void)
   sigint_remote_token =
     create_async_signal_handler (async_remote_interrupt, NULL);
   sigint_remote_twice_token =
-    create_async_signal_handler (inferior_event_handler_wrapper, NULL);
+    create_async_signal_handler (async_remote_interrupt_twice, NULL);
 
 #if 0
   init_remote_threadtests ();

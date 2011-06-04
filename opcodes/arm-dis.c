@@ -1873,7 +1873,7 @@ print_insn_coprocessor (bfd_vma pc,
 		case 'A':
 		  {
 		    int rn = (given >> 16) & 0xf;
-  		    int offset = given & 0xff;
+  		    bfd_vma offset = given & 0xff;
 
 		    func (stream, "[%s", arm_regnames [(given >> 16) & 0xf]);
 
@@ -1893,6 +1893,8 @@ print_insn_coprocessor (bfd_vma pc,
 			  func (stream, ", #%d]%s",
 				offset,
 				WRITEBACK_BIT_SET ? "!" : "");
+			else if (NEGATIVE_BIT_SET)
+			  func (stream, ", #-0]");
 			else
 			  func (stream, "]");
 		      }
@@ -1904,10 +1906,14 @@ print_insn_coprocessor (bfd_vma pc,
 			  {
 			    if (offset)
 			      func (stream, ", #%d", offset);
+			    else if (NEGATIVE_BIT_SET)
+			      func (stream, ", #-0");
 			  }
 			else
 			  {
-			    func (stream, ", {%d}", offset);
+			    func (stream, ", {%s%d}",
+				  (NEGATIVE_BIT_SET && !offset) ? "-" : "",
+				  offset);
 			    value_in_comment = offset;
 			  }
 		      }
@@ -2329,7 +2335,7 @@ print_arm_address (bfd_vma pc, struct disassemble_info *info, long given)
 {
   void *stream = info->stream;
   fprintf_ftype func = info->fprintf_func;
-  int offset = 0;
+  bfd_vma offset = 0;
 
   if (((given & 0x000f0000) == 0x000f0000)
       && ((given & 0x02000000) == 0))
@@ -2338,13 +2344,15 @@ print_arm_address (bfd_vma pc, struct disassemble_info *info, long given)
 
       func (stream, "[pc");
 
-      if (NEGATIVE_BIT_SET)
-	offset = - offset;
-
       if (PRE_BIT_SET)
 	{
-	  /* Pre-indexed.  */
-	  func (stream, ", #%d]", offset);
+	  /* Pre-indexed.  Elide offset of positive zero when
+	     non-writeback.  */
+	  if (WRITEBACK_BIT_SET || NEGATIVE_BIT_SET || offset)
+	    func (stream, ", #%s%d", NEGATIVE_BIT_SET ? "-" : "", offset);
+
+	  if (NEGATIVE_BIT_SET)
+	    offset = -offset;
 
 	  offset += pc + 8;
 
@@ -2352,12 +2360,11 @@ print_arm_address (bfd_vma pc, struct disassemble_info *info, long given)
 	     being used.  Probably a very dangerous thing
 	     for the programmer to do, but who are we to
 	     argue ?  */
-	  if (WRITEBACK_BIT_SET)
-	    func (stream, "!");
+	  func (stream, "]%s", WRITEBACK_BIT_SET ? "!" : "");
 	}
       else  /* Post indexed.  */
 	{
-	  func (stream, "], #%d", offset);
+	  func (stream, "], #%s%d", NEGATIVE_BIT_SET ? "-" : "", offset);
 
 	  /* Ie ignore the offset.  */
 	  offset = pc + 8;
@@ -2376,15 +2383,14 @@ print_arm_address (bfd_vma pc, struct disassemble_info *info, long given)
 	{
 	  if ((given & 0x02000000) == 0)
 	    {
+	      /* Elide offset of positive zero when non-writeback.  */
 	      offset = given & 0xfff;
-	      if (offset)
-		func (stream, ", #%s%d",
-		      NEGATIVE_BIT_SET ? "-" : "", offset);
+	      if (WRITEBACK_BIT_SET || NEGATIVE_BIT_SET || offset)
+		func (stream, ", #%s%d", NEGATIVE_BIT_SET ? "-" : "", offset);
 	    }
 	  else
 	    {
-	      func (stream, ", %s",
-		    NEGATIVE_BIT_SET ? "-" : "");
+	      func (stream, ", %s", NEGATIVE_BIT_SET ? "-" : "");
 	      arm_decode_shift (given, func, stream, TRUE);
 	    }
 
@@ -2395,12 +2401,10 @@ print_arm_address (bfd_vma pc, struct disassemble_info *info, long given)
 	{
 	  if ((given & 0x02000000) == 0)
 	    {
+	      /* Always show offset.  */
 	      offset = given & 0xfff;
-	      if (offset)
-		func (stream, "], #%s%d",
-		      NEGATIVE_BIT_SET ? "-" : "", offset);
-	      else
-		func (stream, "]");
+	      func (stream, "], #%s%d",
+		    NEGATIVE_BIT_SET ? "-" : "", offset);
 	    }
 	  else
 	    {
@@ -2991,22 +2995,25 @@ print_insn_arm (bfd_vma pc, struct disassemble_info *info, long given)
                       if ((given & 0x004f0000) == 0x004f0000)
 			{
                           /* PC relative with immediate offset.  */
-			  int offset = ((given & 0xf00) >> 4) | (given & 0xf);
-
-			  if (NEGATIVE_BIT_SET)
-			    offset = - offset;
+			  bfd_vma offset = ((given & 0xf00) >> 4) | (given & 0xf);
 
 			  if (PRE_BIT_SET)
 			    {
-			      if (offset)
-				func (stream, "[pc, #%d]\t; ", offset);
+			      /* Elide positive zero offset.  */
+			      if (offset || NEGATIVE_BIT_SET)
+				func (stream, "[pc, #%s%d]\t; ",
+				      NEGATIVE_BIT_SET ? "-" : "", offset);
 			      else
-				func (stream, "[pc]\t; ");				
+				func (stream, "[pc]\t; ");
+			      if (NEGATIVE_BIT_SET)
+				offset = -offset;
 			      info->print_address_func (offset + pc + 8, info);
 			    }
 			  else
 			    {
-			      func (stream, "[pc], #%d", offset);
+			      /* Always show the offset.  */
+			      func (stream, "[pc], #%s%d",
+				    NEGATIVE_BIT_SET ? "-" : "", offset);
 			      if (! allow_unpredictable)
 				is_unpredictable = TRUE;
 			    }
@@ -3015,9 +3022,6 @@ print_insn_arm (bfd_vma pc, struct disassemble_info *info, long given)
 			{
 			  int offset = ((given & 0xf00) >> 4) | (given & 0xf);
 
-			  if (NEGATIVE_BIT_SET)
-			    offset = - offset;
-
 			  func (stream, "[%s",
 				arm_regnames[(given >> 16) & 0xf]);
 
@@ -3025,13 +3029,15 @@ print_insn_arm (bfd_vma pc, struct disassemble_info *info, long given)
 			    {
 			      if (IMMEDIATE_BIT_SET)
 				{
-				  if (WRITEBACK_BIT_SET)
-				    /* Immediate Pre-indexed.  */
-				    /* PR 10924: Offset must be printed, even if it is zero.  */
-				    func (stream, ", #%d", offset);
-				  else if (offset)
-				    /* Immediate Offset: printing zero offset is optional.  */
-				    func (stream, ", #%d", offset);
+				  /* Elide offset for non-writeback
+				     positive zero.  */
+				  if (WRITEBACK_BIT_SET || NEGATIVE_BIT_SET
+				      || offset)
+				    func (stream, ", #%s%d",
+					  NEGATIVE_BIT_SET ? "-" : "", offset);
+
+				  if (NEGATIVE_BIT_SET)
+				    offset = -offset;
 
 				  value_in_comment = offset;
 				}
@@ -3059,7 +3065,10 @@ print_insn_arm (bfd_vma pc, struct disassemble_info *info, long given)
 				{
 				  /* Immediate Post-indexed.  */
 				  /* PR 10924: Offset must be printed, even if it is zero.  */
-				  func (stream, "], #%d", offset);
+				  func (stream, "], #%s%d",
+					NEGATIVE_BIT_SET ? "-" : "", offset);
+				  if (NEGATIVE_BIT_SET)
+				    offset = -offset;
 				  value_in_comment = offset;
 				}
 			      else
@@ -3093,7 +3102,7 @@ print_insn_arm (bfd_vma pc, struct disassemble_info *info, long given)
 
 		    case 'b':
 		      {
-			int disp = (((given & 0xffffff) ^ 0x800000) - 0x800000);
+			bfd_vma disp = (((given & 0xffffff) ^ 0x800000) - 0x800000);
 			info->print_address_func (disp * 4 + pc + 8, info);
 		      }
 		      break;
@@ -3610,7 +3619,7 @@ print_insn_thumb16 (bfd_vma pc, struct disassemble_info *info, long given)
 		    {
 		    case '-':
 		      {
-			long reg;
+			bfd_vma reg;
 
 			c++;
 			while (*c >= '0' && *c <= '9')
@@ -3899,7 +3908,7 @@ print_insn_thumb32 (bfd_vma pc, struct disassemble_info *info, long given)
 		  unsigned int i12 = (given & 0x00000fff);
 		  unsigned int i8  = (given & 0x000000ff);
 		  bfd_boolean writeback = FALSE, postind = FALSE;
-		  int offset = 0;
+		  bfd_vma offset = 0;
 
 		  func (stream, "[%s", arm_regnames[Rn]);
 		  if (U) /* 12-bit positive immediate offset.  */
@@ -4076,7 +4085,7 @@ print_insn_thumb32 (bfd_vma pc, struct disassemble_info *info, long given)
 		  unsigned int S = (given & 0x04000000u) >> 26;
 		  unsigned int J1 = (given & 0x00002000u) >> 13;
 		  unsigned int J2 = (given & 0x00000800u) >> 11;
-		  int offset = 0;
+		  bfd_vma offset = 0;
 
 		  offset |= !S << 20;
 		  offset |= J2 << 19;
@@ -4094,7 +4103,7 @@ print_insn_thumb32 (bfd_vma pc, struct disassemble_info *info, long given)
 		  unsigned int S = (given & 0x04000000u) >> 26;
 		  unsigned int I1 = (given & 0x00002000u) >> 13;
 		  unsigned int I2 = (given & 0x00000800u) >> 11;
-		  int offset = 0;
+		  bfd_vma offset = 0;
 
 		  offset |= !S << 24;
 		  offset |= !(I1 ^ S) << 23;
@@ -4702,7 +4711,7 @@ print_insn (bfd_vma pc, struct disassemble_info *info, bfd_boolean little)
 	  if (!found)
 	    {
 	      /* No mapping symbol found at this address.  Look backwards
-		 for a preceeding one.  */
+		 for a preceding one.  */
 	      for (n = start - 1; n >= 0; n--)
 		{
 		  if (get_map_sym_type (info, n, &type))
@@ -4762,7 +4771,7 @@ print_insn (bfd_vma pc, struct disassemble_info *info, bfd_boolean little)
 	  if (!found)
 	    {
 	      /* No mapping symbol found at this address.  Look backwards
-		 for a preceeding one.  */
+		 for a preceding one.  */
 	      for (n = start - 1; n >= 0; n--)
 		{
 		  if (get_sym_code_type (info, n, &type))
@@ -4984,5 +4993,5 @@ the -M switch:\n"));
 	     regnames[i].description);
 
   fprintf (stream, "  force-thumb              Assume all insns are Thumb insns\n");
-  fprintf (stream, "  no-force-thumb           Examine preceeding label to determine an insn's type\n\n");
+  fprintf (stream, "  no-force-thumb           Examine preceding label to determine an insn's type\n\n");
 }

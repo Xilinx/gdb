@@ -41,6 +41,7 @@
 #include "gdb_assert.h"
 #include "top.h"		/* For command_loop.  */
 #include "exceptions.h"
+#include "continuations.h"
 
 struct interp
 {
@@ -149,7 +150,6 @@ interp_set (struct interp *interp, int top_level)
 
   if (current_interpreter != NULL)
     {
-      do_all_continuations ();
       ui_out_flush (uiout);
       if (current_interpreter->procs->suspend_proc
 	  && !current_interpreter->procs->suspend_proc (current_interpreter->

@@ -285,9 +285,6 @@ exec_reverse_continue (char **argv, int argc)
   enum exec_direction_kind dir = execution_direction;
   struct cleanup *old_chain;
 
-  if (dir == EXEC_ERROR)
-    error (_("Target %s does not support this command."), target_shortname);
-
   if (dir == EXEC_REVERSE)
     error (_("Already in reverse mode."));
 
@@ -2162,18 +2159,9 @@ mi_execute_async_cli_command (char *cli_command, char **argv, int argc)
 
   execute_command ( /*ui */ run, 0 /*from_tty */ );
 
-  if (target_can_async_p ())
-    {
-      /* If we're not executing, an exception should have been throw.  */
-      gdb_assert (is_running (inferior_ptid));
-      do_cleanups (old_cleanups);
-    }
-  else
-    {
-      /* Do this before doing any printing.  It would appear that some
-         print code leaves garbage around in the buffer.  */
-      do_cleanups (old_cleanups);
-    }
+  /* Do this before doing any printing.  It would appear that some
+     print code leaves garbage around in the buffer.  */
+  do_cleanups (old_cleanups);
 }
 
 void

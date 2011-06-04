@@ -1,3 +1,51 @@
+2011-06-03  Quentin Neill  <quentin.neill@amd.com>
+
+	* i386-gen.c (cpu_flag_init): Add CpuF16C to CPU_BDVER2_FLAGS.
+	* i386-init.h: Regenerated.
+
+2011-06-03  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/12752
+	* arm-dis.c (print_insn_coprocessor): Use bfd_vma type for
+	computing address offsets.
+	(print_arm_address): Likewise.
+	(print_insn_arm): Likewise.
+	(print_insn_thumb16): Likewise.
+	(print_insn_thumb32): Likewise.
+
+2011-06-02  Jie Zhang <jie@codesourcery.com>
+	    Nathan Sidwell <nathan@codesourcery.com>
+	    Maciej Rozycki <macro@codesourcery.com>
+
+	* arm-dis.c (print_insn_coprocessor): Explicitly print #-0
+	as address offset.
+	(print_arm_address): Likewise. Elide positive #0 appropriately.
+	(print_insn_arm): Likewise.
+
+2011-06-02  Nick Clifton  <nickc@redhat.com>
+
+	PR gas/12752
+	* arm-dis.c (print_insn_thumb32): Do not sign extend  addresses
+	passed to print_address_func.
+
+2011-06-02  Nick Clifton  <nickc@redhat.com>
+
+	* arm-dis.c: Fix spelling mistakes.
+	* op/opcodes.pot: Regenerate.
+
+2011-05-24  Andreas Krebbel  <Andreas.Krebbel@de.ibm.com>
+
+	* s390-opc.c: Replace S390_OPERAND_REG_EVEN with
+	S390_OPERAND_REG_PAIR.  Fix INSTR_RRF_0UFEF instruction type.
+	* s390-opc.txt: Fix cxr instruction type.
+
+2011-05-24  Andreas Krebbel  <Andreas.Krebbel@de.ibm.com>
+
+	* s390-opc.c: Add new instruction types marking register pair
+	operands.
+	* s390-opc.txt: Match instructions having register pair operands
+	to the new instruction types.
+
 2011-05-19  Nick Clifton  <nickc@redhat.com>
 
 	* v850-opc.c (cmpf.[sd]): Reverse the order of the reg1 and reg2
