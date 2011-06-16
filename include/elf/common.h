@@ -295,6 +295,7 @@
 #define EM_TILEPRO	188	/* Tilera TILEPro multicore architecture family */
 #define EM_MICROBLAZE	189	/* Xilinx MicroBlaze 32-bit RISC soft processor core */
 #define EM_CUDA		190	/* NVIDIA CUDA architecture */
+#define EM_TILEGX	191	/* Tilera TILE-Gx multicore architecture family */
 
 /* If it is necessary to assign new unofficial EM_* values, please pick large
    random numbers (0x8523, 0xa7f2, etc.) to minimize the chances of collision
@@ -537,6 +538,8 @@
 #define NT_S390_CTRS	0x304		/* S390 control registers */
 					/*   note name must be "LINUX".  */
 #define NT_S390_PREFIX	0x305		/* S390 prefix register */
+					/*   note name must be "LINUX".  */
+#define NT_ARM_VFP	0x400		/* ARM VFP registers */
 					/*   note name must be "LINUX".  */
 
 /* Note segments for core files on dir-style procfs systems.  */

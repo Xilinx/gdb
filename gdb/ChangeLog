@@ -1,3 +1,131 @@
+2011-06-16  Tristan Gingold  <gingold@adacore.com>
+
+	* python/py-events.h (gdb_py_events): Make it extern.
+	* python/py-evtregistry.c (gdb_py_events): Declare.
+
+2011-06-16  Hui Zhu  <teawater@gmail.com>
+
+	* remote.c (remote_trace_set_readonly_regions): Add check for
+	remote_protocol_packets[PACKET_qXfer_traceframe_info].support before
+	output warning.
+
+2011-06-15  Ulrich Weigand  <ulrich.weigand@linaro.org>
+
+	* arm-linux-tdep.c: Include "auxv.h".
+	(AT_HWCAP): Define.
+	(ARM_LINUX_SIZEOF_VFP): Define.
+	(arm_linux_supply_vfp): New function.
+	(arm_linux_collect_vfp): Likewise.
+	(arm_linux_regset_from_core_section): Handle .reg-arm-vfp sections.
+	(arm_linux_fpa_regset_sections): New variable.
+	(arm_linux_vfp_regset_sections): Likewise.
+	(arm_linux_core_read_description): New function.
+	(arm_linux_init_abi): Install arm_linux_core_read_description and
+	arm_linux_fpa_regset_sections or arm_linux_vfp_regset_sections as
+	appropriate for the architecture.
+	* arm-tdep.h (struct gdbarch_tdep): Add member "vfpregset".
+	(tdesc_arm_with_m): Declare.
+	(tdesc_arm_with_iwmmxt): Likewise.
+	(tdesc_arm_with_vfpv2): Likewise.
+	(tdesc_arm_with_vfpv3): Likewise.
+	(tdesc_arm_with_neon): Likewise.
+	* arm-linux-nat.c: Move features/*.c includes ...
+	* arm-tdep.c: ... here.
+	* arm-linux-nat.c (arm_linux_read_description): Move initializing
+	target description data structures ...
+	* arm-tdep.c (_initialize_arm_tdep): ... here.
+	* arm-linux-nat.c (HWCAP_VFP, HWCAP_IWMMXT, HWCAP_NEON, HWCAP_VFPv3,
+	HWCAP_VFPv3D16): Move definitions ...
+	* arm-linux-tdep.h: ... here.
+
+2011-06-15  Hui Zhu  <teawater@gmail.com>
+
+	* remote.c (remote_trace_set_readonly_regions): Add a check for
+	target_buf_size.
+
+2011-06-14  Tom Tromey  <tromey@redhat.com>
+
+	* coffread.c (coffread_objfile): Rename from current_objfile.
+	* dbxread.c (dbxread_objfile): Rename from current_objfile.
+	* mdebugread.c (mdebugread_objfile): Rename from current_objfile.
+
+2011-06-14  Tom Tromey  <tromey@redhat.com>
+
+	* jv-lang.c (jv_type_objfile_data_key, dynamics_objfile)
+	(class_symtab): Remove.
+	(jv_dynamics_progspace_key): New global.
+	(jv_per_objfile_free): Reset program space data.  Update assert.
+	Don't clear globals.
+	(get_dynamics_objfile): Use and set program space data.
+	(get_java_class_symtab): Use get_dynamics_objfile.
+	(add_class_symbol): Likewise.
+	(java_link_class_type): Likewise.
+	(java_object_type, jv_clear_object_type, set_java_object_type):
+	Remove.
+	(get_java_object_type): Update.  Don't cache result.
+	(is_object_type): Don't call set_java_object_type.
+	(_initialize_java_language): Don't set jv_type_objfile_data_key;
+	initialize jv_dynamics_progspace_key.
+
+2011-06-14  Tom Tromey  <tromey@redhat.com>
+
+	* symtab.h (current_objfile): Don't declare.
+	* objfiles.h (current_objfile): Don't declare.
+	* objfiles.c (current_objfile): Remove.
+	* mdebugread.c (current_objfile): New file-scope global.
+	* dbxread.c (current_objfile): New file-scope global.
+	* coffread.c (current_objfile): New file-scope global.
+
+2011-06-13  Pedro Alves  <pedro@codesourcery.com>
+
+	* top.h (line): Rename to ...
+	(saved_command_line): ... this.
+	(linesize): Rename to ...
+	(saved_command_line_size): ... this.
+	* top.c (line): Rename to ...
+	(saved_command_line): ... this.
+	(linesize): Rename to ...
+	(saved_command_line_size): ... this.
+	(dont_repeat, command_line_input, dont_repeat_command): Adjust.
+	* event-top.c (command_line_handler): Adjust.
+	* main.c (captured_main): Adjust.
+
+2011-06-12  Mark Kettenis  <kettenis@gnu.org>
+
+	* i386-tdep.c (i386_epilogue_frame_cache): Simplify code.  Call
+	get_frame_func instead of get_frame_pc to determine the code
+	address used to construct the frame ID.
+	(i386_epilogue_frame_unwind_stop_reason): Fix coding style.
+	(i386_epilogue_frame_this_id): Likewise.
+	(i386_epilogue_frame_prev_register): New function.
+	(i386_epilogue_frame_unwind): Use i386_epilogue_frame_prev_register.
+	(i386_stack_tramp_frame_sniffer): Fix coding style.
+	(i386_stack_tramp_frame_unwind): Use i386_epilogue_frame_prev_register.
+	(i386_gdbarch_init): Fix comments.
+
+2011-06-12  Mark Kettenis  <kettenis@gnu.org>
+
+	* i386-tdep.c (i386_match_insn_block): Use length of the proper
+	instruction when walking back through the instruction stream.
+
+2011-06-10  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* symtab.c (output_partial_symbol_filename): Exchange the filename and
+	fullname parameters order.
+
+2011-06-10  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Code cleanup.
+	* dwarf2read.c (dw2_map_symbol_filenames): Use symbol_filename_ftype
+	for fun.
+	* psymtab.c (map_symbol_filenames_psymtab)
+	(map_partial_symbol_filenames): Likewise.
+	* psymtab.h: Include symfile.h.
+	(map_partial_symbol_filenames): Use symbol_filename_ftype for fun.
+	* symfile.h (symbol_filename_ftype): New.
+	(struct quick_symbol_functions): Use symbol_filename_ftype for fun of
+	map_symbol_filenames, clarify more the naming in comment.
+
 2011-06-07  Doug Evans  <dje@google.com>
 
 	* cc-with-index.sh: Fix typos in comment.

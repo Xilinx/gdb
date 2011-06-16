@@ -286,7 +286,8 @@ _bfd_elf_link_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
   /* Let the backend create the rest of the sections.  This lets the
      backend set the right flags.  The backend will normally create
      the .got and .plt sections.  */
-  if (! (*bed->elf_backend_create_dynamic_sections) (abfd, info))
+  if (bed->elf_backend_create_dynamic_sections == NULL
+      || ! (*bed->elf_backend_create_dynamic_sections) (abfd, info))
     return FALSE;
 
   elf_hash_table (info)->dynamic_sections_created = TRUE;
@@ -721,9 +722,6 @@ elf_link_renumber_hash_table_dynsyms (struct elf_link_hash_entry *h,
 {
   size_t *count = (size_t *) data;
 
-  if (h->root.type == bfd_link_hash_warning)
-    h = (struct elf_link_hash_entry *) h->root.u.i.link;
-
   if (h->forced_local)
     return TRUE;
 
@@ -742,9 +740,6 @@ elf_link_renumber_local_hash_table_dynsyms (struct elf_link_hash_entry *h,
 					    void *data)
 {
   size_t *count = (size_t *) data;
-
-  if (h->root.type == bfd_link_hash_warning)
-    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
   if (!h->forced_local)
     return TRUE;
@@ -1811,16 +1806,13 @@ _bfd_elf_export_symbol (struct elf_link_hash_entry *h, void *data)
 {
   struct elf_info_failed *eif = (struct elf_info_failed *) data;
 
-  /* Ignore this if we won't export it.  */
-  if (!eif->info->export_dynamic && !h->dynamic)
-    return TRUE;
-
   /* Ignore indirect symbols.  These are added by the versioning code.  */
   if (h->root.type == bfd_link_hash_indirect)
     return TRUE;
 
-  if (h->root.type == bfd_link_hash_warning)
-    h = (struct elf_link_hash_entry *) h->root.u.i.link;
+  /* Ignore this if we won't export it.  */
+  if (!eif->info->export_dynamic && !h->dynamic)
+    return TRUE;
 
   if (h->dynindx == -1
       && (h->def_regular
@@ -1856,9 +1848,6 @@ _bfd_elf_link_find_version_dependencies (struct elf_link_hash_entry *h,
   Elf_Internal_Verneed *t;
   Elf_Internal_Vernaux *a;
   bfd_size_type amt;
-
-  if (h->root.type == bfd_link_hash_warning)
-    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
   /* We only care about symbols defined in shared objects with version
      information.  */
@@ -1944,9 +1933,6 @@ _bfd_elf_link_assign_sym_version (struct elf_link_hash_entry *h, void *data)
 
   sinfo = (struct elf_info_failed *) data;
   info = sinfo->info;
-
-  if (h->root.type == bfd_link_hash_warning)
-    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
   /* Fix the symbol flags.  */
   eif.failed = FALSE;
@@ -2563,17 +2549,6 @@ _bfd_elf_adjust_dynamic_symbol (struct elf_link_hash_entry *h, void *data)
   if (! is_elf_hash_table (eif->info->hash))
     return FALSE;
 
-  if (h->root.type == bfd_link_hash_warning)
-    {
-      h->got = elf_hash_table (eif->info)->init_got_offset;
-      h->plt = elf_hash_table (eif->info)->init_plt_offset;
-
-      /* When warning symbols are created, they **replace** the "real"
-	 entry in the hash table, thus we never get to see the real
-	 symbol in a hash traversal.  So look at it now.  */
-      h = (struct elf_link_hash_entry *) h->root.u.i.link;
-    }
-
   /* Ignore indirect symbols.  These are added by the versioning code.  */
   if (h->root.type == bfd_link_hash_indirect)
     return TRUE;
@@ -2728,9 +2703,6 @@ static bfd_boolean
 _bfd_elf_link_sec_merge_syms (struct elf_link_hash_entry *h, void *data)
 {
   asection *sec;
-
-  if (h->root.type == bfd_link_hash_warning)
-    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
   if ((h->root.type == bfd_link_hash_defined
        || h->root.type == bfd_link_hash_defweak)
@@ -3178,9 +3150,6 @@ static bfd_boolean
 elf_adjust_dynstr_offsets (struct elf_link_hash_entry *h, void *data)
 {
   struct elf_strtab_hash *dynstr = (struct elf_strtab_hash *) data;
-
-  if (h->root.type == bfd_link_hash_warning)
-    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
   if (h->dynindx != -1)
     h->dynstr_index = _bfd_elf_strtab_offset (dynstr, h->dynstr_index);
@@ -5174,9 +5143,6 @@ elf_collect_hash_codes (struct elf_link_hash_entry *h, void *data)
   unsigned long ha;
   char *alc = NULL;
 
-  if (h->root.type == bfd_link_hash_warning)
-    h = (struct elf_link_hash_entry *) h->root.u.i.link;
-
   /* Ignore indirect symbols.  These are added by the versioning code.  */
   if (h->dynindx == -1)
     return TRUE;
@@ -5245,9 +5211,6 @@ elf_collect_gnu_hash_codes (struct elf_link_hash_entry *h, void *data)
   unsigned long ha;
   char *alc = NULL;
 
-  if (h->root.type == bfd_link_hash_warning)
-    h = (struct elf_link_hash_entry *) h->root.u.i.link;
-
   /* Ignore indirect symbols.  These are added by the versioning code.  */
   if (h->dynindx == -1)
     return TRUE;
@@ -5297,9 +5260,6 @@ elf_renumber_gnu_hash_syms (struct elf_link_hash_entry *h, void *data)
   struct collect_gnu_hash_codes *s = (struct collect_gnu_hash_codes *) data;
   unsigned long int bucket;
   unsigned long int val;
-
-  if (h->root.type == bfd_link_hash_warning)
-    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
   /* Ignore indirect symbols.  */
   if (h->dynindx == -1)
@@ -8604,8 +8564,9 @@ elf_link_check_versioned_symbol (struct bfd_link_info *info,
    global symbols.  */
 
 static bfd_boolean
-elf_link_output_extsym (struct elf_link_hash_entry *h, void *data)
+elf_link_output_extsym (struct bfd_hash_entry *bh, void *data)
 {
+  struct elf_link_hash_entry *h = (struct elf_link_hash_entry *) bh;
   struct elf_outext_info *eoinfo = (struct elf_outext_info *) data;
   struct elf_final_link_info *finfo = eoinfo->finfo;
   bfd_boolean strip;
@@ -10821,8 +10782,7 @@ bfd_elf_final_link (bfd *abfd, struct bfd_link_info *info)
   eoinfo.failed = FALSE;
   eoinfo.finfo = &finfo;
   eoinfo.localsyms = TRUE;
-  elf_link_hash_traverse (elf_hash_table (info), elf_link_output_extsym,
-			  &eoinfo);
+  bfd_hash_traverse (&info->hash->table, elf_link_output_extsym, &eoinfo);
   if (eoinfo.failed)
     return FALSE;
 
@@ -10931,8 +10891,7 @@ bfd_elf_final_link (bfd *abfd, struct bfd_link_info *info)
   eoinfo.failed = FALSE;
   eoinfo.localsyms = FALSE;
   eoinfo.finfo = &finfo;
-  elf_link_hash_traverse (elf_hash_table (info), elf_link_output_extsym,
-			  &eoinfo);
+  bfd_hash_traverse (&info->hash->table, elf_link_output_extsym, &eoinfo);
   if (eoinfo.failed)
     return FALSE;
 
@@ -11148,6 +11107,13 @@ bfd_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 		    (_("%B: could not find output section %s"), abfd, name);
 		  goto error_return;
 		}
+	      if (elf_section_data (o->output_section)->this_hdr.sh_type == SHT_NOTE)
+		{
+		  (*_bfd_error_handler)
+		    (_("warning: section '%s' is being made into a note"), name);
+		  bfd_set_error (bfd_error_nonrepresentable_section);
+		  goto error_return;
+		}
 	      dyn.d_un.d_ptr = o->vma;
 	      break;
 
@@ -11235,7 +11201,7 @@ bfd_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 	    continue;
 	  if ((elf_section_data (o->output_section)->this_hdr.sh_type
 	       != SHT_STRTAB)
-	      || strcmp (bfd_get_section_name (abfd, o), ".dynstr") != 0)
+	      && (strcmp (bfd_get_section_name (abfd, o), ".dynstr") != 0))
 	    {
 	      /* FIXME: octets_per_byte.  */
 	      if (! bfd_set_section_contents (abfd, o->output_section,
@@ -11667,6 +11633,49 @@ _bfd_elf_gc_mark (struct bfd_link_info *info,
   return ret;
 }
 
+/* Keep debug and special sections.  */
+
+bfd_boolean
+_bfd_elf_gc_mark_extra_sections (struct bfd_link_info *info,
+				 elf_gc_mark_hook_fn mark_hook ATTRIBUTE_UNUSED)
+{
+  bfd *ibfd;
+
+  for (ibfd = info->input_bfds; ibfd != NULL; ibfd = ibfd->link_next)
+    {
+      asection *isec;
+      bfd_boolean some_kept;
+
+      if (bfd_get_flavour (ibfd) != bfd_target_elf_flavour)
+	continue;
+
+      /* Ensure all linker created sections are kept, and see whether
+	 any other section is already marked.  */
+      some_kept = FALSE;
+      for (isec = ibfd->sections; isec != NULL; isec = isec->next)
+	{
+	  if ((isec->flags & SEC_LINKER_CREATED) != 0)
+	    isec->gc_mark = 1;
+	  else if (isec->gc_mark)
+	    some_kept = TRUE;
+	}
+
+      /* If no section in this file will be kept, then we can
+	 toss out debug sections.  */
+      if (!some_kept)
+	continue;
+
+      /* Keep debug and special sections like .comment when they are
+	 not part of a group.  */
+      for (isec = ibfd->sections; isec != NULL; isec = isec->next)
+	if (elf_next_in_group (isec) == NULL
+	    && ((isec->flags & SEC_DEBUGGING) != 0
+		|| (isec->flags & (SEC_ALLOC | SEC_LOAD | SEC_RELOC)) == 0))
+	  isec->gc_mark = 1;
+    }
+  return TRUE;
+}
+
 /* Sweep symbols in swept sections.  Called via elf_link_hash_traverse.  */
 
 struct elf_gc_sweep_symbol_info
@@ -11679,9 +11688,6 @@ struct elf_gc_sweep_symbol_info
 static bfd_boolean
 elf_gc_sweep_symbol (struct elf_link_hash_entry *h, void *data)
 {
-  if (h->root.type == bfd_link_hash_warning)
-    h = (struct elf_link_hash_entry *) h->root.u.i.link;
-
   if ((h->root.type == bfd_link_hash_defined
        || h->root.type == bfd_link_hash_defweak)
       && !h->root.u.def.section->gc_mark
@@ -11726,13 +11732,6 @@ elf_gc_sweep (bfd *abfd, struct bfd_link_info *info)
 	    {
 	      asection *first = elf_next_in_group (o);
 	      o->gc_mark = first->gc_mark;
-	    }
-	  else if ((o->flags & (SEC_DEBUGGING | SEC_LINKER_CREATED)) != 0
-		   || (o->flags & (SEC_ALLOC | SEC_LOAD | SEC_RELOC)) == 0
-		   || elf_section_data (o)->this_hdr.sh_type == SHT_NOTE)
-	    {
-	      /* Keep debug, special and SHT_NOTE sections.  */
-	      o->gc_mark = 1;
 	    }
 
 	  if (o->gc_mark)
@@ -11794,9 +11793,6 @@ elf_gc_sweep (bfd *abfd, struct bfd_link_info *info)
 static bfd_boolean
 elf_gc_propagate_vtable_entries_used (struct elf_link_hash_entry *h, void *okp)
 {
-  if (h->root.type == bfd_link_hash_warning)
-    h = (struct elf_link_hash_entry *) h->root.u.i.link;
-
   /* Those that are not vtables.  */
   if (h->vtable == NULL || h->vtable->parent == NULL)
     return TRUE;
@@ -11858,9 +11854,6 @@ elf_gc_smash_unused_vtentry_relocs (struct elf_link_hash_entry *h, void *okp)
   const struct elf_backend_data *bed;
   unsigned int log_file_align;
 
-  if (h->root.type == bfd_link_hash_warning)
-    h = (struct elf_link_hash_entry *) h->root.u.i.link;
-
   /* Take care of both those symbols that do not describe vtables as
      well as those that are not loaded.  */
   if (h->vtable == NULL || h->vtable->parent == NULL)
@@ -11907,9 +11900,6 @@ bfd_boolean
 bfd_elf_gc_mark_dynamic_ref_symbol (struct elf_link_hash_entry *h, void *inf)
 {
   struct bfd_link_info *info = (struct bfd_link_info *) inf;
-
-  if (h->root.type == bfd_link_hash_warning)
-    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
   if ((h->root.type == bfd_link_hash_defined
        || h->root.type == bfd_link_hash_defweak)
@@ -12013,15 +12003,23 @@ bfd_elf_gc_sections (bfd *abfd, struct bfd_link_info *info)
       if (bfd_get_flavour (sub) != bfd_target_elf_flavour)
 	continue;
 
+      /* Start at sections marked with SEC_KEEP (ref _bfd_elf_gc_keep).
+	 Also treat note sections as a root, if the section is not part
+	 of a group.  */
       for (o = sub->sections; o != NULL; o = o->next)
-	if ((o->flags & (SEC_EXCLUDE | SEC_KEEP)) == SEC_KEEP && !o->gc_mark)
-	  if (!_bfd_elf_gc_mark (info, o, gc_mark_hook))
-	    return FALSE;
+	if (!o->gc_mark
+	    && (o->flags & SEC_EXCLUDE) == 0
+	    && ((o->flags & SEC_KEEP) != 0
+		|| (elf_section_data (o)->this_hdr.sh_type == SHT_NOTE
+		    && elf_next_in_group (o) == NULL )))
+	  {
+	    if (!_bfd_elf_gc_mark (info, o, gc_mark_hook))
+	      return FALSE;
+	  }
     }
 
   /* Allow the backend to mark additional target specific sections.  */
-  if (bed->gc_mark_extra_sections)
-    bed->gc_mark_extra_sections (info, gc_mark_hook);
+  bed->gc_mark_extra_sections (info, gc_mark_hook);
 
   /* ... and mark SEC_EXCLUDE for those that go.  */
   return elf_gc_sweep (abfd, info);
@@ -12178,9 +12176,6 @@ elf_gc_allocate_got_offsets (struct elf_link_hash_entry *h, void *arg)
   struct alloc_got_off_arg *gofarg = (struct alloc_got_off_arg *) arg;
   bfd *obfd = gofarg->info->output_bfd;
   const struct elf_backend_data *bed = get_elf_backend_data (obfd);
-
-  if (h->root.type == bfd_link_hash_warning)
-    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
   if (h->got.refcount > 0)
     {

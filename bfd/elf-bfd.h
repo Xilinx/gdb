@@ -428,6 +428,8 @@ enum elf_target_id
   TIC6X_ELF_DATA,
   X86_64_ELF_DATA,
   XTENSA_ELF_DATA,
+  TILEGX_ELF_DATA,
+  TILEPRO_ELF_DATA,
   GENERIC_ELF_DATA
 };
 
@@ -2169,6 +2171,9 @@ extern bfd_boolean _bfd_elf_gc_mark_fdes
 extern bfd_boolean _bfd_elf_gc_mark
   (struct bfd_link_info *, asection *, elf_gc_mark_hook_fn);
 
+extern bfd_boolean _bfd_elf_gc_mark_extra_sections
+  (struct bfd_link_info *, elf_gc_mark_hook_fn);
+
 extern bfd_boolean bfd_elf_gc_common_finalize_got_offsets
   (bfd *, struct bfd_link_info *);
 
@@ -2219,6 +2224,8 @@ extern char *elfcore_write_s390_todpreg
 extern char *elfcore_write_s390_ctrs
   (bfd *, char *, int *, const void *, int);
 extern char *elfcore_write_s390_prefix
+  (bfd *, char *, int *, const void *, int);
+extern char *elfcore_write_arm_vfp
   (bfd *, char *, int *, const void *, int);
 extern char *elfcore_write_lwpstatus
   (bfd *, char *, int *, long, int, const void *);
