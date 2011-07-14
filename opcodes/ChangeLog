@@ -1,3 +1,46 @@
+2011-07-12  Nick Clifton  <nickc@redhat.com>
+
+	* arm-dis.c (print_insn_arm): Revert previous, undocumented,
+	accidental change.
+
+2011-07-01  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/12329
+	* avr-dis.c (avr_operand): Fix disassembly of ELPM, LPM and SPM
+	insns using post-increment addressing.
+
+2011-06-30  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (vex_len_table): Update rorxS.
+
+2011-06-30  H.J. Lu  <hongjiu.lu@intel.com>
+
+	AVX Programming Reference (June, 2011)
+	* i386-dis.c (vex_len_table): Correct rorxS.
+
+	* i386-opc.tbl: Correct rorx.
+	* i386-tbl.h: Regenerated.
+
+2011-06-29  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* tilegx-opc.c (find_opcode): Replace "index" with "i".
+	* tilepro-opc.c (find_opcode): Likewise.
+
+2011-06-29  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* mips16-opc.c (jalrc, jrc): Move earlier in file.
+
+2011-06-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (prefix_table): Re-indent PREFIX_VEX_0F388C and
+	PREFIX_VEX_0F388E.
+
+2011-06-17  Andreas Schwab  <schwab@redhat.com>
+
+	* Makefile.am (MAINTAINERCLEANFILES): Move s390-opc.tab ...
+	(MOSTLYCLEANFILES): ... here.
+	* Makefile.in: Regenerate.
+
 2011-06-14  Alan Modra  <amodra@gmail.com>
 
 	* Makefile.in: Regenerate.
@@ -348,7 +391,7 @@
 
 2011-02-09  Michael Snyder  <msnyder@vmware.com>
 
-	* i386-dis.c (OP_J): Parenthesize expression to prevent 
+	* i386-dis.c (OP_J): Parenthesize expression to prevent
 	truncated addresses.
 	(print_insn): Fix indentation off-by-one.
 

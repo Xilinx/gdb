@@ -486,6 +486,8 @@ ui_out_field_fmt_int (struct ui_out *uiout,
   uo_field_int (uiout, fldno, input_width, input_align, fldname, value);
 }
 
+/* Documented in ui-out.h.  */
+
 void
 ui_out_field_core_addr (struct ui_out *uiout,
 			const char *fldname,
@@ -1112,13 +1114,6 @@ specified after table_body and inside a list."));
     }
 }
 
-
-/* Access to ui_out format private members.  */
-
-void
-ui_out_get_field_separator (struct ui_out *uiout)
-{
-}
 
 /* Access to ui-out members data.  */
 

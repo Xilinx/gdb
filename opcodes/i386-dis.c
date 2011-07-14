@@ -4828,14 +4828,14 @@ static const struct dis386 prefix_table[][4] = {
   {
     { Bad_Opcode },
     { Bad_Opcode },
-     { MOD_TABLE (MOD_VEX_0F388C_PREFIX_2) },
+    { MOD_TABLE (MOD_VEX_0F388C_PREFIX_2) },
   },
 
   /* PREFIX_VEX_0F388E */
   {
     { Bad_Opcode },
     { Bad_Opcode },
-     { MOD_TABLE (MOD_VEX_0F388E_PREFIX_2) },
+    { MOD_TABLE (MOD_VEX_0F388E_PREFIX_2) },
   },
 
   /* PREFIX_VEX_0F3890 */
@@ -8961,7 +8961,7 @@ static const struct dis386 vex_len_table[][2] = {
 
   /* VEX_LEN_0F3AF0_P_3 */
   {
-    { "rorxS",		{ Gdq, VexGdq, Edq, Ib } },
+    { "rorxS",		{ Gdq, Edq, Ib } },
   },
 
   /* VEX_LEN_0FXOP_09_80 */

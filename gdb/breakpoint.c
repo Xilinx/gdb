@@ -76,10 +76,6 @@
 #include "mi/mi-common.h"
 #include "python/python.h"
 
-/* Arguments to pass as context to some catch command handlers.  */
-#define CATCH_PERMANENT ((void *) (uintptr_t) 0)
-#define CATCH_TEMPORARY ((void *) (uintptr_t) 1)
-
 /* Prototypes for local functions.  */
 
 static void enable_delete_command (char *, int);
@@ -362,7 +358,7 @@ static int overlay_events_enabled;
 int target_exact_watchpoints = 0;
 
 /* Walk the following statement or block through all breakpoints.
-   ALL_BREAKPOINTS_SAFE does so even if the statment deletes the
+   ALL_BREAKPOINTS_SAFE does so even if the statement deletes the
    current breakpoint.  */
 
 #define ALL_BREAKPOINTS(B)  for (B = breakpoint_chain; B; B = B->next)
@@ -708,7 +704,7 @@ is_tracepoint (const struct breakpoint *b)
 	  || b->type == bp_static_tracepoint);
 }
   
-/* A helper function that validsates that COMMANDS are valid for a
+/* A helper function that validates that COMMANDS are valid for a
    breakpoint.  This function will throw an exception if a problem is
    found.  */
 
@@ -990,7 +986,7 @@ bp_location_has_shadow (struct bp_location *bl)
   if (!bl->inserted)
     return 0;
   if (bl->target_info.shadow_len == 0)
-    /* bp isn't valid, or doesn't shadow memory.  */
+    /* BL isn't valid, or doesn't shadow memory.  */
     return 0;
   return 1;
 }
@@ -1078,7 +1074,7 @@ breakpoint_restore_shadows (gdb_byte *buf, ULONGEST memaddr, LONGEST len)
       warning (_("reading through apparently deleted breakpoint #%d?"),
 	       bl->owner->number);
 
-    /* Performance optimization: any futher element can no longer affect BUF
+    /* Performance optimization: any further element can no longer affect BUF
        content.  */
 
     if (bl->address >= bp_location_placed_address_before_address_max
@@ -2064,7 +2060,7 @@ static int internal_breakpoint_number = -1;
 /* Set the breakpoint number of B, depending on the value of INTERNAL.
    If INTERNAL is non-zero, the breakpoint number will be populated
    from internal_breakpoint_number and that variable decremented.
-   Otherwis the breakpoint number will be populated from
+   Otherwise the breakpoint number will be populated from
    breakpoint_count and that value incremented.  Internal breakpoints
    do not set the internal var bpnum.  */
 static void
@@ -2455,7 +2451,7 @@ update_breakpoints_after_exec (void)
        gets 'round to deleting the "use to be a bp_finish" breakpoint.
        We really must allow finish_command to delete a bp_finish.
 
-       In the absense of a general solution for the "how do we know
+       In the absence of a general solution for the "how do we know
        it's safe to delete something others may have handles to?"
        problem, what we'll do here is just uninsert the bp_finish, and
        let finish_command delete it.
@@ -2791,7 +2787,7 @@ breakpoint_init_inferior (enum inf_context context)
    permanent breakpoint.
    - When continuing from a location with an ordinary breakpoint, we
      actually single step once before calling insert_breakpoints.
-   - When continuing from a localion with a permanent breakpoint, we
+   - When continuing from a location with a permanent breakpoint, we
      need to use the `SKIP_PERMANENT_BREAKPOINT' macro, provided by
      the target, to advance the PC past the breakpoint.  */
 
@@ -4317,6 +4313,13 @@ bpstat_stop_status (struct address_space *aspace,
 
       b = bs->breakpoint_at;
 
+      if (b->ops != NULL && b->ops->check_status != NULL)
+	{
+	  b->ops->check_status (bs);
+	  if (!bs->stop)
+	    continue;
+	}
+
 	  if (b->type == bp_thread_event || b->type == bp_overlay_event
 	      || b->type == bp_longjmp_master
 	      || b->type == bp_std_terminate_master
@@ -4354,7 +4357,7 @@ bpstat_stop_status (struct address_space *aspace,
 		}
 	    }
 
-	  /* Print nothing for this entry if we dont stop or dont print.  */
+	  /* Print nothing for this entry if we don't stop or don't print.  */
 	  if (bs->stop == 0 || bs->print == 0)
 	    bs->print_it = print_it_noop;
     }
@@ -4432,8 +4435,6 @@ bpstat_what (bpstat bs_head)
 	     breakpoint which has since been deleted.  */
 	  bptype = bp_none;
 	}
-      else if (bs->breakpoint_at == NULL)
-	bptype = bp_none;
       else
 	bptype = bs->breakpoint_at->type;
 
@@ -5006,18 +5007,15 @@ print_one_breakpoint_location (struct breakpoint *b,
     {
       annotate_field (6);
       ui_out_text (uiout, "\tstop only in stack frame at ");
-      /* FIXME: cagney/2002-12-01: Shouldn't be poeking around inside
+      /* FIXME: cagney/2002-12-01: Shouldn't be poking around inside
          the frame ID.  */
       ui_out_field_core_addr (uiout, "frame",
 			      b->gdbarch, b->frame_id.stack_addr);
       ui_out_text (uiout, "\n");
     }
   
-  if (!part_of_multiple && b->cond_string && !ada_exception_catchpoint_p (b))
+  if (!part_of_multiple && b->cond_string)
     {
-      /* We do not print the condition for Ada exception catchpoints
-         because the condition is an internal implementation detail
-         that we do not want to expose to the user.  */
       annotate_field (7);
       if (is_tracepoint (b))
 	ui_out_text (uiout, "\ttrace only if ");
@@ -5689,22 +5687,19 @@ adjust_breakpoint_address (struct gdbarch *gdbarch,
     }
 }
 
-/* Allocate a struct bp_location.  */
-
-static struct bp_location *
-allocate_bp_location (struct breakpoint *bpt)
+void
+init_bp_location (struct bp_location *loc, const struct bp_location_ops *ops,
+		  struct breakpoint *owner)
 {
-  struct bp_location *loc;
-
-  loc = xmalloc (sizeof (struct bp_location));
   memset (loc, 0, sizeof (*loc));
 
-  loc->owner = bpt;
+  loc->ops = ops;
+  loc->owner = owner;
   loc->cond = NULL;
   loc->shlib_disabled = 0;
   loc->enabled = 1;
 
-  switch (bpt->type)
+  switch (owner->type)
     {
     case bp_breakpoint:
     case bp_until:
@@ -5749,12 +5744,29 @@ allocate_bp_location (struct breakpoint *bpt)
     }
 
   loc->refc = 1;
+}
+
+/* Allocate a struct bp_location.  */
+
+static struct bp_location *
+allocate_bp_location (struct breakpoint *bpt)
+{
+  struct bp_location *loc;
+
+  if (bpt->ops && bpt->ops->allocate_location)
+    return bpt->ops->allocate_location (bpt);
+
+  loc = xmalloc (sizeof (struct bp_location));
+  init_bp_location (loc, NULL, bpt);
   return loc;
 }
 
 static void
 free_bp_location (struct bp_location *loc)
 {
+  if (loc->ops && loc->ops->dtor)
+    loc->ops->dtor (loc);
+
   if (loc->cond)
     xfree (loc->cond);
 
@@ -5785,38 +5797,12 @@ decref_bp_location (struct bp_location **blp)
   *blp = NULL;
 }
 
-/* Helper to set_raw_breakpoint below.  Creates a breakpoint that has
-   type BPTYPE and has no locations as yet.  */
-/* This function is used in gdbtk sources and thus can not be made
-   static.  */
+/* Add breakpoint B at the end of the global breakpoint chain.  */
 
-static struct breakpoint *
-set_raw_breakpoint_without_location (struct gdbarch *gdbarch,
-				     enum bptype bptype)
+static void
+add_to_breakpoint_chain (struct breakpoint *b)
 {
-  struct breakpoint *b, *b1;
-
-  b = (struct breakpoint *) xmalloc (sizeof (struct breakpoint));
-  memset (b, 0, sizeof (*b));
-
-  b->type = bptype;
-  b->gdbarch = gdbarch;
-  b->language = current_language->la_language;
-  b->input_radix = input_radix;
-  b->thread = -1;
-  b->enable_state = bp_enabled;
-  b->next = 0;
-  b->silent = 0;
-  b->ignore_count = 0;
-  b->commands = NULL;
-  b->frame_id = null_frame_id;
-  b->forked_inferior_pid = null_ptid;
-  b->exec_pathname = NULL;
-  b->syscalls_to_be_caught = NULL;
-  b->ops = NULL;
-  b->condition_not_parsed = 0;
-  b->py_bp_object = NULL;
-  b->related_breakpoint = b;
+  struct breakpoint *b1;
 
   /* Add this breakpoint to the end of the chain so that a list of
      breakpoints will come out in order of increasing numbers.  */
@@ -5830,6 +5816,48 @@ set_raw_breakpoint_without_location (struct gdbarch *gdbarch,
 	b1 = b1->next;
       b1->next = b;
     }
+}
+
+/* Initializes breakpoint B with type BPTYPE and no locations yet.  */
+
+static void
+init_raw_breakpoint_without_location (struct breakpoint *b,
+				      struct gdbarch *gdbarch,
+				      enum bptype bptype,
+				      struct breakpoint_ops *ops)
+{
+  memset (b, 0, sizeof (*b));
+
+  b->ops = ops;
+  b->type = bptype;
+  b->gdbarch = gdbarch;
+  b->language = current_language->la_language;
+  b->input_radix = input_radix;
+  b->thread = -1;
+  b->enable_state = bp_enabled;
+  b->next = 0;
+  b->silent = 0;
+  b->ignore_count = 0;
+  b->commands = NULL;
+  b->frame_id = null_frame_id;
+  b->condition_not_parsed = 0;
+  b->py_bp_object = NULL;
+  b->related_breakpoint = b;
+}
+
+/* Helper to set_raw_breakpoint below.  Creates a breakpoint
+   that has type BPTYPE and has no locations as yet.  */
+/* This function is used in gdbtk sources and thus can not be made
+   static.  */
+
+static struct breakpoint *
+set_raw_breakpoint_without_location (struct gdbarch *gdbarch,
+				     enum bptype bptype)
+{
+  struct breakpoint *b = XNEW (struct breakpoint);
+
+  init_raw_breakpoint_without_location (b, gdbarch, bptype, NULL);
+  add_to_breakpoint_chain (b);
   return b;
 }
 
@@ -5890,29 +5918,23 @@ get_sal_arch (struct symtab_and_line sal)
   return NULL;
 }
 
-/* set_raw_breakpoint is a low level routine for allocating and
-   partially initializing a breakpoint of type BPTYPE.  The newly
-   created breakpoint's address, section, source file name, and line
-   number are provided by SAL.  The newly created and partially
-   initialized breakpoint is added to the breakpoint chain and
-   is also returned as the value of this function.
+/* Low level routine for partially initializing a breakpoint of type
+   BPTYPE.  The newly created breakpoint's address, section, source
+   file name, and line number are provided by SAL.
 
    It is expected that the caller will complete the initialization of
    the newly created breakpoint struct as well as output any status
-   information regarding the creation of a new breakpoint.  In
-   particular, set_raw_breakpoint does NOT set the breakpoint
-   number!  Care should be taken to not allow an error to occur
-   prior to completing the initialization of the breakpoint.  If this
-   should happen, a bogus breakpoint will be left on the chain.  */
+   information regarding the creation of a new breakpoint.  */
 
-struct breakpoint *
-set_raw_breakpoint (struct gdbarch *gdbarch,
-		    struct symtab_and_line sal, enum bptype bptype)
+static void
+init_raw_breakpoint (struct breakpoint *b, struct gdbarch *gdbarch,
+		     struct symtab_and_line sal, enum bptype bptype,
+		     struct breakpoint_ops *ops)
 {
-  struct breakpoint *b = set_raw_breakpoint_without_location (gdbarch, 
-							      bptype);
   CORE_ADDR adjusted_address;
   struct gdbarch *loc_gdbarch;
+
+  init_raw_breakpoint_without_location (b, gdbarch, bptype, ops);
 
   loc_gdbarch = get_sal_arch (sal);
   if (!loc_gdbarch)
@@ -5951,7 +5973,31 @@ set_raw_breakpoint (struct gdbarch *gdbarch,
 				    sal.explicit_pc || sal.explicit_line);
 
   breakpoints_changed ();
+}
 
+/* set_raw_breakpoint is a low level routine for allocating and
+   partially initializing a breakpoint of type BPTYPE.  The newly
+   created breakpoint's address, section, source file name, and line
+   number are provided by SAL.  The newly created and partially
+   initialized breakpoint is added to the breakpoint chain and
+   is also returned as the value of this function.
+
+   It is expected that the caller will complete the initialization of
+   the newly created breakpoint struct as well as output any status
+   information regarding the creation of a new breakpoint.  In
+   particular, set_raw_breakpoint does NOT set the breakpoint
+   number!  Care should be taken to not allow an error to occur
+   prior to completing the initialization of the breakpoint.  If this
+   should happen, a bogus breakpoint will be left on the chain.  */
+
+struct breakpoint *
+set_raw_breakpoint (struct gdbarch *gdbarch,
+		    struct symtab_and_line sal, enum bptype bptype)
+{
+  struct breakpoint *b = XNEW (struct breakpoint);
+
+  init_raw_breakpoint (b, gdbarch, sal, bptype, NULL);
+  add_to_breakpoint_chain (b);
   return b;
 }
 
@@ -5969,7 +6015,7 @@ make_breakpoint_permanent (struct breakpoint *b)
      code.  Mark all locations as inserted.  For now,
      make_breakpoint_permanent is called in just one place, so it's
      hard to say if it's reasonable to have permanent breakpoint with
-     multiple locations or not, but it's easy to implmement.  */
+     multiple locations or not, but it's easy to implement.  */
   for (bl = b->loc; bl; bl = bl->next)
     bl->inserted = 1;
 }
@@ -6242,6 +6288,23 @@ disable_breakpoints_in_unloaded_shlib (struct so_list *solib)
 
 /* FORK & VFORK catchpoints.  */
 
+/* An instance of this type is used to represent a fork or vfork
+   catchpoint.  It includes a "struct breakpoint" as a kind of base
+   class; users downcast to "struct breakpoint *" when needed.  A
+   breakpoint is really of this type iff its ops pointer points to
+   CATCH_FORK_BREAKPOINT_OPS.  */
+
+struct fork_catchpoint
+{
+  /* The base class.  */
+  struct breakpoint base;
+
+  /* Process id of a child process whose forking triggered this
+     catchpoint.  This field is only valid immediately after this
+     catchpoint has triggered.  */
+  ptid_t forked_inferior_pid;
+};
+
 /* Implement the "insert" breakpoint_ops method for fork
    catchpoints.  */
 
@@ -6267,7 +6330,9 @@ static int
 breakpoint_hit_catch_fork (const struct bp_location *bl,
 			   struct address_space *aspace, CORE_ADDR bp_addr)
 {
-  return inferior_has_forked (inferior_ptid, &bl->owner->forked_inferior_pid);
+  struct fork_catchpoint *c = (struct fork_catchpoint *) bl->owner;
+
+  return inferior_has_forked (inferior_ptid, &c->forked_inferior_pid);
 }
 
 /* Implement the "print_it" breakpoint_ops method for fork
@@ -6276,9 +6341,11 @@ breakpoint_hit_catch_fork (const struct bp_location *bl,
 static enum print_stop_action
 print_it_catch_fork (struct breakpoint *b)
 {
+  struct fork_catchpoint *c = (struct fork_catchpoint *) b;
+
   annotate_catchpoint (b->number);
   printf_filtered (_("\nCatchpoint %d (forked process %d), "),
-		   b->number, ptid_get_pid (b->forked_inferior_pid));
+		   b->number, ptid_get_pid (c->forked_inferior_pid));
   return PRINT_SRC_AND_LOC;
 }
 
@@ -6288,6 +6355,7 @@ print_it_catch_fork (struct breakpoint *b)
 static void
 print_one_catch_fork (struct breakpoint *b, struct bp_location **last_loc)
 {
+  struct fork_catchpoint *c = (struct fork_catchpoint *) b;
   struct value_print_options opts;
 
   get_user_print_options (&opts);
@@ -6299,11 +6367,11 @@ print_one_catch_fork (struct breakpoint *b, struct bp_location **last_loc)
     ui_out_field_skip (uiout, "addr");
   annotate_field (5);
   ui_out_text (uiout, "fork");
-  if (!ptid_equal (b->forked_inferior_pid, null_ptid))
+  if (!ptid_equal (c->forked_inferior_pid, null_ptid))
     {
       ui_out_text (uiout, ", process ");
       ui_out_field_int (uiout, "what",
-                        ptid_get_pid (b->forked_inferior_pid));
+                        ptid_get_pid (c->forked_inferior_pid));
       ui_out_spaces (uiout, 1);
     }
 }
@@ -6330,9 +6398,13 @@ print_recreate_catch_fork (struct breakpoint *b, struct ui_file *fp)
 
 static struct breakpoint_ops catch_fork_breakpoint_ops =
 {
+  NULL, /* dtor */
+  NULL, /* allocate_location */
+  NULL, /* re_set */
   insert_catch_fork,
   remove_catch_fork,
   breakpoint_hit_catch_fork,
+  NULL, /* check_status */
   NULL, /* resources_needed */
   NULL, /* works_in_software_mode */
   print_it_catch_fork,
@@ -6367,7 +6439,9 @@ static int
 breakpoint_hit_catch_vfork (const struct bp_location *bl,
 			    struct address_space *aspace, CORE_ADDR bp_addr)
 {
-  return inferior_has_vforked (inferior_ptid, &bl->owner->forked_inferior_pid);
+  struct fork_catchpoint *c = (struct fork_catchpoint *) bl->owner;
+
+  return inferior_has_vforked (inferior_ptid, &c->forked_inferior_pid);
 }
 
 /* Implement the "print_it" breakpoint_ops method for vfork
@@ -6376,9 +6450,11 @@ breakpoint_hit_catch_vfork (const struct bp_location *bl,
 static enum print_stop_action
 print_it_catch_vfork (struct breakpoint *b)
 {
+  struct fork_catchpoint *c = (struct fork_catchpoint *) b;
+
   annotate_catchpoint (b->number);
   printf_filtered (_("\nCatchpoint %d (vforked process %d), "),
-		   b->number, ptid_get_pid (b->forked_inferior_pid));
+		   b->number, ptid_get_pid (c->forked_inferior_pid));
   return PRINT_SRC_AND_LOC;
 }
 
@@ -6388,6 +6464,7 @@ print_it_catch_vfork (struct breakpoint *b)
 static void
 print_one_catch_vfork (struct breakpoint *b, struct bp_location **last_loc)
 {
+  struct fork_catchpoint *c = (struct fork_catchpoint *) b;
   struct value_print_options opts;
 
   get_user_print_options (&opts);
@@ -6398,11 +6475,11 @@ print_one_catch_vfork (struct breakpoint *b, struct bp_location **last_loc)
     ui_out_field_skip (uiout, "addr");
   annotate_field (5);
   ui_out_text (uiout, "vfork");
-  if (!ptid_equal (b->forked_inferior_pid, null_ptid))
+  if (!ptid_equal (c->forked_inferior_pid, null_ptid))
     {
       ui_out_text (uiout, ", process ");
       ui_out_field_int (uiout, "what",
-                        ptid_get_pid (b->forked_inferior_pid));
+                        ptid_get_pid (c->forked_inferior_pid));
       ui_out_spaces (uiout, 1);
     }
 }
@@ -6429,9 +6506,13 @@ print_recreate_catch_vfork (struct breakpoint *b, struct ui_file *fp)
 
 static struct breakpoint_ops catch_vfork_breakpoint_ops =
 {
+  NULL, /* dtor */
+  NULL, /* allocate_location */
+  NULL, /* re_set */
   insert_catch_vfork,
   remove_catch_vfork,
   breakpoint_hit_catch_vfork,
+  NULL, /* check_status */
   NULL, /* resources_needed */
   NULL, /* works_in_software_mode */
   print_it_catch_vfork,
@@ -6441,23 +6522,53 @@ static struct breakpoint_ops catch_vfork_breakpoint_ops =
   print_recreate_catch_vfork
 };
 
+/* An instance of this type is used to represent a syscall catchpoint.
+   It includes a "struct breakpoint" as a kind of base class; users
+   downcast to "struct breakpoint *" when needed.  A breakpoint is
+   really of this type iff its ops pointer points to
+   CATCH_SYSCALL_BREAKPOINT_OPS.  */
+
+struct syscall_catchpoint
+{
+  /* The base class.  */
+  struct breakpoint base;
+
+  /* Syscall numbers used for the 'catch syscall' feature.  If no
+     syscall has been specified for filtering, its value is NULL.
+     Otherwise, it holds a list of all syscalls to be caught.  The
+     list elements are allocated with xmalloc.  */
+  VEC(int) *syscalls_to_be_caught;
+};
+
+/* Implement the "dtor" breakpoint_ops method for syscall
+   catchpoints.  */
+
+static void
+dtor_catch_syscall (struct breakpoint *b)
+{
+  struct syscall_catchpoint *c = (struct syscall_catchpoint *) b;
+
+  VEC_free (int, c->syscalls_to_be_caught);
+}
+
 /* Implement the "insert" breakpoint_ops method for syscall
    catchpoints.  */
 
 static int
 insert_catch_syscall (struct bp_location *bl)
 {
+  struct syscall_catchpoint *c = (struct syscall_catchpoint *) bl->owner;
   struct inferior *inf = current_inferior ();
 
   ++inf->total_syscalls_count;
-  if (!bl->owner->syscalls_to_be_caught)
+  if (!c->syscalls_to_be_caught)
     ++inf->any_syscall_count;
   else
     {
       int i, iter;
 
       for (i = 0;
-           VEC_iterate (int, bl->owner->syscalls_to_be_caught, i, iter);
+           VEC_iterate (int, c->syscalls_to_be_caught, i, iter);
            i++)
 	{
           int elem;
@@ -6492,17 +6603,18 @@ insert_catch_syscall (struct bp_location *bl)
 static int
 remove_catch_syscall (struct bp_location *bl)
 {
+  struct syscall_catchpoint *c = (struct syscall_catchpoint *) bl->owner;
   struct inferior *inf = current_inferior ();
 
   --inf->total_syscalls_count;
-  if (!bl->owner->syscalls_to_be_caught)
+  if (!c->syscalls_to_be_caught)
     --inf->any_syscall_count;
   else
     {
       int i, iter;
 
       for (i = 0;
-           VEC_iterate (int, bl->owner->syscalls_to_be_caught, i, iter);
+           VEC_iterate (int, c->syscalls_to_be_caught, i, iter);
            i++)
 	{
           int elem;
@@ -6533,18 +6645,19 @@ breakpoint_hit_catch_syscall (const struct bp_location *bl,
      breakpoint.  If we are, then we must guarantee that the called
      syscall is the same syscall we are catching.  */
   int syscall_number = 0;
-  const struct breakpoint *b = bl->owner;
+  const struct syscall_catchpoint *c
+    = (const struct syscall_catchpoint *) bl->owner;
 
   if (!inferior_has_called_syscall (inferior_ptid, &syscall_number))
     return 0;
 
   /* Now, checking if the syscall is the same.  */
-  if (b->syscalls_to_be_caught)
+  if (c->syscalls_to_be_caught)
     {
       int i, iter;
 
       for (i = 0;
-           VEC_iterate (int, b->syscalls_to_be_caught, i, iter);
+           VEC_iterate (int, c->syscalls_to_be_caught, i, iter);
            i++)
 	if (syscall_number == iter)
 	  break;
@@ -6604,6 +6717,7 @@ static void
 print_one_catch_syscall (struct breakpoint *b,
 			 struct bp_location **last_loc)
 {
+  struct syscall_catchpoint *c = (struct syscall_catchpoint *) b;
   struct value_print_options opts;
 
   get_user_print_options (&opts);
@@ -6614,19 +6728,19 @@ print_one_catch_syscall (struct breakpoint *b,
     ui_out_field_skip (uiout, "addr");
   annotate_field (5);
 
-  if (b->syscalls_to_be_caught
-      && VEC_length (int, b->syscalls_to_be_caught) > 1)
+  if (c->syscalls_to_be_caught
+      && VEC_length (int, c->syscalls_to_be_caught) > 1)
     ui_out_text (uiout, "syscalls \"");
   else
     ui_out_text (uiout, "syscall \"");
 
-  if (b->syscalls_to_be_caught)
+  if (c->syscalls_to_be_caught)
     {
       int i, iter;
       char *text = xstrprintf ("%s", "");
 
       for (i = 0;
-           VEC_iterate (int, b->syscalls_to_be_caught, i, iter);
+           VEC_iterate (int, c->syscalls_to_be_caught, i, iter);
            i++)
         {
           char *x = text;
@@ -6639,7 +6753,7 @@ print_one_catch_syscall (struct breakpoint *b,
             text = xstrprintf ("%s%d, ", text, iter);
 
           /* We have to xfree the last 'text' (now stored at 'x')
-             because xstrprintf dinamically allocates new space for it
+             because xstrprintf dynamically allocates new space for it
              on every call.  */
 	  xfree (x);
         }
@@ -6658,17 +6772,19 @@ print_one_catch_syscall (struct breakpoint *b,
 static void
 print_mention_catch_syscall (struct breakpoint *b)
 {
-  if (b->syscalls_to_be_caught)
+  struct syscall_catchpoint *c = (struct syscall_catchpoint *) b;
+
+  if (c->syscalls_to_be_caught)
     {
       int i, iter;
 
-      if (VEC_length (int, b->syscalls_to_be_caught) > 1)
+      if (VEC_length (int, c->syscalls_to_be_caught) > 1)
         printf_filtered (_("Catchpoint %d (syscalls"), b->number);
       else
         printf_filtered (_("Catchpoint %d (syscall"), b->number);
 
       for (i = 0;
-           VEC_iterate (int, b->syscalls_to_be_caught, i, iter);
+           VEC_iterate (int, c->syscalls_to_be_caught, i, iter);
            i++)
         {
           struct syscall s;
@@ -6692,14 +6808,16 @@ print_mention_catch_syscall (struct breakpoint *b)
 static void
 print_recreate_catch_syscall (struct breakpoint *b, struct ui_file *fp)
 {
+  struct syscall_catchpoint *c = (struct syscall_catchpoint *) b;
+
   fprintf_unfiltered (fp, "catch syscall");
 
-  if (b->syscalls_to_be_caught)
+  if (c->syscalls_to_be_caught)
     {
       int i, iter;
 
       for (i = 0;
-           VEC_iterate (int, b->syscalls_to_be_caught, i, iter);
+           VEC_iterate (int, c->syscalls_to_be_caught, i, iter);
            i++)
         {
           struct syscall s;
@@ -6717,9 +6835,13 @@ print_recreate_catch_syscall (struct breakpoint *b, struct ui_file *fp)
 
 static struct breakpoint_ops catch_syscall_breakpoint_ops =
 {
+  dtor_catch_syscall,
+  NULL, /* allocate_location */
+  NULL, /* re_set */
   insert_catch_syscall,
   remove_catch_syscall,
   breakpoint_hit_catch_syscall,
+  NULL, /* check_status */
   NULL, /* resources_needed */
   NULL, /* works_in_software_mode */
   print_it_catch_syscall,
@@ -6737,60 +6859,37 @@ syscall_catchpoint_p (struct breakpoint *b)
   return (b->ops == &catch_syscall_breakpoint_ops);
 }
 
-/* Create a new breakpoint of the bp_catchpoint kind and return it,
-   but does NOT mention it nor update the global location list.
-   This is useful if you need to fill more fields in the
-   struct breakpoint before calling mention.
- 
-   If TEMPFLAG is non-zero, then make the breakpoint temporary.
-   If COND_STRING is not NULL, then store it in the breakpoint.
-   OPS, if not NULL, is the breakpoint_ops structure associated
-   to the catchpoint.  */
+/* Initialize a new breakpoint of the bp_catchpoint kind.  If TEMPFLAG
+   is non-zero, then make the breakpoint temporary.  If COND_STRING is
+   not NULL, then store it in the breakpoint.  OPS, if not NULL, is
+   the breakpoint_ops structure associated to the catchpoint.  */
 
-static struct breakpoint *
-create_catchpoint_without_mention (struct gdbarch *gdbarch, int tempflag,
-				   char *cond_string,
-				   struct breakpoint_ops *ops)
+static void
+init_catchpoint (struct breakpoint *b,
+		 struct gdbarch *gdbarch, int tempflag,
+		 char *cond_string,
+		 struct breakpoint_ops *ops)
 {
   struct symtab_and_line sal;
-  struct breakpoint *b;
 
   init_sal (&sal);
   sal.pspace = current_program_space;
 
-  b = set_raw_breakpoint (gdbarch, sal, bp_catchpoint);
-  set_breakpoint_count (breakpoint_count + 1);
-  b->number = breakpoint_count;
+  init_raw_breakpoint (b, gdbarch, sal, bp_catchpoint, ops);
 
   b->cond_string = (cond_string == NULL) ? NULL : xstrdup (cond_string);
-  b->thread = -1;
-  b->addr_string = NULL;
-  b->enable_state = bp_enabled;
   b->disposition = tempflag ? disp_del : disp_donttouch;
-  b->ops = ops;
-
-  return b;
 }
 
-/* Create a new breakpoint of the bp_catchpoint kind and return it.
- 
-   If TEMPFLAG is non-zero, then make the breakpoint temporary.
-   If COND_STRING is not NULL, then store it in the breakpoint.
-   OPS, if not NULL, is the breakpoint_ops structure associated
-   to the catchpoint.  */
-
-static struct breakpoint *
-create_catchpoint (struct gdbarch *gdbarch, int tempflag,
-		   char *cond_string, struct breakpoint_ops *ops)
+void
+install_breakpoint (struct breakpoint *b)
 {
-  struct breakpoint *b =
-    create_catchpoint_without_mention (gdbarch, tempflag, cond_string, ops);
-
+  add_to_breakpoint_chain (b);
+  set_breakpoint_count (breakpoint_count + 1);
+  b->number = breakpoint_count;
   mention (b);
   observer_notify_breakpoint_created (b);
   update_global_location_list (1);
-
-  return b;
 }
 
 static void
@@ -6798,15 +6897,44 @@ create_fork_vfork_event_catchpoint (struct gdbarch *gdbarch,
 				    int tempflag, char *cond_string,
                                     struct breakpoint_ops *ops)
 {
-  struct breakpoint *b
-    = create_catchpoint (gdbarch, tempflag, cond_string, ops);
+  struct fork_catchpoint *c = XNEW (struct fork_catchpoint);
 
-  /* FIXME: We should put this information in a breakpoint private data
-     area.  */
-  b->forked_inferior_pid = null_ptid;
+  init_catchpoint (&c->base, gdbarch, tempflag, cond_string, ops);
+
+  c->forked_inferior_pid = null_ptid;
+
+  install_breakpoint (&c->base);
 }
 
 /* Exec catchpoints.  */
+
+/* An instance of this type is used to represent an exec catchpoint.
+   It includes a "struct breakpoint" as a kind of base class; users
+   downcast to "struct breakpoint *" when needed.  A breakpoint is
+   really of this type iff its ops pointer points to
+   CATCH_EXEC_BREAKPOINT_OPS.  */
+
+struct exec_catchpoint
+{
+  /* The base class.  */
+  struct breakpoint base;
+
+  /* Filename of a program whose exec triggered this catchpoint.
+     This field is only valid immediately after this catchpoint has
+     triggered.  */
+  char *exec_pathname;
+};
+
+/* Implement the "dtor" breakpoint_ops method for exec
+   catchpoints.  */
+
+static void
+dtor_catch_exec (struct breakpoint *b)
+{
+  struct exec_catchpoint *c = (struct exec_catchpoint *) b;
+
+  xfree (c->exec_pathname);
+}
 
 static int
 insert_catch_exec (struct bp_location *bl)
@@ -6824,21 +6952,26 @@ static int
 breakpoint_hit_catch_exec (const struct bp_location *bl,
 			   struct address_space *aspace, CORE_ADDR bp_addr)
 {
-  return inferior_has_execd (inferior_ptid, &bl->owner->exec_pathname);
+  struct exec_catchpoint *c = (struct exec_catchpoint *) bl->owner;
+
+  return inferior_has_execd (inferior_ptid, &c->exec_pathname);
 }
 
 static enum print_stop_action
 print_it_catch_exec (struct breakpoint *b)
 {
+  struct exec_catchpoint *c = (struct exec_catchpoint *) b;
+
   annotate_catchpoint (b->number);
   printf_filtered (_("\nCatchpoint %d (exec'd %s), "), b->number,
-		   b->exec_pathname);
+		   c->exec_pathname);
   return PRINT_SRC_AND_LOC;
 }
 
 static void
 print_one_catch_exec (struct breakpoint *b, struct bp_location **last_loc)
 {
+  struct exec_catchpoint *c = (struct exec_catchpoint *) b;
   struct value_print_options opts;
 
   get_user_print_options (&opts);
@@ -6850,10 +6983,10 @@ print_one_catch_exec (struct breakpoint *b, struct bp_location **last_loc)
     ui_out_field_skip (uiout, "addr");
   annotate_field (5);
   ui_out_text (uiout, "exec");
-  if (b->exec_pathname != NULL)
+  if (c->exec_pathname != NULL)
     {
       ui_out_text (uiout, ", program \"");
-      ui_out_field_string (uiout, "what", b->exec_pathname);
+      ui_out_field_string (uiout, "what", c->exec_pathname);
       ui_out_text (uiout, "\" ");
     }
 }
@@ -6875,9 +7008,13 @@ print_recreate_catch_exec (struct breakpoint *b, struct ui_file *fp)
 
 static struct breakpoint_ops catch_exec_breakpoint_ops =
 {
+  dtor_catch_exec,
+  NULL, /* allocate_location */
+  NULL, /* re_set */
   insert_catch_exec,
   remove_catch_exec,
   breakpoint_hit_catch_exec,
+  NULL, /* check_status */
   NULL, /* resources_needed */
   NULL, /* works_in_software_mode */
   print_it_catch_exec,
@@ -6891,17 +7028,14 @@ static void
 create_syscall_event_catchpoint (int tempflag, VEC(int) *filter,
                                  struct breakpoint_ops *ops)
 {
+  struct syscall_catchpoint *c;
   struct gdbarch *gdbarch = get_current_arch ();
-  struct breakpoint *b =
-    create_catchpoint_without_mention (gdbarch, tempflag, NULL, ops);
 
-  b->syscalls_to_be_caught = filter;
+  c = XNEW (struct syscall_catchpoint);
+  init_catchpoint (&c->base, gdbarch, tempflag, NULL, ops);
+  c->syscalls_to_be_caught = filter;
 
-  /* Now, we have to mention the breakpoint and update the global
-     location list.  */
-  mention (b);
-  observer_notify_breakpoint_created (b);
-  update_global_location_list (1);
+  install_breakpoint (&c->base);
 }
 
 static int
@@ -7604,7 +7738,7 @@ expand_line_sal_maybe (struct symtab_and_line sal)
 
   if (expanded.nelts <= 1)
     {
-      /* This is un ugly workaround.  If we get zero expanded sals
+      /* This is an ugly workaround.  If we get zero expanded sals
          then something is really wrong.  Fix that by returning the
          original sal.  */
 
@@ -8502,9 +8636,13 @@ print_recreate_ranged_breakpoint (struct breakpoint *b, struct ui_file *fp)
 
 static struct breakpoint_ops ranged_breakpoint_ops =
 {
+  NULL, /* dtor */
+  NULL, /* allocate_location */
+  NULL, /* re_set */
   NULL, /* insert */
   NULL, /* remove */
   breakpoint_hit_ranged_breakpoint,
+  NULL, /* check_status */
   resources_needed_ranged_breakpoint,
   NULL, /* works_in_software_mode */
   print_it_ranged_breakpoint,
@@ -8637,7 +8775,7 @@ break_range_command (char *arg, int from_tty)
 
   end = find_breakpoint_range_end (sal_end);
   if (sal_start.pc > end)
-    error (_("Invalid address range, end preceeds start."));
+    error (_("Invalid address range, end precedes start."));
 
   length = end - sal_start.pc + 1;
   if (length < 0)
@@ -8827,9 +8965,13 @@ works_in_software_mode_watchpoint (const struct breakpoint *b)
 
 static struct breakpoint_ops watchpoint_breakpoint_ops =
 {
+  NULL, /* dtor */
+  NULL, /* allocate_location */
+  NULL, /* re_set */
   insert_watchpoint,
   remove_watchpoint,
   NULL, /* breakpoint_hit */
+  NULL, /* check_status */
   resources_needed_watchpoint,
   works_in_software_mode_watchpoint,
   NULL, /* print_it */
@@ -9005,9 +9147,13 @@ print_recreate_masked_watchpoint (struct breakpoint *b, struct ui_file *fp)
 
 static struct breakpoint_ops masked_watchpoint_breakpoint_ops =
 {
+  NULL, /* dtor */
+  NULL, /* allocate_location */
+  NULL, /* re_set */
   insert_masked_watchpoint,
   remove_masked_watchpoint,
   NULL, /* breakpoint_hit */
+  NULL, /* check_status */
   resources_needed_masked_watchpoint,
   works_in_software_mode_masked_watchpoint,
   print_it_masked_watchpoint,
@@ -9703,6 +9849,7 @@ static void
 catch_exec_command_1 (char *arg, int from_tty, 
 		      struct cmd_list_element *command)
 {
+  struct exec_catchpoint *c;
   struct gdbarch *gdbarch = get_current_arch ();
   int tempflag;
   char *cond_string = NULL;
@@ -9723,10 +9870,12 @@ catch_exec_command_1 (char *arg, int from_tty,
   if ((*arg != '\0') && !isspace (*arg))
     error (_("Junk at end of arguments."));
 
-  /* If this target supports it, create an exec catchpoint
-     and enable reporting of such events.  */
-  create_catchpoint (gdbarch, tempflag, cond_string,
-		     &catch_exec_breakpoint_ops);
+  c = XNEW (struct exec_catchpoint);
+  init_catchpoint (&c->base, gdbarch, tempflag, cond_string,
+		   &catch_exec_breakpoint_ops);
+  c->exec_pathname = NULL;
+
+  install_breakpoint (&c->base);
 }
 
 static enum print_stop_action
@@ -9817,9 +9966,13 @@ print_recreate_exception_catchpoint (struct breakpoint *b,
 }
 
 static struct breakpoint_ops gnu_v3_exception_catchpoint_ops = {
+  NULL, /* dtor */
+  NULL, /* allocate_location */
+  NULL, /* re_set */
   NULL, /* insert */
   NULL, /* remove */
   NULL, /* breakpoint_hit */
+  NULL, /* check_status */
   NULL, /* resources_needed */
   NULL, /* works_in_software_mode */
   print_it_exception_catchpoint,
@@ -9900,21 +10053,15 @@ catch_throw_command (char *arg, int from_tty, struct cmd_list_element *command)
   catch_exception_command_1 (EX_EVENT_THROW, arg, tempflag, from_tty);
 }
 
-/* Create a breakpoint struct for Ada exception catchpoints.  */
-
-static void
-create_ada_exception_breakpoint (struct gdbarch *gdbarch,
-				 struct symtab_and_line sal,
-                                 char *addr_string,
-                                 char *exp_string,
-                                 char *cond_string,
-                                 struct expression *cond,
-                                 struct breakpoint_ops *ops,
-                                 int tempflag,
-                                 int from_tty)
+void
+init_ada_exception_breakpoint (struct breakpoint *b,
+			       struct gdbarch *gdbarch,
+			       struct symtab_and_line sal,
+			       char *addr_string,
+			       struct breakpoint_ops *ops,
+			       int tempflag,
+			       int from_tty)
 {
-  struct breakpoint *b;
-
   if (from_tty)
     {
       struct gdbarch *loc_gdbarch = get_sal_arch (sal);
@@ -9928,55 +10075,17 @@ create_ada_exception_breakpoint (struct gdbarch *gdbarch,
          used for different exception names will use the same address.
          In this case, a "breakpoint ... also set at..." warning is
          unproductive.  Besides, the warning phrasing is also a bit
-         inapropriate, we should use the word catchpoint, and tell
+         inappropriate, we should use the word catchpoint, and tell
          the user what type of catchpoint it is.  The above is good
          enough for now, though.  */
     }
 
-  b = set_raw_breakpoint (gdbarch, sal, bp_breakpoint);
-  set_breakpoint_count (breakpoint_count + 1);
+  init_raw_breakpoint (b, gdbarch, sal, bp_breakpoint, ops);
 
   b->enable_state = bp_enabled;
   b->disposition = tempflag ? disp_del : disp_donttouch;
-  b->number = breakpoint_count;
-  b->ignore_count = 0;
-  b->loc->cond = cond;
   b->addr_string = addr_string;
   b->language = language_ada;
-  b->cond_string = cond_string;
-  b->exp_string = exp_string;
-  b->thread = -1;
-  b->ops = ops;
-
-  mention (b);
-  observer_notify_breakpoint_created (b);
-  update_global_location_list (1);
-}
-
-/* Implement the "catch exception" command.  */
-
-static void
-catch_ada_exception_command (char *arg, int from_tty,
-			     struct cmd_list_element *command)
-{
-  struct gdbarch *gdbarch = get_current_arch ();
-  int tempflag;
-  struct symtab_and_line sal;
-  char *addr_string = NULL;
-  char *exp_string = NULL;
-  char *cond_string = NULL;
-  struct expression *cond = NULL;
-  struct breakpoint_ops *ops = NULL;
-
-  tempflag = get_cmd_context (command) == CATCH_TEMPORARY;
-
-  if (!arg)
-    arg = "";
-  sal = ada_decode_exception_location (arg, &addr_string, &exp_string,
-                                       &cond_string, &cond, &ops);
-  create_ada_exception_breakpoint (gdbarch, sal, addr_string, exp_string,
-                                   cond_string, cond, ops, tempflag,
-                                   from_tty);
 }
 
 /* Cleanup function for a syscall filter list.  */
@@ -10075,27 +10184,6 @@ this architecture yet."));
 
   create_syscall_event_catchpoint (tempflag, filter,
 				   &catch_syscall_breakpoint_ops);
-}
-
-/* Implement the "catch assert" command.  */
-
-static void
-catch_assert_command (char *arg, int from_tty,
-		      struct cmd_list_element *command)
-{
-  struct gdbarch *gdbarch = get_current_arch ();
-  int tempflag;
-  struct symtab_and_line sal;
-  char *addr_string = NULL;
-  struct breakpoint_ops *ops = NULL;
-
-  tempflag = get_cmd_context (command) == CATCH_TEMPORARY;
-
-  if (!arg)
-    arg = "";
-  sal = ada_decode_assert_location (arg, &addr_string, &ops);
-  create_ada_exception_breakpoint (gdbarch, sal, addr_string, NULL, NULL, NULL,
-				   ops, tempflag, from_tty);
 }
 
 static void
@@ -10278,7 +10366,7 @@ breakpoint_auto_delete (bpstat bs)
    does breakpoint_address_is_meaningful say for its OWNER),
    secondarily by ordering first bp_permanent OWNERed elements and
    terciarily just ensuring the array is sorted stable way despite
-   qsort being an instable algorithm.  */
+   qsort being an unstable algorithm.  */
 
 static int
 bp_location_compare (const void *ap, const void *bp)
@@ -10417,7 +10505,7 @@ update_global_location_list (int should_insert)
       struct bp_location *old_loc = *old_locp;
       struct bp_location **loc2p;
 
-      /* Tells if 'old_loc' is found amoung the new locations.  If
+      /* Tells if 'old_loc' is found among the new locations.  If
 	 not, we have to free it.  */
       int found_object = 0;
       /* Tells if the location should remain inserted in the target.  */
@@ -10773,6 +10861,9 @@ delete_breakpoint (struct breakpoint *bpt)
       break;
     }
 
+  if (bpt->ops != NULL && bpt->ops->dtor != NULL)
+    bpt->ops->dtor (bpt);
+
   decref_counted_command_line (&bpt->commands);
   xfree (bpt->cond_string);
   xfree (bpt->cond_exp);
@@ -10783,14 +10874,12 @@ delete_breakpoint (struct breakpoint *bpt)
   xfree (bpt->exp_string_reparse);
   value_free (bpt->val);
   xfree (bpt->source_file);
-  xfree (bpt->exec_pathname);
-  clean_up_filters (&bpt->syscalls_to_be_caught);
 
 
   /* Be sure no bpstat's are pointing at the breakpoint after it's
      been freed.  */
   /* FIXME, how can we find all bpstat's?  We just check stop_bpstat
-     in all threeds for now.  Note that we cannot just remove bpstats
+     in all threads for now.  Note that we cannot just remove bpstats
      pointing at bpt from the stop_bpstat list entirely, as breakpoint
      commands are associated with the bpstat; if we remove it here,
      then the later call to bpstat_do_actions (&stop_bpstat); in
@@ -11330,23 +11419,13 @@ addr_string_to_sals (struct breakpoint *b, char *addr_string, int *found)
   return sals;
 }
 
-/* Reevaluate a hardware or software breakpoint and recreate its locations.
-   This is necessary after symbols are read (e.g., an executable or DSO
-   was loaded, or the inferior just started).  */
-
-static void
-re_set_breakpoint (struct breakpoint *b)
+void
+breakpoint_re_set_default (struct breakpoint *b)
 {
   int found;
   struct symtabs_and_lines sals, sals_end;
   struct symtabs_and_lines expanded = {0};
   struct symtabs_and_lines expanded_end = {0};
-  struct cleanup *cleanups = make_cleanup (null_cleanup, NULL);
-
-  input_radix = b->input_radix;
-  save_current_space_and_thread ();
-  switch_to_program_space_and_thread (b->pspace);
-  set_language (b->language);
 
   sals = addr_string_to_sals (b, b->addr_string, &found);
   if (found)
@@ -11366,7 +11445,21 @@ re_set_breakpoint (struct breakpoint *b)
     }
 
   update_breakpoint_locations (b, expanded, expanded_end);
-  do_cleanups (cleanups);
+}
+
+/* Prepare the global context for a re-set of breakpoint B.  */
+
+static struct cleanup *
+prepare_re_set_context (struct breakpoint *b)
+{
+  struct cleanup *cleanups;
+
+  input_radix = b->input_radix;
+  cleanups = save_current_space_and_thread ();
+  switch_to_program_space_and_thread (b->pspace);
+  set_language (b->language);
+
+  return cleanups;
 }
 
 /* Reset a breakpoint given it's struct breakpoint * BINT.
@@ -11378,6 +11471,17 @@ breakpoint_re_set_one (void *bint)
 {
   /* Get past catch_errs.  */
   struct breakpoint *b = (struct breakpoint *) bint;
+
+  if (b->ops != NULL && b->ops->re_set != NULL)
+    {
+      struct cleanup *cleanups;
+
+      cleanups = prepare_re_set_context (b);
+      b->ops->re_set (b);
+      do_cleanups (cleanups);
+
+      return 0;
+    }
 
   switch (b->type)
     {
@@ -11402,7 +11506,13 @@ breakpoint_re_set_one (void *bint)
 	  return 0;
 	}
 
-      re_set_breakpoint (b);
+      {
+	struct cleanup *cleanups;
+
+	cleanups = prepare_re_set_context (b);
+	breakpoint_re_set_default (b);
+	do_cleanups (cleanups);
+      }
       break;
 
     case bp_watchpoint:
@@ -12184,11 +12294,13 @@ catching_syscall_number (int syscall_number)
   ALL_BREAKPOINTS (bp)
     if (is_syscall_catchpoint_enabled (bp))
       {
-	if (bp->syscalls_to_be_caught)
+	struct syscall_catchpoint *c = (struct syscall_catchpoint *) bp;
+
+	if (c->syscalls_to_be_caught)
 	  {
             int i, iter;
             for (i = 0;
-                 VEC_iterate (int, bp->syscalls_to_be_caught, i, iter);
+                 VEC_iterate (int, c->syscalls_to_be_caught, i, iter);
                  i++)
 	      if (syscall_number == iter)
 		return 1;
@@ -12829,9 +12941,7 @@ static struct cmd_list_element *catch_cmdlist;
 /* List of subcommands for "tcatch".  */
 static struct cmd_list_element *tcatch_cmdlist;
 
-/* Like add_cmd, but add the command to both the "catch" and "tcatch"
-   lists, and pass some additional user data to the command function.  */
-static void
+void
 add_catch_command (char *name, char *docstring,
 		   void (*sfunc) (char *args, int from_tty,
 				  struct cmd_list_element *command),
@@ -13195,20 +13305,6 @@ Arguments, if given, should be one or more system call names\n\
 (if your system supports that), or system call numbers."),
 		     catch_syscall_command_1,
 		     catch_syscall_completer,
-		     CATCH_PERMANENT,
-		     CATCH_TEMPORARY);
-  add_catch_command ("exception", _("\
-Catch Ada exceptions, when raised.\n\
-With an argument, catch only exceptions with the given name."),
-		     catch_ada_exception_command,
-                     NULL,
-		     CATCH_PERMANENT,
-		     CATCH_TEMPORARY);
-  add_catch_command ("assert", _("\
-Catch failed Ada assertions, when raised.\n\
-With an argument, catch only exceptions with the given name."),
-		     catch_assert_command,
-                     NULL,
 		     CATCH_PERMANENT,
 		     CATCH_TEMPORARY);
 

@@ -580,6 +580,7 @@ varobj_create (char *objname,
          return a sensible error.  */
       if (!gdb_parse_exp_1 (&p, block, 0, &var->root->exp))
 	{
+	  do_cleanups (old_chain);
 	  return NULL;
 	}
 
@@ -1085,7 +1086,7 @@ update_dynamic_varobj_children (struct varobj *var,
       if (to < 0 || i < to)
 	{
 	  PyObject *py_v;
-	  char *name;
+	  const char *name;
 	  struct value *v;
 	  struct cleanup *inner;
 	  int can_mention = from < 0 || i >= from;

@@ -2738,10 +2738,18 @@ d_expression (struct d_info *di)
       /* Function parameter used in a late-specified return type.  */
       int index;
       d_advance (di, 2);
-      index = d_compact_number (di);
-      if (index < 0)
-	return NULL;
-
+      if (d_peek_char (di) == 'T')
+	{
+	  /* 'this' parameter.  */
+	  d_advance (di, 1);
+	  index = 0;
+	}
+      else
+	{
+	  index = d_compact_number (di) + 1;
+	  if (index == 0)
+	    return NULL;
+	}
       return d_make_function_param (di, index);
     }
   else if (IS_DIGIT (peek)
@@ -3554,6 +3562,10 @@ static void
 d_print_comp (struct d_print_info *dpi, int options,
               const struct demangle_component *dc)
 {
+  /* Magic variable to let reference smashing skip over the next modifier
+     without needing to modify *dc.  */
+  const struct demangle_component *mod_inner = NULL;
+
   if (dc == NULL)
     {
       d_print_error (dpi);
@@ -3869,16 +3881,37 @@ d_print_comp (struct d_print_info *dpi, int options,
 	      }
 	  }
       }
+      goto modifier;
+
+    case DEMANGLE_COMPONENT_REFERENCE:
+    case DEMANGLE_COMPONENT_RVALUE_REFERENCE:
+      {
+	/* Handle reference smashing: & + && = &.  */
+	const struct demangle_component *sub = d_left (dc);
+	if (sub->type == DEMANGLE_COMPONENT_TEMPLATE_PARAM)
+	  {
+	    struct demangle_component *a = d_lookup_template_argument (dpi, sub);
+	    if (a && a->type == DEMANGLE_COMPONENT_TEMPLATE_ARGLIST)
+	      a = d_index_template_argument (a, dpi->pack_index);
+	    sub = a;
+	  }
+
+	if (sub->type == DEMANGLE_COMPONENT_REFERENCE
+	    || sub->type == dc->type)
+	  dc = sub;
+	else if (sub->type == DEMANGLE_COMPONENT_RVALUE_REFERENCE)
+	  mod_inner = d_left (sub);
+      }
       /* Fall through.  */
+
     case DEMANGLE_COMPONENT_RESTRICT_THIS:
     case DEMANGLE_COMPONENT_VOLATILE_THIS:
     case DEMANGLE_COMPONENT_CONST_THIS:
     case DEMANGLE_COMPONENT_VENDOR_TYPE_QUAL:
     case DEMANGLE_COMPONENT_POINTER:
-    case DEMANGLE_COMPONENT_REFERENCE:
-    case DEMANGLE_COMPONENT_RVALUE_REFERENCE:
     case DEMANGLE_COMPONENT_COMPLEX:
     case DEMANGLE_COMPONENT_IMAGINARY:
+    modifier:
       {
 	/* We keep a list of modifiers on the stack.  */
 	struct d_print_mod dpm;
@@ -3889,7 +3922,10 @@ d_print_comp (struct d_print_info *dpi, int options,
 	dpm.printed = 0;
 	dpm.templates = dpi->templates;
 
-	d_print_comp (dpi, options, d_left (dc));
+	if (!mod_inner)
+	  mod_inner = d_left (dc);
+
+	d_print_comp (dpi, options, mod_inner);
 
 	/* If the modifier didn't get printed by the type, print it
 	   now.  */
@@ -4111,7 +4147,46 @@ d_print_comp (struct d_print_info *dpi, int options,
       return;
 
     case DEMANGLE_COMPONENT_UNARY:
-      if (d_left (dc)->type != DEMANGLE_COMPONENT_CAST)
+      if (d_left (dc)->type == DEMANGLE_COMPONENT_OPERATOR
+	  && d_left (dc)->u.s_operator.op->len == 1
+	  && d_left (dc)->u.s_operator.op->name[0] == '&'
+	  && d_right (dc)->type == DEMANGLE_COMPONENT_TYPED_NAME
+	  && d_left (d_right (dc))->type == DEMANGLE_COMPONENT_QUAL_NAME
+	  && d_right (d_right (dc))->type == DEMANGLE_COMPONENT_FUNCTION_TYPE)
+	{
+	  /* Address of a function (therefore in an expression context) must
+	     have its argument list suppressed.
+
+	     unary operator ... dc
+	       operator & ... d_left (dc)
+	       typed name ... d_right (dc)
+		 qualified name ... d_left (d_right (dc))
+		   <names>
+		 function type ... d_right (d_right (dc))
+		   argument list
+		     <arguments>  */
+
+	  d_print_expr_op (dpi, options, d_left (dc));
+	  d_print_comp (dpi, options, d_left (d_right (dc)));
+	  return;
+	}
+      else if (d_left (dc)->type == DEMANGLE_COMPONENT_OPERATOR
+	       && d_left (dc)->u.s_operator.op->len == 1
+	       && d_left (dc)->u.s_operator.op->name[0] == '&'
+	       && d_right (dc)->type == DEMANGLE_COMPONENT_QUAL_NAME)
+	{
+	  /* Keep also already processed variant without the argument list.
+
+	     unary operator ... dc
+	       operator & ... d_left (dc)
+	       qualified name ... d_right (dc)
+		 <names>  */
+
+	  d_print_expr_op (dpi, options, d_left (dc));
+	  d_print_comp (dpi, options, d_right (dc));
+	  return;
+	}
+      else if (d_left (dc)->type != DEMANGLE_COMPONENT_CAST)
 	d_print_expr_op (dpi, options, d_left (dc));
       else
 	{
@@ -4137,7 +4212,21 @@ d_print_comp (struct d_print_info *dpi, int options,
 	  && d_left (dc)->u.s_operator.op->name[0] == '>')
 	d_append_char (dpi, '(');
 
-      d_print_subexpr (dpi, options, d_left (d_right (dc)));
+      if (strcmp (d_left (dc)->u.s_operator.op->code, "cl") == 0
+          && d_left (d_right (dc))->type == DEMANGLE_COMPONENT_TYPED_NAME)
+	{
+	  /* Function call used in an expression should not have printed types
+	     of the function arguments.  Values of the function arguments still
+	     get printed below.  */
+
+	  const struct demangle_component *func = d_left (d_right (dc));
+
+	  if (d_right (func)->type != DEMANGLE_COMPONENT_FUNCTION_TYPE)
+	    d_print_error (dpi);
+	  d_print_subexpr (dpi, options, d_left (func));
+	}
+      else
+	d_print_subexpr (dpi, options, d_left (d_right (dc)));
       if (strcmp (d_left (dc)->u.s_operator.op->code, "ix") == 0)
 	{
 	  d_append_char (dpi, '[');
@@ -4319,9 +4408,17 @@ d_print_comp (struct d_print_info *dpi, int options,
       return;
 
     case DEMANGLE_COMPONENT_FUNCTION_PARAM:
-      d_append_string (dpi, "{parm#");
-      d_append_num (dpi, dc->u.s_number.number + 1);
-      d_append_char (dpi, '}');
+      {
+	long num = dc->u.s_number.number;
+	if (num == 0)
+	  d_append_string (dpi, "this");
+	else
+	  {
+	    d_append_string (dpi, "{parm#");
+	    d_append_num (dpi, num);
+	    d_append_char (dpi, '}');
+	  }
+      }
       return;
 
     case DEMANGLE_COMPONENT_GLOBAL_CONSTRUCTORS:

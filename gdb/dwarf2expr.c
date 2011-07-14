@@ -418,7 +418,7 @@ read_sleb128 (const gdb_byte *buf, const gdb_byte *buf_end, LONGEST * r)
 	break;
     }
   if (shift < (sizeof (*r) * 8) && (byte & 0x40) != 0)
-    result |= -(1 << shift);
+    result |= -(((LONGEST) 1) << shift);
 
   *r = result;
   return buf;
@@ -520,6 +520,10 @@ execute_stack_op (struct dwarf_expr_context *ctx,
       ULONGEST uoffset, reg;
       LONGEST offset;
       struct value *result_val = NULL;
+
+      /* The DWARF expression might have a bug causing an infinite
+	 loop.  In that case, quitting is the only way out.  */
+      QUIT;
 
       switch (op)
 	{
@@ -1217,7 +1221,9 @@ execute_stack_op (struct dwarf_expr_context *ctx,
 
 	    type = dwarf_get_base_type (ctx, type_die, 0);
 	    result = (ctx->read_reg) (ctx->baton, reg);
-	    result_val = value_from_ulongest (type, result);
+	    result_val = value_from_ulongest (address_type, result);
+	    result_val = value_from_contents (type,
+					      value_contents_all (result_val));
 	  }
 	  break;
 
@@ -1229,7 +1235,10 @@ execute_stack_op (struct dwarf_expr_context *ctx,
 
 	    op_ptr = read_uleb128 (op_ptr, op_end, &type_die);
 
-	    type = dwarf_get_base_type (ctx, type_die, 0);
+	    if (type_die == 0)
+	      type = address_type;
+	    else
+	      type = dwarf_get_base_type (ctx, type_die, 0);
 
 	    result_val = dwarf_expr_fetch (ctx, 0);
 	    dwarf_expr_pop (ctx);

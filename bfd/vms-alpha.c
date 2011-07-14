@@ -330,7 +330,7 @@ struct vms_private_data_struct
   struct vms_internal_eisd_map *gbl_eisd_tail;
 
   /* linkage index counter used by conditional store commands */
-  int vms_linkage_index;
+  unsigned int vms_linkage_index;
 
   /* see tc-alpha.c of gas for a description.  */
   int flag_hash_long_names;	/* -+, hash instead of truncate */
@@ -3947,8 +3947,9 @@ _bfd_vms_write_etir (bfd * abfd, int objtype ATTRIBUTE_UNUSED)
 		  etir_output_check (abfd, section, curr_addr, 64);
 		  _bfd_vms_output_begin_subrec (recwr, ETIR__C_STC_LP_PSB);
 		  _bfd_vms_output_long
-		    (recwr, (unsigned long) PRIV (vms_linkage_index));
-		  PRIV (vms_linkage_index) += 2;
+		    (recwr, (unsigned long) rptr->addend);
+                  if (rptr->addend > PRIV (vms_linkage_index))
+                    PRIV (vms_linkage_index) = rptr->addend;
 		  hash = _bfd_vms_length_hash_symbol
                     (abfd, sym->name, EOBJ__C_SYMSIZ);
 		  _bfd_vms_output_counted (recwr, hash);
@@ -3974,13 +3975,11 @@ _bfd_vms_write_etir (bfd * abfd, int objtype ATTRIBUTE_UNUSED)
 		  _bfd_vms_output_begin_subrec (recwr, ETIR__C_STC_NOP_GBL);
 		  _bfd_vms_output_long (recwr, (unsigned long) udata->lkindex);
 		  _bfd_vms_output_long
-		    (recwr,
-                     (unsigned long) udata->enbsym->section->target_index);
+		    (recwr, (unsigned long) section->target_index);
 		  _bfd_vms_output_quad (recwr, rptr->address);
 		  _bfd_vms_output_long (recwr, (unsigned long) 0x47ff041f);
 		  _bfd_vms_output_long
-		    (recwr,
-                     (unsigned long) udata->enbsym->section->target_index);
+		    (recwr, (unsigned long) section->target_index);
 		  _bfd_vms_output_quad (recwr, rptr->addend);
 		  _bfd_vms_output_counted
 		    (recwr, _bfd_vms_length_hash_symbol
@@ -4001,8 +4000,7 @@ _bfd_vms_write_etir (bfd * abfd, int objtype ATTRIBUTE_UNUSED)
 		  _bfd_vms_output_long
 		    (recwr, (unsigned long) udata->lkindex + 1);
 		  _bfd_vms_output_long
-		    (recwr,
-                     (unsigned long) udata->enbsym->section->target_index);
+		    (recwr, (unsigned long) section->target_index);
 		  _bfd_vms_output_quad (recwr, rptr->address);
 		  _bfd_vms_output_long (recwr, (unsigned long) 0x237B0000);
 		  _bfd_vms_output_long
@@ -4022,13 +4020,11 @@ _bfd_vms_write_etir (bfd * abfd, int objtype ATTRIBUTE_UNUSED)
 		  _bfd_vms_output_begin_subrec (recwr, ETIR__C_STC_BOH_GBL);
 		  _bfd_vms_output_long (recwr, (unsigned long) udata->lkindex);
 		  _bfd_vms_output_long
-		    (recwr,
-                     (unsigned long) udata->enbsym->section->target_index);
+		    (recwr, (unsigned long) section->target_index);
 		  _bfd_vms_output_quad (recwr, rptr->address);
 		  _bfd_vms_output_long (recwr, (unsigned long) 0xD3400000);
 		  _bfd_vms_output_long
-		    (recwr,
-                     (unsigned long) udata->enbsym->section->target_index);
+		    (recwr, (unsigned long) section->target_index);
 		  _bfd_vms_output_quad (recwr, rptr->addend);
 		  _bfd_vms_output_counted
 		    (recwr, _bfd_vms_length_hash_symbol
@@ -5106,7 +5102,14 @@ alpha_vms_slurp_relocs (bfd *abfd)
                 (*_bfd_error_handler) (_("Invalid section index in ETIR"));
                 return FALSE;
               }
+
             sec = PRIV (sections)[cur_psect];
+            if (sec == bfd_abs_section_ptr)
+              {
+                (*_bfd_error_handler) (_("Relocation for non-REL psect"));
+                return FALSE;
+              }
+
             vms_sec = vms_section_data (sec);
 
             /* Allocate a reloc entry.  */
@@ -5117,7 +5120,7 @@ alpha_vms_slurp_relocs (bfd *abfd)
                     vms_sec->reloc_max = 64;
                     sec->relocation = bfd_zmalloc
                       (vms_sec->reloc_max * sizeof (arelent));
-                }
+                  }
                 else
                   {
                     vms_sec->reloc_max *= 2;
@@ -9333,6 +9336,7 @@ bfd_vms_get_data (bfd *abfd)
 
 #define alpha_vms_bfd_relax_section bfd_generic_relax_section
 #define alpha_vms_bfd_gc_sections bfd_generic_gc_sections
+#define alpha_vms_bfd_lookup_section_flags bfd_generic_lookup_section_flags
 #define alpha_vms_bfd_merge_sections bfd_generic_merge_sections
 #define alpha_vms_bfd_is_group_section bfd_generic_is_group_section
 #define alpha_vms_bfd_discard_group bfd_generic_discard_group

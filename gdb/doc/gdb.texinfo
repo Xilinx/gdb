@@ -20027,6 +20027,16 @@ Display debugging messages about inner workings of the AIX thread
 module.
 @item show debug aix-thread
 Show the current state of AIX thread debugging info display.
+@item set debug check-physname
+@cindex physname
+Check the results of the ``physname'' computation.  When reading DWARF
+debugging information for C@t{++}, @value{GDBN} attempts to compute
+each entity's name.  @value{GDBN} can do this computation in two
+different ways, depending on exactly what information is present.
+When enabled, this setting causes @value{GDBN} to compute the names
+both ways and display any discrepancies.
+@item show debug check-physname
+Show the current state of ``physname'' checking.
 @item set debug dwarf2-die
 @cindex DWARF2 DIEs
 Dump DWARF2 DIEs after they are read in.
@@ -20791,10 +20801,15 @@ End with a line saying just "end".
 
 @kindex maint set python print-stack
 @item maint set python print-stack
-By default, @value{GDBN} will print a stack trace when an error occurs
-in a Python script.  This can be controlled using @code{maint set
-python print-stack}: if @code{on}, the default, then Python stack
-printing is enabled; if @code{off}, then Python stack printing is
+This command is now deprecated.  Instead use @code{set python
+print-stack} 
+
+@kindex set python print-stack
+@item set python print-stack
+By default, @value{GDBN} will not print a stack trace when an error
+occurs in a Python script.  This can be controlled using @code{set
+python print-stack}: if @code{on}, then Python stack printing is
+enabled; if @code{off}, the default, then Python stack printing is
 disabled.
 @end table
 
@@ -30066,6 +30081,9 @@ Indicates presence of the @code{-thread-info} command.
 @item data-read-memory-bytes
 Indicates presense of the @code{-data-read-memory-bytes} and the
 @code{-data-write-memory-bytes} commands.
+@item breakpoint-notifications
+Indicates that changes to breakpoints and breakpoints created via the
+CLI will be announced via async records.
 
 @end table
 
@@ -36368,10 +36386,6 @@ The formal DTD for the traceframe info format is given below:
 @appendix Target Descriptions
 @cindex target descriptions
 
-@strong{Warning:} target descriptions are still under active development,
-and the contents and format may change between @value{GDBN} releases.
-The format is expected to stabilize in the future.
-
 One of the challenges of using @value{GDBN} to debug embedded systems
 is that there are so many minor variants of each processor
 architecture in use.  It is common practice for vendors to start with
@@ -36706,7 +36720,7 @@ The register's size, in bits.
 @item regnum
 The register's number.  If omitted, a register's number is one greater
 than that of the previous register (either in the current feature or in
-a preceeding feature); the first register in the target description
+a preceding feature); the first register in the target description
 defaults to zero.  This register number is used to read or write
 the register; e.g.@: it is used in the remote @code{p} and @code{P}
 packets, and registers appear in the @code{g} and @code{G} packets

@@ -224,6 +224,26 @@ enum report_method
   RM_GENERATE_ERROR
 };
 
+typedef enum {with_flags, without_flags} flag_type;
+
+/* A section flag list.  */
+struct flag_info_list
+{
+  flag_type with; 
+  const char *name;
+  bfd_boolean valid;
+  struct flag_info_list *next;
+};
+
+/* Section flag info.  */
+struct flag_info
+{
+  flagword only_with_flags;
+  flagword not_with_flags;
+  struct flag_info_list *flag_list;
+  bfd_boolean flags_initialized;
+};
+
 struct bfd_elf_dynamic_list;
 
 /* This structure holds all the information needed to communicate
@@ -352,6 +372,13 @@ struct bfd_link_info
   /* TRUE if some symbols have to be dynamic, controlled by
      --dynamic-list command line options.  */
   unsigned int dynamic: 1;
+
+  /* FALSE if .eh_frame unwind info should be generated for PLT and other
+     linker created sections, TRUE if it should be omitted.  */
+  unsigned int no_ld_generated_unwind_info: 1;
+
+  /* TRUE if we are loading LTO outputs.  */
+  unsigned int loading_lto_outputs: 1;
 
   /* Non-NULL if .note.gnu.build-id section should be created.  */
   char *emit_note_gnu_build_id;

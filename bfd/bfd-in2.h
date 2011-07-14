@@ -1143,7 +1143,8 @@ long bfd_get_mtime (bfd *abfd);
 file_ptr bfd_get_size (bfd *abfd);
 
 void *bfd_mmap (bfd *abfd, void *addr, bfd_size_type len,
-    int prot, int flags, file_ptr offset);
+    int prot, int flags, file_ptr offset,
+    void **map_addr, bfd_size_type *map_len);
 
 /* Extracted from bfdwin.c.  */
 /* Extracted from section.c.  */
@@ -1513,6 +1514,9 @@ typedef struct bfd_section
   /* The BFD which owns the section.  */
   bfd *owner;
 
+  /* INPUT_SECTION_FLAGS if specified in the linker script.  */
+  struct flag_info *section_flag_info;
+
   /* A symbol which points at this section only.  */
   struct bfd_symbol *symbol;
   struct bfd_symbol **symbol_ptr_ptr;
@@ -1690,6 +1694,9 @@ extern asection bfd_ind_section;
                                                                        \
   /* target_index, used_by_bfd, constructor_chain, owner,          */  \
      0,            NULL,        NULL,              NULL,               \
+                                                                       \
+  /* flag_info,                                                    */  \
+     NULL,                                                             \
                                                                        \
   /* symbol,                    symbol_ptr_ptr,                    */  \
      (struct bfd_symbol *) SYM, &SEC.symbol,                           \
@@ -5570,6 +5577,9 @@ bfd_boolean bfd_set_private_flags (bfd *abfd, flagword flags);
 #define bfd_gc_sections(abfd, link_info) \
        BFD_SEND (abfd, _bfd_gc_sections, (abfd, link_info))
 
+#define bfd_lookup_section_flags(link_info, flag_info) \
+       BFD_SEND (abfd, _bfd_lookup_section_flags, (link_info, flag_info))
+
 #define bfd_merge_sections(abfd, link_info) \
        BFD_SEND (abfd, _bfd_merge_sections, (abfd, link_info))
 
@@ -5725,6 +5735,10 @@ enum bfd_endian { BFD_ENDIAN_BIG, BFD_ENDIAN_LITTLE, BFD_ENDIAN_UNKNOWN };
 
 /* Forward declaration.  */
 typedef struct bfd_link_info _bfd_link_info;
+struct already_linked;
+
+/* Forward declaration.  */
+typedef struct flag_info flag_info;
 
 typedef struct bfd_target
 {
@@ -5995,6 +6009,7 @@ typedef struct bfd_target
   NAME##_bfd_final_link, \
   NAME##_bfd_link_split_section, \
   NAME##_bfd_gc_sections, \
+  NAME##_bfd_lookup_section_flags, \
   NAME##_bfd_merge_sections, \
   NAME##_bfd_is_group_section, \
   NAME##_bfd_discard_group, \
@@ -6039,6 +6054,10 @@ typedef struct bfd_target
   /* Remove sections that are not referenced from the output.  */
   bfd_boolean (*_bfd_gc_sections) (bfd *, struct bfd_link_info *);
 
+  /* Sets the bitmask of allowed and disallowed section flags.  */
+  void (*_bfd_lookup_section_flags) (struct bfd_link_info *,
+                                     struct flag_info *);
+
   /* Attempt to merge SEC_MERGE sections.  */
   bfd_boolean (*_bfd_merge_sections) (bfd *, struct bfd_link_info *);
 
@@ -6050,7 +6069,7 @@ typedef struct bfd_target
 
   /* Check if SEC has been already linked during a reloceatable or
      final link.  */
-  void (*_section_already_linked) (bfd *, struct bfd_section *,
+  void (*_section_already_linked) (bfd *, struct already_linked *,
                                    struct bfd_link_info *);
 
   /* Define a common symbol.  */
@@ -6120,11 +6139,12 @@ bfd_boolean bfd_link_split_section (bfd *abfd, asection *sec);
 #define bfd_link_split_section(abfd, sec) \
        BFD_SEND (abfd, _bfd_link_split_section, (abfd, sec))
 
-void bfd_section_already_linked (bfd *abfd, asection *sec,
+void bfd_section_already_linked (bfd *abfd,
+    struct already_linked *data,
     struct bfd_link_info *info);
 
-#define bfd_section_already_linked(abfd, sec, info) \
-       BFD_SEND (abfd, _section_already_linked, (abfd, sec, info))
+#define bfd_section_already_linked(abfd, data, info) \
+       BFD_SEND (abfd, _section_already_linked, (abfd, data, info))
 
 bfd_boolean bfd_generic_define_common_symbol
    (bfd *output_bfd, struct bfd_link_info *info,

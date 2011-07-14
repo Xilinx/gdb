@@ -1550,7 +1550,7 @@ mi_cmd_data_read_memory_bytes (char *command, char **argv, int argc)
 
 /* DATA-MEMORY-WRITE:
 
-   COLUMN_OFFSET: optional argument. Must be preceeded by '-o'. The
+   COLUMN_OFFSET: optional argument. Must be preceded by '-o'. The
    offset from the beginning of the memory grid row where the cell to
    be written is.
    ADDR: start address of the row in the memory grid where the memory
@@ -1708,6 +1708,7 @@ mi_cmd_list_features (char *command, char **argv, int argc)
       ui_out_field_string (uiout, NULL, "pending-breakpoints");
       ui_out_field_string (uiout, NULL, "thread-info");
       ui_out_field_string (uiout, NULL, "data-read-memory-bytes");
+      ui_out_field_string (uiout, NULL, "breakpoint-notifications");
       
 #if HAVE_PYTHON
       ui_out_field_string (uiout, NULL, "python");

@@ -1,3 +1,21 @@
+2011-07-01  Eric B. Weddington  <eric.weddington@atmel.com>
+
+	* avr.h (AVR_ISA_AVR6): Remove AVR_ISA_SPMX as it was actually
+	a duplicate of AVR_ISA_SPM.
+
+2011-07-01  Nick Clifton  <nickc@redhat.com>
+
+	* avr.h (AVR_ISA_AVR6): Fix typo, adding AVR_ISA_SPMX.
+
+2011-06-18  Robin Getz  <robin.getz@analog.com>
+
+	* bfin.h (is_macmod_signed): New func
+
+2011-06-18  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin.h (is_macmod_pmove): Add missing space before func args.
+	(is_macmod_hmove): Likewise.
+
 2011-06-13  Walter Lee  <walt@tilera.com>
 
 	* tilegx.h: New file.

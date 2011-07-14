@@ -1377,7 +1377,7 @@ value_assign (struct value *toval, struct value *fromval)
 
     case lval_computed:
       {
-	struct lval_funcs *funcs = value_computed_funcs (toval);
+	const struct lval_funcs *funcs = value_computed_funcs (toval);
 
 	funcs->write (toval, fromval);
       }
@@ -1740,7 +1740,7 @@ value_ind (struct value *arg1)
 
   if (VALUE_LVAL (arg1) == lval_computed)
     {
-      struct lval_funcs *funcs = value_computed_funcs (arg1);
+      const struct lval_funcs *funcs = value_computed_funcs (arg1);
 
       if (funcs->indirect)
 	{
@@ -2585,6 +2585,7 @@ find_overload_match (struct type **arg_types, int nargs,
 	  if (*valp)
 	    {
 	      *staticp = 1;
+	      do_cleanups (all_cleanups);
 	      return 0;
 	    }
 	}
@@ -2670,6 +2671,7 @@ find_overload_match (struct type **arg_types, int nargs,
       if (func_name == NULL)
         {
 	  *symp = fsym;
+	  do_cleanups (all_cleanups);
           return 0;
         }
 
@@ -3601,12 +3603,19 @@ value_full_object (struct value *argp,
    inappropriate context.  */
 
 struct value *
-value_of_local (const char *name, int complain)
+value_of_this (const struct language_defn *lang, int complain)
 {
-  struct symbol *func, *sym;
+  struct symbol *sym;
   struct block *b;
   struct value * ret;
   struct frame_info *frame;
+
+  if (!lang->la_name_of_this)
+    {
+      if (complain)
+	error (_("no `this' in current language"));
+      return 0;
+    }
 
   if (complain)
     frame = get_selected_frame (_("no frame selected"));
@@ -3617,52 +3626,22 @@ value_of_local (const char *name, int complain)
 	return 0;
     }
 
-  func = get_frame_function (frame);
-  if (!func)
-    {
-      if (complain)
-	error (_("no `%s' in nameless context"), name);
-      else
-	return 0;
-    }
+  b = get_frame_block (frame, NULL);
 
-  b = SYMBOL_BLOCK_VALUE (func);
-  if (dict_empty (BLOCK_DICT (b)))
-    {
-      if (complain)
-	error (_("no args, no `%s'"), name);
-      else
-	return 0;
-    }
-
-  /* Calling lookup_block_symbol is necessary to get the LOC_REGISTER
-     symbol instead of the LOC_ARG one (if both exist).  */
-  sym = lookup_block_symbol (b, name, VAR_DOMAIN);
+  sym = lookup_language_this (lang, b);
   if (sym == NULL)
     {
       if (complain)
 	error (_("current stack frame does not contain a variable named `%s'"),
-	       name);
+	       lang->la_name_of_this);
       else
 	return NULL;
     }
 
   ret = read_var_value (sym, frame);
   if (ret == 0 && complain)
-    error (_("`%s' argument unreadable"), name);
+    error (_("`%s' argument unreadable"), lang->la_name_of_this);
   return ret;
-}
-
-/* C++/Objective-C: return the value of the class instance variable,
-   if one exists.  Flag COMPLAIN signals an error if the request is
-   made in an inappropriate context.  */
-
-struct value *
-value_of_this (int complain)
-{
-  if (!current_language->la_name_of_this)
-    return 0;
-  return value_of_local (current_language->la_name_of_this, complain);
 }
 
 /* Create a slice (sub-string, sub-array) of ARRAY, that is LENGTH

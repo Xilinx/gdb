@@ -458,6 +458,9 @@ extern bfd_boolean _bfd_generic_set_section_contents
 #define _bfd_nolink_bfd_gc_sections \
   ((bfd_boolean (*) (bfd *, struct bfd_link_info *)) \
    bfd_false)
+#define _bfd_nolink_bfd_lookup_section_flags \
+  ((void (*) (struct bfd_link_info *, struct flag_info *)) \
+   bfd_0)
 #define _bfd_nolink_bfd_merge_sections \
   ((bfd_boolean (*) (bfd *, struct bfd_link_info *)) \
    bfd_false)
@@ -483,7 +486,8 @@ extern bfd_boolean _bfd_generic_set_section_contents
 #define _bfd_nolink_bfd_link_split_section \
   ((bfd_boolean (*) (bfd *, struct bfd_section *)) bfd_false)
 #define _bfd_nolink_section_already_linked \
-  ((void (*) (bfd *, struct bfd_section *, struct bfd_link_info *)) bfd_void)
+  ((void (*) (bfd *, struct already_linked*, \
+	      struct bfd_link_info *)) bfd_void)
 #define _bfd_nolink_bfd_define_common_symbol \
   ((bfd_boolean (*) (bfd *, struct bfd_link_info *, \
 		     struct bfd_link_hash_entry *)) bfd_false)
@@ -604,7 +608,7 @@ extern bfd_boolean _bfd_generic_link_split_section
   (bfd *, struct bfd_section *);
 
 extern void _bfd_generic_section_already_linked
-  (bfd *, struct bfd_section *, struct bfd_link_info *);
+  (bfd *, struct already_linked *, struct bfd_link_info *);
 
 /* Generic reloc_link_order processing routine.  */
 extern bfd_boolean _bfd_generic_reloc_link_order
@@ -796,16 +800,26 @@ struct bfd_section_already_linked_hash_entry
   struct bfd_section_already_linked *entry;
 };
 
+struct already_linked
+{
+  const char *comdat_key;
+  union
+    {
+      asection *sec;
+      bfd *abfd;
+    } u;
+};
+
 struct bfd_section_already_linked
 {
   struct bfd_section_already_linked *next;
-  asection *sec;
+  struct already_linked linked;
 };
 
 extern struct bfd_section_already_linked_hash_entry *
   bfd_section_already_linked_table_lookup (const char *);
 extern bfd_boolean bfd_section_already_linked_table_insert
-  (struct bfd_section_already_linked_hash_entry *, asection *);
+  (struct bfd_section_already_linked_hash_entry *, struct already_linked *);
 extern void bfd_section_already_linked_table_traverse
   (bfd_boolean (*) (struct bfd_section_already_linked_hash_entry *,
 		    void *), void *);
@@ -850,9 +864,15 @@ struct bfd_iovec
   int (*bclose) (struct bfd *abfd);
   int (*bflush) (struct bfd *abfd);
   int (*bstat) (struct bfd *abfd, struct stat *sb);
-  /* Just like mmap: (void*)-1 on failure, mmapped address on success.  */
+  /* Mmap a part of the files. ADDR, LEN, PROT, FLAGS and OFFSET are the usual
+     mmap parameter, except that LEN and OFFSET do not need to be page
+     aligned.  Returns (void *)-1 on failure, mmapped address on success.
+     Also write in MAP_ADDR the address of the page aligned buffer and in
+     MAP_LEN the size mapped (a page multiple).  Use unmap with MAP_ADDR and
+     MAP_LEN to unmap.  */
   void *(*bmmap) (struct bfd *abfd, void *addr, bfd_size_type len,
-                  int prot, int flags, file_ptr offset);
+                  int prot, int flags, file_ptr offset,
+                  void **map_addr, bfd_size_type *map_len);
 };
 extern const struct bfd_iovec _bfd_memory_iovec;
 /* Extracted from bfdwin.c.  */
@@ -2451,6 +2471,9 @@ bfd_boolean bfd_generic_relax_section
 
 bfd_boolean bfd_generic_gc_sections
    (bfd *, struct bfd_link_info *);
+
+void bfd_generic_lookup_section_flags
+   (struct bfd_link_info *, struct flag_info *);
 
 bfd_boolean bfd_generic_merge_sections
    (bfd *, struct bfd_link_info *);

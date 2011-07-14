@@ -520,7 +520,7 @@ amd64_classify_aggregate (struct type *type, enum amd64_reg_class class[2])
   if (class[0] == AMD64_MEMORY || class[1] == AMD64_MEMORY)
     class[0] = class[1] = AMD64_MEMORY;
 
-  /* Rule (b): If SSEUP is not preceeded by SSE, it is converted to
+  /* Rule (b): If SSEUP is not preceded by SSE, it is converted to
      SSE.  */
   if (class[0] == AMD64_SSEUP)
     class[0] = AMD64_SSE;
@@ -2221,6 +2221,11 @@ static int
 amd64_in_function_epilogue_p (struct gdbarch *gdbarch, CORE_ADDR pc)
 {
   gdb_byte insn;
+  struct symtab *symtab;
+
+  symtab = find_pc_symtab (pc);
+  if (symtab && symtab->epilogue_unwind_valid)
+    return 0;
 
   if (target_read_memory (pc, &insn, 1))
     return 0;   /* Can't read memory at pc.  */

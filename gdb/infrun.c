@@ -2246,7 +2246,6 @@ start_remote (int from_tty)
 {
   struct inferior *inferior;
 
-  init_wait_for_inferior ();
   inferior = current_inferior ();
   inferior->control.stop_soon = STOP_QUIETLY_REMOTE;
 
@@ -3090,7 +3089,6 @@ handle_inferior_event (struct execution_control_state *ecs)
 {
   struct frame_info *frame;
   struct gdbarch *gdbarch;
-  int sw_single_step_trap_p = 0;
   int stopped_by_watchpoint;
   int stepped_after_stopped_by_watchpoint = 0;
   struct symtab_and_line stop_pc_sal;
@@ -3845,7 +3843,6 @@ handle_inferior_event (struct execution_control_state *ecs)
 	}
       else if (singlestep_breakpoints_inserted_p)
 	{
-	  sw_single_step_trap_p = 1;
 	  ecs->random_signal = 0;
 	}
     }
@@ -6397,7 +6394,7 @@ siginfo_value_write (struct value *v, struct value *fromval)
     error (_("Unable to write siginfo"));
 }
 
-static struct lval_funcs siginfo_value_funcs =
+static const struct lval_funcs siginfo_value_funcs =
   {
     siginfo_value_read,
     siginfo_value_write
