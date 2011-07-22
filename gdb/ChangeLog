@@ -1,3 +1,247 @@
+2011-07-22  Phil Muldoon  <pmuldoon@redhat.com>
+
+	* event-top.c (cli_command_loop): Use get_prompt, get_suffix,
+	get_prefix.
+	(display_gdb_prompt): Likewise.
+	(change_annotation_level): Likewise.
+	(push_prompt): Likewise.
+	(pop_prompt): Likewise.
+	(handle_stop_sig): Use get_prompt with a level.
+	* top.c (command_loop): Use get_prompt with a level.
+	(set_async_annotation_level): Use set_prompt with a level.
+	(get_prefix): New function.
+	(set_prefix): Ditto.
+	(set_suffix): Ditto.
+	(get_suffix): Ditto.
+	(get_prompt): Accept a level argument.
+	(set_prompt): Accept a level argument.  Free old prompts.  Set
+	new_async_prompt if level is 0.
+	(init_main): Use set_prompt with a level.  Do not set
+	new_async_prompt.
+	* event-top.h (PROMPT, SUFFIX, PREFIX): Move to top.c
+	* top.h: Declare set_suffix, get_suffix, set_prefix, get_prefix.
+	Modify set_prompt, get_prompt to account for levels.
+	* tui/tui-interp.c (tui_command_loop): Use get_prompt with a
+	level.
+	* python/python.c (before_prompt_hook): Use set_prompt.
+	
+2011-07-22  Kwok Cheung Yeung  <kcy@codesourcery.com>
+
+	* defs.h: Add guard against inclusion in gdbserver.
+	(struct ptid, ptid_t): Move to common/ptid.h.
+	(xfree, xzalloc, xasprintf, xvasprintf, xstrprintf, xstrvprintf,
+	xsnprintf, internal_error): Move to common/common-utils.h.
+	(nomem): Delete.
+	* gdb_assert.h: Move into common/ sub-directory.
+	* gdb_locale.h: Ditto.
+	* gdb_dirent.h: Ditto.
+	* inferior.h (minus_one_ptid, null_ptid, ptid_build, pid_to_ptid,
+	ptid_get_pid, ptid_get_lwp, ptid_get_tid, ptid_equal, ptid_is_pid):
+	Move into common/ptid.h.
+	* xml-support.c (xml_escape_text): Move into common/xml-utils.c.
+	(gdb_xml_create_parser_and_cleanup_1, xml_fetch_context_from_file):
+	Change nomem to malloc_failure.
+	* xml-support.h (xml_escape_text): Move into common/xml-utils.h.
+	* utils.c (nomem): Rename to malloc_failure.
+	(xmalloc, xzalloc, xrealloc, xcalloc, xfree, xstrprintf, xasprintf,
+	xvasprintf, xstrvprintf, xsnprintf): Move to common/common-utils.c.
+	(gdb_buildargv): Change nomem to malloc_failure.
+	* infrun.c (null_ptid, minus_one_ptid, ptid_build, pid_to_ptid,
+	ptid_get_pid, ptid_get_lwp, ptid_get_tid, ptid_equal,
+	ptid_is_pid): Move into common/ptid.c.
+	(initialize_infrun): Delete initialization of null_ptid and
+	minus_one_ptid.
+	* linux-nat.c (linux_nat_xfer_osdata): Defer to
+	linux_common_xfer_osdata.
+	* Makefile.in (SFILES): Add common/common-utils.c, common/xml-utils.c,
+	common/ptid.c and common/buffer.c.
+	(HFILES_NO_SRCDIR): Add common/common-utils.h, common/xml-utils.h,
+	common/ptid.h, common/buffer.h and common/linux-osdata.h.
+	(COMMON_OBS): Add xml-utils.o, common-utils.o, buffer.o and ptid.o.
+	(common-utils.o, xml-utils.o, ptid.o, buffer.o, linux-osdata.o): New
+	rules.
+	* common/gdb_assert.h: New.
+	* common/gdb_dirent.h: New.
+	* common/gdb_locale.h: New.
+	* common/buffer.c: New.
+	* common/buffer.h: New.
+	* common/ptid.c: New.
+	* common/ptid.h: New.
+	* common/xml-utils.c: New.
+	* common/xml-utils.h: New.
+	* common/common-utils.c: New.
+	* common/common-utils.h: New.
+	* common/linux-osdata.c: New.
+	* common/linux-osdata.h: New.
+	* config/alpha/alpha-linux.mh (NATDEPFILES): Add linux-osdata.o.
+	* config/arm/linux.mh (NATDEPFILES): Ditto.
+	* config/i386/linux.mh (NATDEPFILES): Ditto.
+	* config/i386/linux64.mh (NATDEPFILES): Ditto.
+	* config/ia64/linux.mh (NATDEPFILES): Ditto.
+	* config/m32r/linux.mh (NATDEPFILES): Ditto.
+	* config/m68k/linux.mh (NATDEPFILES): Ditto.
+	* config/mips/linux.mh (NATDEPFILES): Ditto.
+	* config/pa/linux.mh (NATDEPFILES): Ditto.
+	* config/powerpc/linux.mh (NATDEPFILES): Ditto.
+	* config/powerpc/ppc64-linux.mh (NATDEPFILES): Ditto.
+	* config/s390/s390.mh (NATDEPFILES): Ditto.
+	* config/sparc/linux.mh (NATDEPFILES): Ditto.
+	* config/sparc/linux64.mh (NATDEPFILES): Ditto.
+	* config/xtensa/linux.mh (NATDEPFILES): Ditto.
+
+2011-07-21  Matt Rice  <ratmice@gmail.com>
+
+	* NEWS: Add info macros and info definitions commands.
+
+2011-07-21  Phil Muldoon  <pmuldoon@redhat.com>
+
+	* NEWS: Document Python prompt substitution hook.
+
+2011-07-18  Matt Rice  <ratmice@gmail.com>
+
+	PR macros/12999
+	* macrotab.h (macro_callback_fn): Add new arguments to callback.
+	* macrotab.c (foreach_macro): Ditto.
+	(foreach_macro_in_scope): Ditto.
+	* macrocmd.c (print_macro_callback): New function.
+	(info_macro_command): Move some code to print_macro_definition.
+	(print_macro_definition): New function.
+	(print_one_macro): Add new arguments to callback.
+	(info_definitions_command): New function.
+	(info_macros_command): Ditto.
+	(_initialize_macrocmd): Add info macros and info definitions commands.
+	* symtab.c (add_macro_name): Add new arguments to callback.
+
+2011-07-21  Phil Muldoon  <pmuldoon@redhat.com>
+            Tom Tromey  <tromey@redhat.com>
+
+	* top.c (set_prompt): Rewrite to free previous prompt, free
+	asynch_new_prompt and set both on new prompts.
+	* event-top.c (display_gdb_prompt): Add prompt substitution
+	logic.
+	* python/python.c (before_prompt_hook): New function.
+
+2011-07-20  Matt Rice  <ratmice@gmail.com>
+
+	* bfin-tdep.c (bfin_extract_return_value): Fix swapped
+	arguments to store_unsigned_integer.
+
+2011-07-20  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2read.c (process_enumeration_scope): Do not call new_symbol
+	in some declaration-only cases.
+
+2011-07-18  Tom Tromey  <tromey@redhat.com>
+
+	PR symtab/12984:
+	* dwarf2read.c (dwarf2_section_info_def): New typedef.
+	(struct dwarf2_per_objfile) <types>: Change to a VEC.
+	(struct dwarf2_per_cu_data) <from_debug_types>: Remove.
+	<debug_type_section>: New field.
+	(dwarf2_locate_sections): Push .debug_types sections onto VEC.
+	(load_cu): Use appropriate section.
+	(create_signatured_type_table_from_index): Add 'section'
+	argument.
+	(dwarf2_read_index): Only allow a single .debug_types section.
+	(dw2_get_file_names): Use appropriate section.
+	(read_type_comp_unit_head): Add 'section' argument.
+	(create_debug_types_hash_table): Loop over all .debug_types
+	sections.
+	(init_cu_die_reader): Use appropriate section.
+	(process_psymtab_comp_unit, load_partial_comp_unit)
+	(load_full_comp_unit, read_die_and_children, find_partial_die)
+	(lookup_die_type, determine_prefix, follow_die_offset): Update.
+	(lookup_signatured_type_at_offset): Add 'section' argument.
+	(read_signatured_type_at_offset): Add 'sect' argument.
+	(read_signatured_type): Use appropriate section.
+	(set_die_type, get_die_type_at_offset): Update.
+	(dwarf2_per_objfile_free): Free all .debug_types sections, and
+	VEC.
+	(write_psymtabs_to_index): Don't allow index with more than one
+	.debug_types section.
+
+2011-07-19  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix crash if referenced CU is aged out.
+	* dwarf2loc.c (per_cu_dwarf_call): New variable back_to, use to for
+	xfree of block.data.
+	(indirect_pieced_value): New variable back_to, use to for xfree of
+	baton.data.
+	(dwarf2_compile_expr_to_ax): New variable back_to, use to for xfree of
+	block.data.
+	* dwarf2read.c (dwarf2_find_base_address): New prototype.
+	(load_cu): New function from ...
+	(dw2_do_instantiate_symtab): ... the code here ...
+	(process_full_comp_unit): ... and here.
+	(dwarf2_fetch_die_location_block): Call load_cu first.  Call xmemdup on
+	retval.data.
+
+2011-07-19  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* dwarf2loc.c (indirect_pieced_value): Use check_typedef for VALUE's
+	type.
+
+2011-07-19  Gary Benson  <gbenson@redhat.com>
+
+	* infrun.c (struct execution_control_state): New member
+	stop_func_filled_in.
+	(clear_stop_func, fill_in_stop_func): New functions.
+	(handle_inferior_event): Call clear_stop_func rather than
+	manipulating the execution control state directly.
+	Call fill_in_stop_func lazily as required rather than
+	directly calling find_pc_partial_function in all cases.
+
+2011-07-18  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2read.c (read_subrange_type): Use attr_form_is_block when
+	checking for variable-sized array.
+
+2011-07-18  Jean-Charles Delay  <delay@adacore.com>
+
+	* varobj.h (varobj_languages): Add vlang_ada definition to the list
+	of supported languages.
+	* varobj.c: Add top definitions and basic implementation of the
+	following callbacks: ada_number_of_children, ada_name_of_variable,
+	ada_name_of_child, ada_path_expr_of_child, ada_value_of_root,
+	ada_value_of_child, ada_type_of_child, ada_value_of_variable.
+	(languages): Register Ada-specific callbacks.
+	(variable_language): Add the Ada case in the language setter switch.
+
+2011-07-17  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* remote-mips.c (pmon_download): Fix ignored return value GCC warning.
+
+2011-07-15  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Code cleanup.
+	* dwarf2-frame.c (dwarf2_frame_ctx_funcs): New.
+	(execute_stack_op): Use dwarf2_frame_ctx_funcs
+	* dwarf2expr.c (dwarf_get_base_type): Access get_base_type via funcs.
+	(execute_stack_op): Access read_reg, get_frame_base, read_mem,
+	get_frame_cfa, get_tls_address and dwarf_call via funcs.
+	* dwarf2expr.h (struct dwarf_expr_context): New forward declaration.
+	(struct dwarf_expr_context_funcs): New, move here methods from ...
+	(struct dwarf_expr_context): ... here.  New fields funcs.
+	* dwarf2loc.c (dwarf_expr_dwarf_call): Access get_frame_pc via funcs.
+	(dwarf_expr_ctx_funcs): New.
+	(dwarf2_evaluate_loc_desc_full): Use dwarf_expr_ctx_funcs.
+	(needs_frame_dwarf_call): Access get_frame_pc via funcs.
+	(needs_frame_ctx_funcs): New.
+	(dwarf2_loc_desc_needs_frame): Use needs_frame_ctx_funcs.
+
+2011-07-15  Fawzi Mohamed  <fawzi.mohamed@nokia.com>
+
+	* MAINTAINERS (Write After Approval): Add myself to the list.
+
+2011-07-15  Fawzi Mohamed  <fawzi.mohamed@nokia.com>
+
+	* dwarf2-frame.c (decode_frame_entry, decode_frame_entry_1): Ensure
+	that CIE pointer of an FDE really points to a CIE .
+
+2011-07-15  Hui Zhu  <teawater@gmail.com>
+
+	* remote.c (remote_get_trace_status): Add comments.
+
 2011-07-14  Jan Kratochvil  <jan.kratochvil@redhat.com>
 
 	Code cleanup - constify struct lval_funcs.

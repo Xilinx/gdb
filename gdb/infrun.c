@@ -2326,6 +2326,7 @@ struct execution_control_state
 
   struct target_waitstatus ws;
   int random_signal;
+  int stop_func_filled_in;
   CORE_ADDR stop_func_start;
   CORE_ADDR stop_func_end;
   char *stop_func_name;
@@ -3078,6 +3079,36 @@ handle_syscall_event (struct execution_control_state *ecs)
   ecs->event_thread->suspend.stop_signal = TARGET_SIGNAL_0;
   keep_going (ecs);
   return 1;
+}
+
+/* Clear the supplied execution_control_state's stop_func_* fields.  */
+
+static void
+clear_stop_func (struct execution_control_state *ecs)
+{
+  ecs->stop_func_filled_in = 0;
+  ecs->stop_func_start = 0;
+  ecs->stop_func_end = 0;
+  ecs->stop_func_name = NULL;
+}
+
+/* Lazily fill in the execution_control_state's stop_func_* fields.  */
+
+static void
+fill_in_stop_func (struct gdbarch *gdbarch,
+		   struct execution_control_state *ecs)
+{
+  if (!ecs->stop_func_filled_in)
+    {
+      /* Don't care about return value; stop_func_start and stop_func_name
+	 will both be 0 if it doesn't work.  */
+      find_pc_partial_function (stop_pc, &ecs->stop_func_name,
+				&ecs->stop_func_start, &ecs->stop_func_end);
+      ecs->stop_func_start
+	+= gdbarch_deprecated_function_start_offset (gdbarch);
+
+      ecs->stop_func_filled_in = 1;
+    }
 }
 
 /* Given an execution control state that has been freshly filled in
@@ -3925,15 +3956,7 @@ handle_inferior_event (struct execution_control_state *ecs)
       return;
     }
 
-  ecs->stop_func_start = 0;
-  ecs->stop_func_end = 0;
-  ecs->stop_func_name = 0;
-  /* Don't care about return value; stop_func_start and stop_func_name
-     will both be 0 if it doesn't work.  */
-  find_pc_partial_function (stop_pc, &ecs->stop_func_name,
-			    &ecs->stop_func_start, &ecs->stop_func_end);
-  ecs->stop_func_start
-    += gdbarch_deprecated_function_start_offset (gdbarch);
+  clear_stop_func (ecs);
   ecs->event_thread->stepping_over_breakpoint = 0;
   bpstat_clear (&ecs->event_thread->control.stop_bpstat);
   ecs->event_thread->control.stop_step = 0;
@@ -4377,6 +4400,7 @@ process_event_stop_test:
 	    keep_going (ecs);
 	    return;
 	  }
+	fill_in_stop_func (gdbarch, ecs);
 	if (stop_pc == ecs->stop_func_start
 	    && execution_direction == EXEC_REVERSE)
 	  {
@@ -4568,6 +4592,7 @@ process_event_stop_test:
      a dangling pointer.  */
   frame = get_current_frame ();
   gdbarch = get_frame_arch (frame);
+  fill_in_stop_func (gdbarch, ecs);
 
   /* If stepping through a line, keep going if still within it.
 
@@ -5128,6 +5153,8 @@ handle_step_into_function (struct gdbarch *gdbarch,
   struct symtab *s;
   struct symtab_and_line stop_func_sal, sr_sal;
 
+  fill_in_stop_func (gdbarch, ecs);
+
   s = find_pc_symtab (stop_pc);
   if (s && s->language != language_asm)
     ecs->stop_func_start = gdbarch_skip_prologue (gdbarch,
@@ -5206,6 +5233,8 @@ handle_step_into_function_backward (struct gdbarch *gdbarch,
 {
   struct symtab *s;
   struct symtab_and_line stop_func_sal;
+
+  fill_in_stop_func (gdbarch, ecs);
 
   s = find_pc_symtab (stop_pc);
   if (s && s->language != language_asm)
@@ -6774,77 +6803,6 @@ inferior_has_called_syscall (ptid_t pid, int *syscall_number)
   return 1;
 }
 
-/* Oft used ptids */
-ptid_t null_ptid;
-ptid_t minus_one_ptid;
-
-/* Create a ptid given the necessary PID, LWP, and TID components.  */
-
-ptid_t
-ptid_build (int pid, long lwp, long tid)
-{
-  ptid_t ptid;
-
-  ptid.pid = pid;
-  ptid.lwp = lwp;
-  ptid.tid = tid;
-  return ptid;
-}
-
-/* Create a ptid from just a pid.  */
-
-ptid_t
-pid_to_ptid (int pid)
-{
-  return ptid_build (pid, 0, 0);
-}
-
-/* Fetch the pid (process id) component from a ptid.  */
-
-int
-ptid_get_pid (ptid_t ptid)
-{
-  return ptid.pid;
-}
-
-/* Fetch the lwp (lightweight process) component from a ptid.  */
-
-long
-ptid_get_lwp (ptid_t ptid)
-{
-  return ptid.lwp;
-}
-
-/* Fetch the tid (thread id) component from a ptid.  */
-
-long
-ptid_get_tid (ptid_t ptid)
-{
-  return ptid.tid;
-}
-
-/* ptid_equal() is used to test equality of two ptids.  */
-
-int
-ptid_equal (ptid_t ptid1, ptid_t ptid2)
-{
-  return (ptid1.pid == ptid2.pid && ptid1.lwp == ptid2.lwp
-	  && ptid1.tid == ptid2.tid);
-}
-
-/* Returns true if PTID represents a process.  */
-
-int
-ptid_is_pid (ptid_t ptid)
-{
-  if (ptid_equal (minus_one_ptid, ptid))
-    return 0;
-  if (ptid_equal (null_ptid, ptid))
-    return 0;
-
-  return (ptid_get_lwp (ptid) == 0 && ptid_get_tid (ptid) == 0);
-}
-
 int
 ptid_match (ptid_t ptid, ptid_t filter)
 {
@@ -7234,8 +7192,6 @@ Tells gdb whether to detach the child of a fork."),
 			   NULL, NULL, &setlist, &showlist);
 
   /* ptid initializations */
-  null_ptid = ptid_build (0, 0, 0);
-  minus_one_ptid = ptid_build (-1, 0, 0);
   inferior_ptid = null_ptid;
   target_last_wait_ptid = minus_one_ptid;
 

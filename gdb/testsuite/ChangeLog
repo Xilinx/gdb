@@ -1,3 +1,73 @@
+2011-07-21  Matt Rice  <ratmice@gmail.com>
+
+	* gdb.threads/Makefile.in: Avoid globbing corethreads.exp
+	in mostlyclean rule.  Add files ending in .core.
+
+2011-07-21  Matt Rice  <ratmice@gmail.com>
+
+	PR macros/12999
+	* gdb.base/info-macros.c: New test sources.
+	* gdb.base/info-macros.exp: New tests.
+
+2011-07-21  Phil Muldoon  <pmuldoon@redhat.com>
+
+	* gdb.python/python.exp: Add prompt substitution tests.
+
+2011-07-19  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix crash if referenced CU is aged out.
+	* gdb.dwarf2/dw2-op-call.exp (maintenance set dwarf2 max-cache-age 0):
+	New.
+	* gdb.dwarf2/implptr.exp: Likewise.
+
+2011-07-19  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.dwarf2/implptr.S: Rebuilt.
+	* gdb.dwarf2/implptr.c (intp, intpp, intppp): New typedefs.
+	(bar): Use them for j, k, l.
+	* gdb.dwarf2/implptr.exp: New variable opts.  Support runtest parameter
+	COMPILE.
+	(print j in implptr:bar): Update for the intp typedef.
+	(print p[0].x in implptr:foo): Use more exact regex.
+
+2011-07-18  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.cp/static-method.exp: Add missing single quote.
+
+2011-07-18  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.base/async-shell.exp: Skip test if displaced stepping is not
+	supported.
+	* gdb.mi/mi-nonstop-exit.exp: Likewise.
+	* gdb.mi/mi-nonstop.exp: Likewise.
+	* gdb.mi/mi-ns-stale-regcache.exp: Likewise.
+	* gdb.mi/mi-nsintrall.exp: Likewise.
+	* gdb.mi/mi-nsmoribund.exp: Likewise.
+	* gdb.mi/mi-nsthrexec.exp: Likewise.
+	* gdb.python/py-evthreads.exp: Likewise.
+
+2011-07-15  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Code cleanup.
+	* gdb.cp/namespace.exp (xfail_class_types): New variable.  Initialize
+	it.  Substitute it instead of test_compiler_info everywhere.
+
+2011-07-15  Ulrich Weigand  <ulrich.weigand@linaro.org>
+
+	* gdb.base/type-opaque.exp: Use gdb_load_shlibs.  Run test on
+	remote targets as well.
+
+2011-07-15  Ulrich Weigand  <ulrich.weigand@linaro.org>
+
+	* lib/gdb.exp (gdb_compile_shlib_pthreads): New helper.
+	* gdb.threads/tls-shared.exp: Use it.  Call gdb_load_shlibs.
+
+2011-07-15  Ulrich Weigand  <ulrich.weigand@linaro.org>
+
+	* lib/gdb.exp (gdb_compile): Specify rpath if the *target* is
+	a remote machine, not the host.
+	(gdb_compile_shlib): Set soname if target is remote.
+
 2011-07-14  Paul Pluzhnikov  <ppluzhnikov@google.com>
 
 	* gdb.cp/minsym-fallback.exp: Link in C++ mode.

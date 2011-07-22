@@ -265,14 +265,19 @@ per_cu_dwarf_call (struct dwarf_expr_context *ctx, size_t die_offset,
 		   void *baton)
 {
   struct dwarf2_locexpr_baton block;
+  struct cleanup *back_to;
 
   block = dwarf2_fetch_die_location_block (die_offset, per_cu,
 					   get_frame_pc, baton);
+
+  back_to = make_cleanup (xfree, (void *) block.data);
 
   /* DW_OP_call_ref is currently not supported.  */
   gdb_assert (block.per_cu == per_cu);
 
   dwarf_expr_eval (ctx, block.data, block.size);
+
+  do_cleanups (back_to);
 }
 
 /* Helper interface of per_cu_dwarf_call for dwarf2_evaluate_loc_desc.  */
@@ -283,7 +288,7 @@ dwarf_expr_dwarf_call (struct dwarf_expr_context *ctx, size_t die_offset)
   struct dwarf_expr_baton *debaton = ctx->baton;
 
   per_cu_dwarf_call (ctx, die_offset, debaton->per_cu,
-		     ctx->get_frame_pc, ctx->baton);
+		     ctx->funcs->get_frame_pc, ctx->baton);
 }
 
 /* Callback function for dwarf2_evaluate_loc_desc.  */
@@ -966,8 +971,9 @@ indirect_pieced_value (struct value *value)
   struct dwarf_expr_piece *piece = NULL;
   struct value *result;
   LONGEST byte_offset;
+  struct cleanup *back_to;
 
-  type = value_type (value);
+  type = check_typedef (value_type (value));
   if (TYPE_CODE (type) != TYPE_CODE_PTR)
     return NULL;
 
@@ -1013,9 +1019,13 @@ indirect_pieced_value (struct value *value)
 					   get_frame_address_in_block_wrapper,
 					   frame);
 
+  back_to = make_cleanup (xfree, (void *) baton.data);
+
   result = dwarf2_evaluate_loc_desc_full (TYPE_TARGET_TYPE (type), frame,
 					  baton.data, baton.size, baton.per_cu,
 					  byte_offset);
+
+  do_cleanups (back_to);
 
   return result;
 }
@@ -1072,6 +1082,20 @@ invalid_synthetic_pointer (void)
 	   "referenced via synthetic pointer"));
 }
 
+/* Virtual method table for dwarf2_evaluate_loc_desc_full below.  */
+
+static const struct dwarf_expr_context_funcs dwarf_expr_ctx_funcs =
+{
+  dwarf_expr_read_reg,
+  dwarf_expr_read_mem,
+  dwarf_expr_frame_base,
+  dwarf_expr_frame_cfa,
+  dwarf_expr_frame_pc,
+  dwarf_expr_tls_address,
+  dwarf_expr_dwarf_call,
+  dwarf_expr_get_base_type
+};
+
 /* Evaluate a location description, starting at DATA and with length
    SIZE, to find the current location of variable of TYPE in the
    context of FRAME.  BYTE_OFFSET is applied after the contents are
@@ -1107,14 +1131,7 @@ dwarf2_evaluate_loc_desc_full (struct type *type, struct frame_info *frame,
   ctx->addr_size = dwarf2_per_cu_addr_size (per_cu);
   ctx->offset = dwarf2_per_cu_text_offset (per_cu);
   ctx->baton = &baton;
-  ctx->read_reg = dwarf_expr_read_reg;
-  ctx->read_mem = dwarf_expr_read_mem;
-  ctx->get_frame_base = dwarf_expr_frame_base;
-  ctx->get_frame_cfa = dwarf_expr_frame_cfa;
-  ctx->get_frame_pc = dwarf_expr_frame_pc;
-  ctx->get_tls_address = dwarf_expr_tls_address;
-  ctx->dwarf_call = dwarf_expr_dwarf_call;
-  ctx->get_base_type = dwarf_expr_get_base_type;
+  ctx->funcs = &dwarf_expr_ctx_funcs;
 
   TRY_CATCH (ex, RETURN_MASK_ERROR)
     {
@@ -1341,8 +1358,22 @@ needs_frame_dwarf_call (struct dwarf_expr_context *ctx, size_t die_offset)
   struct needs_frame_baton *nf_baton = ctx->baton;
 
   per_cu_dwarf_call (ctx, die_offset, nf_baton->per_cu,
-		     ctx->get_frame_pc, ctx->baton);
+		     ctx->funcs->get_frame_pc, ctx->baton);
 }
+
+/* Virtual method table for dwarf2_loc_desc_needs_frame below.  */
+
+static const struct dwarf_expr_context_funcs needs_frame_ctx_funcs =
+{
+  needs_frame_read_reg,
+  needs_frame_read_mem,
+  needs_frame_frame_base,
+  needs_frame_frame_cfa,
+  needs_frame_frame_cfa,	/* get_frame_pc */
+  needs_frame_tls_address,
+  needs_frame_dwarf_call,
+  NULL				/* get_base_type */
+};
 
 /* Return non-zero iff the location expression at DATA (length SIZE)
    requires a frame to evaluate.  */
@@ -1368,13 +1399,7 @@ dwarf2_loc_desc_needs_frame (const gdb_byte *data, unsigned short size,
   ctx->addr_size = dwarf2_per_cu_addr_size (per_cu);
   ctx->offset = dwarf2_per_cu_text_offset (per_cu);
   ctx->baton = &baton;
-  ctx->read_reg = needs_frame_read_reg;
-  ctx->read_mem = needs_frame_read_mem;
-  ctx->get_frame_base = needs_frame_frame_base;
-  ctx->get_frame_cfa = needs_frame_frame_cfa;
-  ctx->get_frame_pc = needs_frame_frame_cfa;
-  ctx->get_tls_address = needs_frame_tls_address;
-  ctx->dwarf_call = needs_frame_dwarf_call;
+  ctx->funcs = &needs_frame_ctx_funcs;
 
   dwarf_expr_eval (ctx, data, size);
 
@@ -2108,12 +2133,14 @@ dwarf2_compile_expr_to_ax (struct agent_expr *expr, struct axs_value *loc,
 	  {
 	    struct dwarf2_locexpr_baton block;
 	    int size = (op == DW_OP_call2 ? 2 : 4);
+	    struct cleanup *back_to;
 
 	    uoffset = extract_unsigned_integer (op_ptr, size, byte_order);
 	    op_ptr += size;
 
 	    block = dwarf2_fetch_die_location_block (uoffset, per_cu,
 						     get_ax_pc, expr);
+	    back_to = make_cleanup (xfree, (void *) block.data);
 
 	    /* DW_OP_call_ref is currently not supported.  */
 	    gdb_assert (block.per_cu == per_cu);
@@ -2121,6 +2148,8 @@ dwarf2_compile_expr_to_ax (struct agent_expr *expr, struct axs_value *loc,
 	    dwarf2_compile_expr_to_ax (expr, loc, arch, addr_size,
 				       block.data, block.data + block.size,
 				       per_cu);
+
+	    do_cleanups (back_to);
 	  }
 	  break;
 
