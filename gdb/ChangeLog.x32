@@ -1,3 +1,8 @@
+2011-08-02  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-linux-tdep.c (x32_linux_sigtramp_code): Update x32
+	system call number.
+
 2011-03-12  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* amd64-linux-nat.c (AMD64_LINUX_ILP32_DS): Renamed to ...
