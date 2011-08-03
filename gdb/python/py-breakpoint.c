@@ -399,16 +399,16 @@ bppy_get_expression (PyObject *self, void *closure)
 {
   char *str;
   breakpoint_object *obj = (breakpoint_object *) self;
+  struct watchpoint *wp;
 
   BPPY_REQUIRE_VALID (obj);
 
-  if (obj->bp->type != bp_watchpoint
-      && obj->bp->type != bp_hardware_watchpoint  
-      && obj->bp->type != bp_read_watchpoint
-      && obj->bp->type != bp_access_watchpoint)
+  if (!is_watchpoint (obj->bp))
     Py_RETURN_NONE;
 
-  str = obj->bp->exp_string;
+  wp = (struct watchpoint *) obj->bp;
+
+  str = wp->exp_string;
   if (! str)
     str = "";
 
@@ -636,7 +636,8 @@ bppy_init (PyObject *self, PyObject *args, PyObject *kwargs)
 			       0, bp_breakpoint,
 			       0,
 			       AUTO_BOOLEAN_TRUE,
-			       NULL, 0, 1, internal_bp);
+			       &bkpt_breakpoint_ops,
+			       0, 1, internal_bp);
 	    break;
 	  }
         case bp_watchpoint:

@@ -187,6 +187,7 @@ struct dwarf2_per_objfile
   struct dwarf2_section_info line;
   struct dwarf2_section_info loc;
   struct dwarf2_section_info macinfo;
+  struct dwarf2_section_info macro;
   struct dwarf2_section_info str;
   struct dwarf2_section_info ranges;
   struct dwarf2_section_info frame;
@@ -264,12 +265,14 @@ static const struct dwarf2_debug_sections dwarf2_elf_names = {
   { ".debug_line", ".zdebug_line" },
   { ".debug_loc", ".zdebug_loc" },
   { ".debug_macinfo", ".zdebug_macinfo" },
+  { ".debug_macro", ".zdebug_macro" },
   { ".debug_str", ".zdebug_str" },
   { ".debug_ranges", ".zdebug_ranges" },
   { ".debug_types", ".zdebug_types" },
   { ".debug_frame", ".zdebug_frame" },
   { ".eh_frame", NULL },
-  { ".gdb_index", ".zgdb_index" }
+  { ".gdb_index", ".zgdb_index" },
+  23
 };
 
 /* local data types */
@@ -858,10 +861,11 @@ dwarf2_const_value_length_mismatch_complaint (const char *arg1, int arg2,
 }
 
 static void
-dwarf2_macros_too_long_complaint (void)
+dwarf2_macros_too_long_complaint (struct dwarf2_section_info *section)
 {
   complaint (&symfile_complaints,
-	     _("macro info runs off end of `.debug_macinfo' section"));
+	     _("macro info runs off end of `%s' section"),
+	     section->asection->name);
 }
 
 static void
@@ -1233,7 +1237,9 @@ static void add_to_cu_func_list (const char *, CORE_ADDR, CORE_ADDR,
 				 struct dwarf2_cu *);
 
 static void dwarf_decode_macros (struct line_header *, unsigned int,
-                                 char *, bfd *, struct dwarf2_cu *);
+                                 char *, bfd *, struct dwarf2_cu *,
+				 struct dwarf2_section_info *,
+				 int);
 
 static int attr_form_is_block (struct attribute *);
 
@@ -1437,6 +1443,11 @@ dwarf2_locate_sections (bfd *abfd, asection *sectp, void *vnames)
     {
       dwarf2_per_objfile->macinfo.asection = sectp;
       dwarf2_per_objfile->macinfo.size = bfd_get_section_size (sectp);
+    }
+  else if (section_is_p (sectp->name, &names->macro))
+    {
+      dwarf2_per_objfile->macro.asection = sectp;
+      dwarf2_per_objfile->macro.size = bfd_get_section_size (sectp);
     }
   else if (section_is_p (sectp->name, &names->str))
     {
@@ -5641,13 +5652,28 @@ read_file_scope (struct die_info *die, struct dwarf2_cu *cu)
      refers to information in the line number info statement program
      header, so we can only read it if we've read the header
      successfully.  */
-  attr = dwarf2_attr (die, DW_AT_macro_info, cu);
+  attr = dwarf2_attr (die, DW_AT_GNU_macros, cu);
   if (attr && cu->line_header)
     {
-      unsigned int macro_offset = DW_UNSND (attr);
+      if (dwarf2_attr (die, DW_AT_macro_info, cu))
+	complaint (&symfile_complaints,
+		   _("CU refers to both DW_AT_GNU_macros and DW_AT_macro_info"));
 
-      dwarf_decode_macros (cu->line_header, macro_offset,
-                           comp_dir, abfd, cu);
+      dwarf_decode_macros (cu->line_header, DW_UNSND (attr),
+			   comp_dir, abfd, cu,
+			   &dwarf2_per_objfile->macro, 1);
+    }
+  else
+    {
+      attr = dwarf2_attr (die, DW_AT_macro_info, cu);
+      if (attr && cu->line_header)
+	{
+	  unsigned int macro_offset = DW_UNSND (attr);
+
+	  dwarf_decode_macros (cu->line_header, macro_offset,
+			       comp_dir, abfd, cu,
+			       &dwarf2_per_objfile->macinfo, 0);
+	}
     }
   do_cleanups (back_to);
 }
@@ -10033,22 +10059,10 @@ read_2_bytes (bfd *abfd, gdb_byte *buf)
   return bfd_get_16 (abfd, buf);
 }
 
-static int
-read_2_signed_bytes (bfd *abfd, gdb_byte *buf)
-{
-  return bfd_get_signed_16 (abfd, buf);
-}
-
 static unsigned int
 read_4_bytes (bfd *abfd, gdb_byte *buf)
 {
   return bfd_get_32 (abfd, buf);
-}
-
-static int
-read_4_signed_bytes (bfd *abfd, gdb_byte *buf)
-{
-  return bfd_get_signed_32 (abfd, buf);
 }
 
 static ULONGEST
@@ -10262,30 +10276,30 @@ read_direct_string (bfd *abfd, gdb_byte *buf, unsigned int *bytes_read_ptr)
 }
 
 static char *
+read_indirect_string_at_offset (bfd *abfd, LONGEST str_offset)
+{
+  dwarf2_read_section (dwarf2_per_objfile->objfile, &dwarf2_per_objfile->str);
+  if (dwarf2_per_objfile->str.buffer == NULL)
+    error (_("DW_FORM_strp used without .debug_str section [in module %s]"),
+	   bfd_get_filename (abfd));
+  if (str_offset >= dwarf2_per_objfile->str.size)
+    error (_("DW_FORM_strp pointing outside of "
+	     ".debug_str section [in module %s]"),
+	   bfd_get_filename (abfd));
+  gdb_assert (HOST_CHAR_BIT == 8);
+  if (dwarf2_per_objfile->str.buffer[str_offset] == '\0')
+    return NULL;
+  return (char *) (dwarf2_per_objfile->str.buffer + str_offset);
+}
+
+static char *
 read_indirect_string (bfd *abfd, gdb_byte *buf,
 		      const struct comp_unit_head *cu_header,
 		      unsigned int *bytes_read_ptr)
 {
   LONGEST str_offset = read_offset (abfd, buf, cu_header, bytes_read_ptr);
 
-  dwarf2_read_section (dwarf2_per_objfile->objfile, &dwarf2_per_objfile->str);
-  if (dwarf2_per_objfile->str.buffer == NULL)
-    {
-      error (_("DW_FORM_strp used without .debug_str section [in module %s]"),
-		      bfd_get_filename (abfd));
-      return NULL;
-    }
-  if (str_offset >= dwarf2_per_objfile->str.size)
-    {
-      error (_("DW_FORM_strp pointing outside of "
-	       ".debug_str section [in module %s]"),
-	     bfd_get_filename (abfd));
-      return NULL;
-    }
-  gdb_assert (HOST_CHAR_BIT == 8);
-  if (dwarf2_per_objfile->str.buffer[str_offset] == '\0')
-    return NULL;
-  return (char *) (dwarf2_per_objfile->str.buffer + str_offset);
+  return read_indirect_string_at_offset (abfd, str_offset);
 }
 
 static unsigned long
@@ -14125,6 +14139,37 @@ read_signatured_type (struct objfile *objfile,
   dwarf2_per_objfile->read_in_chain = &type_sig->per_cu;
 }
 
+/* Workaround as dwarf_expr_context_funcs.read_mem implementation before
+   a proper runtime DWARF expressions evaluator gets implemented.
+   Otherwise gnuv3_baseclass_offset would error by:
+   Expected a negative vbase offset (old compiler?)  */
+
+static void
+decode_locdesc_read_mem (void *baton, gdb_byte *buf, CORE_ADDR addr,
+			 size_t length)
+{
+  struct dwarf_expr_context *ctx = baton;
+  struct gdbarch *gdbarch = ctx->gdbarch;
+  struct type *ptr_type = builtin_type (gdbarch)->builtin_data_ptr;
+
+  memset (buf, 0, length);
+
+  if (TYPE_LENGTH (ptr_type) == length)
+    store_typed_address (buf, ptr_type, addr);
+}
+
+static const struct dwarf_expr_context_funcs decode_locdesc_ctx_funcs =
+{
+  ctx_no_read_reg,
+  decode_locdesc_read_mem,
+  ctx_no_get_frame_base,
+  ctx_no_get_frame_cfa,
+  ctx_no_get_frame_pc,
+  ctx_no_get_tls_address,
+  ctx_no_dwarf_call,
+  ctx_no_get_base_type
+};
+
 /* Decode simple location descriptions.
    Given a pointer to a dwarf block that defines a location, compute
    the location and return the value.
@@ -14142,235 +14187,59 @@ read_signatured_type (struct objfile *objfile,
    object is optimized out.  The return value is 0 for that case.
    FIXME drow/2003-11-16: No callers check for this case any more; soon all
    callers will only want a very basic result and this can become a
-   complaint.
-
-   Note that stack[0] is unused except as a default error return.  */
+   complaint.  */
 
 static CORE_ADDR
 decode_locdesc (struct dwarf_block *blk, struct dwarf2_cu *cu)
 {
   struct objfile *objfile = cu->objfile;
-  int i;
-  int size = blk->size;
-  gdb_byte *data = blk->data;
-  CORE_ADDR stack[64];
-  int stacki;
-  unsigned int bytes_read, unsnd;
-  gdb_byte op;
+  struct dwarf_expr_context *ctx;
+  struct cleanup *old_chain;
+  volatile struct gdb_exception ex;
 
-  i = 0;
-  stacki = 0;
-  stack[stacki] = 0;
-  stack[++stacki] = 0;
+  ctx = new_dwarf_expr_context ();
+  old_chain = make_cleanup_free_dwarf_expr_context (ctx);
+  make_cleanup_value_free_to_mark (value_mark ());
 
-  while (i < size)
+  ctx->gdbarch = get_objfile_arch (objfile);
+  ctx->addr_size = cu->header.addr_size;
+  ctx->offset = ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile));
+  ctx->baton = ctx;
+  ctx->funcs = &decode_locdesc_ctx_funcs;
+
+  /* DW_AT_data_member_location expects the structure address to be pushed on
+     the stack.  Simulate the offset by address 0.  */
+  dwarf_expr_push_address (ctx, 0, 0);
+
+  TRY_CATCH (ex, RETURN_MASK_ERROR)
     {
-      op = data[i++];
-      switch (op)
-	{
-	case DW_OP_lit0:
-	case DW_OP_lit1:
-	case DW_OP_lit2:
-	case DW_OP_lit3:
-	case DW_OP_lit4:
-	case DW_OP_lit5:
-	case DW_OP_lit6:
-	case DW_OP_lit7:
-	case DW_OP_lit8:
-	case DW_OP_lit9:
-	case DW_OP_lit10:
-	case DW_OP_lit11:
-	case DW_OP_lit12:
-	case DW_OP_lit13:
-	case DW_OP_lit14:
-	case DW_OP_lit15:
-	case DW_OP_lit16:
-	case DW_OP_lit17:
-	case DW_OP_lit18:
-	case DW_OP_lit19:
-	case DW_OP_lit20:
-	case DW_OP_lit21:
-	case DW_OP_lit22:
-	case DW_OP_lit23:
-	case DW_OP_lit24:
-	case DW_OP_lit25:
-	case DW_OP_lit26:
-	case DW_OP_lit27:
-	case DW_OP_lit28:
-	case DW_OP_lit29:
-	case DW_OP_lit30:
-	case DW_OP_lit31:
-	  stack[++stacki] = op - DW_OP_lit0;
-	  break;
-
-	case DW_OP_reg0:
-	case DW_OP_reg1:
-	case DW_OP_reg2:
-	case DW_OP_reg3:
-	case DW_OP_reg4:
-	case DW_OP_reg5:
-	case DW_OP_reg6:
-	case DW_OP_reg7:
-	case DW_OP_reg8:
-	case DW_OP_reg9:
-	case DW_OP_reg10:
-	case DW_OP_reg11:
-	case DW_OP_reg12:
-	case DW_OP_reg13:
-	case DW_OP_reg14:
-	case DW_OP_reg15:
-	case DW_OP_reg16:
-	case DW_OP_reg17:
-	case DW_OP_reg18:
-	case DW_OP_reg19:
-	case DW_OP_reg20:
-	case DW_OP_reg21:
-	case DW_OP_reg22:
-	case DW_OP_reg23:
-	case DW_OP_reg24:
-	case DW_OP_reg25:
-	case DW_OP_reg26:
-	case DW_OP_reg27:
-	case DW_OP_reg28:
-	case DW_OP_reg29:
-	case DW_OP_reg30:
-	case DW_OP_reg31:
-	  stack[++stacki] = op - DW_OP_reg0;
-	  if (i < size)
-	    dwarf2_complex_location_expr_complaint ();
-	  break;
-
-	case DW_OP_regx:
-	  unsnd = read_unsigned_leb128 (NULL, (data + i), &bytes_read);
-	  i += bytes_read;
-	  stack[++stacki] = unsnd;
-	  if (i < size)
-	    dwarf2_complex_location_expr_complaint ();
-	  break;
-
-	case DW_OP_addr:
-	  stack[++stacki] = read_address (objfile->obfd, &data[i],
-					  cu, &bytes_read);
-	  i += bytes_read;
-	  break;
-
-	case DW_OP_const1u:
-	  stack[++stacki] = read_1_byte (objfile->obfd, &data[i]);
-	  i += 1;
-	  break;
-
-	case DW_OP_const1s:
-	  stack[++stacki] = read_1_signed_byte (objfile->obfd, &data[i]);
-	  i += 1;
-	  break;
-
-	case DW_OP_const2u:
-	  stack[++stacki] = read_2_bytes (objfile->obfd, &data[i]);
-	  i += 2;
-	  break;
-
-	case DW_OP_const2s:
-	  stack[++stacki] = read_2_signed_bytes (objfile->obfd, &data[i]);
-	  i += 2;
-	  break;
-
-	case DW_OP_const4u:
-	  stack[++stacki] = read_4_bytes (objfile->obfd, &data[i]);
-	  i += 4;
-	  break;
-
-	case DW_OP_const4s:
-	  stack[++stacki] = read_4_signed_bytes (objfile->obfd, &data[i]);
-	  i += 4;
-	  break;
-
-	case DW_OP_constu:
-	  stack[++stacki] = read_unsigned_leb128 (NULL, (data + i),
-						  &bytes_read);
-	  i += bytes_read;
-	  break;
-
-	case DW_OP_consts:
-	  stack[++stacki] = read_signed_leb128 (NULL, (data + i), &bytes_read);
-	  i += bytes_read;
-	  break;
-
-	case DW_OP_dup:
-	  stack[stacki + 1] = stack[stacki];
-	  stacki++;
-	  break;
-
-	case DW_OP_plus:
-	  stack[stacki - 1] += stack[stacki];
-	  stacki--;
-	  break;
-
-	case DW_OP_plus_uconst:
-	  stack[stacki] += read_unsigned_leb128 (NULL, (data + i),
-						 &bytes_read);
-	  i += bytes_read;
-	  break;
-
-	case DW_OP_minus:
-	  stack[stacki - 1] -= stack[stacki];
-	  stacki--;
-	  break;
-
-	case DW_OP_deref:
-	  /* If we're not the last op, then we definitely can't encode
-	     this using GDB's address_class enum.  This is valid for partial
-	     global symbols, although the variable's address will be bogus
-	     in the psymtab.  */
-	  if (i < size)
-	    dwarf2_complex_location_expr_complaint ();
-	  break;
-
-        case DW_OP_GNU_push_tls_address:
-	  /* The top of the stack has the offset from the beginning
-	     of the thread control block at which the variable is located.  */
-	  /* Nothing should follow this operator, so the top of stack would
-	     be returned.  */
-	  /* This is valid for partial global symbols, but the variable's
-	     address will be bogus in the psymtab.  */
-	  if (i < size)
-	    dwarf2_complex_location_expr_complaint ();
-          break;
-
-	case DW_OP_GNU_uninit:
-	  break;
-
-	default:
-	  {
-	    const char *name = dwarf_stack_op_name (op);
-
-	    if (name)
-	      complaint (&symfile_complaints, _("unsupported stack op: '%s'"),
-			 name);
-	    else
-	      complaint (&symfile_complaints, _("unsupported stack op: '%02x'"),
-			 op);
-	  }
-
-	  return (stack[stacki]);
-	}
-
-      /* Enforce maximum stack depth of SIZE-1 to avoid writing
-         outside of the allocated space.  Also enforce minimum>0.  */
-      if (stacki >= ARRAY_SIZE (stack) - 1)
-	{
-	  complaint (&symfile_complaints,
-		     _("location description stack overflow"));
-	  return 0;
-	}
-
-      if (stacki <= 0)
-	{
-	  complaint (&symfile_complaints,
-		     _("location description stack underflow"));
-	  return 0;
-	}
+      dwarf_expr_eval (ctx, blk->data, blk->size);
     }
-  return (stack[stacki]);
+  if (ex.reason < 0)
+    {
+      if (ex.message)
+	complaint (&symfile_complaints, "%s", ex.message);
+    }
+  else if (ctx->num_pieces == 0)
+    switch (ctx->location)
+      {
+      /* The returned number will be bogus, just do not complain for locations
+	 in global registers - it is here only a partial symbol address.  */
+      case DWARF_VALUE_REGISTER:
+
+      case DWARF_VALUE_MEMORY:
+      case DWARF_VALUE_STACK:
+	{
+	  CORE_ADDR address = dwarf_expr_fetch_address (ctx, 0);
+
+	  do_cleanups (old_chain);
+	  return address;
+	}
+      }
+
+  do_cleanups (old_chain);
+  dwarf2_complex_location_expr_complaint ();
+  return 0;
 }
 
 /* memory allocation interface */
@@ -14669,117 +14538,205 @@ parse_macro_definition (struct macro_source_file *file, int line,
     dwarf2_macro_malformed_definition_complaint (body);
 }
 
+/* Skip some bytes from BYTES according to the form given in FORM.
+   Returns the new pointer.  */
 
-static void
-dwarf_decode_macros (struct line_header *lh, unsigned int offset,
-                     char *comp_dir, bfd *abfd,
-                     struct dwarf2_cu *cu)
+static gdb_byte *
+skip_form_bytes (bfd *abfd, gdb_byte *bytes,
+		 enum dwarf_form form,
+		 unsigned int offset_size,
+		 struct dwarf2_section_info *section)
 {
-  gdb_byte *mac_ptr, *mac_end;
-  struct macro_source_file *current_file = 0;
-  enum dwarf_macinfo_record_type macinfo_type;
-  int at_commandline;
+  unsigned int bytes_read;
 
-  dwarf2_read_section (dwarf2_per_objfile->objfile,
-		       &dwarf2_per_objfile->macinfo);
-  if (dwarf2_per_objfile->macinfo.buffer == NULL)
+  switch (form)
     {
-      complaint (&symfile_complaints, _("missing .debug_macinfo section"));
-      return;
+    case DW_FORM_data1:
+    case DW_FORM_flag:
+      ++bytes;
+      break;
+
+    case DW_FORM_data2:
+      bytes += 2;
+      break;
+
+    case DW_FORM_data4:
+      bytes += 4;
+      break;
+
+    case DW_FORM_data8:
+      bytes += 8;
+      break;
+
+    case DW_FORM_string:
+      read_direct_string (abfd, bytes, &bytes_read);
+      bytes += bytes_read;
+      break;
+
+    case DW_FORM_sec_offset:
+    case DW_FORM_strp:
+      bytes += offset_size;
+      break;
+
+    case DW_FORM_block:
+      bytes += read_unsigned_leb128 (abfd, bytes, &bytes_read);
+      bytes += bytes_read;
+      break;
+
+    case DW_FORM_block1:
+      bytes += 1 + read_1_byte (abfd, bytes);
+      break;
+    case DW_FORM_block2:
+      bytes += 2 + read_2_bytes (abfd, bytes);
+      break;
+    case DW_FORM_block4:
+      bytes += 4 + read_4_bytes (abfd, bytes);
+      break;
+
+    case DW_FORM_sdata:
+    case DW_FORM_udata:
+      bytes = skip_leb128 (abfd, bytes);
+      break;
+
+    default:
+      {
+      complain:
+	complaint (&symfile_complaints,
+		   _("invalid form 0x%x in `%s'"),
+		   form,
+		   section->asection->name);
+	return NULL;
+      }
     }
 
-  /* First pass: Find the name of the base filename.
-     This filename is needed in order to process all macros whose definition
-     (or undefinition) comes from the command line.  These macros are defined
-     before the first DW_MACINFO_start_file entry, and yet still need to be
-     associated to the base file.
+  return bytes;
+}
 
-     To determine the base file name, we scan the macro definitions until we
-     reach the first DW_MACINFO_start_file entry.  We then initialize
-     CURRENT_FILE accordingly so that any macro definition found before the
-     first DW_MACINFO_start_file can still be associated to the base file.  */
+/* A helper for dwarf_decode_macros that handles skipping an unknown
+   opcode.  Returns an updated pointer to the macro data buffer; or,
+   on error, issues a complaint and returns NULL.  */
 
-  mac_ptr = dwarf2_per_objfile->macinfo.buffer + offset;
-  mac_end = dwarf2_per_objfile->macinfo.buffer
-    + dwarf2_per_objfile->macinfo.size;
+static gdb_byte *
+skip_unknown_opcode (unsigned int opcode,
+		     gdb_byte **opcode_definitions,
+		     gdb_byte *mac_ptr,
+		     bfd *abfd,
+		     unsigned int offset_size,
+		     struct dwarf2_section_info *section)
+{
+  unsigned int bytes_read, i;
+  unsigned long arg;
+  gdb_byte *defn;
 
-  do
+  if (opcode_definitions[opcode] == NULL)
     {
-      /* Do we at least have room for a macinfo type byte?  */
-      if (mac_ptr >= mac_end)
-        {
-	  /* Complaint is printed during the second pass as GDB will probably
-	     stop the first pass earlier upon finding
-	     DW_MACINFO_start_file.  */
-	  break;
-        }
+      complaint (&symfile_complaints,
+		 _("unrecognized DW_MACFINO opcode 0x%x"),
+		 opcode);
+      return NULL;
+    }
 
-      macinfo_type = read_1_byte (abfd, mac_ptr);
-      mac_ptr++;
+  defn = opcode_definitions[opcode];
+  arg = read_unsigned_leb128 (abfd, defn, &bytes_read);
+  defn += bytes_read;
 
-      switch (macinfo_type)
-        {
-          /* A zero macinfo type indicates the end of the macro
-             information.  */
-        case 0:
-	  break;
-
-	case DW_MACINFO_define:
-	case DW_MACINFO_undef:
-	  /* Only skip the data by MAC_PTR.  */
-	  {
-	    unsigned int bytes_read;
-
-	    read_unsigned_leb128 (abfd, mac_ptr, &bytes_read);
-	    mac_ptr += bytes_read;
-	    read_direct_string (abfd, mac_ptr, &bytes_read);
-	    mac_ptr += bytes_read;
-	  }
-	  break;
-
-	case DW_MACINFO_start_file:
-	  {
-	    unsigned int bytes_read;
-	    int line, file;
-
-	    line = read_unsigned_leb128 (abfd, mac_ptr, &bytes_read);
-	    mac_ptr += bytes_read;
-	    file = read_unsigned_leb128 (abfd, mac_ptr, &bytes_read);
-	    mac_ptr += bytes_read;
-
-	    current_file = macro_start_file (file, line, current_file,
-					     comp_dir, lh, cu->objfile);
-	  }
-	  break;
-
-	case DW_MACINFO_end_file:
-	  /* No data to skip by MAC_PTR.  */
-	  break;
-
-	case DW_MACINFO_vendor_ext:
-	  /* Only skip the data by MAC_PTR.  */
-	  {
-	    unsigned int bytes_read;
-
-	    read_unsigned_leb128 (abfd, mac_ptr, &bytes_read);
-	    mac_ptr += bytes_read;
-	    read_direct_string (abfd, mac_ptr, &bytes_read);
-	    mac_ptr += bytes_read;
-	  }
-	  break;
-
-	default:
-	  break;
+  for (i = 0; i < arg; ++i)
+    {
+      mac_ptr = skip_form_bytes (abfd, mac_ptr, defn[i], offset_size, section);
+      if (mac_ptr == NULL)
+	{
+	  /* skip_form_bytes already issued the complaint.  */
+	  return NULL;
 	}
-    } while (macinfo_type != 0 && current_file == NULL);
+    }
 
-  /* Second pass: Process all entries.
+  return mac_ptr;
+}
 
-     Use the AT_COMMAND_LINE flag to determine whether we are still processing
-     command-line macro definitions/undefinitions.  This flag is unset when we
-     reach the first DW_MACINFO_start_file entry.  */
+/* A helper function which parses the header of a macro section.
+   If the macro section is the extended (for now called "GNU") type,
+   then this updates *OFFSET_SIZE.  Returns a pointer to just after
+   the header, or issues a complaint and returns NULL on error.  */
 
-  mac_ptr = dwarf2_per_objfile->macinfo.buffer + offset;
+static gdb_byte *
+dwarf_parse_macro_header (gdb_byte **opcode_definitions,
+			  bfd *abfd,
+			  gdb_byte *mac_ptr,
+			  unsigned int *offset_size,
+			  int section_is_gnu)
+{
+  memset (opcode_definitions, 0, 256 * sizeof (gdb_byte *));
+
+  if (section_is_gnu)
+    {
+      unsigned int version, flags;
+
+      version = read_2_bytes (abfd, mac_ptr);
+      if (version != 4)
+	{
+	  complaint (&symfile_complaints,
+		     _("unrecognized version `%d' in .debug_macro section"),
+		     version);
+	  return NULL;
+	}
+      mac_ptr += 2;
+
+      flags = read_1_byte (abfd, mac_ptr);
+      ++mac_ptr;
+      *offset_size = (flags & 1) ? 8 : 4;
+
+      if ((flags & 2) != 0)
+	/* We don't need the line table offset.  */
+	mac_ptr += *offset_size;
+
+      /* Vendor opcode descriptions.  */
+      if ((flags & 4) != 0)
+	{
+	  unsigned int i, count;
+
+	  count = read_1_byte (abfd, mac_ptr);
+	  ++mac_ptr;
+	  for (i = 0; i < count; ++i)
+	    {
+	      unsigned int opcode, bytes_read;
+	      unsigned long arg;
+
+	      opcode = read_1_byte (abfd, mac_ptr);
+	      ++mac_ptr;
+	      opcode_definitions[opcode] = mac_ptr;
+	      arg = read_unsigned_leb128 (abfd, mac_ptr, &bytes_read);
+	      mac_ptr += bytes_read;
+	      mac_ptr += arg;
+	    }
+	}
+    }
+
+  return mac_ptr;
+}
+
+/* A helper for dwarf_decode_macros that handles the GNU extensions,
+   including DW_GNU_MACINFO_transparent_include.  */
+
+static void
+dwarf_decode_macro_bytes (bfd *abfd, gdb_byte *mac_ptr, gdb_byte *mac_end,
+			  struct macro_source_file *current_file,
+			  struct line_header *lh, char *comp_dir,
+			  struct dwarf2_section_info *section,
+			  int section_is_gnu,
+			  unsigned int offset_size,
+			  struct objfile *objfile)
+{
+  enum dwarf_macro_record_type macinfo_type;
+  int at_commandline;
+  gdb_byte *opcode_definitions[256];
+
+  mac_ptr = dwarf_parse_macro_header (opcode_definitions, abfd, mac_ptr,
+				      &offset_size, section_is_gnu);
+  if (mac_ptr == NULL)
+    {
+      /* We already issued a complaint.  */
+      return;
+    }
 
   /* Determines if GDB is still before first DW_MACINFO_start_file.  If true
      GDB is still reading the definitions from command line.  First
@@ -14795,13 +14752,15 @@ dwarf_decode_macros (struct line_header *lh, unsigned int offset,
       /* Do we at least have room for a macinfo type byte?  */
       if (mac_ptr >= mac_end)
 	{
-	  dwarf2_macros_too_long_complaint ();
+	  dwarf2_macros_too_long_complaint (section);
 	  break;
 	}
 
       macinfo_type = read_1_byte (abfd, mac_ptr);
       mac_ptr++;
 
+      /* Note that we rely on the fact that the corresponding GNU and
+	 DWARF constants are the same.  */
       switch (macinfo_type)
 	{
 	  /* A zero macinfo type indicates the end of the macro
@@ -14809,29 +14768,45 @@ dwarf_decode_macros (struct line_header *lh, unsigned int offset,
 	case 0:
 	  break;
 
-        case DW_MACINFO_define:
-        case DW_MACINFO_undef:
+        case DW_MACRO_GNU_define:
+        case DW_MACRO_GNU_undef:
+	case DW_MACRO_GNU_define_indirect:
+	case DW_MACRO_GNU_undef_indirect:
           {
             unsigned int bytes_read;
             int line;
             char *body;
+	    int is_define;
 
-            line = read_unsigned_leb128 (abfd, mac_ptr, &bytes_read);
-            mac_ptr += bytes_read;
-            body = read_direct_string (abfd, mac_ptr, &bytes_read);
-            mac_ptr += bytes_read;
+	    line = read_unsigned_leb128 (abfd, mac_ptr, &bytes_read);
+	    mac_ptr += bytes_read;
 
+	    if (macinfo_type == DW_MACRO_GNU_define
+		|| macinfo_type == DW_MACRO_GNU_undef)
+	      {
+		body = read_direct_string (abfd, mac_ptr, &bytes_read);
+		mac_ptr += bytes_read;
+	      }
+	    else
+	      {
+		LONGEST str_offset;
+
+		str_offset = read_offset_1 (abfd, mac_ptr, offset_size);
+		mac_ptr += offset_size;
+
+		body = read_indirect_string_at_offset (abfd, str_offset);
+	      }
+
+	    is_define = (macinfo_type == DW_MACRO_GNU_define
+			 || macinfo_type == DW_MACRO_GNU_define_indirect);
             if (! current_file)
 	      {
 		/* DWARF violation as no main source is present.  */
 		complaint (&symfile_complaints,
 			   _("debug info with no main source gives macro %s "
 			     "on line %d: %s"),
-			   macinfo_type == DW_MACINFO_define ?
-			     _("definition") :
-			       macinfo_type == DW_MACINFO_undef ?
-				 _("undefinition") :
-				 _("something-or-other"), line, body);
+			   is_define ? _("definition") : _("undefinition"),
+			   line, body);
 		break;
 	      }
 	    if ((line == 0 && !at_commandline)
@@ -14839,21 +14814,21 @@ dwarf_decode_macros (struct line_header *lh, unsigned int offset,
 	      complaint (&symfile_complaints,
 			 _("debug info gives %s macro %s with %s line %d: %s"),
 			 at_commandline ? _("command-line") : _("in-file"),
-			 macinfo_type == DW_MACINFO_define ?
-			   _("definition") :
-			     macinfo_type == DW_MACINFO_undef ?
-			       _("undefinition") :
-			       _("something-or-other"),
+			 is_define ? _("definition") : _("undefinition"),
 			 line == 0 ? _("zero") : _("non-zero"), line, body);
 
-	    if (macinfo_type == DW_MACINFO_define)
+	    if (is_define)
 	      parse_macro_definition (current_file, line, body);
-	    else if (macinfo_type == DW_MACINFO_undef)
-	      macro_undef (current_file, line, body);
+	    else
+	      {
+		gdb_assert (macinfo_type == DW_MACRO_GNU_undef
+			    || macinfo_type == DW_MACRO_GNU_undef_indirect);
+		macro_undef (current_file, line, body);
+	      }
           }
           break;
 
-        case DW_MACINFO_start_file:
+        case DW_MACRO_GNU_start_file:
           {
             unsigned int bytes_read;
             int line, file;
@@ -14873,17 +14848,18 @@ dwarf_decode_macros (struct line_header *lh, unsigned int offset,
 
 	    if (at_commandline)
 	      {
-		/* This DW_MACINFO_start_file was executed in the pass one.  */
+		/* This DW_MACRO_GNU_start_file was executed in the
+		   pass one.  */
 		at_commandline = 0;
 	      }
 	    else
 	      current_file = macro_start_file (file, line,
 					       current_file, comp_dir,
-					       lh, cu->objfile);
+					       lh, objfile);
           }
           break;
 
-        case DW_MACINFO_end_file:
+        case DW_MACRO_GNU_end_file:
           if (! current_file)
 	    complaint (&symfile_complaints,
 		       _("macro debug info has an unmatched "
@@ -14893,7 +14869,7 @@ dwarf_decode_macros (struct line_header *lh, unsigned int offset,
               current_file = current_file->included_by;
               if (! current_file)
                 {
-                  enum dwarf_macinfo_record_type next_type;
+                  enum dwarf_macro_record_type next_type;
 
                   /* GCC circa March 2002 doesn't produce the zero
                      type byte marking the end of the compilation
@@ -14903,7 +14879,7 @@ dwarf_decode_macros (struct line_header *lh, unsigned int offset,
                   /* Do we at least have room for a macinfo type byte?  */
                   if (mac_ptr >= mac_end)
                     {
-		      dwarf2_macros_too_long_complaint ();
+		      dwarf2_macros_too_long_complaint (section);
                       return;
                     }
 
@@ -14920,21 +14896,197 @@ dwarf_decode_macros (struct line_header *lh, unsigned int offset,
             }
           break;
 
+	case DW_MACRO_GNU_transparent_include:
+	  {
+	    LONGEST offset;
+
+	    offset = read_offset_1 (abfd, mac_ptr, offset_size);
+	    mac_ptr += offset_size;
+
+	    dwarf_decode_macro_bytes (abfd,
+				      section->buffer + offset,
+				      mac_end, current_file,
+				      lh, comp_dir,
+				      section, section_is_gnu,
+				      offset_size, objfile);
+	  }
+	  break;
+
         case DW_MACINFO_vendor_ext:
-          {
-            unsigned int bytes_read;
-            int constant;
+	  if (!section_is_gnu)
+	    {
+	      unsigned int bytes_read;
+	      int constant;
 
-            constant = read_unsigned_leb128 (abfd, mac_ptr, &bytes_read);
-            mac_ptr += bytes_read;
-            read_direct_string (abfd, mac_ptr, &bytes_read);
-            mac_ptr += bytes_read;
+	      constant = read_unsigned_leb128 (abfd, mac_ptr, &bytes_read);
+	      mac_ptr += bytes_read;
+	      read_direct_string (abfd, mac_ptr, &bytes_read);
+	      mac_ptr += bytes_read;
 
-            /* We don't recognize any vendor extensions.  */
-          }
-          break;
+	      /* We don't recognize any vendor extensions.  */
+	      break;
+	    }
+	  /* FALLTHROUGH */
+
+	default:
+	  mac_ptr = skip_unknown_opcode (macinfo_type, opcode_definitions,
+					 mac_ptr, abfd, offset_size,
+					 section);
+	  if (mac_ptr == NULL)
+	    return;
+	  break;
         }
     } while (macinfo_type != 0);
+}
+
+static void
+dwarf_decode_macros (struct line_header *lh, unsigned int offset,
+                     char *comp_dir, bfd *abfd,
+                     struct dwarf2_cu *cu,
+		     struct dwarf2_section_info *section,
+		     int section_is_gnu)
+{
+  gdb_byte *mac_ptr, *mac_end;
+  struct macro_source_file *current_file = 0;
+  enum dwarf_macro_record_type macinfo_type;
+  unsigned int offset_size = cu->header.offset_size;
+  gdb_byte *opcode_definitions[256];
+
+  dwarf2_read_section (dwarf2_per_objfile->objfile, section);
+  if (section->buffer == NULL)
+    {
+      complaint (&symfile_complaints, _("missing %s section"),
+		 section->asection->name);
+      return;
+    }
+
+  /* First pass: Find the name of the base filename.
+     This filename is needed in order to process all macros whose definition
+     (or undefinition) comes from the command line.  These macros are defined
+     before the first DW_MACINFO_start_file entry, and yet still need to be
+     associated to the base file.
+
+     To determine the base file name, we scan the macro definitions until we
+     reach the first DW_MACINFO_start_file entry.  We then initialize
+     CURRENT_FILE accordingly so that any macro definition found before the
+     first DW_MACINFO_start_file can still be associated to the base file.  */
+
+  mac_ptr = section->buffer + offset;
+  mac_end = section->buffer + section->size;
+
+  mac_ptr = dwarf_parse_macro_header (opcode_definitions, abfd, mac_ptr,
+				      &offset_size, section_is_gnu);
+  if (mac_ptr == NULL)
+    {
+      /* We already issued a complaint.  */
+      return;
+    }
+
+  do
+    {
+      /* Do we at least have room for a macinfo type byte?  */
+      if (mac_ptr >= mac_end)
+        {
+	  /* Complaint is printed during the second pass as GDB will probably
+	     stop the first pass earlier upon finding
+	     DW_MACINFO_start_file.  */
+	  break;
+        }
+
+      macinfo_type = read_1_byte (abfd, mac_ptr);
+      mac_ptr++;
+
+      /* Note that we rely on the fact that the corresponding GNU and
+	 DWARF constants are the same.  */
+      switch (macinfo_type)
+        {
+          /* A zero macinfo type indicates the end of the macro
+             information.  */
+        case 0:
+	  break;
+
+	case DW_MACRO_GNU_define:
+	case DW_MACRO_GNU_undef:
+	  /* Only skip the data by MAC_PTR.  */
+	  {
+	    unsigned int bytes_read;
+
+	    read_unsigned_leb128 (abfd, mac_ptr, &bytes_read);
+	    mac_ptr += bytes_read;
+	    read_direct_string (abfd, mac_ptr, &bytes_read);
+	    mac_ptr += bytes_read;
+	  }
+	  break;
+
+	case DW_MACRO_GNU_start_file:
+	  {
+	    unsigned int bytes_read;
+	    int line, file;
+
+	    line = read_unsigned_leb128 (abfd, mac_ptr, &bytes_read);
+	    mac_ptr += bytes_read;
+	    file = read_unsigned_leb128 (abfd, mac_ptr, &bytes_read);
+	    mac_ptr += bytes_read;
+
+	    current_file = macro_start_file (file, line, current_file,
+					     comp_dir, lh, cu->objfile);
+	  }
+	  break;
+
+	case DW_MACRO_GNU_end_file:
+	  /* No data to skip by MAC_PTR.  */
+	  break;
+
+	case DW_MACRO_GNU_define_indirect:
+	case DW_MACRO_GNU_undef_indirect:
+	  {
+	    unsigned int bytes_read;
+
+	    read_unsigned_leb128 (abfd, mac_ptr, &bytes_read);
+	    mac_ptr += bytes_read;
+	    mac_ptr += offset_size;
+	  }
+	  break;
+
+	case DW_MACRO_GNU_transparent_include:
+	  /* Note that, according to the spec, a transparent include
+	     chain cannot call DW_MACRO_GNU_start_file.  So, we can just
+	     skip this opcode.  */
+	  mac_ptr += offset_size;
+	  break;
+
+	case DW_MACINFO_vendor_ext:
+	  /* Only skip the data by MAC_PTR.  */
+	  if (!section_is_gnu)
+	    {
+	      unsigned int bytes_read;
+
+	      read_unsigned_leb128 (abfd, mac_ptr, &bytes_read);
+	      mac_ptr += bytes_read;
+	      read_direct_string (abfd, mac_ptr, &bytes_read);
+	      mac_ptr += bytes_read;
+	    }
+	  /* FALLTHROUGH */
+
+	default:
+	  mac_ptr = skip_unknown_opcode (macinfo_type, opcode_definitions,
+					 mac_ptr, abfd, offset_size,
+					 section);
+	  if (mac_ptr == NULL)
+	    return;
+	  break;
+	}
+    } while (macinfo_type != 0 && current_file == NULL);
+
+  /* Second pass: Process all entries.
+
+     Use the AT_COMMAND_LINE flag to determine whether we are still processing
+     command-line macro definitions/undefinitions.  This flag is unset when we
+     reach the first DW_MACINFO_start_file entry.  */
+
+  dwarf_decode_macro_bytes (abfd, section->buffer + offset, mac_end,
+			    current_file, lh, comp_dir, section, section_is_gnu,
+			    offset_size, cu->objfile);
 }
 
 /* Check if the attribute's form is a DW_FORM_block*
@@ -15663,6 +15815,7 @@ dwarf2_per_objfile_free (struct objfile *objfile, void *d)
   munmap_section_buffer (&data->line);
   munmap_section_buffer (&data->loc);
   munmap_section_buffer (&data->macinfo);
+  munmap_section_buffer (&data->macro);
   munmap_section_buffer (&data->str);
   munmap_section_buffer (&data->ranges);
   munmap_section_buffer (&data->frame);

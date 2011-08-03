@@ -1,3 +1,631 @@
+2011-08-01  Thiago Jung Bauermann  <bauerman@br.ibm.com>
+
+	Revert:
+	2011-07-31  Thiago Jung Bauermann  <bauerman@br.ibm.com>
+	* breakpoint.c (insert_bp_location): Remove disabled_breaks
+	argument.  Update callers.
+
+2011-08-01  Paul Pluzhnikov  <ppluzhnikov@google.com>
+
+	PR gdb/13045
+	* doublest.c (convert_doublest_to_floatformat): Pass correct
+	mantissa length to put_field.
+
+2011-08-01  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* stack.c (do_gdb_disassembly): Use RETURN_MASK_ERROR, simplify the
+	exception_print code path.
+	(backtrace_command): Remove variable e.  Protect arg by make_cleanup in
+	advance.  Simplify memset.  Remove TRY_CATCH.  Remove explicit xfree.
+	(backtrace_full_command):  Remove variable e.  Remove TRY_CATCH.
+
+2011-08-01  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Code cleanup.
+	* stack.c (struct print_stack_frame_args, print_stack_frame_stub):
+	Remove, merge them into ...
+	(print_stack_frame): ... here with a TRY_CATCH.  New variable e, remove
+	variable args and its initialization.
+	(struct print_args_args, print_args_stub): Remove, merge them into
+	print_frame.
+	(struct gdb_disassembly_stub_args, gdb_disassembly_stub): Remove, merge
+	them into ...
+	(do_gdb_disassembly): ... here.  Remove variable args and its
+	initialization.
+	(print_frame): Remove variable args and its initialization, new
+	variable gdbarch and numargs (from print_args_stub), inline here
+	print_args_stub with a TRY_CATCH.
+	(struct backtrace_command_args, backtrace_command_stub): Remove, merge
+	them into ...
+	(backtrace_command, backtrace_full_command): ... here with a TRY_CATCH.
+	New variable e, remove variable btargs and its initialization.
+
+2011-08-01  Tristan Gingold  <gingold@adacore.com>
+
+	* darwin-nat.c (darwin_decode_exception_message): Adjust assertion.
+
+2011-07-31  Thiago Jung Bauermann  <bauerman@br.ibm.com>
+
+	* breakpoint.c (insert_bp_location): Document return value.
+	(insert_breakpoint_locations): Fix documentation.
+	(remove_breakpoints): Add documentation.
+
+2011-07-31  Thiago Jung Bauermann  <bauerman@br.ibm.com>
+
+	* breakpoint.c (insert_bp_location): Remove disabled_breaks
+	argument.  Update callers.
+
+2011-07-30  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* stack.c (print_frame_info): Comment typo fix.
+
+2011-07-29  Sterling Augustine  <saugustine@google.com>
+
+	* MAINTAINERS (Write After Approval): Add myself to the list.
+
+2011-07-29  Tom Tromey  <tromey@redhat.com>
+
+	* solib-target.c: Use DEF_VEC_I, not DEF_VEC_O.
+	(library_list_start_segment): Update.
+	(library_list_start_section): Update.
+
+2011-07-28  Phil Muldoon  <pmuldoon@redhat.com>
+
+	* varobj.c (value_get_print_value): Move hint check later into the
+	function.  Comment function.  Free thevalue before reusing it.
+
+2011-07-27  Jan Kratochvil  <jan.kratochvil@redhat.com>
+	    Pedro Alves  <pedro@codesourcery.com>
+
+	* eval.c (evaluate_subexp_standard): Remove not_lval from all calls of
+	value_one.
+	* valops.c (value_one): Remove parameter lv.  Do not pass it to itself.
+	Assert the result kind.
+	* value.h (value_one): Remove parameter lv.
+
+2011-07-27  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix crash on lval_computed values.
+	* valops.c (value_zero): Use not_lval for lval_computed.
+
+2011-07-27  Tom Tromey  <tromey@redhat.com>
+
+	* Makefile.in (HFILES_NO_SRCDIR): Add 'common' prefix for
+	gdb_assert.h, gdb_locale.h, gdb_dirent.h.
+
+2011-07-27  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* typeprint.c (_initialize_typeprint): Extend the help of "whatis" and
+	"ptype" by their typedefs difference.
+
+2011-07-27  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* dwarf2expr.c (ctx_no_read_reg): New function.
+	* dwarf2expr.h (ctx_no_read_reg): New declaration.
+	* dwarf2read.c (read_2_signed_bytes, read_4_signed_bytes): Remove.
+	(decode_locdesc_read_mem, decode_locdesc_ctx_funcs): New.
+	(decode_locdesc): Replace by a caller of dwarf_expr_eval.
+
+2011-07-27  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* dwarf2-frame.c (no_get_frame_base, no_get_frame_cfa, no_get_frame_pc)
+	(no_get_tls_address, no_dwarf_call, no_base_type): Move to the other
+	file.
+	(dwarf2_frame_ctx_funcs): Reference the renamed functions.
+	* dwarf2expr.c (ctx_no_get_frame_base, ctx_no_get_frame_cfa)
+	(ctx_no_get_frame_pc, ctx_no_get_tls_address, ctx_no_dwarf_call)
+	(ctx_no_get_base_type): Move the functions here.
+	* dwarf2expr.h (ctx_no_get_frame_base, ctx_no_get_frame_cfa)
+	(ctx_no_get_frame_pc, ctx_no_get_tls_address, ctx_no_dwarf_call)
+	(ctx_no_get_base_type): New declarations.
+
+2011-07-27  Tom Tromey  <tromey@redhat.com>
+
+	* xcoffread.c (dwarf2_xcoff_names): Add 'macro' and 'sentinel'
+	entries.
+	* symfile.h (struct dwarf2_debug_sections) <sentinel>: New field.
+	* dwarf2read.c (dwarf2_elf_names): Add sentinel entry.
+
+2011-07-26  Sterling Augustine  <saugustine@google.com>
+
+	* cli/cli-dump.c (dump_binary_file): Change parameter type to
+	ULONGEST.
+	(dump_bfd_file): Likewise.
+
+2011-07-26  Philippe Waroquiers  <philippe.waroquiers@skynet.be>
+
+	* remote.c (remote_region_ok_for_hw_watchpoint): New function.
+	(remote_hw_watchpoint_length_limit): New variable.
+	(_initialize_remote) add set,show cmds for this new variable.
+	* gdb.texinfo: document these new commands.
+	* NEWS: Mention these new commands.
+
+2011-07-26  Pedro Alves  <pedro@codesourcery.com>
+
+	* breakpoint.c (works_in_software_mode_watchpoint): Also return
+	true for software watchpoints.
+
+2011-07-26  Joel Brobecker  <brobecker@adacore.com>
+
+	GDB 7.3 released.
+
+2011-07-26  Tom Tromey  <tromey@redhat.com>
+
+	* symfile.h (struct dwarf2_debug_sections) <macro>: New field.
+	* dwarf2read.c (read_indirect_string_at_offset): New function.
+	(read_indirect_string): Use it.
+	(dwarf_decode_macro_bytes): New function, taken from
+	dwarf_decode_macros.  Handle DW_MACRO_GNU_*.
+	(dwarf_decode_macros): Use it.  handle DW_MACRO_GNU_*.
+	(dwarf_parse_macro_header, skip_form_bytes, skip_unknown_opcode):
+	New functions.
+	(struct dwarf2_per_objfile) <macro>: New field.
+	(dwarf2_elf_names): Add .debug_macro.
+	(dwarf2_macros_too_long_complaint): Add 'section' argument.
+	(dwarf2_locate_sections): Handle new section.
+	(read_file_scope): Handle DW_AT_GNU_macros.
+	(dwarf2_per_objfile_free): Unmap the .debug_macro section.
+
+2011-07-26  Paul Pluzhnikov  <ppluzhnikov@google.com>
+
+	* NEWS: Mention dcache configuration.
+	* dcache.c (dcache_set_list, dcache_show_list): New variables.
+	(dcache_size, dcache_line_size): New variables.
+	(LINE_SIZE_MASK, XFORM, MASK): Adjust.
+	(struct dcache_block): Make it expandable.
+	(struct dcache_struct): New field.
+	(dcache_invalidate): Discard freelist upon dcache_line_size changes.
+	(dcache_hit, dcache_alloc, dcache_peek_byte): Adjust.
+	(dcache_poke_byte, dcache_print_line): Adjust.
+	(set_dcache_size, set_dcache_line_size): New functions.
+	(set_dcache_command, show_dcache_command): New functions.
+	(_initialize_dcache): Add new commands.
+
+2011-07-26  Paul Pluzhnikov  <ppluzhnikov@google.com>
+
+	* progspace.h (struct program_space): Add solib_add_generation.
+	* infcmd.c (post_create_inferior): Only call solib_add if not
+	already done.
+	* solib.c (solib_add): Increment solib_add_generation.
+
+2011-07-25  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix implicit pointer offsets.
+	* dwarf2loc.c (indirect_pieced_value): Comment byte_offset.  Use also
+	ptr.OFFSET.
+
+2011-07-25  Tom Tromey  <tromey@redhat.com>
+
+	* ada-lang.c (ada_exception_breakpoint_ops): Make return type
+	const.
+	(ada_exception_sal): Make 'ops' const.
+	(ada_decode_exception_location): Likewise.
+	(ada_decode_assert_location): Likewise.
+	(catch_assert_command): Update.
+	(catch_ada_exception_command): Update.
+	(create_ada_exception_catchpoint): Make 'ops' const.
+	* breakpoint.c (set_raw_breakpoint_without_location)
+	(set_raw_breakpoint, momentary_breakpoint_from_master): Make 'ops'
+	const.
+	(create_internal_breakpoint): Update.
+	(init_raw_breakpoint_without_location): Make 'ops' const.
+	(init_raw_breakpoint, init_catchpoint)
+	(create_fork_vfork_event_catchpoint)
+	(create_syscall_event_catchpoint, init_breakpoint_sal)
+	(create_breakpoint_sal, create_breakpoints_sal)
+	(create_breakpoint, init_ada_exception_breakpoint): Likewise.
+	* breakpoint.h (struct breakpoint) <ops>: Now const.
+	(init_ada_exception_breakpoint, create_breakpoint): Make 'ops'
+	const.
+
+2011-07-25  Paul Pluzhnikov  <ppluzhnikov@google.com>
+
+	* linux-thread-db.c (thread_from_lwp): Initialize th.th_unique.
+
+2011-07-25  Pedro Alves  <pedro@codesourcery.com>
+
+	* breakpoint.h (print_recreate_thread): Declare.
+	(struct breakpoint): Move step_count, pass_count,
+	number_on_target, static_trace_marker_id,
+	static_trace_marker_id_idx ...
+	(struct tracepoint): ... to this new struct.
+	(get_tracepoint, get_tracepoint_by_number_on_target)
+	(get_tracepoint_by_number): Change return type to struct
+	tracepoint pointer.
+	* breakpoint.c (is_tracepoint_type): New, factored out from
+	is_tracepoint.
+	(is_tracepoint): Adjust.
+	(print_one_breakpoint_location): Cast to struct tracepoint as
+	necessary, and adjust.
+	(print_recreate_catch_fork, print_recreate_catch_vfork)
+	(print_recreate_catch_syscall, print_recreate_catch_exec): Call
+	print_recreate_thread.
+	(init_breakpoint_sal): New, factored out from
+	create_breakpoint_sal.
+	(create_breakpoint_sal): Reimplement.
+	(create_breakpoint): Allocate a struct tracecepoint if the caller
+	wanted a tracepoint.  Use init_breakpoint_sal and
+	install_breakpoint.
+	(print_recreate_ranged_breakpoint, print_recreate_watchpoint)
+	(print_recreate_masked_watchpoint)
+	(print_recreate_exception_catchpoint): Call print_recreate_thread.
+	(tracepoint_print_one_detail): Adjust.
+	(tracepoint_print_recreate): Adjust.  Call print_recreate_thread.
+	Dump the pass count here.
+	(update_static_tracepoint): Adjust.
+	(addr_string_to_sals): Adjust.
+	(create_tracepoint_from_upload): Adjust.  Change return type to
+	struct tracepoint pointer.
+	(trace_pass_set_count): Change parameter type to struct tracepoint
+	pointer, and adjust.
+	(trace_pass_command): Adjust.
+	(get_tracepoint, get_tracepoint_by_number_on_target)
+	(get_tracepoint_by_number): Change return type to struct
+	tracepoint pointer, and adjust.
+	(print_recreate_thread): New, factored out from save_breakpoints.
+	(save_breakpoints): Don't print thread and task and passcount
+	recreation here.
+	* remote.c (remote_download_tracepoint): Adjust.
+	* tracepoint.c (trace_actions_command, validate_actionline)
+	(start_tracing, tfind_1, trace_find_tracepoint_command)
+	(trace_dump_command): Adjust.
+	(find_matching_tracepoint): Change return type to struct
+	tracepoint pointer, and adjust.
+	(merge_uploaded_tracepoints, tfile_get_traceframe_address)
+	(tfile_trace_find, tfile_fetch_registers): Adjust.
+	* tracepoint.h (create_tracepoint_from_upload): Change return type
+	to struct tracepoint pointer.
+	* ada-lang.c (print_recreate_exception): Call
+	print_recreate_thread.
+	* mi/mi-cmd-break.c (mi_cmd_break_passcount): Adjust.
+
+2011-07-25  Pedro Alves  <pedro@codesourcery.com>
+
+	* breakpoint.h (struct breakpoint): Move ops as first field.  Move
+	exp_string, exp_string_reparse, exp, exp_valid_block, cond_exp,
+	cond_exp_valid_block, val, val_valid, watchpoint_frame,
+	watchpoint_thread, watchpoint_triggered ...
+	(struct watchpoint): ... to this new struct.
+	(is_watchpoint): Declare.
+	(install_breakpoint): Add new `internal' parameter.
+	* breakpoint.c (is_watchpoint): Delete declaration.
+	(set_breakpoint_condition): Handle watchpoints.
+	(is_watchpoint): Make public.
+	(watchpoint_in_thread_scope): Change parameter type to struct
+	watchpoint.
+	(watchpoint_del_at_next_stop): Change parameter type to struct
+	watchpoint.  Remove assertion.  Adjust.
+	(update_watchpoint): Ditto.
+	(insert_breakpoints, breakpoint_init_inferior)
+	(watchpoints_triggered, watchpoint_check)
+	(bpstat_check_watchpoint, bpstat_check_breakpoint_conditions)
+	(bpstat_stop_status, print_one_breakpoint_location)
+	(print_one_breakpoint_location, watchpoint_locations_match): Cast
+	to struct watchpoint as necessary, and adjust.
+	(install_breakpoint): Add `internal' argument.  If true, don't
+	mention the new breakpoint.  Use set_breakpoint_number.
+	(create_fork_vfork_event_catchpoint)
+	(create_syscall_event_catchpoint): Adjust.
+	(dtor_watchpoint): New.
+	(re_set_watchpoint, insert_watchpoint, remove_watchpoint)
+	(breakpoint_hit_watchpoint, resources_needed_watchpoint)
+	(print_it_watchpoint, print_mention_watchpoint)
+	(print_recreate_watchpoint, insert_masked_watchpoint)
+	(remove_masked_watchpoint, resources_needed_masked_watchpoint)
+	(print_one_detail_masked_watchpoint)
+	(print_mention_masked_watchpoint)
+	(print_recreate_masked_watchpoint): Cast to struct watchpoint as
+	necessary, and adjust.
+	(watch_command_1): Allocate and initialize a struct watchpoint
+	instead of a struct breakpoint.  Use install_breakpoint.
+	(catch_exec_command_1): Adjust.
+	(base_breakpoint_dtor): Delete accesses to watchpoint specific
+	fields.
+	(delete_breakpoint, enable_breakpoint_disp)
+	(invalidate_bp_value_on_memory_change): Cast to struct watchpoint
+	as necessary, and adjust.
+	(initialize_breakpoint_ops): Install dtor_watchpoint as
+	watchpoints' dtor method.
+	* ada-lang.c (create_ada_exception_catchpoint): Adjust.
+	* python/py-breakpoint.c (bppy_get_expression): Use is_watchpoint.
+	to struct watchpoint as necessary, and adjust.
+
+2011-07-25  Pedro Alves  <pedro@codesourcery.com>
+
+	* ada-lang.c (dtor_exception, re_set_exception): Indirect through
+	the the base class ops table.
+	(catch_exception_breakpoint_ops)
+	(catch_exception_unhandled_breakpoint_ops)
+	(catch_assert_breakpoint_ops): Don't statically initialize.
+	(initialize_ada_catchpoint_ops): New.
+	(_initialize_ada_language): Call it.
+	* breakpoint.c (base_breakpoint_ops, bkpt_base_breakpoint_ops)
+	(bkpt_breakpoint_ops): Forward declare.
+	(catch_fork_breakpoint_ops, catch_vfork_breakpoint_ops)
+	(catch_syscall_breakpoint_ops, catch_exec_breakpoint_ops)
+	(ranged_breakpoint_ops, watchpoint_breakpoint_ops)
+	(masked_watchpoint_breakpoint_ops)
+	(gnu_v3_exception_catchpoint_ops): Don't statically initialize.
+	(dtor_catch_syscall, dtor_catch_exec): Indirect through the the
+	base class ops table.
+	(null_re_set, null_check_status, null_works_in_software_mode)
+	(null_resources_needed, null_print_one_detail): Delete.
+	(bkpt_dtor): Rename to ...
+	(base_breakpoint_dtor): ... this.  Make static.
+	(bkpt_allocate_location): Rename to ...
+	(base_breakpoint_allocate_location): ... this.  Make static.
+	(base_breakpoint_re_set): New.
+	(internal_error_pure_virtual_called): New.
+	(base_breakpoint_insert_location, base_breakpoint_remove_location)
+	(base_breakpoint_breakpoint_hit, base_breakpoint_check_status)
+	(base_breakpoint_works_in_software_mode)
+	(base_breakpoint_resources_needed, base_breakpoint_print_it)
+	(base_breakpoint_print_one_detail, base_breakpoint_print_mention)
+	(base_breakpoint_print_recreate): New functions.
+	(base_breakpoint_ops): New global.
+	(bkpt_re_set, bkpt_insert_location, bkpt_remove_location)
+	(bkpt_breakpoint_hit): Make static.
+	(bkpt_check_status): Delete.
+	(bkpt_resources_needed): Make static.
+	(bkpt_works_in_software_mode): Delete.
+	(bkpt_print_it, bkpt_print_mention, bkpt_print_recreate): Make
+	static.
+	(bkpt_breakpoint_ops, internal_breakpoint_ops)
+	(momentary_breakpoint_ops): Don't statically initialize.
+	(internal_bkpt_print_recreate, momentary_bkpt_print_recreate):
+	Delete.
+	(tracepoint_insert_location, tracepoint_remove_location)
+	(tracepoint_check_status, tracepoint_works_in_software_mode)
+	(tracepoint_print_it): Delete.
+	(tracepoint_breakpoint_ops): Don't statically initialize.
+	(initialize_breakpoint_ops): New.
+	(_initialize_breakpoint): Call it.
+	* breakpoint.h (null_re_set, null_works_in_software_mode)
+	(null_resources_needed, null_check_status, null_print_one_detail):
+	(bkpt_dtor, bkpt_allocate_location, bkpt_re_set)
+	(bkpt_insert_location, bkpt_remove_location, bkpt_breakpoint_hit)
+	(bkpt_check_status, bkpt_resources_needed)
+	(bkpt_works_in_software_mode, bkpt_print_it)
+	(null_print_one_detail, bkpt_print_mention, bkpt_print_recreate):
+	Delete declarations.
+	(initialize_breakpoint_ops): Declare.
+
+2011-07-25  Pedro Alves  <pedro@codesourcery.com>
+
+	* breakpoint.c (bkpt_print_it, internal_bkpt_print_it)
+	(momentary_bkpt_print_it): Simplify.
+
+2011-07-25  Pedro Alves  <pedro@codesourcery.com>
+
+	Split internal, momentary and user breakpoints breakpoint_ops
+	tables.
+
+	* breakpoint.c (internal_breakpoint_ops)
+	(momentary_breakpoint_ops): Forward declare.
+	(create_internal_breakpoint): Add new breakpoint_ops parameter.
+	Pass it down, rather than hardcoding bkpt_breakpoint_ops.
+	(create_overlay_event_breakpoint)
+	(create_std_terminate_master_breakpoint)
+	(create_exception_master_breakpoint): Create breakpoints with
+	internal_breakpoint_ops vtable.
+	(set_longjmp_breakpoint): Create momentary breakpoints with
+	momentary_breakpoint_ops vtable, using
+	momentary_breakpoint_from_master.
+	(create_thread_event_breakpoint, create_jit_event_breakpoint)
+	(create_solib_event_breakpoint): Create breakpoints with
+	internal_breakpoint_ops vtable.
+	(set_momentary_breakpoint): Create breakpoints with
+	momentary_breakpoint_ops vtable.
+	(momentary_breakpoint_from_master): New, factored out from
+	clone_momentary_breakpoint.
+	(clone_momentary_breakpoint): Adjust.
+	(watch_command_1): Create scope breakpoints with
+	momentary_breakpoint_ops vtable.
+	(bkpt_re_set): Remove handling of internal and momentary
+	breakpoints.
+	(bkpt_print_mention, bkpt_print_recreate): New.
+	(bkpt_breakpoint_ops): Adjust.
+	(internal_bkpt_re_set, internal_bkpt_check_status)
+	(internal_bkpt_print_it, internal_bkpt_print_mention)
+	(internal_bkpt_print_recreate, internal_breakpoint_ops): New.
+	(momentary_bkpt_re_set, momentary_bkpt_check_status)
+	(momentary_bkpt_print_it, momentary_bkpt_print_mention)
+	(momentary_bkpt_print_recreate): New.
+	(momentary_breakpoint_ops): New.
+
+2011-07-25  Pedro Alves  <pedro@codesourcery.com>
+
+	Implement most breakpoint_ops methods for all breakpoint types,
+	and move the default handlings to the proper callbacks.
+
+	* breakpoint.c (update_watchpoint): Always call the breakpoint's
+	works_in_software_mode method.
+	(insert_bp_location): Go through breakpoint_ops->insert_location
+	for software and hardware watchpoints.
+	(create_internal_breakpoint): Pass bkpt_breakpoint_ops as
+	breakpoint_ops.
+	(remove_breakpoint_1): Go through breakpoint_ops->remove_location
+	for software and hardware watchpoints.
+	(print_it_typical): Delete.
+	(print_bp_stop_message): Always call the breakpoint_ops->print_it
+	method.
+	(watchpoint_check): Adjust comment.
+	(bpstat_check_location): Simply always call the breakpoint's
+	breakpoint_hit method.
+	(bpstat_stop_status): Always call the breakpoint's check_status
+	method.  Remove special cases for watchpoints and internal event
+	breakpoints from here (moved to the check_status implementations).
+	(print_one_breakpoint_location): Assume b->ops is never NULL.
+	Remove static tracepoint marker id printing from here (moved to
+	the print_one_detail callback implementation of tracepoints).
+	(init_bp_location): Assert OPS is never NULL.
+	(allocate_bp_location): Always call the breakpoint's
+	allocate_location method, and remove the default code from here.
+	(free_bp_location): Always call the location's dtor method, and
+	remove the default code from here.
+	(init_raw_breakpoint_without_location): Assert OPS is never NULL.
+	(set_raw_breakpoint_without_location): Add new breakpoint_ops
+	parameter.  Pass it down.
+	(set_raw_breakpoint): Ditto.
+	(print_it_catch_fork): Adjust to take a bpstat as argument.
+	(catch_fork_breakpoint_ops): Install methods.
+	(print_it_catch_vfork): Adjust to take a bpstat as argument.
+	(catch_vfork_breakpoint_ops): Install methods.
+	(dtor_catch_syscall): Call the base dtor.
+	(print_it_catch_syscall): Adjust to take a bpstat as argument.
+	(catch_syscall_breakpoint_ops): Install methods.
+	(dtor_catch_exec): Call the base dtor.
+	(print_it_catch_exec): Adjust to take a bpstat as argument.
+	(catch_exec_breakpoint_ops): Install methods.
+	(hw_breakpoint_used_count, hw_watchpoint_used_count): Always call
+	the breakpoint's resources_needed method, and remove the default
+	code from here.
+	(set_momentary_breakpoint): Pass bkpt_breakpoint_ops as
+	breakpoint_ops.
+	(clone_momentary_breakpoint): Clone the original's ops.
+	(mention): Always call the breakpoint's print_mention method, and
+	remove the default code from here.
+	(create_breakpoint_sal): Adjust to pass the ops to
+	set_raw_breakpoint rather than setting it manually.
+	(create_breakpoint): Assert ops is never NULL.  Adjust to pass the
+	ops to set_raw_breakpoint_without_location rather than setting it
+	manually.
+	(break_command_1): Pass bkpt_breakpoint_ops as breakpoint_ops.
+	(print_it_ranged_breakpoint): Adjust to take a bpstat as argument.
+	(ranged_breakpoint_ops): Install methods.
+	(break_range_command): Adjust to pass the ops to
+	set_raw_breakpoint rather than setting it manually.
+	(re_set_watchpoint, breakpoint_hit_watchpoint)
+	(check_status_watchpoint, resources_needed_watchpoint)
+	(works_in_software_mode_watchpoint, print_it_watchpoint)
+	(print_mention_watchpoint, print_recreate_watchpoint): New
+	functions.
+	(watchpoint_breakpoint_ops): Install new methods.
+	(print_it_masked_watchpoint): New function.
+	(masked_watchpoint_breakpoint_ops): Install new methods.
+	(watch_command_1): Adjust to pass the right breakpoint_ops to
+	set_raw_breakpoint_without_location rather than setting it
+	manually later.  Record the current pspace.
+	(print_it_exception_catchpoint): Adjust to take a bpstat as
+	argument.
+	(gnu_v3_exception_catchpoint_ops): Install new methods.
+	(say_where): New function.
+	(null_re_set, null_check_status, null_works_in_software_mode)
+	(null_resources_needed, null_print_one_detail, bp_location_dtor):
+	New functions.
+	(bp_location_ops): New global.
+	(bkpt_dtor, bkpt_allocate_location, bkpt_re_set)
+	(bkpt_insert_location, bkpt_remove_location, bkpt_breakpoint_hit)
+	(bkpt_check_status, bkpt_resources_needed)
+	(bkpt_works_in_software_mode, bkpt_print_it, bkpt_print_mention)
+	(bkpt_print_recreate): New functions.
+	(bkpt_breakpoint_ops): New global.
+	(tracepoint_re_set, tracepoint_insert_location)
+	(tracepoint_remove_location, tracepoint_breakpoint_hit)
+	(tracepoint_check_status, tracepoint_works_in_software_mode)
+	(tracepoint_print_it, tracepoint_print_one_detail)
+	(tracepoint_print_mention, tracepoint_print_recreate): New
+	functions.
+	(tracepoint_breakpoint_ops): New global.
+	(delete_breakpoint): Always call the breakpoint's dtor method, and
+	remove the default handling from here.
+	(breakpoint_re_set_default): Make static.
+	(breakpoint_re_set_one): Always call the breakpoints re_set
+	method, and remove the default handling from here.
+	(trace_command, ftrace_command, strace_command)
+	(create_tracepoint_from_upload): Pass appropriate breakpoints_ops
+	to create_breakpoint.
+	(save_breakpoints): Always call the breakpoint's print_recreate
+	method, and remove the default handling from here.
+
+	* ada-lang.c (dtor_exception): Call the base dtor.
+	(re_set_exception): Call the base method.
+	(print_it_exception, print_it_catch_exception): Adjust to take a
+	bpstat as argument.
+	(catch_exception_breakpoint_ops): Install methods.
+	(print_it_catch_exception_unhandled): Adjust to take a bpstat as
+	argument.
+	(catch_exception_unhandled_breakpoint_ops): Install methods.
+	(print_it_catch_assert): Adjust to take a bpstat as argument.
+	(catch_assert_breakpoint_ops): Install methods.
+
+	* breakpoint.h (struct breakpoint_ops): Adjust the print_it method
+	to take a bpstat as argument.
+	(enum print_stop_action): Add describing comments to each enum
+	value.
+	(breakpoint_re_set_default): Delete declaration.
+	(null_re_set, null_works_in_software_mode, null_resources_needed)
+	(null_check_status, null_print_one_detail): Declare.
+	(bkpt_breakpoint_ops): Declare.
+	(bkpt_dtor, bkpt_allocate_location, bkpt_re_set)
+	(bkpt_insert_location, bkpt_remove_location, bkpt_breakpoint_hit)
+	(bkpt_check_status, bkpt_resources_needed)
+	(bkpt_works_in_software_mode, bkpt_print_it)
+	(null_print_one_detail, bkpt_print_mention, bkpt_print_recreate):
+	Declare.
+
+	* mi/mi-cmd-break.c (mi_cmd_break_insert): Adjust to pass
+	bkpt_breakpoint_ops.
+	* python/py-breakpoint.c (bppy_init): Ditto.
+
+2011-07-15  Philippe Waroquiers  <philippe.waroquiers@skynet.be>
+
+	* MAINTAINERS (Write After Approval): Add myself to the list.
+
+2011-07-23  Paul Pluzhnikov  <ppluzhnikov@google.com>
+
+	* elfread.c (elf_rel_plt_read): Fix off-by-one bug.
+
+2011-07-22  Pedro Alves  <pedro@codesourcery.com>
+
+	* i386-nat.c (I386_DR_VACANT, I386_DR_LOCAL_ENABLE)
+	(I386_DR_GLOBAL_ENABLE, I386_DR_DISABLE, I386_DR_SET_RW_LEN)
+	(I386_DR_GET_RW_LEN, I386_DR_WATCH_HIT): Add state parameter and
+	adjust.
+	(dr_mirror, dr_status_mirror, dr_control_mirror): Delete.
+	(struct i386_debug_reg_state): New.
+	(i386_init_dregs): New.
+	(dr_mirror): New.
+	(i386_cleanup_dregs): Use i386_init_dregs.
+	(i386_show_dr): Add state parameter and adjust.
+	(i386_insert_aligned_watchpoint): Ditto.  Don't pass the info to
+	the inferior here.
+	(i386_remove_aligned_watchpoint): Likewise.
+	(i386_handle_nonaligned_watchpoint): Add state parameter and adjust.
+	(i386_update_inferior_debug_regs): New.
+	(i386_insert_watchpoint): Work on a local mirror of the debug
+	registers, and only update the inferior on success.
+	(i386_remove_watchpoint): Ditto.
+	(i386_region_ok_for_watchpoint): Adjust.
+	(i386_stopped_data_address): Adjust.
+	(i386_insert_hw_breakpoint): Adjust.
+	(i386_remove_hw_breakpoint): Adjust.
+
+2011-07-22  Tom Tromey  <tromey@redhat.com>
+
+	* amd64-tdep.c (amd64_pseudo_register_read_value): Rename
+	from amd64_pseudo_register_read.  Change arguments.  Call
+	mark_value_bytes_unavailable when needed.
+	(amd64_init_abi): Use set_gdbarch_pseudo_register_read_value, not
+	set_gdbarch_pseudo_register_read.
+	* sentinel-frame.c (sentinel_frame_prev_register): Use
+	regcache_cooked_read_value.
+	* regcache.h (regcache_cooked_read_value): Declare.
+	* regcache.c (regcache_cooked_read_value): New function.
+	(regcache_cooked_read): Call
+	gdbarch_pseudo_register_read_value if available.
+	* i386-tdep.h (i386_pseudo_register_read_value): Declare.
+	(i386_pseudo_register_read): Remove.
+	* i386-tdep.c (i386_pseudo_register_read_into_value): Rename from
+	i386_pseudo_register_read.  Change arguments.  Call
+	mark_value_bytes_unavailable when needed.
+	(i386_pseudo_register_read_value): New function.
+	(i386_gdbarch_init): Call set_gdbarch_pseudo_register_read_value,
+	not set_gdbarch_pseudo_register_read.
+	* gdbarch.sh (pseudo_register_read_value): New method.
+	* gdbarch.c, gdbarch.h: Rebuild.
+	* findvar.c (value_from_register): Call get_frame_register_value.
+
 2011-07-22  Phil Muldoon  <pmuldoon@redhat.com>
 
 	* event-top.c (cli_command_loop): Use get_prompt, get_suffix,

@@ -1,3 +1,346 @@
+2011-08-02  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* elfxx-mips.c (check_4byte_branch): Remove function.
+	(check_relocated_bzc): New function.
+	(_bfd_mips_elf_relax_section): Permit the relaxation of LUI
+	instructions that immediately follow a compact branch
+	instruction.
+
+2011-08-02  Alan Modra  <amodra@gmail.com>
+
+	* elf64-ppc.c (build_plt_stub): Correct emitted relocs when no
+	plt_static_chain.
+	(ppc_build_one_stub): Adjust get_relocs call to suit..
+	(ppc_size_one_stub): ..and reloc sizing.  Correct plt size corner case.
+
+2011-08-01  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/13048
+	* archures.c (bfd_mach_i386_intel_syntax): New.
+	(bfd_mach_i386_i8086): Updated.
+	(bfd_mach_i386_i386): Likewise.
+	(bfd_mach_x86_64): Likewise.
+	(bfd_mach_x64_32): Likewise.
+	(bfd_mach_i386_i386_intel_syntax): Likewise.
+	(bfd_mach_x86_64_intel_syntax): Likewise.
+	(bfd_mach_x64_32_intel_syntax): Likewise.
+	(bfd_mach_l1om): Likewise.
+	(bfd_mach_l1om_intel_syntax): Likewise.
+	(bfd_mach_k1om): Likewise.
+	(bfd_mach_k1om_intel_syntax): Likewise.
+
+	* bfd-in2.h: Regenerated.
+
+	* cpu-i386.c (bfd_i386_compatible): Check mach instead of
+	bits_per_address.
+	(bfd_x64_32_arch_intel_syntax): Set bits_per_address to 64.
+	(bfd_x64_32_arch): Likewise.
+
+	* elf64-x86-64.c: Include "libiberty.h".
+	(x86_64_elf_howto_table): Append x32 R_X86_64_32.
+	(elf_x86_64_rtype_to_howto): Support x32 R_X86_64_32.
+	(elf_x86_64_reloc_type_lookup): Likewise.
+	(elf_x86_64_reloc_name_lookup): Likewise.
+	(elf_x86_64_relocate_section): Likewise.
+	(elf_x86_64_check_relocs): Allow R_X86_64_64 relocations for x32.
+
+2011-07-29  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* elfxx-mips.c (check_br32): Fix return type.
+
+2011-07-29  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* elfxx-mips.c (bz_insn_16): Correct opcode mask.
+
+2011-07-29  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* elfxx-mips.c: Adjust comments throughout.
+	(mips_elf_relax_delete_bytes): Reshape code.
+	(_bfd_mips_elf_relax_section): Remove check for
+	R_MICROMIPS_GPREL16 relocations.  Reshape code.
+
+2011-07-28  Roland McGrath  <mcgrathr@google.com>
+
+	* elf32-i386.c (NACL_PLT_ENTRY_SIZE, NACLMASK): New macros.
+	(elf_i386_nacl_plt0_entry): New variable.
+	(elf_i386_plt_entry): New variable.
+	(elf_i386_nacl_pic_plt0_entry): New variable.
+	(elf_i386_nacl_pic_plt_entry): New variable.
+	(elf_i386_nacl_plt, elf_i386_nacl_arch_bed): New variables.
+	(elf_backend_arch_data): New macro setting for elf_i386_nacl_vec stanza.
+	(elf_backend_plt_alignment): Likewise.
+
+	* config.bfd: Handle i[3-7]86-*-nacl*.
+	* elf32-i386.c (bfd_elf32_i386_nacl_vec): New backend vector stanza.
+	* targets.c: Support bfd_elf32_i386_nacl_vec.
+	* configure.in: Likewise.
+	* configure: Regenerated.
+
+	* elf32-i386.c (struct elf_i386_plt_layout): New type.
+	(GET_PLT_ENTRY_SIZE): New macro.
+	(elf_i386_plt): New variable.
+	(struct elf_i386_backend_data): New member `plt'.
+	(elf_i386_arch_bed): Add initializer for it.
+	(elf_i386_vxworks_arch_bed): Likewise.
+	(elf_i386_allocate_dynrelocs): Use GET_PLT_ENTRY_SIZE.
+	(elf_i386_plt_sym_val): Likewise.
+	(elf_i386_relocate_section): Likewise.
+	(elf_i386_finish_dynamic_symbol): Likewise.
+	Also use other elf_i386_plt_layout members for PLT details.
+	(elf_i386_finish_dynamic_sections): Likewise.
+
+	* elf32-i386.c (struct elf_i386_backend_data): New type.
+	(get_elf_i386_backend_data): New macro.
+	(elf_i386_arch_bed): New variable.
+	(elf_backend_arch_data): New macro.
+	(struct elf_i386_link_hash_table): Remove plt0_pad_byte and is_vxworks.
+	(elf_i386_link_hash_table_create): Don't initialize them.
+	(elf_i386_create_dynamic_sections): Find is_vxworks flags in
+	elf_i386_backend_data, not elf_i386_link_hash_table.
+	(elf_i386_adjust_dynamic_symbol): Likewise.
+	(elf_i386_allocate_dynrelocs): Likewise.
+	(elf_i386_readonly_dynrelocs): Likewise.
+	(elf_i386_size_dynamic_sections): Likewise.
+	(elf_i386_relocate_section): Likewise.
+	(elf_i386_finish_dynamic_symbol): Likewise.
+	(elf_i386_finish_dynamic_sections): Likewise.  Same for plt0_pad_byte.
+	(elf_i386_vxworks_link_hash_table_create): Function removed.
+	(elf_i386_vxworks_arch_bed): New variable.
+	(elf_backend_arch_data): New macro in elf32-i386-vxworks stanza.
+
+	* elf-bfd.h (elf_backend_data): New member arch_backend_data.
+	* elfxx-target.h (elf_backend_arch_data): New macro.
+	(elfNN_bed): Use it as initializer for the new member.
+
+2011-07-28  Mikulas Patocka  <mikulas@artax.karlin.mff.cuni.cz>
+
+	* elf64-hppa.c (elf_hppa_final_link_relocate): Fix handling of out
+	of range branches.
+
+2011-07-26  Jakub Jelinek  <jakub@redhat.com>
+
+	* dwarf2.c (dwarf_debug_sections): Add .debug_macro
+	and .zdebug_macro entry.
+	(dwarf_debug_section_enum): Add debug_macro.
+
+2011-07-26  Alan Modra  <amodra@gmail.com>
+
+	* elf32-ppc.c: Include dwarf2.h.
+	(struct ppc_elf_link_hash_table): Add glink_eh_frame.
+	(ppc_elf_create_glink): Create .eh_frame section.
+	(glink_eh_frame_cie): New array.
+	(ppc_elf_size_dynamic_sections): Size glink_eh_frame.
+	(ppc_elf_finish_dynamic_sections): Write glink_eh_frame.
+	* elf64-ppc.c: Include dwarg2.h.
+	(struct ppc_link_hash_table): Add glink_eh_frame.
+	(create_linkage_sections): Create .eh_frame section.
+	(ppc64_elf_size_dynamic_sections): Arrange to drop unneeded
+	glink_eh_frame.
+	(glink_eh_frame_cie): New array.
+	(ppc64_elf_size_stubs): Size glink_eh_frame.
+	(ppc64_elf_build_stubs): Init glink_eh_frame contents.
+	(ppc64_elf_finish_dynamic_sections): Write glink_eh_frame.
+
+2011-07-25  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	PR ld/12815
+	* elf64-mmix.c (struct _mmix_elf_section_data): New members
+	has_warned_bpo and has_warned_pushj.
+	(mmix_final_link_relocate): Remove PARAMS and PTR macros,
+	converting to ISO C.  Add new parameter error_message.  All
+	callers changed.
+	(mmix_elf_perform_relocation): Ditto.
+	<case R_MMIX_PUSHJ_STUBBABLE, case R_MMIX_BASE_PLUS_OFFSET>:
+	Handle the case where mmix_elf_check_common_relocs has not been
+	called, missing preparations for relocs of the respective type.
+
+2011-07-24  Chao-ying Fu  <fu@mips.com>
+	    Ilie Garbacea  <ilie@mips.com>
+	    Maciej W. Rozycki  <macro@codesourcery.com>
+	    Joseph Myers  <joseph@codesourcery.com>
+	    Catherine Moore  <clm@codesourcery.com>
+	    Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* archures.c (bfd_mach_mips_micromips): New macro.
+	* cpu-mips.c (I_micromips): New enum value.
+	(arch_info_struct): Add bfd_mach_mips_micromips.
+	* elfxx-mips.h (_bfd_mips_elf_is_target_special_symbol): New
+	prototype.
+	(_bfd_mips_elf_relax_section): Likewise.
+	(_bfd_mips16_elf_reloc_unshuffle): Rename to...
+	(_bfd_mips_elf_reloc_unshuffle): ... this.  Handle microMIPS
+	ASE.
+	(_bfd_mips16_elf_reloc_shuffle): Rename to...
+	(_bfd_mips_elf_reloc_shuffle): ... this.  Handle microMIPS ASE.
+	(gprel16_reloc_p): Handle microMIPS ASE.
+	(literal_reloc_p): New function.
+	* elf32-mips.c (elf_micromips_howto_table_rel): New variable.
+	(_bfd_mips_elf32_gprel16_reloc): Handle microMIPS ASE.
+	(mips16_gprel_reloc): Update for _bfd_mips_elf_reloc_unshuffle
+	and _bfd_mips_elf_reloc_shuffle changes.
+	(mips_elf_gprel32_reloc): Update comment.
+	(micromips_reloc_map): New variable.
+	(bfd_elf32_bfd_reloc_type_lookup): Handle microMIPS ASE.
+	(mips_elf32_rtype_to_howto): Likewise.
+	(mips_info_to_howto_rel): Likewise.
+	(bfd_elf32_bfd_is_target_special_symbol): Define.
+	(bfd_elf32_bfd_relax_section): Likewise.
+	* elf64-mips.c (micromips_elf64_howto_table_rel): New variable.
+	(micromips_elf64_howto_table_rela): Likewise.
+	(mips16_gprel_reloc): Update for _bfd_mips_elf_reloc_unshuffle
+	and _bfd_mips_elf_reloc_shuffle changes.
+	(micromips_reloc_map): Likewise.
+	(bfd_elf64_bfd_reloc_type_lookup): Handle microMIPS ASE.
+	(bfd_elf64_bfd_reloc_name_lookup): Likewise.
+	(mips_elf64_rtype_to_howto): Likewise.
+	(bfd_elf64_bfd_is_target_special_symbol): Define.
+	* elfn32-mips.c (elf_micromips_howto_table_rel): New variable.
+	(elf_micromips_howto_table_rela): Likewise.
+	(mips16_gprel_reloc): Update for _bfd_mips_elf_reloc_unshuffle
+	and _bfd_mips_elf_reloc_shuffle changes.
+	(micromips_reloc_map): Likewise.
+	(bfd_elf32_bfd_reloc_type_lookup): Handle microMIPS ASE.
+	(bfd_elf32_bfd_reloc_name_lookup): Likewise.
+	(mips_elf_n32_rtype_to_howto): Likewise.
+	(bfd_elf32_bfd_is_target_special_symbol): Define.
+	* elfxx-mips.c (LA25_LUI_MICROMIPS_1): New macro.
+	(LA25_LUI_MICROMIPS_2): Likewise.
+	(LA25_J_MICROMIPS_1, LA25_J_MICROMIPS_2): Likewise.
+	(LA25_ADDIU_MICROMIPS_1, LA25_ADDIU_MICROMIPS_2): Likewise.
+	(TLS_RELOC_P): Handle microMIPS ASE.
+	(mips_elf_create_stub_symbol): Adjust value of stub symbol if
+	target is a microMIPS function.
+	(micromips_reloc_p): New function.
+	(micromips_reloc_shuffle_p): Likewise.
+	(got16_reloc_p, call16_reloc_p): Handle microMIPS ASE.
+	(got_disp_reloc_p, got_page_reloc_p): New functions.
+	(got_ofst_reloc_p): Likewise.
+	(got_hi16_reloc_p, got_lo16_reloc_p): Likewise.
+	(call_hi16_reloc_p, call_lo16_reloc_p): Likewise.
+	(hi16_reloc_p, lo16_reloc_p, jal_reloc_p): Handle microMIPS ASE.
+	(micromips_branch_reloc_p): New function.
+	(tls_gd_reloc_p, tls_ldm_reloc_p): Likewise.
+	(tls_gottprel_reloc_p): Likewise.
+	(_bfd_mips16_elf_reloc_unshuffle): Rename to...
+	(_bfd_mips_elf_reloc_unshuffle): ... this.  Handle microMIPS
+	ASE.
+	(_bfd_mips16_elf_reloc_shuffle): Rename to...
+	(_bfd_mips_elf_reloc_shuffle): ... this.  Handle microMIPS ASE.
+	(_bfd_mips_elf_lo16_reloc): Handle microMIPS ASE.
+	(mips_tls_got_index, mips_elf_got_page): Likewise.
+	(mips_elf_create_local_got_entry): Likewise.
+	(mips_elf_relocation_needs_la25_stub): Likewise.
+	(mips_elf_calculate_relocation): Likewise.
+	(mips_elf_perform_relocation): Likewise.
+	(_bfd_mips_elf_symbol_processing): Likewise.
+	(_bfd_mips_elf_add_symbol_hook): Likewise.
+	(_bfd_mips_elf_link_output_symbol_hook): Likewise.
+	(mips_elf_add_lo16_rel_addend): Likewise.
+	(_bfd_mips_elf_check_relocs): Likewise.
+	(mips_elf_adjust_addend): Likewise.
+	(_bfd_mips_elf_relocate_section): Likewise.
+	(mips_elf_create_la25_stub): Likewise.
+	(_bfd_mips_vxworks_finish_dynamic_symbol): Likewise.
+	(_bfd_mips_elf_gc_sweep_hook): Likewise.
+	(_bfd_mips_elf_is_target_special_symbol): New function.
+	(mips_elf_relax_delete_bytes): Likewise.
+	(opcode_descriptor): New structure.
+	(RA): New macro.
+	(OP32_SREG, OP32_TREG, OP16_VALID_REG): Likewise.
+	(b_insns_32, bc_insn_32, bz_insn_32, bzal_insn_32): New variables.
+	(beq_insn_32): Likewise.
+	(b_insn_16, bz_insn_16): New variables.
+	(BZC32_REG_FIELD): New macro.
+	(bz_rs_insns_32, bz_rt_insns_32): New variables.
+	(bzc_insns_32, bz_insns_16):Likewise.
+	(BZ16_REG, BZ16_REG_FIELD): New macros.
+	(jal_insn_32_bd16, jal_insn_32_bd32): New variables.
+	(jal_x_insn_32_bd32): Likewise.
+	(j_insn_32, jalr_insn_32): Likewise.
+	(ds_insns_32_bd16, ds_insns_32_bd32): Likewise.
+	(jalr_insn_16_bd16, jalr_insn_16_bd32, jr_insn_16): Likewise.
+	(JR16_REG): New macro.
+	(ds_insns_16_bd16): New variable.
+	(lui_insn): Likewise.
+	(addiu_insn, addiupc_insn): Likewise.
+	(ADDIUPC_REG_FIELD): New macro.
+	(MOVE32_RD, MOVE32_RS): Likewise.
+	(MOVE16_RD_FIELD, MOVE16_RS_FIELD): Likewise.
+	(move_insns_32, move_insns_16): New variables.
+	(nop_insn_32, nop_insn_16): Likewise.
+	(MATCH): New macro.
+	(find_match): New function.
+	(check_br16_dslot, check_br32_dslot): Likewise.
+	(check_br16, check_br32): Likewise.
+	(IS_BITSIZE): New macro.
+	(check_4byte_branch): New function.
+	(_bfd_mips_elf_relax_section): Likewise.
+	(_bfd_mips_elf_merge_private_bfd_data): Disallow linking MIPS16
+	and microMIPS modules together.
+	(_bfd_mips_elf_print_private_bfd_data):	Handle microMIPS ASE.
+	* reloc.c (BFD_RELOC_MICROMIPS_7_PCREL_S1): New relocation.
+	(BFD_RELOC_MICROMIPS_10_PCREL_S1): Likewise.
+	(BFD_RELOC_MICROMIPS_16_PCREL_S1): Likewise.
+	(BFD_RELOC_MICROMIPS_GPREL16): Likewise.
+	(BFD_RELOC_MICROMIPS_JMP, BFD_RELOC_MICROMIPS_HI16): Likewise.
+	(BFD_RELOC_MICROMIPS_HI16_S): Likewise.
+	(BFD_RELOC_MICROMIPS_LO16): Likewise.
+	(BFD_RELOC_MICROMIPS_LITERAL): Likewise.
+	(BFD_RELOC_MICROMIPS_GOT16): Likewise.
+	(BFD_RELOC_MICROMIPS_CALL16): Likewise.
+	(BFD_RELOC_MICROMIPS_GOT_HI16): Likewise.
+	(BFD_RELOC_MICROMIPS_GOT_LO16): Likewise.
+	(BFD_RELOC_MICROMIPS_CALL_HI16): Likewise.
+	(BFD_RELOC_MICROMIPS_CALL_LO16): Likewise.
+	(BFD_RELOC_MICROMIPS_SUB): Likewise.
+	(BFD_RELOC_MICROMIPS_GOT_PAGE): Likewise.
+	(BFD_RELOC_MICROMIPS_GOT_OFST): Likewise.
+	(BFD_RELOC_MICROMIPS_GOT_DISP): Likewise.
+	(BFD_RELOC_MICROMIPS_HIGHEST): Likewise.
+	(BFD_RELOC_MICROMIPS_HIGHER): Likewise.
+	(BFD_RELOC_MICROMIPS_SCN_DISP): Likewise.
+	(BFD_RELOC_MICROMIPS_JALR): Likewise.
+	(BFD_RELOC_MICROMIPS_TLS_GD): Likewise.
+	(BFD_RELOC_MICROMIPS_TLS_LDM): Likewise.
+	(BFD_RELOC_MICROMIPS_TLS_DTPREL_HI16): Likewise.
+	(BFD_RELOC_MICROMIPS_TLS_DTPREL_LO16): Likewise.
+	(BFD_RELOC_MICROMIPS_TLS_GOTTPREL): Likewise.
+	(BFD_RELOC_MICROMIPS_TLS_TPREL_HI16): Likewise.
+	(BFD_RELOC_MICROMIPS_TLS_TPREL_LO16): Likewise.
+	* bfd-in2.h: Regenerate.
+	* libbfd.h: Regenerate.
+
+2011-07-22  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* Makefile.am (ALL_MACHINES): Add cpu-k1om.lo.
+	(ALL_MACHINES_CFILES): Add cpu-k1om.c.
+	* Makefile.in: Regenerated.
+
+	* archures.c (bfd_architecture): Add bfd_arch_k1om.
+	(bfd_k1om_arch): New.
+	(bfd_archures_list): Add &bfd_k1om_arch.
+	* bfd-in2.h: Regenerated.
+
+	* config.bfd (targ64_selvecs): Add bfd_elf64_k1om_vec if
+	bfd_elf64_x86_64_vec is supported.  Add bfd_elf64_k1om_freebsd_vec
+	if bfd_elf64_x86_64_freebsd_vec is supported.
+	(targ_selvecs): Likewise.
+
+	* configure.in: Support bfd_elf64_k1om_vec and
+	bfd_elf64_k1om_freebsd_vec.
+	* configure: Regenerated.
+
+	* cpu-k1om.c: New.
+
+	* elf64-x86-64.c (elf64_k1om_elf_object_p): New.
+	(bfd_elf64_k1om_vec): Likewise.
+	(bfd_elf64_k1om_freebsd_vec): Likewise.
+
+	* targets.c (bfd_elf64_k1om_vec): New.
+	(bfd_elf64_k1om_freebsd_vec): Likewise.
+	(_bfd_target_vector): Add bfd_elf64_k1om_vec and
+	bfd_elf64_k1om_freebsd_vec.
+
 2011-07-20  Jan Kratochvil  <jan.kratochvil@redhat.com>
 
 	Fix false coff-go32-exe matches.
@@ -48,7 +391,7 @@
 	* aout-adobe.c (aout_32_bfd_lookup_section_flags): New definition.
 	* aout-target.h (MY_bfd_lookup_section_flags): New definition.
 	* aout-tic30.c (MY_bfd_lookup_section_flags): New definition.
-        * bfd-in2.h: Regenerated.
+	* bfd-in2.h: Regenerated.
 	* bfd.c (bfd_lookup_section_flags): New definition.
 	* binary.c (binary_bfd_lookup_section_flags): New definition.
 	* bout.c (b_out_bfd_lookup_section_flags): New definition.

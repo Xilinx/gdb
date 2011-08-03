@@ -582,12 +582,16 @@ struct dwarf2_debug_sections {
   struct dwarf2_section_names line;
   struct dwarf2_section_names loc;
   struct dwarf2_section_names macinfo;
+  struct dwarf2_section_names macro;
   struct dwarf2_section_names str;
   struct dwarf2_section_names ranges;
   struct dwarf2_section_names types;
   struct dwarf2_section_names frame;
   struct dwarf2_section_names eh_frame;
   struct dwarf2_section_names gdb_index;
+  /* This field has no meaning, but exists solely to catch changes to
+     this structure which are not reflected in some instance.  */
+  int sentinel;
 };
 
 extern int dwarf2_has_info (struct objfile *,

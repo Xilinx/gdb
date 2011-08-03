@@ -1,3 +1,109 @@
+2011-08-02  Tom Tromey  <tromey@redhat.com>
+
+	PR gdb/11289:
+	* gdb.cp/overload.exp: Fix regexps.  Remove kfails.
+
+2011-08-01  Paul Pluzhnikov  <ppluzhnikov@google.com>
+
+	PR gdb/13045
+	* gdb.base/float.exp: Add new test case for PR gdb/13045
+	* gdb.base/float.c: New file.
+
+2011-07-28  Phil Muldoon  <pmuldoon@redhat.com>
+
+	* gdb.python/py-mi.exp: Test printers returning string hint, and
+	also not returning a value.
+	* gdb.python/py-prettyprint.c: Add testcase for above.
+	* gdb.python/py-prettyprint.py: Add test printer for above.
+
+2011-07-27  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.dwarf2/dw2-simple-locdesc.S: Change DWARF version to 3.
+	(.Ldie26, .Ldie41, .Ldie4a, .Ldie54, .Ldie5b): Remove.
+	(.Ldie30) Add as field "data4".
+	(.Ldie32) Rename field "b" to "shl".
+	(abbrev4) Change for the "data4" field.
+	(abbrev5, abbrev6) Remove.
+	* gdb.dwarf2/dw2-simple-locdesc.exp (p &s.b): Rename to ...
+	(p &s.shl): ... here.  Add comment.
+	(p &s.data4): New.
+
+2011-07-27  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix crash on lval_computed values.
+	* gdb.dwarf2/implptr.exp (print sizeof (j[0])): New test.
+
+2011-07-27  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.base/help.exp (help whatis): Update the expected string.
+
+2011-07-27  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.dwarf2/dw2-simple-locdesc.S: New file.
+	* gdb.dwarf2/dw2-simple-locdesc.exp: New file.
+	* gdb.dwarf2/dw2-stack-boundary.exp (check partial symtab errors):
+	Change the expected string.
+
+2011-07-26  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.base/watchpoint.exp
+	(test_disable_enable_software_watchpoint): New procedure.
+	(top level): Run it.
+
+2011-07-26  Ulrich Weigand  <ulrich.weigand@linaro.org>
+
+	* gdb.python/py-mi.exp: Avoid '+' in filenames.  Call C version of
+	executable file "${binfile}", C++ version "${binfile}-cxx".
+	* gdb.python/py-prettyprint.exp: Likewise.
+	* gdb.python/py-symbol.exp: Likewise.
+	* gdb.python/py-type.exp: Likewise.
+	* gdb.python/py-value.exp: Likewise.
+	* gdb.python/py-template.exp (test_template_arg): Pass full executable
+	file name instead of just suffix.
+
+2011-07-25  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix implicit pointer offsets.
+	* gdb.dwarf2/implptr.c (add): New marker baz breakpoint.
+	* gdb.dwarf2/implptr.exp (set baz breakpoint for implptr)
+	(continue to breakpoint: continue to baz breakpoint for implptr)
+	(sanity check element 0, sanity check element 1)
+	(enter the inlined function, check element 0 for the offset)
+	(check element 1 for the offset)
+	(continue to breakpoint: ignore the second baz breakpoint): New tests.
+	(set foo breakpoint for implptr): Update the breakpoint number.
+
+2011-07-22  Ulrich Weigand  <ulrich.weigand@linaro.org>
+
+	* gdb.python/py-mi.exp: Use different file names for different
+	versions of the executable under test.
+	* gdb.python/py-prettyprint.exp: Likewise.
+	* gdb.python/py-symbol.exp: Likewise.
+	* gdb.python/py-template.exp: Likewise.
+	* gdb.python/py-type.exp: Likewise.
+	* gdb.python/py-value.exp: Likewise.
+
+2011-07-22  Ulrich Weigand  <ulrich.weigand@linaro.org>
+
+	* gdb.python/py-breakpoint.exp: Re-set can-use-hw-watchpoints
+	flag after restarting GDB if necessary.
+
+2011-07-22  Ulrich Weigand  <ulrich.weigand@linaro.org>
+
+	* gdb.python/py-shared.exp: Call gdb_load_shlibs.
+
+2011-07-22  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.arch/i386-dr3-watch.exp: Test that the i386 watchpoints
+	backend doesn't leave used debug registers behind.
+
+2011-07-22  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.dwarf2/typeddwarf.c: XFAIL 'z' on x86-64.
+	* gdb.dwarf2/typeddwarf.exp (xfail-gdb-test): Add arch_pattern
+	argument.
+	* gdb.dwarf2/typeddwarf-amd64.S: New file.
+
 2011-07-21  Matt Rice  <ratmice@gmail.com>
 
 	* gdb.threads/Makefile.in: Avoid globbing corethreads.exp
