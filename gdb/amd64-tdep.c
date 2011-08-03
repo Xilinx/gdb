@@ -2494,7 +2494,7 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   if (! tdesc_has_registers (tdesc))
     {
       if (info.abfd != NULL
-	  && info.bfd_arch_info->bits_per_address == 32)
+	  && (info.bfd_arch_info->mach & bfd_mach_x64_32))
 	tdesc = tdesc_x32;
       else
 	tdesc = tdesc_amd64;
@@ -2529,7 +2529,7 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   tdep->num_xmm_regs = 16;
 
   /* This is what all the fuss is about.  */
-  if (tdesc_architecture (tdesc)->bits_per_address == 32)
+  if (tdesc_architecture (tdesc)->mach & bfd_mach_x64_32)
     {
       set_gdbarch_long_bit (gdbarch, 32);
       set_gdbarch_ptr_bit (gdbarch, 32);

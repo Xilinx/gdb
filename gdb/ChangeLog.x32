@@ -1,5 +1,13 @@
 2011-08-02  H.J. Lu  <hongjiu.lu@intel.com>
 
+	* amd64-linux-tdep.c (amd64_linux_sigtramp_start): Check
+	bfd_mach_x64_32 instead of bits_per_address.
+	(amd64_linux_core_read_description): Likewise.
+	(amd64_linux_init_abi): Likewise.
+	* amd64-tdep.c (amd64_init_abi): Likewise.
+
+2011-08-02  H.J. Lu  <hongjiu.lu@intel.com>
+
 	* amd64-linux-tdep.c (x32_linux_sigtramp_code): Update x32
 	system call number.
 

@@ -157,7 +157,7 @@ amd64_linux_sigtramp_start (struct frame_info *this_frame)
     }
 
   gdbarch = get_frame_arch (this_frame);
-  if (gdbarch_bfd_arch_info (gdbarch)->bits_per_address == 32)
+  if (gdbarch_bfd_arch_info (gdbarch)->mach & bfd_mach_x64_32)
     sigtramp_code = x32_linux_sigtramp_code;
   else
     sigtramp_code = amd64_linux_sigtramp_code;
@@ -1290,12 +1290,12 @@ amd64_linux_core_read_description (struct gdbarch *gdbarch,
   switch ((xcr0 & I386_XSTATE_AVX_MASK))
     {
     case I386_XSTATE_AVX_MASK:
-      if (gdbarch_bfd_arch_info (gdbarch)->bits_per_address == 32)
+      if (gdbarch_bfd_arch_info (gdbarch)->mach & bfd_mach_x64_32)
 	return tdesc_x32_avx_linux;
       else
 	return tdesc_amd64_avx_linux;
     default:
-      if (gdbarch_bfd_arch_info (gdbarch)->bits_per_address == 32)
+      if (gdbarch_bfd_arch_info (gdbarch)->mach & bfd_mach_x64_32)
 	return tdesc_x32_linux;
       else
 	return tdesc_amd64_linux;
@@ -1327,7 +1327,7 @@ amd64_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   if (! tdesc_has_registers (tdesc))
     {
       if (info.abfd != NULL
-	  && info.bfd_arch_info->bits_per_address == 32)
+	  && (info.bfd_arch_info->mach & bfd_mach_x64_32))
 	tdesc = tdesc_x32_linux;
       else
 	tdesc = tdesc_amd64_linux;
@@ -1352,7 +1352,7 @@ amd64_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   tdep->xsave_xcr0_offset = I386_LINUX_XSAVE_XCR0_OFFSET;
 
   /* GNU/Linux uses SVR4-style shared libraries.  */
-  if (tdesc_architecture (tdesc)->bits_per_address == 32)
+  if (tdesc_architecture (tdesc)->mach & bfd_mach_x64_32)
     set_solib_svr4_fetch_link_map_offsets
       (gdbarch, svr4_ilp32_fetch_link_map_offsets);
   else
