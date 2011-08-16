@@ -1,3 +1,40 @@
+2011-08-09  Chao-ying Fu  <fu@mips.com>
+            Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* mips-dis.c (mips_arch_choices): Enable MCU for "mips32r2"
+	and "mips64r2".
+	(print_insn_args, print_insn_micromips): Handle MCU.
+	* micromips-opc.c (MC): New macro.
+	(micromips_opcodes): Add "aclr", "aset" and "iret".
+	* mips-opc.c (MC): New macro.
+	(mips_builtin_opcodes): Add "aclr", "aset" and "iret".
+
+2011-08-09  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* micromips-opc.c (MOD_mb, MOD_mc, MOD_md): Remove macros.
+	(MOD_me, MOD_mf, MOD_mg, MOD_mhi, MOD_mj, MOD_ml): Likewise.
+	(MOD_mm, MOD_mn, MOD_mp, MOD_mq, MOD_sp): Likewise.
+	(WR_mb, RD_mc, RD_md, WR_md, RD_me, RD_mf, WR_mf): New macros.
+	(RD_mg, WR_mhi, RD_mj, WR_mj, RD_ml, RD_mmn): Likewise.
+	(RD_mp, WR_mp, RD_mq, RD_sp, WR_sp): Likewise.
+	(WR_s): Update macro.
+	(micromips_opcodes): Update register use flags of: "addiu",
+	"addiupc", "addiur1sp", "addiur2", "addius5", "addiusp", "addu",
+	"and", "andi", "beq", "beqz", "bne", "bnez", "di", "ei", "j",
+	"jalr", "jalrs", "jr", "jraddiusp", "jrc", "lbu", "lhu", "li",
+	"lui", "lw", "lwm", "mfhi", "mflo", "move", "movep", "not",
+	"nor", "or", "ori", "sb", "sh", "sll", "srl", "subu", "sw",
+	"swm" and "xor" instructions.
+
+2011-08-05  David S. Miller  <davem@davemloft.net>
+
+	* sparc-dis.c (v9a_ast_reg_names): Add "cps".
+	(X_RS3): New macro.
+	(print_insn_sparc): Handle '4', '5', and '(' format codes.
+	Accept %asr numbers below 28.
+	* sparc-opc.c (sparc_opcodes): Add entries for HPC and VIS3
+	instructions.
+
 2011-08-02  Quentin Neill  <quentin.neill@amd.com>
 
 	* i386-dis.c (xop_table): Remove spurious bextr insn.

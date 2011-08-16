@@ -1,3 +1,186 @@
+2011-08-14  Alan Modra  <amodra@gmail.com>
+
+	* elf32-ppc.c (ppc_elf_select_plt_layout): Force bss-plt when
+	shared and call to _mcount will go via plt.
+
+2011-08-14  Alan Modra  <amodra@gmail.com>
+
+	* elf64-ppc.c: Prefix all einfo error strings with "%P: ".
+	* elf32-ppc.c: Likewise.
+	(ppc_elf_select_plt_layout): Use einfo rather than info to report
+	forced bss-plt.
+
+2011-08-12  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/13082
+	* elf64-x86-64.c (x86_64_elf_howto_table): Add R_X86_64_RELATIVE64.
+	(elf_x86_64_relocate_section): Treat R_X86_64_64 like R_X86_64_32
+	and zero-extend it to 64bit if addend is zero for x32.  Generate
+	R_X86_64_RELATIVE64 for x32.
+
+2011-08-09  Matthew Gretton-Dann  <matthew.gretton-dann@arm.com>
+
+	* bfd-in.h (bfd_elf32_arm_set_target_relocs): Update prototype.
+	* bfd-in2.h (bfd_elf32_arm_set_target_relocs): Likewise.
+	* elf32-arm.c (elf32_arm_link_hash_table): New field.
+	(elf232_arm_link_hash_table_create): Initialise new field.
+	(check_use_blx): Change test depending on fix_arm1176.
+	(bfd_elf32_arm_set_target_relocs): Set fix_arm1176 from
+	command line options.
+
+2011-08-08  Tristan Gingold  <gingold@adacore.com>
+
+	* mach-o.c (struct mach_o_segment_name_xlat): Add comments.
+	(segsec_names_xlat): Reorder elements.
+	(bfd_mach_o_read_section_32): Fix typo.
+	(bfd_mach_o_read_section_64): Fix typo.
+
+2011-08-08  Tristan Gingold  <gingold@adacore.com>
+
+	* mach-o.h (BFD_MACH_O_SEGNAME_SIZE): New macro.
+	(BFD_MACH_O_SECTNAME_SIZE): Ditto.
+	(bfd_mach_o_section): Use them.  Add next field.
+	(bfd_mach_o_segment_command): Replace sections array by
+	sect_head and sect_tail.
+	(bfd_mach_o_get_mach_o_section): New macro.
+	(bfd_mach_o_lookup_section): Remove.
+	(bfd_mach_o_new_section_hook): New function.
+	* mach-o.c (bfd_mach_o_normalize_section_name): Use strncmp
+	instead of strcmp.
+	(bfd_mach_o_convert_section_name_to_bfd): Replaces section
+	parameter with segname and sectname parameters.  Adjust.
+	(bfd_mach_o_append_section_to_segment): New function.  Use a
+	linked list for Mach-O sections.
+	(bfd_mach_o_write_segment_32): Adjust.
+	(bfd_mach_o_write_segment_64): Ditto.
+	(bfd_mach_o_build_commands): Fix comment.  Adjust.
+	(bfd_mach_o_flatten_sections): Adjust.
+	(bfd_mach_o_print_section_map): Adjust.
+	(bfd_mach_o_set_section_flags_from_bfd): Ditto.
+	(bfd_mach_o_new_section_hook): New function.
+	(bfd_mach_o_init_section_from_mach_o): Ditto.
+	(bfd_mach_o_read_section_32): Remove section parameter.
+	Return a section instead.
+	(bfd_mach_o_read_section_64): Ditto.
+	(bfd_mach_o_read_section): Ditto.
+	(bfd_mach_o_make_bfd_section): Adjust.
+	(bfd_mach_o_read_segment): Adjust for new profile of
+	bfd_mach_o_read_section.
+	(bfd_mach_o_lookup_section): Remove.
+	* mach-o-target.c (bfd_mach_o_new_section_hook): Remove.
+
+2011-08-08  Tristan Gingold  <gingold@adacore.com>
+
+	* mach-o.h (bfd_mach_o_version_min_command): New structure.
+	(bfd_mach_o_load_command): Add version_min.
+	(mach_o_data_struct): Fix comment.
+	* mach-o.c (bfd_mach_o_read_version_min): New function.
+	(bfd_mach_o_read_command): Handle BFD_MACH_O_LC_FUNCTION_STARTS,
+	BFD_MACH_O_LC_VERSION_MIN_MACOSX and
+	BFD_MACH_O_LC_VERSION_MIN_IPHONEOS.
+	(bfd_mach_o_get_name_or_null): New function.
+	(bfd_mach_o_get_name): Use the above new one.
+	(bfd_mach_o_load_command_name): Add the above new commands.
+	(bfd_mach_o_bfd_print_private_bfd_data): Display numerically
+	unknown commands.  Handle BFD_MACH_O_LC_FUNCTION_STARTS,
+	BFD_MACH_O_LC_VERSION_MIN_MACOSX and
+	BFD_MACH_O_LC_VERSION_MIN_IPHONEOS.
+
+2011-08-08  Tristan Gingold  <gingold@adacore.com>
+
+	* mach-o.h: Move size macros to external.h
+	Move reloc macros to reloc.h and x86-64.h.
+	* mach-o-i386.c: Includes mach-o/reloc.h
+	* mach-o-x86-64.c: Ditto and includes mach-o/x86-64.h
+	* mach-o.c: Add includes.
+	(bfd_mach_o_write_header): Use structure from external.h to convert.
+	(bfd_mach_o_write_thread): Ditto.
+	(bfd_mach_o_write_relocs): Ditto.
+	(bfd_mach_o_write_section_32): Ditto.
+	(bfd_mach_o_write_section_64): Ditto.
+	(bfd_mach_o_write_segment_32): Ditto.
+	(bfd_mach_o_write_segment_64): Ditto.
+	(bfd_mach_o_write_symtab): Ditto.
+	(bfd_mach_o_write_contents): Ditto.
+	(bfd_mach_o_read_header): Ditto.
+	(bfd_mach_o_read_section_32): Ditto.
+	(bfd_mach_o_read_section_64): Ditto.
+	(bfd_mach_o_read_symtab_symbol): Ditto.
+	(bfd_mach_o_read_dylinker): Ditto.
+	(bfd_mach_o_read_dylib): Ditto.
+	(bfd_mach_o_read_dysymtab): Ditto.
+	(bfd_mach_o_read_symtab): Ditto.
+	(bfd_mach_o_read_linkedit): Ditto.
+	(bfd_mach_o_read_str): Ditto.
+	(bfd_mach_o_read_dyld_info): Ditto.
+	(bfd_mach_o_read_segment): Ditto.
+	(bfd_mach_o_read_command): Ditto.
+	(bfd_mach_o_archive_p): Ditto.
+	(bfd_mach_o_canonicalize_one_reloc): Ditto. Change the BUF parameter.
+	(bfd_mach_o_canonicalize_relocs): Adjust to call the above function.
+	(bfd_mach_o_read_dysymtab_symbol): Rename BUF variable.
+	(bfd_mach_o_read_uuid): Remove useless cast.  Use a macro instead
+	of an hard-coded value.
+
+2011-08-08  Tristan Gingold  <gingold@adacore.com>
+
+	* mach-o-x86-64.c (bfd_mach_o_x86_64_mkobject): Fix cut-and-past typos.
+	(bfd_mach_o_x86_64_swap_reloc_out): Handle BFD_RELOC_32_PCREL,
+	BFD_RELOC_MACH_O_X86_64_SUBTRACTOR64 and
+	BFD_RELOC_MACH_O_X86_64_GOT_LOAD.  Share common code.
+
+2011-08-08  Tristan Gingold  <gingold@adacore.com>
+
+	* mach-o.c (bfd_mach_o_normalize_section_name): New function.
+	(bfd_mach_o_convert_section_name_to_bfd): Use it.
+	(bfd_mach_o_get_section_type_from_name): New function.
+	(bfd_mach_o_get_section_attribute_from_name): Ditto.
+	* mach-o.h (bfd_mach_o_section): Move bfdsection field at the end.
+	Add comments.  Add prototypes for the above new functions.
+
+2011-08-05  Mark Kettenis  <kettenis@gnu.org>
+
+	* netbsd-core.c (netbsd_core_vec): Init match_priority field.
+
+2011-08-05  Alan Modra  <amodra@gmail.com>
+
+	* elf64-ppc.c (maybe_strip_output): New function.
+	(ppc64_elf_size_stubs): Use it to strip .branch_lt and .eh_frame.
+
+2011-08-05  Alan Modra  <amodra@gmail.com>
+
+	PR ld/12762
+	* elflink.c (_bfd_elf_section_already_linked): Return matched
+	status.  Remove COFF comdat section handling.
+	* linker.c (_bfd_generic_section_already_linked): Return matched
+	status.  Don't set SEC_GROUP in l_flags for plugin entries.
+	(bfd_section_already_linked): Update prototype.
+	* targets.c (_section_already_linked): Likewise.
+	* elf-bfd.h (_bfd_elf_section_already_linked): Likewise.
+	* libbfd-in.h (_bfd_generic_section_already_linked): Likewise.
+	(_bfd_nolink_section_already_linked): Update.
+	* libbfd.h: Regenerate.
+	* bfd-in2.h: Regenerate.
+
+2011-08-05  Alan Modra  <amodra@gmail.com>
+
+	* elf32-ppc.c: Include dwarf2.h.
+	(struct ppc_elf_link_hash_table): Add glink_eh_frame.
+	(ppc_elf_create_glink): Create .eh_frame section.
+	(glink_eh_frame_cie): New array.
+	(ppc_elf_size_dynamic_sections): Size glink_eh_frame.
+	(ppc_elf_finish_dynamic_sections): Write glink_eh_frame.
+
+2011-08-04  Tristan Gingold  <gingold@adacore.com>
+
+	* vms-alpha.c (_bfd_vms_write_eeom): Round vms_linkage_index.
+	(_bfd_vms_write_etir): Initialize vms_linkage_index to 0.
+
+2011-08-03  Tristan Gingold  <gingold@adacore.com>
+
+	* mach-o.c (bfd_mach_o_canonicalize_symtab): Handle no symbols case.
+	(bfd_mach_o_read_symtab_symbols): Return if no symbols.
+
 2011-08-02  Maciej W. Rozycki  <macro@codesourcery.com>
 
 	* elfxx-mips.c (check_4byte_branch): Remove function.
@@ -125,13 +308,7 @@
 
 2011-07-26  Alan Modra  <amodra@gmail.com>
 
-	* elf32-ppc.c: Include dwarf2.h.
-	(struct ppc_elf_link_hash_table): Add glink_eh_frame.
-	(ppc_elf_create_glink): Create .eh_frame section.
-	(glink_eh_frame_cie): New array.
-	(ppc_elf_size_dynamic_sections): Size glink_eh_frame.
-	(ppc_elf_finish_dynamic_sections): Write glink_eh_frame.
-	* elf64-ppc.c: Include dwarg2.h.
+	* elf64-ppc.c: Include dwarf2.h.
 	(struct ppc_link_hash_table): Add glink_eh_frame.
 	(create_linkage_sections): Create .eh_frame section.
 	(ppc64_elf_size_dynamic_sections): Arrange to drop unneeded

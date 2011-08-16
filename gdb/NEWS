@@ -23,6 +23,13 @@
   ** A prompt subsitution hook (prompt_hook) is now available to the
      Python API.
 
+  ** Python commands and convenience-functions located in
+    'data-directory'/python/gdb/command and
+    'data-directory'/python/gdb/function are now automatically loaded
+     on GDB start-up.
+
+  ** Symbols now provide the "type" attribute, the type of the symbol.
+
 * libthread-db-search-path now supports two special values: $sdir and $pdir.
   $sdir specifies the default system locations of shared libraries.
   $pdir specifies the directory where the libpthread used by the application
@@ -86,6 +93,10 @@ QTDisable
 
 * Dcache size (number of lines) and line-size are now runtime-configurable
   via "set dcache line" and "set dcache line-size" commands.
+
+* New targets
+
+Texas Instruments TMS320C6x		tic6x-*-*
 
 *** Changes in GDB 7.3
 

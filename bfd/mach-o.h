@@ -41,14 +41,14 @@ typedef struct bfd_mach_o_header
 }
 bfd_mach_o_header;
 
-#define BFD_MACH_O_HEADER_SIZE 28
-#define BFD_MACH_O_HEADER_64_SIZE 32
+#define BFD_MACH_O_SEGNAME_SIZE 16
+#define BFD_MACH_O_SECTNAME_SIZE 16
 
 typedef struct bfd_mach_o_section
 {
-  asection *bfdsection;
-  char sectname[16 + 1];
-  char segname[16 + 1];
+  /* Fields present in the file.  */
+  char sectname[BFD_MACH_O_SECTNAME_SIZE + 1];	/* Always NUL padded.  */
+  char segname[BFD_MACH_O_SEGNAME_SIZE + 1];
   bfd_vma addr;
   bfd_vma size;
   bfd_vma offset;
@@ -59,10 +59,14 @@ typedef struct bfd_mach_o_section
   unsigned long reserved1;
   unsigned long reserved2;
   unsigned long reserved3;
+
+  /* Corresponding bfd section.  */
+  asection *bfdsection;
+
+  /* Simply linked list.  */
+  struct bfd_mach_o_section *next;
 }
 bfd_mach_o_section;
-#define BFD_MACH_O_SECTION_SIZE 68
-#define BFD_MACH_O_SECTION_64_SIZE 80
 
 typedef struct bfd_mach_o_segment_command
 {
@@ -75,57 +79,17 @@ typedef struct bfd_mach_o_segment_command
   unsigned long initprot;	/* Initial protection.  */
   unsigned long nsects;
   unsigned long flags;
-  bfd_mach_o_section *sections;
+
+  /* Linked list of sections.  */
+  bfd_mach_o_section *sect_head;
+  bfd_mach_o_section *sect_tail;
 }
 bfd_mach_o_segment_command;
-#define BFD_MACH_O_LC_SEGMENT_SIZE 56
-#define BFD_MACH_O_LC_SEGMENT_64_SIZE 72
 
 /* Protection flags.  */
 #define BFD_MACH_O_PROT_READ    0x01
 #define BFD_MACH_O_PROT_WRITE   0x02
 #define BFD_MACH_O_PROT_EXECUTE 0x04
-
-/* Generic relocation types (used by i386).  */
-#define BFD_MACH_O_GENERIC_RELOC_VANILLA 	0
-#define BFD_MACH_O_GENERIC_RELOC_PAIR	 	1
-#define BFD_MACH_O_GENERIC_RELOC_SECTDIFF	2
-#define BFD_MACH_O_GENERIC_RELOC_PB_LA_PTR	3
-#define BFD_MACH_O_GENERIC_RELOC_LOCAL_SECTDIFF	4
-
-/* X86-64 relocations.  */
-#define BFD_MACH_O_X86_64_RELOC_UNSIGNED   0 /* Absolute addresses.  */
-#define BFD_MACH_O_X86_64_RELOC_SIGNED     1 /* 32-bit disp.  */
-#define BFD_MACH_O_X86_64_RELOC_BRANCH     2 /* 32-bit pcrel disp.  */
-#define BFD_MACH_O_X86_64_RELOC_GOT_LOAD   3 /* Movq load of a GOT entry.  */
-#define BFD_MACH_O_X86_64_RELOC_GOT        4 /* GOT reference.  */
-#define BFD_MACH_O_X86_64_RELOC_SUBTRACTOR 5 /* Symbol difference.  */
-#define BFD_MACH_O_X86_64_RELOC_SIGNED_1   6 /* 32-bit signed disp -1.  */
-#define BFD_MACH_O_X86_64_RELOC_SIGNED_2   7 /* 32-bit signed disp -2.  */
-#define BFD_MACH_O_X86_64_RELOC_SIGNED_4   8 /* 32-bit signed disp -4.  */
-
-/* Size of a relocation entry.  */
-#define BFD_MACH_O_RELENT_SIZE 8
-
-/* Fields for a normal (non-scattered) entry.  */
-#define BFD_MACH_O_R_PCREL		0x01000000
-#define BFD_MACH_O_GET_R_LENGTH(s)	(((s) >> 25) & 0x3)
-#define BFD_MACH_O_R_EXTERN		0x08000000
-#define BFD_MACH_O_GET_R_TYPE(s)	(((s) >> 28) & 0x0f)
-#define BFD_MACH_O_GET_R_SYMBOLNUM(s)	((s) & 0x00ffffff)
-#define BFD_MACH_O_SET_R_LENGTH(l)	(((l) & 0x3) << 25)
-#define BFD_MACH_O_SET_R_TYPE(t)	(((t) & 0xf) << 28)
-#define BFD_MACH_O_SET_R_SYMBOLNUM(s)	((s) & 0x00ffffff)
-
-/* Fields for a scattered entry.  */
-#define BFD_MACH_O_SR_SCATTERED		0x80000000
-#define BFD_MACH_O_SR_PCREL		0x40000000
-#define BFD_MACH_O_GET_SR_LENGTH(s)	(((s) >> 28) & 0x3)
-#define BFD_MACH_O_GET_SR_TYPE(s)	(((s) >> 24) & 0x0f)
-#define BFD_MACH_O_GET_SR_ADDRESS(s)	((s) & 0x00ffffff)
-#define BFD_MACH_O_SET_SR_LENGTH(l)	(((l) & 0x3) << 28)
-#define BFD_MACH_O_SET_SR_TYPE(t)	(((t) & 0xf) << 24)
-#define BFD_MACH_O_SET_SR_ADDRESS(s)	((s) & 0x00ffffff)
 
 /* Expanded internal representation of a relocation entry.  */
 typedef struct bfd_mach_o_reloc_info
@@ -151,8 +115,6 @@ typedef struct bfd_mach_o_asymbol
   unsigned short n_desc;
 }
 bfd_mach_o_asymbol;
-#define BFD_MACH_O_NLIST_SIZE 12
-#define BFD_MACH_O_NLIST_64_SIZE 16
 
 typedef struct bfd_mach_o_symtab_command
 {
@@ -259,8 +221,6 @@ typedef struct bfd_mach_o_dylib_module
   bfd_vma objc_module_info_addr;
 }
 bfd_mach_o_dylib_module;
-#define BFD_MACH_O_DYLIB_MODULE_SIZE 52
-#define BFD_MACH_O_DYLIB_MODULE_64_SIZE 56
 
 typedef struct bfd_mach_o_dylib_table_of_content
 {
@@ -271,7 +231,6 @@ typedef struct bfd_mach_o_dylib_table_of_content
   unsigned long module_index;
 }
 bfd_mach_o_dylib_table_of_content;
-#define BFD_MACH_O_TABLE_OF_CONTENT_SIZE 8
 
 typedef struct bfd_mach_o_dylib_reference
 {
@@ -503,6 +462,15 @@ typedef struct bfd_mach_o_dyld_info_command
 }
 bfd_mach_o_dyld_info_command;
 
+typedef struct bfd_mach_o_version_min_command
+{
+  unsigned char rel;
+  unsigned char maj;
+  unsigned char min;
+  unsigned int reserved;
+}
+bfd_mach_o_version_min_command;
+
 typedef struct bfd_mach_o_load_command
 {
   bfd_mach_o_load_command_type type;
@@ -522,6 +490,7 @@ typedef struct bfd_mach_o_load_command
     bfd_mach_o_linkedit_command linkedit;
     bfd_mach_o_str_command str;
     bfd_mach_o_dyld_info_command dyld_info;
+    bfd_mach_o_version_min_command version_min;
   }
   command;
 }
@@ -543,7 +512,7 @@ typedef struct mach_o_data_struct
   ufile_ptr filelen;
 
   /* As symtab is referenced by other load command, it is handy to have
-     a direct access to it.  Also it is not clearly stated, only one symtab
+     a direct access to it.  Although it is not clearly stated, only one symtab
      is expected.  */
   bfd_mach_o_symtab_command *symtab;
   bfd_mach_o_dysymtab_command *dysymtab;
@@ -565,6 +534,10 @@ bfd_mach_o_backend_data;
 #define bfd_mach_o_get_backend_data(abfd) \
   ((bfd_mach_o_backend_data*)(abfd)->xvec->backend_data)
 
+/* Get the Mach-O header for section SEC.  */
+#define bfd_mach_o_get_mach_o_section(sec) \
+  ((bfd_mach_o_section *)(sec)->used_by_bfd)
+
 bfd_boolean bfd_mach_o_valid (bfd *);
 int bfd_mach_o_read_dysymtab_symbol (bfd *, bfd_mach_o_dysymtab_command *, bfd_mach_o_symtab_command *, bfd_mach_o_asymbol *, unsigned long);
 int bfd_mach_o_scan_start_address (bfd *);
@@ -576,8 +549,8 @@ const bfd_target *bfd_mach_o_archive_p (bfd *);
 bfd *bfd_mach_o_openr_next_archived_file (bfd *, bfd *);
 bfd_boolean bfd_mach_o_set_arch_mach (bfd *, enum bfd_architecture,
                                       unsigned long);
-int bfd_mach_o_lookup_section (bfd *, asection *, bfd_mach_o_load_command **, bfd_mach_o_section **);
 int bfd_mach_o_lookup_command (bfd *, bfd_mach_o_load_command_type, bfd_mach_o_load_command **);
+bfd_boolean bfd_mach_o_new_section_hook (bfd *, asection *);
 bfd_boolean bfd_mach_o_write_contents (bfd *);
 bfd_boolean bfd_mach_o_bfd_copy_private_symbol_data (bfd *, asymbol *,
                                                      bfd *, asymbol *);
@@ -609,6 +582,11 @@ bfd_boolean bfd_mach_o_build_commands (bfd *);
 bfd_boolean bfd_mach_o_set_section_contents (bfd *, asection *, const void *,
                                              file_ptr, bfd_size_type);
 unsigned int bfd_mach_o_version (bfd *);
+
+unsigned int bfd_mach_o_get_section_type_from_name (const char *);
+unsigned int bfd_mach_o_get_section_attribute_from_name (const char *);
+void bfd_mach_o_normalize_section_name (const char *, const char *,
+                                        const char **, flagword *);
 
 extern const bfd_target mach_o_fat_vec;
 

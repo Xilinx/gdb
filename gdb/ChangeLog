@@ -1,3 +1,295 @@
+2011-08-16  Yao Qi  <yao@codesourcery.com>
+
+	* tic6x-linux-tdep.c: Move const arrays definition from here...
+	* tic6x-tdep.c: to here ...
+
+2011-08-14  Yao Qi  <yao@codesourcery.com>
+
+	* NEWS: New port to Texas Instruments TMS320C6x.
+
+2011-08-14  Andrew Jenner  <andrew@codesourcery.com>
+	    Bernd Schmidt  <bernds@codesourcery.com>
+	    Yao Qi  <yao@codesourcery.com>
+
+	* configure.tgt: Handle tic6x-*-*linux and tic6x-*-*.
+	* solib-dsbt.c: New file.  Support DSBT shared object.
+	* tic6x-linux-tdep.c: New file.
+	* tic6x-tdep.c: New file.
+	* tic6x-tdep.h: New file.
+
+2011-08-14  Andrew Stubbs <ams@codesourcery.com>
+	    Yao Qi  <yao@codesourcery.com>
+
+	* remote.c (PACKET_qXfer_fdpic): New enum value.
+	(remote_protocol_features): Add qXfer:fdpic:read packet.
+	(remote_xfer_partial): Support TARGET_OBJECT_FDPIC.
+	(_initialize_remote): Add set/show remote read-fdpic-loadmap command.
+	* target.h (enum target_object): Add TARGET_OBJECT_FDPIC.
+
+2011-08-14  Yao Qi  <yao@codesourcery.com>
+
+	Target description for tic6x.
+	* features/Makefile (WHICH): Add tic6x-c64xp tic6x-c64x tic6x-c62x
+	tic6x-c64xp-linux tic6x-c64x-linux and tic6x-c62x-linux.
+	* features/tic6x-c6xp.xml, features/tic6x-core.xml: New.
+	* features/tic6x-gp.xml, features/tic6x-c62x.xml: New.
+	* features/tic6x-c64x.xml, features/tic6x-c64xp.xml: New.
+	* features/tic6x-c62x-linux.xml, features/tic6x-c64x-linux.xml: New.
+	* features/tic6x-c64xp-linux.xml: New.
+	* features/tic6x-c64xp.c, features/tic6x-c64x.c: Generated.
+	* features/tic6x-c62x.c, features/tic6x-c64xp-linux.c: Generated.
+	* features/tic6x-c64x-linux.c, features/tic6x-c62x-linux.c: Generated.
+	* regformats/tic6x-c62x.dat, regformats/tic6x-c64x.dat: Generated.
+	* regformats/tic6x-c64xp.dat, regformats/tic6x-c62x-linux.dat: Generated.
+	* regformats/tic6x-c64x-linux.dat, regformats/tic6x-c64xp-linux.dat: Generated.
+	* config/djgpp/fnchange.lst: Add features/tic6x-*.xml and
+	features/tic6x-*.c files.
+	Add regformats/tic6x-*.dat files.
+
+2011-08-12  Doug Evans  <dje@google.com>
+
+	* NEWS: Mention new "type" attribute of python gdb.Symbol objects.
+	* python/py-symbol.c (sympy_get_type): New function.
+	(symbol_object_getset): Add "type".
+
+2011-08-12  Pedro Alves  <pedro@codesourcery.com>
+
+	PR tui/13073
+
+	* tui/tui-regs.c (tui_show_register_group): Skip registers with an
+	empty name.
+	(tui_show_register_group): Don't store a byte buffer in the data
+	element's value.
+	(tui_register_format): Skip registers with an empty name.
+	(tui_get_register): Store a struct value in the data element's
+	value field instead of a byte buffer holding the raw register
+	contents.  Account for optimized-out and unavailable registers
+	when comparing register contents.
+
+2011-08-09  Pedro Alves  <pedro@codesourcery.com>
+
+	* printcmd.c (current_display_number): Update comment.
+	(disable_current_display_cleanup): Delete.
+	(do_one_display): Use make_cleanup_restore_integer.  Gracefully
+	catch errors thrown while evaluating and printing the display.
+
+2011-08-09  Tom Tromey  <tromey@redhat.com>
+
+	* mi/mi-cmd-break.c (mi_cmd_break_passcount): Fix typo.
+
+2011-08-09  Pedro Alves  <pedro@codesourcery.com>
+
+	* elfread.c (elf_symtab_read): Rework comments.
+	* maint.c (maintenance_command): Ditto.
+	* somread.c (som_symtab_read): Ditto.
+	* solib.c (solib_find, solib_map_sections, update_solib_list)
+	(solib_add, info_sharedlibrary_command, solib_name_from_address)
+	(solib_create_inferior_hook, in_solib_dynsym_resolve_code)
+	(sharedlibrary_command, no_shared_libraries): Ditto.
+	* solib-irix.c (locate_base, disable_break, enable_break)
+	(irix_solib_create_inferior_hook, irix_solib_create_inferior_hook)
+	(irix_current_sos, irix_open_symbol_file_object)
+	(irix_special_symbol_handling): Ditto.
+	* solib-sunos.c (locate_base, first_link_map_member)
+	(sunos_current_sos, disable_break, enable_break)
+	(sunos_special_symbol_handling, sunos_solib_create_inferior_hook):
+	Ditto.
+	* solib-svr4.c (bfd_lookup_symbol, elf_locate_base, locate_base)
+	(open_symbol_file_object, svr4_current_sos, enable_break)
+	(svr4_special_symbol_handling, svr4_solib_create_inferior_hook):
+	Ditto.
+	* solib-frv.c (bfd_lookup_symbol, open_symbol_file_object)
+	(frv_current_sos, enable_break, frv_special_symbol_handling)
+	(frv_solib_create_inferior_hook): Ditto.
+	* solist.h (struct target_so_ops): Extend the comments of the
+	special_symbol_handling, current_sos and open_symbol_file_object
+	methods.
+
+2011-08-09  Phil Muldoon  <pmuldoon@redhat.com>
+
+	* python/lib/gdb/__init__.py: Auto-load files in command and
+	function directories.
+	* python/python.c (finish_python_initialization): Use
+	os.path.join.
+	* python/lib/gdb/command/pretty_printers.py: Self register
+	command.
+	* NEWS: Document auto-loading.
+
+2011-08-08  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* dwarf2loc.c (dwarf2_evaluate_loc_desc_full) <DWARF_VALUE_STACK>
+	(dwarf2_evaluate_loc_desc_full) <DWARF_VALUE_LITERAL>: New variable
+	objfile_gdbarch.  Fix BFD_ENDIAN_BIG case.
+
+2011-08-08  Tom Tromey  <tromey@redhat.com>
+
+	* breakpoint.c (clean_up_filters): Remove.
+	(catch_syscall_split_args): Use VEC_cleanup.
+
+2011-08-06  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* cp-name-parser.y (xfree): Wrap the name free by CONCAT2.
+	(main): Uncomment "Demangling error\n".
+
+2011-08-05  Paul Pluzhnikov  <ppluzhnikov@google.com>
+
+	* solib-target.c (segment_attributes): Make them static.
+	(section_attributes, library_children, library_attributes): Likewise.
+	(library_list_children, library_list_attributes): Likesise.
+	(library_list_elements): Likewise.
+
+2011-08-05  Pedro Alves  <pedro@codesourcery.com>
+
+	* exceptions.c (throw_exception): Don't disable the current
+	display.
+	* printcmd.c (disable_current_display_cleanup): New function.
+	(do_one_display): Install a cleanup to disable the current display
+	if doing the display throws.
+
+2011-08-05  Eli Zaretskii  <eliz@gnu.org>
+
+	* python/py-breakpoint.c (gdbpy_initialize_breakpoints): Move the
+	initialization of the tp_new member to the corresponding
+	gdbpy_initialize_* function.
+	* python/py-cmd.c (gdbpy_initialize_commands): Likewise.
+	* python/py-frame.c (gdbpy_initialize_frames): Likewise.
+	* python/py-function.c (gdbpy_initialize_functions): Likewise.
+	* python/py-inferior.c (gdbpy_initialize_inferior): Likewise.
+	* python/py-param.c (gdbpy_initialize_parameters): Likewise.
+
+2011-08-05  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* spu-tdep.c (info_spu_event_command, info_spu_signal_command)
+	(info_spu_mailbox_list, info_spu_mailbox_command, info_spu_dma_cmdlist)
+	(info_spu_dma_command, info_spu_proxydma_command): Rename uiout
+	references to current_uiout.
+
+2011-08-04  Pedro Alves  <pedro@codesourcery.com>
+
+	* event-loop.c (gdb_do_one_event): Remove `data' parameter.
+	(start_event_loop): Use TRY_CATCH instead of catch_errors.
+	* event-loop.h (gdb_do_one_event): Remove `data' parameter.
+	* top.c (gdb_readline_wrapper): Adjust.
+	* tui/tui-interp.c (tui_command_loop):
+	(_initialize_tui_interp): Don't install it.
+
+2011-08-04  Pedro Alves  <pedro@codesourcery.com>
+
+	* ui-out.h (uiout): Rename to ...
+	(current_uiout): ... this.
+	* ui-out.c (uiout): Rename to ...
+	(current_uiout): ... this.
+	* ada-lang.c (print_it_exception, print_one_exception)
+	(print_mention_exception): Adjust.
+	* breakpoint.c (watchpoint_check): Adjust.
+	(print_breakpoint_location, print_one_breakpoint, breakpoint_1)
+	(default_collect_info, watchpoints_info, print_one_catch_fork)
+	(print_one_catch_vfork, print_one_catch_syscall)
+	(print_one_catch_exec, mention, print_it_ranged_breakpoint)
+	(print_one_ranged_breakpoint, print_mention_ranged_breakpoint)
+	(print_it_watchpoint, print_mention_watchpoint)
+	(print_it_masked_watchpoint, print_mention_masked_watchpoint)
+	(print_it_exception_catchpoint, print_one_exception_catchpoint)
+	(print_mention_exception_catchpoint, say_where, bkpt_print_it)
+	(bkpt_print_mention, momentary_bkpt_print_it)
+	(tracepoint_print_mention, update_static_tracepoint)
+	(tracepoints_info, save_breakpoints): Adjust.
+	* cli-out.c (field_separator): Adjust.
+	* cp-abi.c (list_cp_abis, show_cp_abi_cmd): Adjust.
+	* exceptions.c (catch_exceptions_with_msg, catch_errors): Adjust.
+	* frame.c (get_current_frame): Adjust.
+	* infcmd.c (run_command_1, print_return_value): Adjust.
+	* inferior.c (inferior_command, info_inferiors_command): Adjust.
+	* infrun.c (print_end_stepping_range_reason): Adjust.
+	(print_signal_exited_reason, print_exited_reason): Adjust.
+	(print_signal_received_reason, print_no_history_reason): Adjust.
+	* interps.c (interp_set): Adjust.
+	* osdata.c (info_osdata_command): Adjust.
+	* progspace.c (maintenance_info_program_spaces_command): Adjust.
+	* remote-fileio.c (remote_fileio_request): Adjust.
+	* remote.c (show_remote_cmd): Adjust.
+	* solib.c (info_sharedlibrary_command): Adjust.
+	* source.c (print_source_lines_base): Adjust.
+	* stack.c (print_stack_frame): Adjust.
+	(do_gdb_disassembly, print_frame_info, print_frame): Adjust.
+	* symfile-mem.c (add_vsyscall_page): Adjust.
+	* symfile.c (load_progress, generic_load)
+	(print_transfer_performance): Adjust.
+	* thread.c (info_threads_command, restore_selected_frame)
+	(thread_command): Adjust.
+	* top.c (make_cleanup_restore_ui_file): Adjust.
+	* tracepoint.c (tvariables_info_1, trace_status_mi, tfind_1)
+	(print_one_static_tracepoint_marker): Adjust.
+	* cli/cli-cmds.c (print_disassembly): Adjust.
+	* cli/cli-decode.c (print_doc_line): Adjust.
+	* cli/cli-interp.c (safe_execute_command): Adjust.
+	* cli/cli-logging.c (set_logging_redirect, pop_output_files)
+	(handle_redirections): Adjust.
+	* cli/cli-script.c (show_user_1): Adjust.
+	* cli/cli-setshow.c (do_setshow_command, cmd_show_list): Adjust.
+	* mi/mi-cmd-break.c (breakpoint_notify): Adjust.
+	* mi/mi-cmd-disas.c (mi_cmd_disassemble): Adjust.
+	* mi/mi-cmd-env.c (mi_cmd_env_pwd, mi_cmd_env_path)
+	(mi_cmd_env_dir): Adjust.
+	* mi/mi-cmd-file.c (mi_cmd_file_list_exec_source_file)
+	(print_partial_file_name, mi_cmd_file_list_exec_source_files): Adjust.
+	* mi/mi-cmd-stack.c (mi_cmd_stack_list_frames)
+	(mi_cmd_stack_info_depth, mi_cmd_stack_list_args)
+	(list_args_or_locals): Adjust.
+	* mi/mi-cmd-var.c (print_varobj, mi_cmd_var_create)
+	(mi_cmd_var_delete, mi_cmd_var_set_format, mi_cmd_var_set_frozen)
+	(mi_cmd_var_show_format, mi_cmd_var_info_num_children)
+	(mi_cmd_var_list_children, mi_cmd_var_info_type)
+	(mi_cmd_var_info_path_expression, mi_cmd_var_info_expression)
+	(mi_cmd_var_show_attributes, mi_cmd_var_evaluate_expression)
+	(mi_cmd_var_assign, mi_cmd_var_update, varobj_update_one): Adjust.
+	* mi/mi-interp.c (mi_on_normal_stop): Adjust.
+	* mi/mi-main.c (mi_cmd_gdb_exit, mi_cmd_thread_select)
+	(mi_cmd_thread_list_ids, mi_cmd_thread_info, print_one_inferior)
+	(list_available_thread_groups, mi_cmd_list_thread_groups)
+	(mi_cmd_data_list_register_names)
+	(mi_cmd_data_list_changed_registers)
+	(mi_cmd_data_list_register_values, get_register)
+	(mi_cmd_data_evaluate_expression, mi_cmd_data_read_memory)
+	(mi_cmd_data_read_memory_bytes, mi_cmd_list_features)
+	(mi_cmd_list_target_features, mi_cmd_add_inferior)
+	(mi_execute_command, mi_load_progress): Adjust.
+	* mi/mi-symbol-cmds.c (mi_cmd_symbol_list_lines): Adjust.
+	* python/py-auto-load.c (print_script, info_auto_load_scripts):
+	Adjust.
+	* python/py-breakpoint.c (bppy_get_commands): Adjust.
+	* tui/tui-interp.c (tui_command_loop): Adjust.
+	* tui/tui-io.c (tui_setup_io, tui_initialize_io): Adjust.
+
+2011-08-04  Pedro Alves  <pedro@codesourcery.com>
+
+	* exceptions.c (struct catcher): Remove saved_uiout field.
+	(exceptions_state_mc_init): Remove the `func_uiout' parameter, and
+	no longer save/resvore the global ui_out builder.
+	(catch_exceptions_with_msg): Save/override/restore the global
+	ui_out builder manually instead of relying on TRY_CATCH to do it.
+	(catch_errors): Save/restore the global ui_out builder manually
+	instead of relying on TRY_CATCH to do it.
+	* exceptions.h (exceptions_state_mc_init): Remove the `func_uiout'
+	parameter.
+	(TRY_CATCH): Adjust.
+	* cli/cli-interp.c (safe_execute_command): Save/override/restore
+	the global ui_out builder manually instead of relying on TRY_CATCH
+	to do it.
+
+2011-08-03  Philippe Waroquiers  <philippe.waroquiers@skynet.be>
+
+	* breakpoint.c (update_global_location_list): Ensure
+	invariant 'first loc marked not duplicated and inserted,
+	following locs marked duplicated/not inserted' is respected
+	for multiple locations at the same address.
+	(unduplicated_should_be_inserted) New function.
+	(swap_insertion) New function.
+
+2011-08-03  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* stack.c (print_frame_arguments_choices): Comment typo fix.
+
 2011-08-01  Thiago Jung Bauermann  <bauerman@br.ibm.com>
 
 	Revert:

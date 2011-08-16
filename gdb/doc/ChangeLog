@@ -1,3 +1,21 @@
+2011-08-14  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.texinfo (General Query Packets): Document qXfer:fdpic:read packet.
+
+2011-08-14  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.texinfo (Standard Target Features): Document C6x features.
+	(TIC6x Features): New node.
+
+2011-08-12  Doug Evans  <dje@google.com>
+
+	* gdb.texinfo (Symbols In Python): Document symbol.type.
+
+2011-08-09  Phil Muldoon  <pmuldoon@redhat.com>
+
+	* gdb.texinfo (Python): Document command and function
+	auto-loading.
+
 2011-07-26  Jan Kratochvil  <jan.kratochvil@redhat.com>
 	    Eli Zaretskii  <eliz@gnu.org>
 

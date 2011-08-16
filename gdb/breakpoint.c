@@ -1571,6 +1571,21 @@ should_be_inserted (struct bp_location *bl)
   return 1;
 }
 
+/* Same as should_be_inserted but does the check assuming
+   that the location is not duplicated.  */
+
+static int
+unduplicated_should_be_inserted (struct bp_location *bl)
+{
+  int result;
+  const int save_duplicate = bl->duplicate;
+
+  bl->duplicate = 0;
+  result = should_be_inserted (bl);
+  bl->duplicate = save_duplicate;
+  return result;
+}
+
 /* Insert a low-level "breakpoint" of some type.  BL is the breakpoint
    location.  Any error messages are printed to TMP_ERROR_STREAM; and
    DISABLED_BREAKS, and HW_BREAKPOINT_ERROR are used to report problems.
@@ -3670,6 +3685,8 @@ watchpoint_check (void *p)
     }
   else
     {
+      struct ui_out *uiout = current_uiout;
+
       /* This seems like the only logical thing to do because
          if we temporarily ignored the watchpoint, then when
          we reenter the block in which it is valid it contains
@@ -4483,6 +4500,7 @@ static void
 print_breakpoint_location (struct breakpoint *b,
 			   struct bp_location *loc)
 {
+  struct ui_out *uiout = current_uiout;
   struct cleanup *old_chain = save_current_program_space ();
 
   if (loc != NULL && loc->shlib_disabled)
@@ -4601,6 +4619,7 @@ print_one_breakpoint_location (struct breakpoint *b,
   struct command_line *l;
   static char bpenables[] = "nynny";
 
+  struct ui_out *uiout = current_uiout;
   int header_of_multiple = 0;
   int part_of_multiple = (loc != NULL);
   struct value_print_options opts;
@@ -4891,6 +4910,7 @@ print_one_breakpoint (struct breakpoint *b,
 		      int allflag)
 {
   struct cleanup *bkpt_chain;
+  struct ui_out *uiout = current_uiout;
 
   bkpt_chain = make_cleanup_ui_out_tuple_begin_end (uiout, "bkpt");
 
@@ -5016,6 +5036,7 @@ breakpoint_1 (char *args, int allflag,
   struct value_print_options opts;
   int print_address_bits = 0;
   int print_type_col_width = 14;
+  struct ui_out *uiout = current_uiout;
 
   get_user_print_options (&opts);
 
@@ -5162,6 +5183,8 @@ breakpoint_1 (char *args, int allflag,
 static void
 default_collect_info (void)
 {
+  struct ui_out *uiout = current_uiout;
+
   /* If it has no value (which is frequently the case), say nothing; a
      message like "No default-collect." gets in user's face when it's
      not wanted.  */
@@ -5187,6 +5210,7 @@ static void
 watchpoints_info (char *args, int from_tty)
 {
   int num_printed = breakpoint_1 (args, 0, is_watchpoint);
+  struct ui_out *uiout = current_uiout;
 
   if (num_printed == 0)
     {
@@ -6150,6 +6174,7 @@ print_one_catch_fork (struct breakpoint *b, struct bp_location **last_loc)
 {
   struct fork_catchpoint *c = (struct fork_catchpoint *) b;
   struct value_print_options opts;
+  struct ui_out *uiout = current_uiout;
 
   get_user_print_options (&opts);
 
@@ -6245,6 +6270,7 @@ print_one_catch_vfork (struct breakpoint *b, struct bp_location **last_loc)
 {
   struct fork_catchpoint *c = (struct fork_catchpoint *) b;
   struct value_print_options opts;
+  struct ui_out *uiout = current_uiout;
 
   get_user_print_options (&opts);
   /* Field 4, the address, is omitted (which makes the columns not
@@ -6486,6 +6512,7 @@ print_one_catch_syscall (struct breakpoint *b,
 {
   struct syscall_catchpoint *c = (struct syscall_catchpoint *) b;
   struct value_print_options opts;
+  struct ui_out *uiout = current_uiout;
 
   get_user_print_options (&opts);
   /* Field 4, the address, is omitted (which makes the columns not
@@ -6728,6 +6755,7 @@ print_one_catch_exec (struct breakpoint *b, struct bp_location **last_loc)
 {
   struct exec_catchpoint *c = (struct exec_catchpoint *) b;
   struct value_print_options opts;
+  struct ui_out *uiout = current_uiout;
 
   get_user_print_options (&opts);
 
@@ -7012,7 +7040,7 @@ static void
 mention (struct breakpoint *b)
 {
   b->ops->print_mention (b);
-  if (ui_out_is_mi_like_p (uiout))
+  if (ui_out_is_mi_like_p (current_uiout))
     return;
   printf_filtered ("\n");
 }
@@ -8145,6 +8173,7 @@ print_it_ranged_breakpoint (bpstat bs)
 {
   struct breakpoint *b = bs->breakpoint_at;
   struct bp_location *bl = b->loc;
+  struct ui_out *uiout = current_uiout;
 
   gdb_assert (b->type == bp_hardware_breakpoint);
 
@@ -8177,6 +8206,7 @@ print_one_ranged_breakpoint (struct breakpoint *b,
 {
   struct bp_location *bl = b->loc;
   struct value_print_options opts;
+  struct ui_out *uiout = current_uiout;
 
   /* Ranged breakpoints have only one location.  */
   gdb_assert (bl && bl->next == NULL);
@@ -8226,6 +8256,7 @@ static void
 print_mention_ranged_breakpoint (struct breakpoint *b)
 {
   struct bp_location *bl = b->loc;
+  struct ui_out *uiout = current_uiout;
 
   gdb_assert (bl);
   gdb_assert (b->type == bp_hardware_breakpoint);
@@ -8653,6 +8684,7 @@ print_it_watchpoint (bpstat bs)
   struct ui_stream *stb;
   enum print_stop_action result;
   struct watchpoint *w;
+  struct ui_out *uiout = current_uiout;
 
   gdb_assert (bs->bp_location_at != NULL);
 
@@ -8745,6 +8777,7 @@ print_mention_watchpoint (struct breakpoint *b)
 {
   struct cleanup *ui_out_chain;
   struct watchpoint *w = (struct watchpoint *) b;
+  struct ui_out *uiout = current_uiout;
 
   switch (b->type)
     {
@@ -8859,6 +8892,7 @@ static enum print_stop_action
 print_it_masked_watchpoint (bpstat bs)
 {
   struct breakpoint *b = bs->breakpoint_at;
+  struct ui_out *uiout = current_uiout;
 
   /* Masked watchpoints have only one location.  */
   gdb_assert (b->loc && b->loc->next == NULL);
@@ -8925,6 +8959,7 @@ static void
 print_mention_masked_watchpoint (struct breakpoint *b)
 {
   struct watchpoint *w = (struct watchpoint *) b;
+  struct ui_out *uiout = current_uiout;
   struct cleanup *ui_out_chain;
 
   switch (b->type)
@@ -9705,6 +9740,7 @@ catch_exec_command_1 (char *arg, int from_tty,
 static enum print_stop_action
 print_it_exception_catchpoint (bpstat bs)
 {
+  struct ui_out *uiout = current_uiout;
   struct breakpoint *b = bs->breakpoint_at;
   int bp_temp, bp_throw;
 
@@ -9739,6 +9775,7 @@ print_one_exception_catchpoint (struct breakpoint *b,
 				struct bp_location **last_loc)
 {
   struct value_print_options opts;
+  struct ui_out *uiout = current_uiout;
 
   get_user_print_options (&opts);
   if (opts.addressprint)
@@ -9762,6 +9799,7 @@ print_one_exception_catchpoint (struct breakpoint *b,
 static void
 print_mention_exception_catchpoint (struct breakpoint *b)
 {
+  struct ui_out *uiout = current_uiout;
   int bp_temp;
   int bp_throw;
 
@@ -9899,21 +9937,13 @@ init_ada_exception_breakpoint (struct breakpoint *b,
   b->language = language_ada;
 }
 
-/* Cleanup function for a syscall filter list.  */
-static void
-clean_up_filters (void *arg)
-{
-  VEC(int) *iter = *(VEC(int) **) arg;
-  VEC_free (int, iter);
-}
-
 /* Splits the argument using space as delimiter.  Returns an xmalloc'd
    filter list, or NULL if no filtering is required.  */
 static VEC(int) *
 catch_syscall_split_args (char *arg)
 {
   VEC(int) *result = NULL;
-  struct cleanup *cleanup = make_cleanup (clean_up_filters, &result);
+  struct cleanup *cleanup = make_cleanup (VEC_cleanup (int), &result);
 
   while (*arg != '\0')
     {
@@ -10241,6 +10271,23 @@ bp_location_target_extensions_update (void)
     }
 }
 
+/* Swap the insertion/duplication state between two locations.  */
+
+static void
+swap_insertion (struct bp_location *left, struct bp_location *right)
+{
+  const int left_inserted = left->inserted;
+  const int left_duplicate = left->duplicate;
+  const struct bp_target_info left_target_info = left->target_info;
+
+  left->inserted = right->inserted;
+  left->duplicate = right->duplicate;
+  left->target_info = right->target_info;
+  right->inserted = left_inserted;
+  right->duplicate = left_duplicate;
+  right->target_info = left_target_info;
+}
+
 /* If SHOULD_INSERT is false, do not insert any breakpoint locations
    into the inferior, only remove already-inserted locations that no
    longer should be inserted.  Functions that delete a breakpoint or
@@ -10377,11 +10424,6 @@ update_global_location_list (int should_insert)
 
 		      if (breakpoint_locations_match (loc2, old_loc))
 			{
-			  /* For the sake of should_be_inserted.
-			     Duplicates check below will fix up this
-			     later.  */
-			  loc2->duplicate = 0;
-
 			  /* Read watchpoint locations are switched to
 			     access watchpoints, if the former are not
 			     supported, but the latter are.  */
@@ -10391,10 +10433,13 @@ update_global_location_list (int should_insert)
 			      loc2->watchpoint_type = old_loc->watchpoint_type;
 			    }
 
-			  if (loc2 != old_loc && should_be_inserted (loc2))
+			  /* loc2 is a duplicated location. We need to check
+			     if it should be inserted in case it will be
+			     unduplicated.  */
+			  if (loc2 != old_loc
+			      && unduplicated_should_be_inserted (loc2))
 			    {
-			      loc2->inserted = 1;
-			      loc2->target_info = old_loc->target_info;
+			      swap_insertion (old_loc, loc2);
 			      keep_in_target = 1;
 			      break;
 			    }
@@ -10541,6 +10586,12 @@ update_global_location_list (int should_insert)
 	  continue;
 	}
 
+
+      /* This and the above ensure the invariant that the first location
+	 is not duplicated, and is the inserted one.
+	 All following are marked as duplicated, and are not inserted.  */
+      if (loc->inserted)
+	swap_insertion (loc, *loc_first_p);
       loc->duplicate = 1;
 
       if ((*loc_first_p)->owner->enable_state == bp_permanent && loc->inserted
@@ -10614,6 +10665,7 @@ bpstat_remove_breakpoint_callback (struct thread_info *th, void *data)
 static void
 say_where (struct breakpoint *b)
 {
+  struct ui_out *uiout = current_uiout;
   struct value_print_options opts;
 
   get_user_print_options (&opts);
@@ -10852,6 +10904,7 @@ bkpt_print_it (bpstat bs)
   struct breakpoint *b;
   const struct bp_location *bl;
   int bp_temp;
+  struct ui_out *uiout = current_uiout;
 
   gdb_assert (bs->bp_location_at != NULL);
 
@@ -10883,7 +10936,7 @@ bkpt_print_it (bpstat bs)
 static void
 bkpt_print_mention (struct breakpoint *b)
 {
-  if (ui_out_is_mi_like_p (uiout))
+  if (ui_out_is_mi_like_p (current_uiout))
     return;
 
   switch (b->type)
@@ -11033,6 +11086,8 @@ momentary_bkpt_check_status (bpstat bs)
 static enum print_stop_action
 momentary_bkpt_print_it (bpstat bs)
 {
+  struct ui_out *uiout = current_uiout;
+
   if (ui_out_is_mi_like_p (uiout))
     {
       struct breakpoint *b = bs->breakpoint_at;
@@ -11098,7 +11153,7 @@ tracepoint_print_one_detail (const struct breakpoint *self,
 static void
 tracepoint_print_mention (struct breakpoint *b)
 {
-  if (ui_out_is_mi_like_p (uiout))
+  if (ui_out_is_mi_like_p (current_uiout))
     return;
 
   switch (b->type)
@@ -11464,6 +11519,7 @@ update_static_tracepoint (struct breakpoint *b, struct symtab_and_line sal)
 	  struct symtab_and_line sal;
 	  struct symbol *sym;
 	  struct static_tracepoint_marker *marker;
+	  struct ui_out *uiout = current_uiout;
 
 	  marker = VEC_index (static_tracepoint_marker_p, markers, 0);
 
@@ -12729,6 +12785,7 @@ create_tracepoint_from_upload (struct uploaded_tp *utp)
 static void
 tracepoints_info (char *args, int from_tty)
 {
+  struct ui_out *uiout = current_uiout;
   int num_printed;
 
   num_printed = breakpoint_1 (args, 0, is_tracepoint);
@@ -13043,12 +13100,12 @@ save_breakpoints (char *filename, int from_tty,
 
 	fprintf_unfiltered (fp, "  commands\n");
 	
-	ui_out_redirect (uiout, fp);
+	ui_out_redirect (current_uiout, fp);
 	TRY_CATCH (ex, RETURN_MASK_ALL)
 	  {
-	    print_command_lines (uiout, tp->commands->commands, 2);
+	    print_command_lines (current_uiout, tp->commands->commands, 2);
 	  }
-	ui_out_redirect (uiout, NULL);
+	ui_out_redirect (current_uiout, NULL);
 
 	if (ex.reason < 0)
 	  throw_exception (ex);
