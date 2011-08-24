@@ -1,3 +1,112 @@
+2011-08-24  Luis Machado  <lgustavo@codesourcery.com>
+
+	* linux-nat.h (linux_proc_get_tgid): Remove declaration.
+	* linux-nat.c: Include linux-procfs.h.
+	(linux_proc_get_tgid): Move to ...
+	* common/linux-procfs.c: ... here. New file.
+	* common/linux-procfs.h: New file.
+	* linux-thread-db.c: Include linux-procfs.h.
+	* Makefile.in: Update dependencies.
+	* config/alpha/alpha-linux.mh: Add linux-procfs.o dependency.
+	* config/arm/linux.mh: Likewise.
+	* config/i386/linux.mh: Likewise.
+	* config/i386/linux64.mh: Likewise.
+	* config/ia64/linux.mh: Likewise.
+	* config/m32r/linux.mh: Likewise.
+	* config/m68k/linux.mh: Likewise.
+	* config/mips/linux.mh: Likewise.
+	* config/pa/linux.mh: Likewise.
+	* config/pa/linux.mh: Likewise.
+	* config/powerpc/linux.mh: Likewise.
+	* config/powerpc/ppc64-linux.mh: Likewise.
+	* config/powerpc/spu-linux.mh: Likewise.
+	* config/sparc/linux.mh: Likewise.
+	* config/sparc/linux64.mh: Likewise.
+	* config/xtensa/linux.mh: Likewise.
+
+2011-08-24  Hui Zhu  <teawater@gmail.com>
+
+	* tracepoint.c (cond_string_is_same): New function.
+	(find_matching_tracepoint): Add condition check
+	by cond_string_is_same.
+
+2011-08-23  Josh Matthews  <josh@joshmatthews.net>
+
+	Fix build error in Darwin port.
+	* darwin-nat-info.c (darwin_debug_regions_recurse): New variable uiout.
+
+2011-08-21  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Code cleanup.
+	* breakpoint.c (bpstat_clear_actions): Remove clearing of commands_left.
+	(command_line_is_silent): New function.
+	(bpstat_do_actions_1): No longer use commands_left, use
+	command_line_is_silent for commands.
+	(bpstat_alloc): Remove clearing of commands_left.
+	(bpstat_stop_status): Remove initialization of commands_left, use
+	command_line_is_silent.
+	* breakpoint.h (struct bpstats): Remove commands_left.
+
+2011-08-18  Keith Seitz  <keiths@redhat.com>
+
+	PR c++/12266
+	* cp-name-parser.y (struct demangle_info): Remove unused
+	member PREV.
+	(d_grab): Likewise.
+	(allocate_info): Change return type to struct demangle_info *.
+	Always allocate a new demangle_info.
+	Remove unused PREV pointer.
+	(cp_new_demangle_parse_info): New function.
+	(cp_demangled_name_parse_free): New function.
+	(do_demangled_name_parse_free_cleanup): New function.
+	(make_cleanup_cp_demangled_name_parse_free): New function.
+	(cp_demangled_name_to_comp): Change return type to
+	struct demangle_parse_info *.
+	Allocate a new storage for each call.
+	(main): Update usage for cp_demangled_name_to_comp
+	API change.
+	* cp-support.h (struct demangle_parse_info): New structure.
+	(cp_demangled_name_to_comp): Update API change for
+	return type.
+	(cp_new_demangle_parse_info): Declare.
+	(make_cleanup_cp_demangled_name_parse_free): New declaration.
+	(cp_demangled_name_parse_free): Declare.
+	* cp-support.c (cp_canonicalize_string): Update API
+	change for cp_demangled_name_to_comp.
+	(mangled_name_to_comp): Likewise.
+	Return struct demangle_parse_info, too.
+	(cp_class_name_from_physname): Update mangled_name_to_comp
+	API change.
+	(method_name_from_physname): Likewise.
+	(cp_func_name): Update API change for cp_demangled_name_to_comp.
+	(cp_remove_params): Likewise.
+	* python/py-type.c (typy_legacy_template_argument): Likewise.
+
+	* cp-support.h (cp_canonicalize_string_no_typedefs): Declare.
+	(cp_merge_demangle_parse_infos): Declare.
+	* cp-support.c (ignore_typedefs): New file global.
+	(copy_string_to_obstack): New function.
+	(inspect_type): New function.
+	(replace_typedefs): New function.
+	(replace_typedefs_qualified_name): New function.
+	(cp_canonicalize_string_no_typedefs): New function.
+	* cp-name-parser.y (cp_merge_demangle_parse_infos): New function.
+	(cp_new_demangle__parse_info): Allocate and initialize the obstack.
+	* linespec.c (find_methods): Use cp_canonicalize_string_no_typedefs
+	instead of cp_canonicalize_string.
+	(find_method): Likewise.
+	(decode_compound): Before looking up the name, call
+	cp_canonicalize_string_no_typedefs.
+	(decode_variable): Likewise.
+
+2011-08-17  Phil Muldoon  <pmuldoon@redhat.com>
+            Tom Tromey  <tromey@redhat.com>
+            Matt Rice <ratmice@gmail.com>
+
+        * python/lib/gdb/prompt.py: New file.
+        * python/lib/gdb/command/prompt.py: New file.
+        * NEWS: Document set extended-prompt and gdb.prompt library
+
 2011-08-16  Yao Qi  <yao@codesourcery.com>
 
 	* tic6x-linux-tdep.c: Move const arrays definition from here...
@@ -40,8 +149,10 @@
 	* features/tic6x-c62x.c, features/tic6x-c64xp-linux.c: Generated.
 	* features/tic6x-c64x-linux.c, features/tic6x-c62x-linux.c: Generated.
 	* regformats/tic6x-c62x.dat, regformats/tic6x-c64x.dat: Generated.
-	* regformats/tic6x-c64xp.dat, regformats/tic6x-c62x-linux.dat: Generated.
-	* regformats/tic6x-c64x-linux.dat, regformats/tic6x-c64xp-linux.dat: Generated.
+	* regformats/tic6x-c64xp.dat,
+	regformats/tic6x-c62x-linux.dat: Generated.
+	* regformats/tic6x-c64x-linux.dat,
+	regformats/tic6x-c64xp-linux.dat: Generated.
 	* config/djgpp/fnchange.lst: Add features/tic6x-*.xml and
 	features/tic6x-*.c files.
 	Add regformats/tic6x-*.dat files.
