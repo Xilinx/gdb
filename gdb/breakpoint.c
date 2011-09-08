@@ -3186,12 +3186,22 @@ bpstat_num (bpstat *bsp, int *num)
   return 1;
 }
 
-/* Modify BS so that the actions will not be performed.  */
+/* See breakpoint.h.  */
 
 void
-bpstat_clear_actions (bpstat bs)
+bpstat_clear_actions (void)
 {
-  for (; bs != NULL; bs = bs->next)
+  struct thread_info *tp;
+  bpstat bs;
+
+  if (ptid_equal (inferior_ptid, null_ptid))
+    return;
+
+  tp = find_thread_ptid (inferior_ptid);
+  if (tp == NULL)
+    return;
+
+  for (bs = tp->control.stop_bpstat; bs != NULL; bs = bs->next)
     {
       decref_counted_command_line (&bs->commands);
 
@@ -3342,6 +3352,8 @@ bpstat_do_actions_1 (bpstat *bsp)
 void
 bpstat_do_actions (void)
 {
+  struct cleanup *cleanup_if_error = make_bpstat_clear_actions_cleanup ();
+
   /* Do any commands attached to breakpoint we are stopped at.  */
   while (!ptid_equal (inferior_ptid, null_ptid)
 	 && target_has_execution
@@ -3353,6 +3365,8 @@ bpstat_do_actions (void)
        indicate the inferior was not resumed.  */
     if (!bpstat_do_actions_1 (&inferior_thread ()->control.stop_bpstat))
       break;
+
+  discard_cleanups (cleanup_if_error);
 }
 
 /* Print out the (old or new) value associated with a watchpoint.  */

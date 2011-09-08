@@ -4829,6 +4829,9 @@ process_full_comp_unit (struct dwarf2_per_cu_data *per_cu)
 
       if (gcc_4_minor >= 5)
 	symtab->epilogue_unwind_valid = 1;
+
+      if (gcc_4_minor >= 6)
+	symtab->amd64_prologue_line_bug = 1;
     }
 
   if (dwarf2_per_objfile->using_index)
@@ -11577,14 +11580,6 @@ new_symbol_full (struct die_info *die, struct type *type, struct dwarf2_cu *cu,
 	  if (attr)
 	    {
 	      dwarf2_const_value (attr, sym, cu);
-	    }
-	  attr = dwarf2_attr (die, DW_AT_variable_parameter, cu);
-	  if (attr && DW_UNSND (attr))
-	    {
-	      struct type *ref_type;
-
-	      ref_type = lookup_reference_type (SYMBOL_TYPE (sym));
-	      SYMBOL_TYPE (sym) = ref_type;
 	    }
 
 	  list_to_add = cu->list_in_scope;

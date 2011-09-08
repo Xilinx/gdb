@@ -1,3 +1,87 @@
+2011-09-08  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix compatibility with x32 arch.
+	* testsuite/gdb.dwarf2/typeddwarf.exp: Check also is_lp64_target.
+	* testsuite/gdb.trace/backtrace.exp: Use is_amd64_regs_target and
+	is_x86_like_target.
+	* testsuite/gdb.trace/collection.exp: Likewise.
+	* testsuite/gdb.trace/report.exp: Likewise.
+	* testsuite/gdb.trace/unavailable.exp: Likewise.
+	* testsuite/gdb.trace/while-dyn.exp: Likewise.
+	* testsuite/lib/gdb.exp (is_amd64_regs_target): New function.
+	(is_x86_like_target): Check also is_amd64_regs_target.
+
+2011-09-08  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	PR breakpoints/12435
+	* gdb.arch/amd64-prologue-xmm.c: New file.
+	* gdb.arch/amd64-prologue-xmm.exp: New file.
+	* gdb.arch/amd64-prologue-xmm.s: New file.
+
+2011-09-08  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.dwarf2/dw2-param-error-main.c: New file.
+	* gdb.dwarf2/dw2-param-error.S: New file.
+	* gdb.dwarf2/dw2-param-error.exp: New file.
+
+2011-09-08  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.base/annota1.exp, gdb.base/annota3.exp: Extract the
+	inferior's pid and look for a core dump named core.$pid.  Use
+	`remote_file' commands on the host instead of hand coding shell
+	commands on the build.
+	* gdb.base/valgrind-db-attach.exp: Kill the program before
+	finishing the test.
+
+2011-09-02  Matt Rice  <ratmice@gmail.com>
+
+	* lib/prompt.exp: New file for testing the first prompt.
+	* gdb.python/py-prompt.exp: Ditto.
+	* gdb.python/py-prompt.c: Ditto (copy of ext-attach.c).
+
+2011-09-02  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.threads/gcore-thread.exp: Set the global core_supported to
+	0, before testing gcore.
+
+2011-09-01  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* dw2-ifort-parameter-debug.S: Update copyright year.
+	* dw2-ifort-parameter.c: Update copyright year.
+	* dw2-ifort-parameter.exp: Update copyright year.
+
+	* dw2-ifort-parameter-debug.S: New file.
+	* dw2-ifort-parameter.c: New file.
+	* dw2-ifort-parameter.exp: New file.
+
+2011-08-26  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.base/commands.exp (error_clears_commands_left): New function.
+	(): Call it.
+
+2011-08-26  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.mi/mi-inheritance-syntax-error.cc (A): Make `a' public.
+	(C): Initialize `a'.
+	* gdb.mi/mi-inheritance-syntax-error.exp
+	(-data-evaluate-expression $path):  Expect `a' as 5.
+
+2011-08-26  Marc Khouzam  <marc.khouzam@ericsson.com>
+
+	PR mi/11912
+	* gdb.mi/mi-inheritance-syntax-error.cc: New file.
+	* gdb.mi/mi-inheritance-syntax-error.exp: New file.
+	* gdb.mi/mi-var-cp.cc: Updated for new 'class'
+	keyword in output of -var-info-path-expression.
+
+2011-08-26  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.trace/backtrace.exp: Use is_lp64_target to check 64bit target.
+	* gdb.trace/collection.exp: Likewise.
+	* gdb.trace/report.exp: Likewise.
+	* gdb.trace/unavailable.exp: Likewise.
+	* gdb.trace/while-dyn.exp: Likewise.
+
 2011-08-18  Keith Seitz  <keiths@redhat.com>
 
 	PR c++/12266

@@ -55,6 +55,7 @@
 #include "jit.h"
 #include "tracepoint.h"
 #include "continuations.h"
+#include "interps.h"
 
 /* Prototypes for local functions */
 
@@ -2712,6 +2713,7 @@ fetch_inferior_event (void *client_data)
   struct cleanup *old_chain = make_cleanup (null_cleanup, NULL);
   struct cleanup *ts_old_chain;
   int was_sync = sync_execution;
+  int cmd_done = 0;
 
   memset (ecs, 0, sizeof (*ecs));
 
@@ -2747,7 +2749,9 @@ fetch_inferior_event (void *client_data)
      switches threads anyway).  If we didn't do this, a spurious
      delayed event in all-stop mode would make the user lose the
      selected frame.  */
-  if (non_stop || is_executing (inferior_ptid))
+  if (non_stop
+      || (!ptid_equal (inferior_ptid, null_ptid)
+	  && is_executing (inferior_ptid)))
     registers_changed ();
 
   make_cleanup_restore_integer (&execution_direction);
@@ -2779,6 +2783,10 @@ fetch_inferior_event (void *client_data)
   else
     ts_old_chain = make_cleanup (finish_thread_state_cleanup, &ecs->ptid);
 
+  /* Get executed before make_cleanup_restore_current_thread above to apply
+     still for the thread which has thrown the exception.  */
+  make_bpstat_clear_actions_cleanup ();
+
   /* Now figure out what to do with the result of the result.  */
   handle_inferior_event (ecs);
 
@@ -2799,7 +2807,10 @@ fetch_inferior_event (void *client_data)
 	  && ecs->event_thread->control.stop_step)
 	inferior_event_handler (INF_EXEC_CONTINUE, NULL);
       else
-	inferior_event_handler (INF_EXEC_COMPLETE, NULL);
+	{
+	  inferior_event_handler (INF_EXEC_COMPLETE, NULL);
+	  cmd_done = 1;
+	}
     }
 
   /* No error, don't finish the thread states yet.  */
@@ -2809,9 +2820,17 @@ fetch_inferior_event (void *client_data)
   do_cleanups (old_chain);
 
   /* If the inferior was in sync execution mode, and now isn't,
-     restore the prompt.  */
-  if (was_sync && !sync_execution)
+     restore the prompt (a synchronous execution command has finished,
+     and we're ready for input).  */
+  if (interpreter_async && was_sync && !sync_execution)
     display_gdb_prompt (0);
+
+  if (cmd_done
+      && !was_sync
+      && exec_done_display_p
+      && (ptid_equal (inferior_ptid, null_ptid)
+	  || !is_running (inferior_ptid)))
+    printf_unfiltered (_("completed.\n"));
 }
 
 /* Record the frame and location we're currently stepping through.  */
@@ -2834,8 +2853,6 @@ init_thread_stepping_state (struct thread_info *tss)
 {
   tss->stepping_over_breakpoint = 0;
   tss->step_after_step_resume_breakpoint = 0;
-  tss->stepping_through_solib_after_catch = 0;
-  tss->stepping_through_solib_catchpoints = NULL;
 }
 
 /* Return the cached copy of the last pid/waitstatus returned by
@@ -4534,37 +4551,6 @@ process_event_stop_test:
 	}
     }
 
-  /* Are we stepping to get the inferior out of the dynamic linker's
-     hook (and possibly the dld itself) after catching a shlib
-     event?  */
-  if (ecs->event_thread->stepping_through_solib_after_catch)
-    {
-#if defined(SOLIB_ADD)
-      /* Have we reached our destination?  If not, keep going.  */
-      if (SOLIB_IN_DYNAMIC_LINKER (PIDGET (ecs->ptid), stop_pc))
-	{
-          if (debug_infrun)
-	    fprintf_unfiltered (gdb_stdlog,
-				"infrun: stepping in dynamic linker\n");
-	  ecs->event_thread->stepping_over_breakpoint = 1;
-	  keep_going (ecs);
-	  return;
-	}
-#endif
-      if (debug_infrun)
-	 fprintf_unfiltered (gdb_stdlog, "infrun: step past dynamic linker\n");
-      /* Else, stop and report the catchpoint(s) whose triggering
-         caused us to begin stepping.  */
-      ecs->event_thread->stepping_through_solib_after_catch = 0;
-      bpstat_clear (&ecs->event_thread->control.stop_bpstat);
-      ecs->event_thread->control.stop_bpstat
-	= bpstat_copy (ecs->event_thread->stepping_through_solib_catchpoints);
-      bpstat_clear (&ecs->event_thread->stepping_through_solib_catchpoints);
-      stop_print_frame = 1;
-      stop_stepping (ecs);
-      return;
-    }
-
   if (ecs->event_thread->control.step_resume_breakpoint)
     {
       if (debug_infrun)
@@ -5124,7 +5110,6 @@ currently_stepping (struct thread_info *tp)
   return ((tp->control.step_range_end
 	   && tp->control.step_resume_breakpoint == NULL)
 	  || tp->control.trap_expected
-	  || tp->stepping_through_solib_after_catch
 	  || bpstat_should_step ());
 }
 
@@ -5138,8 +5123,7 @@ currently_stepping_or_nexting_callback (struct thread_info *tp, void *data)
     return 0;
 
   return (tp->control.step_range_end
- 	  || tp->control.trap_expected
- 	  || tp->stepping_through_solib_after_catch);
+ 	  || tp->control.trap_expected);
 }
 
 /* Inferior has stepped into a subroutine call with source code that
@@ -5809,6 +5793,7 @@ normal_stop (void)
     goto done;
 
   target_terminal_ours ();
+  async_enable_stdin ();
 
   /* Set the current source location.  This will also happen if we
      display the frame below, but the current SAL will be incorrect
@@ -6380,6 +6365,25 @@ signals_info (char *signum_exp, int from_tty)
 		     "to change these tables.\n"));
 }
 
+/* Check if it makes sense to read $_siginfo from the current thread
+   at this point.  If not, throw an error.  */
+
+static void
+validate_siginfo_access (void)
+{
+  /* No current inferior, no siginfo.  */
+  if (ptid_equal (inferior_ptid, null_ptid))
+    error (_("No thread selected."));
+
+  /* Don't try to read from a dead thread.  */
+  if (is_exited (inferior_ptid))
+    error (_("The current thread has terminated"));
+
+  /* ... or from a spinning thread.  */
+  if (is_running (inferior_ptid))
+    error (_("Selected thread is running."));
+}
+
 /* The $_siginfo convenience variable is a bit special.  We don't know
    for sure the type of the value until we actually have a chance to
    fetch the data.  The type can change depending on gdbarch, so it is
@@ -6397,6 +6401,8 @@ static void
 siginfo_value_read (struct value *v)
 {
   LONGEST transferred;
+
+  validate_siginfo_access ();
 
   transferred =
     target_read (&current_target, TARGET_OBJECT_SIGNAL_INFO,
@@ -6416,6 +6422,8 @@ static void
 siginfo_value_write (struct value *v, struct value *fromval)
 {
   LONGEST transferred;
+
+  validate_siginfo_access ();
 
   transferred = target_write (&current_target,
 			      TARGET_OBJECT_SIGNAL_INFO,

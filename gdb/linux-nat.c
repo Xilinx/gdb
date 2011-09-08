@@ -331,6 +331,17 @@ add_to_pid_list (struct simple_pid_list **listp, int pid, int status)
 }
 
 static int
+in_pid_list_p (struct simple_pid_list *list, int pid)
+{
+  struct simple_pid_list *p;
+
+  for (p = list; p != NULL; p = p->next)
+    if (p->pid == pid)
+      return 1;
+  return 0;
+}
+
+static int
 pull_pid_from_list (struct simple_pid_list **listp, int pid, int *statusp)
 {
   struct simple_pid_list **p;
@@ -346,12 +357,6 @@ pull_pid_from_list (struct simple_pid_list **listp, int pid, int *statusp)
 	return 1;
       }
   return 0;
-}
-
-static void
-linux_record_stopped_pid (int pid, int status)
-{
-  add_to_pid_list (&stopped_pids, pid, status);
 }
 
 
@@ -696,7 +701,6 @@ holding the child stopped.  Try \"set detach-on-fork\" or \
 	  add_thread (inferior_ptid);
 	  child_lp = add_lwp (inferior_ptid);
 	  child_lp->stopped = 1;
-	  child_lp->resumed = 1;
 
 	  /* If this is a vfork child, then the address-space is
 	     shared with the parent.  */
@@ -738,7 +742,7 @@ holding the child stopped.  Try \"set detach-on-fork\" or \
 
       if (has_vforked)
 	{
-	  struct lwp_info *lp;
+	  struct lwp_info *parent_lp;
 	  struct inferior *parent_inf;
 
 	  parent_inf = current_inferior ();
@@ -753,17 +757,16 @@ holding the child stopped.  Try \"set detach-on-fork\" or \
 	  parent_inf->waiting_for_vfork_done = detach_fork;
 	  parent_inf->pspace->breakpoints_not_allowed = detach_fork;
 
-	  lp = find_lwp_pid (pid_to_ptid (parent_pid));
+	  parent_lp = find_lwp_pid (pid_to_ptid (parent_pid));
 	  gdb_assert (linux_supports_tracefork_flag >= 0);
+
 	  if (linux_supports_tracevforkdone (0))
 	    {
   	      if (debug_linux_nat)
   		fprintf_unfiltered (gdb_stdlog,
   				    "LCFF: waiting for VFORK_DONE on %d\n",
   				    parent_pid);
-
-	      lp->stopped = 1;
-	      lp->resumed = 1;
+	      parent_lp->stopped = 1;
 
 	      /* We'll handle the VFORK_DONE event like any other
 		 event, in target_wait.  */
@@ -812,10 +815,9 @@ holding the child stopped.  Try \"set detach-on-fork\" or \
 		 and leave it pending.  The next linux_nat_resume call
 		 will notice a pending event, and bypasses actually
 		 resuming the inferior.  */
-	      lp->status = 0;
-	      lp->waitstatus.kind = TARGET_WAITKIND_VFORK_DONE;
-	      lp->stopped = 0;
-	      lp->resumed = 1;
+	      parent_lp->status = 0;
+	      parent_lp->waitstatus.kind = TARGET_WAITKIND_VFORK_DONE;
+	      parent_lp->stopped = 1;
 
 	      /* If we're in async mode, need to tell the event loop
 		 there's something here to process.  */
@@ -827,7 +829,7 @@ holding the child stopped.  Try \"set detach-on-fork\" or \
   else
     {
       struct inferior *parent_inf, *child_inf;
-      struct lwp_info *lp;
+      struct lwp_info *child_lp;
       struct program_space *parent_pspace;
 
       if (info_verbose || debug_linux_nat)
@@ -887,9 +889,8 @@ holding the child stopped.  Try \"set detach-on-fork\" or \
 
       inferior_ptid = ptid_build (child_pid, child_pid, 0);
       add_thread (inferior_ptid);
-      lp = add_lwp (inferior_ptid);
-      lp->stopped = 1;
-      lp->resumed = 1;
+      child_lp = add_lwp (inferior_ptid);
+      child_lp->stopped = 1;
 
       /* If this is a vfork child, then the address-space is shared
 	 with the parent.  If we detached from the parent, then we can
@@ -1390,20 +1391,25 @@ linux_nat_post_attach_wait (ptid_t ptid, int first, int *cloned,
   return status;
 }
 
-/* Attach to the LWP specified by PID.  Return 0 if successful or -1
-   if the new LWP could not be attached.  */
+/* Attach to the LWP specified by PID.  Return 0 if successful, -1 if
+   the new LWP could not be attached, or 1 if we're already auto
+   attached to this thread, but haven't processed the
+   PTRACE_EVENT_CLONE event of its parent thread, so we just ignore
+   its existance, without considering it an error.  */
 
 int
 lin_lwp_attach_lwp (ptid_t ptid)
 {
   struct lwp_info *lp;
   sigset_t prev_mask;
+  int lwpid;
 
   gdb_assert (is_lwp (ptid));
 
   block_child_signals (&prev_mask);
 
   lp = find_lwp_pid (ptid);
+  lwpid = GET_LWP (ptid);
 
   /* We assume that we're already attached to any LWP that has an id
      equal to the overall process id, and to any LWP that is already
@@ -1411,12 +1417,48 @@ lin_lwp_attach_lwp (ptid_t ptid)
      and we've had PID wraparound since we last tried to stop all threads,
      this assumption might be wrong; fortunately, this is very unlikely
      to happen.  */
-  if (GET_LWP (ptid) != GET_PID (ptid) && lp == NULL)
+  if (lwpid != GET_PID (ptid) && lp == NULL)
     {
       int status, cloned = 0, signalled = 0;
 
-      if (ptrace (PTRACE_ATTACH, GET_LWP (ptid), 0, 0) < 0)
+      if (ptrace (PTRACE_ATTACH, lwpid, 0, 0) < 0)
 	{
+	  if (linux_supports_tracefork_flag)
+	    {
+	      /* If we haven't stopped all threads when we get here,
+		 we may have seen a thread listed in thread_db's list,
+		 but not processed the PTRACE_EVENT_CLONE yet.  If
+		 that's the case, ignore this new thread, and let
+		 normal event handling discover it later.  */
+	      if (in_pid_list_p (stopped_pids, lwpid))
+		{
+		  /* We've already seen this thread stop, but we
+		     haven't seen the PTRACE_EVENT_CLONE extended
+		     event yet.  */
+		  restore_child_signals_mask (&prev_mask);
+		  return 0;
+		}
+	      else
+		{
+		  int new_pid;
+		  int status;
+
+		  /* See if we've got a stop for this new child
+		     pending.  If so, we're already attached.  */
+		  new_pid = my_waitpid (lwpid, &status, WNOHANG);
+		  if (new_pid == -1 && errno == ECHILD)
+		    new_pid = my_waitpid (lwpid, &status, __WCLONE | WNOHANG);
+		  if (new_pid != -1)
+		    {
+		      if (WIFSTOPPED (status))
+			add_to_pid_list (&stopped_pids, lwpid, status);
+
+		      restore_child_signals_mask (&prev_mask);
+		      return 1;
+		    }
+		}
+	    }
+
 	  /* If we fail to attach to the thread, issue a warning,
 	     but continue.  One way this can happen is if thread
 	     creation is interrupted; as of Linux kernel 2.6.19, a
@@ -2377,6 +2419,18 @@ wait_lwp (struct lwp_info *lp)
       pid = my_waitpid (GET_LWP (lp->ptid), &status, WNOHANG);
       if (pid == -1 && errno == ECHILD)
 	pid = my_waitpid (GET_LWP (lp->ptid), &status, __WCLONE | WNOHANG);
+      if (pid == -1 && errno == ECHILD)
+	{
+	  /* The thread has previously exited.  We need to delete it
+	     now because, for some vendor 2.4 kernels with NPTL
+	     support backported, there won't be an exit event unless
+	     it is the main thread.  2.6 kernels will report an exit
+	     event for each thread that exits, as expected.  */
+	  thread_dead = 1;
+	  if (debug_linux_nat)
+	    fprintf_unfiltered (gdb_stdlog, "WL: %s vanished.\n",
+				target_pid_to_str (lp->ptid));
+	}
       if (pid != 0)
 	break;
 
@@ -2418,19 +2472,6 @@ wait_lwp (struct lwp_info *lp)
 
   restore_child_signals_mask (&prev_mask);
 
-  if (pid == -1 && errno == ECHILD)
-    {
-      /* The thread has previously exited.  We need to delete it
-	 now because, for some vendor 2.4 kernels with NPTL
-	 support backported, there won't be an exit event unless
-	 it is the main thread.  2.6 kernels will report an exit
-	 event for each thread that exits, as expected.  */
-      thread_dead = 1;
-      if (debug_linux_nat)
-	fprintf_unfiltered (gdb_stdlog, "WL: %s vanished.\n",
-			    target_pid_to_str (lp->ptid));
-    }
-
   if (!thread_dead)
     {
       gdb_assert (pid == GET_LWP (lp->ptid));
@@ -2442,15 +2483,15 @@ wait_lwp (struct lwp_info *lp)
 			      target_pid_to_str (lp->ptid),
 			      status_to_str (status));
 	}
-    }
 
-  /* Check if the thread has exited.  */
-  if (WIFEXITED (status) || WIFSIGNALED (status))
-    {
-      thread_dead = 1;
-      if (debug_linux_nat)
-	fprintf_unfiltered (gdb_stdlog, "WL: %s exited.\n",
-			    target_pid_to_str (lp->ptid));
+      /* Check if the thread has exited.  */
+      if (WIFEXITED (status) || WIFSIGNALED (status))
+	{
+	  thread_dead = 1;
+	  if (debug_linux_nat)
+	    fprintf_unfiltered (gdb_stdlog, "WL: %s exited.\n",
+				target_pid_to_str (lp->ptid));
+	}
     }
 
   if (thread_dead)
@@ -3089,7 +3130,7 @@ linux_nat_filter_event (int lwpid, int status, int options)
      from waitpid before or after the event is.  */
   if (WIFSTOPPED (status) && !lp)
     {
-      linux_record_stopped_pid (lwpid, status);
+      add_to_pid_list (&stopped_pids, lwpid, status);
       return NULL;
     }
 
