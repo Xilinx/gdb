@@ -1,3 +1,150 @@
+2011-09-14  Pedro Alves  <pedro@codesourcery.com>
+
+	* infrun.c (prepare_for_detach, wait_for_inferior)
+	(fetch_inferior_event): Don't flush the register cache.
+	* remote.c (struct stop_reply) <regcache>: Add comment.
+
+2011-09-13  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Remove excessive DWARF expressions memory duplication.
+	* dwarf2loc.c (per_cu_dwarf_call): Remove variable back_to and its use
+	for block.data.
+	(indirect_pieced_value): Remove variable result.  Remove variable
+	back_to and its use for baton.data.
+	(dwarf2_compile_expr_to_ax): Remove variable back_to and its use for
+	block.data.
+	* dwarf2read.c (dwarf2_fetch_die_location_block): Remove xmemdup.
+	Update the function comment.
+
+2011-09-13  Pedro Alves  <pedro@codesourcery.com>
+
+	* inferior.h (ALL_INFERIORS): New.
+	* linux-thread-db.c (thread_db_find_new_threads_2): Remove check
+	for a stopped thread.
+	(thread_db_find_new_threads): Look for threads in all inferiors.
+
+2011-09-13  Pedro Alves  <pedro@codesourcery.com>
+
+	* breakpoint.c (update_watchpoint): Handle the case of the
+	watchpoint to update not being in the breakpoint list yet.
+	(hw_watchpoint_use_count): New, factored out from
+	hw_watchpoint_used_count.
+	(hw_watchpoint_used_count): Rename to ...
+	(hw_watchpoint_used_count_others): ... this.  Add `except'
+	parameter.  Don't count resources of `except'.  Use
+	hw_watchpoint_use_count.
+
+2011-09-13  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdbthread.h (enum thread_state): Moved here.
+	(struct thread_info): Rename `executing_' field to `executing' and
+	`state_' to `state'.
+	* thread.c (enum thread_state): Moved to gdbthread.h.
+	(new_thread, add_thread_silent, delete_thread_1)
+	(any_live_thread_of_process, thread_alive, set_running)
+	(set_running, is_thread_state, any_running, is_executing)
+	(set_executing, finish_thread_state, print_thread_info)
+	(do_captured_thread_select): Adjust.
+
+2011-09-13  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix compatibility with gcc < 4.3 and non-gcc compilers.
+	* amd64-tdep.c (amd64_skip_xmm_prologue): Convert 0b constants.
+
+2011-09-12  Pedro Alves  <pedro@codesourcery.com>
+	    Matt Rice  <ratmice@gmail.com>
+
+	PR gdb/13175
+
+	* interps.c (struct interp) <interpreter_out>: Delete field.
+	(interp_new): Remove the data and uiout parameters and adjust.
+	(interp_set): Only set the current_uiout from the interpreter's
+	uiout after initializing the interpreter.  Adjust call to
+	init_proc.
+	(interp_ui_out): Adjust to call procs->ui_out_proc.
+	(interp_data, interp_name): New.
+	* interps.h (interp_init_ftype): Add `self' parameter.
+	(interp_ui_out_ftype): New typedef.
+	(struct interp_procs) <ui_out_proc>: New method pointer.
+	(interp_new): Remove the data and uiout parameters.
+	(interp_data, interp_name): Declare.
+	* tui/tui-interp.c (tui_init): Adjust prototype.
+	(tui_ui_out): New.
+	(_initialize_tui_interp): Install tui_ui_out.  Don't instanciate
+	tui_out here.  Adjust call to interp_new.
+	* tui/tui-io.c (tui_initialize_io): Don't set current_uiout here.
+	* cli/cli-interp.c (cli_interpreter_init): Adjust prototype.
+	(cli_ui_out): New.
+	(_initialize_cli_interp): Install it.  Adjust call to interp_new.
+	* mi/mi-common.h (struct mi_interp) <uiout>: New field.
+	* mi/mi-interp.c (mi_interpreter_init): Adjust prototype.
+	Initialize mi->uiout depending on the mi_version as extracted from
+	the interpreter's name.
+	(mi_ui_out): New.
+	(_initialize_mi_interp): Install mi_ui_out.  Adjust calls to
+	interp_new.  Don't allocate the ui_out's of the interpreters here.
+
+2011-09-12  Aleksandar Ristovski  <aristovski@qnx.com>
+
+	* solib.c (solib_used): New function.
+	(update_solib_list, reload_shared_libraries_1): Check if objfile is used
+	by another so_list object before freeing it.
+
+2011-09-11  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Code cleanup.
+	* mi/mi-cmd-stack.c (list_args_or_locals): Use enum for the parameter
+	values.
+
+2011-09-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Code cleanup.
+	* amd64-tdep.c (amd64_skip_prologue): Move the XMM code to ...
+	(amd64_skip_xmm_prologue): ... this new function.  Describe its
+	parameters.  No longer use amd64_prologue_line_bug.
+	* defs.h (producer_is_gcc_ge_4): New declaration.
+	* dwarf2read.c (producer_is_gcc_ge_4): Move to utils.c.
+	(process_full_comp_unit): Update its caller.  Remove
+	amd64_prologue_line_bug initialization.
+	* symtab.h (struct symtab): Remove field amd64_prologue_line_bug.
+	* utils.c (producer_is_gcc_ge_4): Moved here from dwarf2read.c.
+
+2011-09-09  Pedro Alves  <pedro@codesourcery.com>
+
+	* linux-nat.h (enum resume_kind): New.
+	(struct lwp_info) <last_resume_kind>: New field.
+	* linux-nat.c (linux_child_follow_fork): Set last_resume_kind to
+	resume_stop on the new lwp.
+	(add_lwp): Set last_resume_kind as resume_continue by default.
+	(lin_lwp_attach_lwp): Set last_resume_kind as resume_stop.
+	(resume_lwp): New, factored out from resume_callback.  Also check
+	for pending status in lp->waitstatus.
+	(resume_callback): Reimplement.
+	(resume_clear_callback): Set last_resume_kind as resume_stop.
+	(resume_set_callback): Set last_resume_kind as resume_continue.
+	(linux_nat_resume, linux_handle_extended_wait): Set
+	last_resume_kind.
+	(running_callback): Also check lp->waitstatus for pending events.
+	(select_singlestep_lwp_callback): Check that lp->last_resume_kind
+	is resume_step.
+	(stop_and_resume_callback): Don't re-resume if the core wanted the
+	lwp stopped.  Use resume_lwp instead of resume_callback.  Avoid
+	using an invalidated pointer.
+	(linux_nat_filter_event): Don't discard SIGSTOPs as delayed
+	SIGSTOPs if the core wanted the LWP to stop.
+	(linux_nat_wait_1) Don't consume a pending SIGSTOP if the core
+	wanted the lwp to stop.  If the core wanted the lwp to stop, and
+	the lwp stopped with a SIGSTOP, report a TARGET_SIGNAL_0 instead
+	of TARGET_SIGNAL_STOP.
+	(linux_nat_stop_lwp): Don't synchronously wait for the lwp to stop
+	here.  Instead, signal the lwp, and set the last_resume_kind to
+	resume_stop.
+
+2011-09-09  Pedro Alves  <pedro@codesourcery.com>
+
+	* linux-nat.c (lin_lwp_attach_lwp): Return 1 (ignore) instead of
+	-1 (error), if the lwp exits right after attaching.
+
 2011-09-08  Doug Evans  <dje@google.com>
 
 	* py-cmd.c: Some minor formatting fixes.
