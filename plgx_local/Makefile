@@ -28,7 +28,7 @@ all: gdb
 
 $(bld_dir)/Makefile: Makefile
 	rsync -au $(work_dir)/* $(bld_dir)/.; \
-	cd $(work_dir);			\
+	cd $(bld_dir);			\
 	./configure $(GDB_CONF_OPTS)
 
 
