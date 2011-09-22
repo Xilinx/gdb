@@ -1,5 +1,3 @@
-#PETALINUX_TARGET?=microblaze-unknown-linux-gnu microblazeel-unknown-linux-gnu powerpc-unknown-linux-gnu
-PETALINUX_TARGET?=microblaze-unknown-elf
 
 work_dir?=$(PWD)/..
 src_dir?=$(work_dir)
@@ -7,7 +5,7 @@ bld_dir?=$(work_dir)/bld
 install_dir?=$(work_dir)/install
 depends_on_dir?=$(TOOL_OUT_DIR)/bin
 
-GDB_TARGET=$(PETALINUX_TARGET)
+GDB_TARGET=microblaze-unknown-elf
 GDB_PREFIX=$(install_dir)
 GDB_SYSROOT_DIR=/sys-root
 
