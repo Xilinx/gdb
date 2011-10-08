@@ -299,6 +299,8 @@ extern int run_once;
 extern int multi_process;
 extern int non_stop;
 
+extern int disable_randomization;
+
 #if USE_WIN32API
 #include <winsock2.h>
 typedef SOCKET gdb_fildes_t;
@@ -538,6 +540,15 @@ struct emit_ops
      argument and a 64-bit int from the top of the stack, and returns
      nothing (for instance, tsv setter).  */
   void (*emit_void_call_2) (CORE_ADDR fn, int arg1);
+
+  /* Emit code specialized for common combinations of compare followed
+     by a goto.  */
+  void (*emit_eq_goto) (int *offset_p, int *size_p);
+  void (*emit_ne_goto) (int *offset_p, int *size_p);
+  void (*emit_lt_goto) (int *offset_p, int *size_p);
+  void (*emit_le_goto) (int *offset_p, int *size_p);
+  void (*emit_gt_goto) (int *offset_p, int *size_p);
+  void (*emit_ge_goto) (int *offset_p, int *size_p);
 };
 
 /* Returns the address of the get_raw_reg function in the IPA.  */

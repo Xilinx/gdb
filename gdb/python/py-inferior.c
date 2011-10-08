@@ -22,6 +22,7 @@
 #include "gdbcore.h"
 #include "gdbthread.h"
 #include "inferior.h"
+#include "objfiles.h"
 #include "observer.h"
 #include "python-internal.h"
 #include "arch-utils.h"
@@ -119,7 +120,26 @@ python_inferior_exit (struct inferior *inf)
   if (inf->has_exit_code)
     exit_code = &inf->exit_code;
 
-  if (emit_exited_event (exit_code) < 0)
+  if (emit_exited_event (exit_code, inf) < 0)
+    gdbpy_print_stack ();
+
+  do_cleanups (cleanup);
+}
+
+/* Callback used to notify Python listeners about new objfiles loaded in the
+   inferior.  */
+
+static void
+python_new_objfile (struct objfile *objfile)
+{
+  struct cleanup *cleanup;
+
+  if (objfile == NULL)
+    return;
+
+  cleanup = ensure_python_env (get_objfile_arch (objfile), current_language);
+
+  if (emit_new_objfile_event (objfile) < 0)
     gdbpy_print_stack ();
 
   do_cleanups (cleanup);
@@ -683,6 +703,20 @@ py_free_inferior (struct inferior *inf, void *datum)
   do_cleanups (cleanup);
 }
 
+/* Implementation of gdb.selected_inferior() -> gdb.Inferior.
+   Returns the current inferior object.  */
+
+PyObject *
+gdbpy_selected_inferior (PyObject *self, PyObject *args)
+{
+  PyObject *inf_obj;
+
+  inf_obj = inferior_to_inferior_object (current_inferior ());
+  Py_INCREF (inf_obj);
+
+  return inf_obj;
+}
+
 void
 gdbpy_initialize_inferior (void)
 {
@@ -701,6 +735,7 @@ gdbpy_initialize_inferior (void)
   observer_attach_normal_stop (python_on_normal_stop);
   observer_attach_target_resumed (python_on_resume);
   observer_attach_inferior_exit (python_inferior_exit);
+  observer_attach_new_objfile (python_new_objfile);
 
   membuf_object_type.tp_new = PyType_GenericNew;
   if (PyType_Ready (&membuf_object_type) < 0)

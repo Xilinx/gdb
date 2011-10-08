@@ -1,3 +1,506 @@
+2011-10-07  Doug Evans  <dje@google.com>
+
+	* python/lib/gdb/printing.py (register_pretty_printer): New argument
+	`replace'.
+
+	* python/lib/gdb/printing.py: Whitespace cleanup.
+
+	* python/py-value.c (valpy_call): Initialize ftype to avoid compiler
+	warning.
+
+2011-10-07  Pedro Alves  <pedro@codesourcery.com>
+
+	* linux-nat.h (ALL_LWPS): Remove the ptid parameter.
+	* amd64-linux-nat.c (amd64_linux_dr_set_control)
+	(amd64_linux_dr_set_addr, amd64_linux_dr_unset_status): Adjust.
+	* arm-linux-nat.c (arm_linux_insert_hw_breakpoint)
+	(arm_linux_remove_hw_breakpoint, arm_linux_insert_watchpoint)
+	(arm_linux_remove_watchpoint): Adjust.
+	* i386-linux-nat.c (i386_linux_dr_set_control)
+	(i386_linux_dr_set_addr, i386_linux_dr_unset_status): Adjust.
+	* ia64-linux-nat.c (ia64_linux_insert_watchpoint)
+	(ia64_linux_remove_watchpoint): Adjust.
+	* mips-linux-nat.c (write_watchpoint_regs): Adjust.
+	* ppc-linux-nat.c (ppc_linux_insert_hw_breakpoint)
+	(ppc_linux_insert_hw_breakpoint, ppc_linux_remove_hw_breakpoint)
+	(ppc_linux_insert_mask_watchpoint)
+	(ppc_linux_remove_mask_watchpoint, ppc_linux_insert_watchpoint)
+	(ppc_linux_remove_watchpoint): Adjust.
+	* s390-nat.c (s390_insert_watchpoint, s390_remove_watchpoint):
+	Adjust.
+
+2011-10-07  Corinna Vinschen  <vinschen@redhat.com>
+
+	* windows-nat.c: Include wchar.h to avoid compiler warnings.
+	(clear_win32_environment): New function for Cygwin to clear out
+	Win32 environment.
+	(windows_create_inferior): Prepare new environment from in_env
+	for Cygwin, too.
+
+2011-10-07  Phil Muldoon  <pmuldoon@redhat.com>
+
+	PR python/13264
+	* python/py-value.c (valpy_call): Check that arguments are
+	a tuple.
+        (is_intlike): Remove call to CHECK_TYPEDEF.
+	(valpy_nonzero): Catch GDB exceptions.
+	(valpy_absolute): Ditto.
+        (valpy_lazy_string): Ditto.
+        (valpy_call): Ditto.
+        (valpy_get_is_optimized_out): Ditto.
+        (valpy_long): Ditto.
+        (valpy_float): Ditto.
+        (valpy_int): Call CHECK_TYPEDEF.  Catch GDB exceptions.
+        (valpy_richcompare): Ditto.
+
+2011-10-07  Ulrich Weigand  <ulrich.weigand@linaro.org>
+
+	* inferior.h (disable_randomization): Declare.
+	* infrun.c (disable_randomization): New global variable.
+	(show_disable_randomization): New function.
+	(set_disable_randomization): Likewise.
+	(_initialize_infrun): Install set/show disable-randomization
+	commands.
+	* linux-nat.c (disable_randomization): Remove.
+	(show_disable_randomization): Likewise.
+	(set_disable_randomization): Likewise.
+	(_initialize_linux_nat): No longer install set/show
+	disable-randomization commands here.
+	(linux_nat_supports_disable_randomization): New function.
+	(linux_nat_add_target): Install it.
+	* remote.c (PACKET_QDisableRandomization): New enum value.
+	(remote_protocol_packets): Support QDisableRandomization.
+	(_initialize_remote): Likewise.
+	(remote_supports_disable_randomization): New function.
+	(init_remote_ops): Install it.
+	(extended_remote_supports_disable_randomization): New function.
+	(init_extended_remote_ops): Install it.
+	(extended_remote_disable_randomization): New function.
+	(extended_remote_create_inferior_1): Call it.
+	* target.h (struct target_ops): Add to_supports_disable_randomization.
+	(target_supports_disable_randomization): Add prototype.
+	* target.c (target_supports_disable_randomization): New function.
+	(find_default_supports_disable_randomization): Likewise.
+	(init_dummy_target): Install it.
+
+2011-10-07  Kevin Pouget  <kevin.pouget@st.com>
+
+	Allow Python notification of new object-file loadings.
+	* Makefile.in (SUBDIR_PYTHON_SRCS): Add py-newobjfilevent.c.
+	(SUBDIR_PYTHON_OBS): Add py-newobjfileevent.o.
+	Add build rule for this file.
+	* python/py-event.h (emit_new_objfile_event): New prototype.
+	(newobjfile): New Python event emitter.
+	* python/py-evts.c (gdbpy_initialize_py_events): Add new_objfile to
+	Python event registry.
+	* python/py-inferior.c: Include objfiles.h
+	(python_new_objfile): New function.
+	(gdbpy_initialize_inferior): Add python_new_objfile to the new objfile
+	observers.
+	* python/py-newobjfileevent.c: New file.
+	* python-internal.h (gdbpy_initialize_new_objfile_event): New
+	prototype.
+	* python/python.c (_initialize_python): Add 
+	gdbpy_initialize_new_objfile_event call.
+	* NEWS: Add item for new Python event "gdb.newobjfile"
+
+2011-10-05  Tristan Gingold  <gingold@adacore.com>
+
+	* ada-tasks.c (read_atcb): Make ravenscar_task_name static.
+	Extract the ravenscar task name from the symbol for the atcb.
+
+2011-10-04  Paul Koning  <paul_koning@dell.com>
+
+	* python/py-type.c (typy_make_iter): Add forward declaration.
+	(typy_fields_items):  Use the gdb.Type iterator.
+
+2011-10-04  Paul Koning  <paul_koning@dell.com>
+
+	* NEWS: Add entry for Python gdb.Type mapping methods.
+
+2011-10-04  Kevin Pouget  <kevin.pouget@st.com>
+
+	PR python/12691: Add the inferior to Python exited event
+	* python/py-exitedevent.c (create_exited_event_object): Add inferior
+	to exited_event.
+	* python/py-event.h (emit_exited_event): Likewise
+	* python/-inferior.c (python_inferior_exit): Likewise
+
+2011-10-03  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-tasks.c (print_ada_task_info): Add "thread-id" field
+	in output of -ada-task-info GDB/MI command.
+
+2011-10-03  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-lang.h (struct inferior): Declare.
+	(print_ada_task_info): Add declaration.
+	* ada-tasks.c (print_ada_task_info): Make non-static.
+	* mi/mi-cmds.c (mi_cmds): Add "ada-task-info".
+	* mi/mi-cmds.h (mi_cmd_ada_task_info): Add declaration.
+	* mi/mi-main.c: #include "ada-lang.h".
+	(mi_cmd_list_features): Add "ada-task-info" to the list
+	of supported features.
+	(mi_cmd_ada_task_info): New function.
+
+2011-10-03  Joel Brobecker  <brobecker@adacore.com>
+
+	* python/python.c (python_run_simple_file): New function.
+	(source_python_script, source_python_script_for_objfile):
+	Replace call to PyRun_SimpleFile by call to
+	python_run_simple_file.
+
+2011-10-03  Paul Koning  <paul_koning@dell.com>
+
+	* python/py-value.c (valpy_get_address): Use Py_XINCREF.
+	(value_to_value_object): Fetch value if it was lazy.
+
+2011-10-02  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Code cleanup.
+	* solib-svr4.c (svr4_default_sos):  Remove variables head and link_ptr.
+	Rearrange the code for it.
+
+2011-10-02  Joel Brobecker  <brobecker@adacore.com>
+
+	* breakpoint.c (bkpt_print_recreate): Add call to
+	print_recreate_thread.
+
+2011-09-29  Mike Frysinger  <vapier@gentoo.org>
+
+	* common/linux-ptrace.h (PTRACE_GETFDPIC, PTRACE_GETFDPIC_EXEC,
+	PTRACE_GETFDPIC_INTERP): Define.
+
+2011-09-28  Yao Qi  <yao@codesourcery.com>
+
+	* symfile.c (add_symbol_file_command): Update message on usage.
+
+2011-09-28  Paul Koning  <paul_koning@dell.com>
+
+	* python/py-type.c (make_fielditem, typy_field_names, typy_items)
+	(typy_length, typy_get, typy_has_key, typy_make_iter)
+	(typy_iterkeys, typy_iteritems, typy_itervalues, typy_iter)
+	(typy_iterator_iter, typy_iterator_iternext)
+	(typy_iterator_dealloc): New functions to implement standard
+	Python mapping methods on gdb.Type object.
+	(gdb.TypeIterator): New Python type.
+	* python/python-internal.h (gdbpy_iter_kind): New enum.
+
+2011-09-28  David S. Miller  <davem@davemloft.net>
+
+	* sparc-tdep.h (SPARC_F2_REGNUM, SPARC_F3_REGNUM, SPARC_F4_REGNUM,
+	SPARC_F5_REGNUM, SPARC_F6_REGNUM, SPARC_F7_REGNUM): New enums.
+	* sparc-tdep.c (sparc_complex_floating_p): New function.
+	(sparc32_store_arguments): Handle complex floats.
+	(sparc32_extract_return_value): Likewise.
+	(sparc32_store_return_value): Likewise.
+	(sparc32_stabs_argument_has_addr): Likewise.
+	* sparc64-tdep.c (sparc64_complex_floating_p): New function.
+	(sparc64_store_floating_fields): Handle complex floats.
+	(sparc64_store_arguments): Likewise.
+	(sparc64_store_return_value): Likewise.
+
+2011-09-28  Eli Zaretskii  <eliz@gnu.org>
+
+	* windows-nat.c (env_sort) [!__CYGWIN__]: Function restored from
+	before the change on 2006-12-09.
+	(windows_create_inferior) [!__CYGWIN__]: Restore code that
+	generates the environment block for CreateProcessA, modulo the
+	Cygwin-specific parts that are not needed here.
+
+2011-09-27  Tristan Gingold  <gingold@adacore.com>
+
+	* target.h (enum target_object): Add TARGET_OBJECT_DARWIN_DYLD_INFO.
+	* solib-darwin.c (DYLD_VERSION_MAX): Update number.
+	(darwin_solib_get_all_image_info_addr_at_init): New function.
+	(darwin_solib_read_all_image_info_addr): Likewise.
+	(darwin_solib_create_inferior_hook): Use the above two functions.
+	* darwin-nat.c (darwin_execvp): Renames retval to res.
+	(darwin_read_write_inferior): Update comment.
+	(darwin_read_dyld_info): New function.
+	(darwin_xfer_partial): Handle DYLD_INFO.
+
+2011-09-27  Stan Shebs  <stan@codesourcery.com>
+
+	Add return address collection for tracepoints.
+	* tracepoint.c (encode_actions_1): Add case for $_ret.
+	(validate_actionline): Check for $_ret.
+	(trace_dump_actions): Ditto.
+	* ax-gdb.h (gen_trace_for_return_address): Declare.
+	* ax-gdb.c: Include arch-utils.h.
+	(gen_trace_for_return_address): New function.
+	(agent_command): Add return address special case.
+	* amd64-tdep.c: Include ax.h and ax-gdb.h.
+	(amd64_gen_return_address): New function.
+	(amd64_init_abi): Call it.
+	* i386-tdep.c: Include ax.h and ax-gdb.h.
+	(i386_gen_return_address): New function.
+	(i386_init_abi): Call it.
+	* arch-utils.h (default_gen_return_address): Declare.
+	* arch-utils.c (default_gen_return_address): New function.
+	* gdbarch.sh (gen_return_address): New method.
+	* gdbarch.h, gdbarch.c: Regenerate.
+
+2011-09-23  Joseph Myers  <joseph@codesourcery.com>
+
+	PR gdb/13079
+	* i386-tdep.c (i386_frame_align): New.
+	(i386_gdbarch_init): Use i386_frame_align.
+
+2011-09-23  Yao Qi  <yao@codesourcery.com>
+
+	* i386-linux-nat.c (i386_linux_resume): Use read_memory_unsigned_integer
+	to get address.
+
+2011-09-22  Tristan Gingold  <gingold@adacore.com>
+
+	* fork-child.c (fork_inferior): Add exec_fun parameter.
+	Call exec_fun or execvp.
+	* inferior.h: Adjust prototype.
+	* gnu-nat.c (gnu_create_inferior): Adjust fork_inferior call.
+	* inf-ttrace.c (inf_ttrace_create_inferior): Ditto.
+	* inf-ptrace.c (inf_ptrace_create_inferior): Ditto.
+	* procfs.c (procfs_create_inferior): Ditto.
+	* darwin-nat.c (darwin_execvp): New function.
+	(darwin_create_inferior): Use it.
+
+2011-09-22  Yao Qi  <yao@codesourcery.com>
+
+	* infrun.c (context_switch): Print debug message when switching to
+	a different thread.
+
+2011-09-21  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* s390-tdep.c (s390_function_arg_pass_by_reference): Handle
+	complex and vector types.
+	(s390_return_value_convention): Likewise.
+
+	(s390_value_from_register): Call check_typedef.
+	(extend_simple_arg): Likewise.
+	(alignment_of): Likewise.
+	(s390_push_dummy_call): Likewise.
+	(s390_return_value): Likewise.
+
+2011-09-21  Joseph Myers  <joseph@codesourcery.com>
+
+	* event-top.c (async_disconnect): If an exception is thrown from
+	quit_cover, call pop_all_targets.  Use TRY_CATCH instead of
+	catch_errors.
+	* top.c (quit_cover): Return void and take no arguments.
+	* top.h (quit_cover): Update prototype.
+
+2011-09-20  Joseph Myers  <joseph@codesourcery.com>
+
+	* mi/mi-main.c (mi_load_progress): Restore saved_uiout value to
+	current_uiout, not uiout.
+
+2011-09-19  Doug Evans  <dje@google.com>
+
+	* python/py-auto-load.c (source_section_scripts): Fix file
+	descriptor leak.
+	* python/python.c (source_python_script_for_objfile): Tweak comments.
+
+2011-09-18  Yao Qi  <yao@codesourcery.com>
+	    Ulrich Weigand  <ulrich.weigand@linaro.org>
+
+	Support displaced stepping for Thumb 16-bit insns.
+	* arm-tdep.c (THUMB_NOP) Define.
+	(thumb_copy_unmodified_16bit): New.
+	(thumb_copy_b, thumb_copy_bx_blx_reg): New.
+	(thumb_copy_alu_reg): New.
+	(arm_copy_svc): Move some common code to ...
+	(install_svc): ... here.  New.
+	(thumb_copy_svc): New.
+	(install_pc_relative): New.
+	(thumb_copy_pc_relative_16bit): New.
+	(thumb_decode_pc_relative_16bit): New.
+	(thumb_copy_16bit_ldr_literal): New.
+	(thumb_copy_cbnz_cbz): New.
+	(cleanup_pop_pc_16bit_all): New.
+	(thumb_copy_pop_pc_16bit): New.
+	(thumb_process_displaced_16bit_insn): New.
+	(thumb_process_displaced_32bit_insn): New.
+	(thumb_process_displaced_insn): process thumb instruction.
+
+	Support displaced stepping for Thumb 32-bit insns.
+	* arm-tdep.c (thumb_copy_unmodified_32bit): New.
+	(thumb2_copy_preload): New.
+	(thumb2_copy_copro_load_store): New.
+	(thumb2_copy_b_bl_blx): New.
+	(thumb2_copy_alu_imm): New.
+	(thumb2_copy_load_reg_imm): New.
+	(thumb2_copy_load_literal): New
+	(thumb2_copy_block_xfer): New.
+	(thumb_32bit_copy_undef): New.
+	(thumb_32bit_copy_unpred): New.
+	(thumb2_decode_ext_reg_ld_st): New.
+	(thumb2_decode_svc_copro): New.
+	(decode_thumb_32bit_store_single_data_item): New.
+	(thumb_copy_pc_relative_32bit): New.
+	(thumb_decode_pc_relative_32bit): New.
+	(decode_thumb_32bit_ld_mem_hints): New.
+	(thumb2_copy_table_branch): New
+	(thumb_process_displaced_32bit_insn): Process Thumb 32-bit
+	instructions.
+
+2011-09-18  Yao Qi  <yao@codesourcery.com>
+
+	* arm-tdep.c (install_copro_load_store): PC is set 4-byte aligned.
+	(install_b_bl_blx): Likewise.
+
+2011-09-17  Yao Qi  <yao@codesourcery.com>
+
+        * arm-tdep.c (install_ldr_str_ldrb_strb): Renamed to ...
+        (install_load_store): ... this.  New.
+        Change parameter BYTE to SIZE.
+        (arm_copy_ldr_str_ldrb_strb): Update caller.
+        (arm_decode_ld_st_word_ubyte): Update caller.
+
+2011-09-17  Yao Qi  <yao@codesourcery.com>
+
+	* infrun.c (displaced_step_fixup): Move some code ...
+	(displaced_step_restore): ... here.  New function.
+	(handle_inferior_event): Cleanup displaced stepping state for both
+	child and parent when get forked or vforked event.
+	* regcache.c (get_thread_arch_aspace_regcache): New function.
+	get_thread_arch_regcache (): Call it.
+
+2011-09-16  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-tasks.c (print_ada_task_info): New function, merging
+	short_task_info and info_tasks together.  Reimplement using
+	ui-out instead of printing to stdout directly.  Move the code
+	building and checking the task list here, instead of leaving it
+	in info_tasks_command.
+	(info_task): Move the code building and checking the task
+	list here, instead of leaving it in info_tasks_command.
+	(info_tasks_command): Delete code building and checking
+	the task list - moved elsewhere.  Update calls to info_tasks
+	and info_task.
+
+2011-09-16  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-tasks.c (info_task): Delete parameter `from_tty'.
+
+2011-09-16  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-tasks.c (info_tasks): Delete parameter `from_tty'.
+
+2011-09-16  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-lang.h (ada_build_task_list): Remove parameter
+	`warn_if_null'.
+	* ada-tasks.c (ada_build_task_list): Remove parameter
+	`warn_if_null'.  Adjust implementation and documentation.
+	(valid_task_id, ada_get_environment_task)
+	iterate_over_live_ada_tasks): Adjust call to ada_build_task_list.
+	(info_tasks_command): Adjust implementation.
+	(task_command): Likewise.
+	* ravenscar-thread.c (ravenscar_find_new_threads): Fix call
+	to ada_build_task_list.
+
+2011-09-16  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-tasks.c (ada_tasks_check_symbol_table, task_list): Delete.
+	(enum ada_known_tasks_kind, struct ada_tasks_inferior_data): New.
+	(ada_tasks_inferior_data_handle): New static global.
+	(get_ada_tasks_inferior_data): New function.
+	(ada_get_task_number, get_task_number_from_id, valid_task_id)
+	(ada_get_environment_task, iterate_over_live_ada_tasks)
+	(add_ada_task, read_known_tasks_array, read_known_tasks_list):
+	Adjust.
+	(ada_set_current_inferior_known_tasks_addr): New function.
+	(read_known_tasks, ada_build_task_list, short_task_info)
+	(info_tasks, info_task, info_tasks_command, task_command_1)
+	(task_command, ada_task_list_changed): Adjust.
+	(ada_tasks_invalidate_inferior_data): New function.
+	(ada_normal_stop_observer, ada_new_objfile_observer): Adjust.
+	(_initialize_tasks): Set ada_tasks_inferior_data_handle.
+	* ada-lang.h (struct inferior): Add declaration.
+	(ada_task_list_changed): Update profile.
+	* remote-wtx-pd.c: #include "inferior.h".
+	(switch_to_pd_internal): Update call to ada_task_list_changed.
+
+2011-09-16  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-tasks.c: #include "progspace.h" and "objfiles.h".
+	(atcb_type, atcb_common_type, atcb_ll_type, atcb_call_type)
+	(atcb_fieldno): Delete these static globals.
+	(struct ada_tasks_pspace_data): New struct.
+	(ada_tasks_pspace_data_handle): New static global.
+	(get_ada_tasks_pspace_data): New function.
+	(ada_tasks_invalidate_pspace_data): New function.
+	(get_tcb_types_info, ptid_from_atcb_common, read_atcb)
+	(read_known_tasks_list, ada_new_objfile_observer): Adjust.
+	(_initialize_tasks): Create this module's per-progspace
+	data handle.
+
+2011-09-16  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-tasks.c (struct atcb_fieldnos): Renames struct tcb_fieldnos.
+
+2011-09-16  Tristan Gingold  <gingold@adacore.com>
+
+	* fork-child.c (fork_inferior): Update comment.  Use alloca
+	instead of xmalloc for argv.  Move len and shell_command
+	declarations in the block where they are used.
+	Only call execvp.  Factorize failure code.
+
+2011-09-16  Abhijit Halder  <abhijit.k.halder@gmail.com>
+
+	Code cleanup.
+	* parse.c (write_exp_elt): Change argument to pass a pointer of union
+	`exp_element' instead of an element of the same and make the function
+	static.
+	(write_exp_elt_opcode, write_exp_elt_sym, write_exp_elt_block)
+	(write_exp_elt_objfile, write_exp_elt_longcst, write_exp_elt_dblcst)
+	(write_exp_elt_decfloatcst, write_exp_elt_type, write_exp_elt_intern):
+	Change argument of `write_exp_elt' function call.
+	Remove extra spaces from comments.
+	* parser-defs.h (write_exp_elt): Remove prototype.
+
+2011-09-15  Paul Koning  <paul_koning@dell.com>
+
+	* python/py-cmd.c (gdbpy_string_to_argv): Decrement reference
+	count of item appended to list.
+	* python/py-type.c (typy_fields): Likewise.
+
+2011-09-15  Paul Koning  <paul_koning@dell.com>
+
+	* MAINTAINERS (Write After Approval): Add myself to the list.
+
+2011-09-15  Kevin Pouget  <kevin.pouget@st.com>
+
+	PR threads/12628
+	* linux-fork.c (checkpoint_command): Disallow checkpointing of
+	processes with multiple threads.
+	(inf_has_multiple_thread_cb): New function.
+	(inf_has_multiple_threads): New function.
+
+2011-09-15  Kevin Pouget  <kevin.pouget@st.com>
+
+	PR Python/12692 Add gdb.selected_inferior() to Python interface.
+	* python/py-inferior.c (GdbMethods): New Python method definition.
+
+2011-09-15  Kevin Pouget  <kevin.pouget@st.com>
+
+	Handle multiple breakpoint hits in Python interface:
+	* python/py-bpevent.c (create_breakpoint_event_object): Rename C/Python
+	variable to breakpoints.
+	* python/py-stopevent.c (emit_stop_event): Return a Python tuple of
+	bps instead of single breakpoint. Fix some space typos.
+	* python/py-stopevent.c (create_breakpoint_event_object): Rename
+	variable to breakpoints.
+
+2011-09-15  Kevin Pouget  <kevin.pouget@st.com>
+
+	* breakpoint.c (describe_other_breakpoints): Do not write 'duplicate'
+	note if the breakpoint is internal.
+
+2011-09-15  Kevin Pouget  <kevin.pouget@st.com>
+
+	* MAINTAINERS (Write After Approval): Add myself to the list
+
 2011-09-14  Pedro Alves  <pedro@codesourcery.com>
 
 	* infrun.c (prepare_for_detach, wait_for_inferior)

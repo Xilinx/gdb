@@ -60,6 +60,9 @@
 #include "features/i386/i386-avx.c"
 #include "features/i386/i386-mmx.c"
 
+#include "ax.h"
+#include "ax-gdb.h"
+
 /* Register names.  */
 
 static const char *i386_register_names[] =
@@ -2074,6 +2077,22 @@ static const struct frame_unwind i386_stack_tramp_frame_unwind =
   i386_stack_tramp_frame_sniffer
 };
 
+/* Generate a bytecode expression to get the value of the saved PC.  */
+
+static void
+i386_gen_return_address (struct gdbarch *gdbarch,
+			 struct agent_expr *ax, struct axs_value *value,
+			 CORE_ADDR scope)
+{
+  /* The following sequence assumes the traditional use of the base
+     register.  */
+  ax_reg (ax, I386_EBP_REGNUM);
+  ax_const_l (ax, 4);
+  ax_simple (ax, aop_add);
+  value->type = register_type (gdbarch, I386_EIP_REGNUM);
+  value->kind = axs_lvalue_memory;
+}
+
 
 /* Signal trampolines.  */
 
@@ -2227,6 +2246,15 @@ i386_dummy_id (struct gdbarch *gdbarch, struct frame_info *this_frame)
 
   /* See the end of i386_push_dummy_call.  */
   return frame_id_build (fp + 8, get_frame_pc (this_frame));
+}
+
+/* _Decimal128 function return values need 16-byte alignment on the
+   stack.  */
+
+static CORE_ADDR
+i386_frame_align (struct gdbarch *gdbarch, CORE_ADDR sp)
+{
+  return sp & -(CORE_ADDR)16;
 }
 
 
@@ -7316,6 +7344,7 @@ i386_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   /* Call dummy code.  */
   set_gdbarch_push_dummy_call (gdbarch, i386_push_dummy_call);
+  set_gdbarch_frame_align (gdbarch, i386_frame_align);
 
   set_gdbarch_convert_register_p (gdbarch, i386_convert_register_p);
   set_gdbarch_register_to_value (gdbarch,  i386_register_to_value);
@@ -7399,6 +7428,8 @@ i386_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   tdesc_data = tdesc_data_alloc ();
 
   set_gdbarch_relocate_instruction (gdbarch, i386_relocate_instruction);
+
+  set_gdbarch_gen_return_address (gdbarch, i386_gen_return_address);
 
   /* Hook in ABI-specific overrides, if they have been registered.  */
   info.tdep_info = (void *) tdesc_data;

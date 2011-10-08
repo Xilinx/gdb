@@ -996,7 +996,15 @@ coff_write_alien_symbol (bfd *abfd,
   asection *output_section = symbol->section->output_section
 			       ? symbol->section->output_section
 			       : symbol->section;
+  struct bfd_link_info *link_info = coff_data (abfd)->link_info;
 
+  if ((!link_info || link_info->strip_discarded)
+      && !bfd_is_abs_section (symbol->section)
+      && symbol->section->output_section == bfd_abs_section_ptr)
+    {
+      symbol->name = "";
+      return TRUE;
+    }
   native = &dummy;
   native->u.syment.n_type = T_NULL;
   native->u.syment.n_flags = 0;
@@ -1061,6 +1069,15 @@ coff_write_native_symbol (bfd *abfd,
 {
   combined_entry_type *native = symbol->native;
   alent *lineno = symbol->lineno;
+  struct bfd_link_info *link_info = coff_data (abfd)->link_info;
+
+  if ((!link_info || link_info->strip_discarded)
+      && !bfd_is_abs_section (symbol->symbol.section)
+      && symbol->symbol.section->output_section == bfd_abs_section_ptr)
+    {
+      symbol->symbol.name = "";
+      return TRUE;
+    }
 
   /* If this symbol has an associated line number, we must store the
      symbol index in the line number field.  We also tag the auxent to
@@ -2085,13 +2102,14 @@ _bfd_coff_is_local_label_name (bfd *abfd ATTRIBUTE_UNUSED,
    nearest to the wanted location.  */
 
 bfd_boolean
-coff_find_nearest_line (bfd *abfd,
-			asection *section,
-			asymbol **symbols,
-			bfd_vma offset,
-			const char **filename_ptr,
-			const char **functionname_ptr,
-			unsigned int *line_ptr)
+coff_find_nearest_line_with_names (bfd *abfd,
+                                   const struct dwarf_debug_section *debug_sections,
+                                   asection *section,
+                                   asymbol **symbols,
+                                   bfd_vma offset,
+                                   const char **filename_ptr,
+                                   const char **functionname_ptr,
+                                   unsigned int *line_ptr)
 {
   bfd_boolean found;
   unsigned int i;
@@ -2116,7 +2134,8 @@ coff_find_nearest_line (bfd *abfd,
     return TRUE;
 
   /* Also try examining DWARF2 debugging information.  */
-  if (_bfd_dwarf2_find_nearest_line (abfd, section, symbols, offset,
+  if (_bfd_dwarf2_find_nearest_line (abfd, debug_sections,
+                                     section, symbols, offset,
 				     filename_ptr, functionname_ptr,
 				     line_ptr, 0,
 				     &coff_data(abfd)->dwarf2_find_line_info))
@@ -2296,6 +2315,21 @@ coff_find_nearest_line (bfd *abfd,
     }
 
   return TRUE;
+}
+
+bfd_boolean
+coff_find_nearest_line (bfd *abfd,
+			asection *section,
+			asymbol **symbols,
+			bfd_vma offset,
+			const char **filename_ptr,
+			const char **functionname_ptr,
+			unsigned int *line_ptr)
+{
+  return coff_find_nearest_line_with_names (abfd, dwarf_debug_sections,
+                                            section, symbols, offset,
+                                            filename_ptr, functionname_ptr,
+                                            line_ptr);
 }
 
 bfd_boolean

@@ -1,3 +1,148 @@
+2011-10-08  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/13250
+	* elflink.c (elf_link_add_object_symbols): Preserve the maximum
+	alignment and size for common symbols.
+
+2011-10-08  Alan Modra  <amodra@gmail.com>
+
+	PR ld/13229
+	PR ld/13244
+	* elflink.c (elf_link_add_object_symbols): Don't make IR symbols
+	dynamic.
+
+2011-10-08  Alan Modra  <amodra@gmail.com>
+
+	PR ld/13229
+	* elflink.c (elf_link_output_extsym): Strip defined plugin symbols
+	even when strip_discarded is false.
+
+2011-10-05  Kai Tietz  <ktietz@redhat.com>
+
+	* coffgen.c (coff_write_alien_symbol): Don't write
+	symbol for discarded sections, if strip_discarded isn't
+	explicit set to false.
+	(coff_write_native_symbol): Likewise.
+
+2011-10-05  DJ Delorie  <dj@redhat.com>
+	    Nick Clifton  <nickc@redhat.com>
+
+	* elf32-rx.c: Add support for PID mode.
+	(rx_elf_relocate_section): Add checks for unsafe PID relocations.
+	Include addend in R_RX_SYM relocations.
+
+2011-09-30  Tristan Gingold  <gingold@adacore.com>
+
+	* dwarf2.c (struct dwarf2_debug): Add field debug_sections.
+	(read_section): Add sec argument. Adjust the code to get section
+	names from it.
+	(read_indirect_string): Adjust call to read_section.
+	(read_abbrevs): Ditto.
+	(decode_line_info): Ditto.
+	(read_debug_ranges): Ditto.
+	(DWARF2_DEBUG_INFO, DWARF2_COMPRESSED_DEBUG_INFO): Remove.
+	(find_debug_info): Add debug_sections parameter.  Use it instead
+	the above macros.
+	(place_sections): Get section names from stash.
+	(find_line): Add debug_sections argument.  Initialize
+	debug_sections field of stash from it.
+	Adjust calls to find_debug_info.
+	(_bfd_dwarf2_find_nearest_line): Add debug_sections argument.
+	Adjust call to find_line.
+	(_bfd_dwarf2_find_line): Adjust call to find_line.
+	* libcoff-in.h (struct dwarf_debug_section): New declaration.
+	(coff_find_nearest_line_with_names): Likewise.
+	* libcoff.h: Regenerate.
+	* libbfd-in.h (struct dwarf_debug_section): Move declaration.
+	(dwarf_debug_sections): Likewise.
+	(_bfd_dwarf2_find_nearest_line): Add debug_sections argument.
+	* libbfd.h: Regenerate.
+	* elf.c (_bfd_elf_find_nearest_line): Adjust call to
+	_bfd_dwarf2_find_nearest_line.
+	* elfxx-mips.c (_bfd_mips_elf_find_nearest_line): Ditto.
+	* elf64-alpha.c (elf64_alpha_find_nearest_line): Ditto.
+	* elf32-arm.c (elf32_arm_find_nearest_line): Ditto.
+	* coffgen.c (coff_find_nearest_line_with_names): New function.
+	(coff_find_nearest_line): Calls coff_find_nearest_line_with_names.
+	* coff-rs6000.c (xcoff_debug_sections): New constant.
+	(xcoff_find_nearest_line): New function.
+	(rs6000coff_vec): Use xcoff_find_nearest_line.
+	(pmac_xcoff_vec): Ditto.
+
+2011-09-30  Alan Modra  <amodra@gmail.com>
+
+	PR ld/13235
+	* elf64-ppc.c (struct ppc64_elf_obj_tdata): Add ha_relocs_not_using_r2.
+	(ppc64_elf_edit_toc): Check HA relocs.
+	(ha_reloc_match): Delete function.
+	(ppc64_elf_relocate_section): Remove delayed HA nop optimization.
+	Instead do it and low part optimization based on
+	ha_relocs_not_using_r2.
+
+2011-09-29  Alan Modra  <amodra@gmail.com>
+
+	PR ld/13233
+	* elflink.c (_bfd_elf_gc_mark_extra_sections): Mark single member
+	debug and special section groups.
+
+2011-09-29  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/13195
+	* elflink.c (_bfd_elf_merge_symbol): Don't set dynamic_def when
+	clearing def_dynamic.
+	(elf_link_add_object_symbols): Likewise.  Set dynamic_def when
+	setting def_dynamic.
+	(bfd_elf_gc_mark_dynamic_ref_symbol): Check if a symbol is
+	versioned.
+
+2011-09-27  Kai Tietz  <ktietz@redhat.com>
+
+	* coffcode.h (sec_to_styp_flags): Handle
+	SEC_LINK_DUPLICATES_SAME_CONTENTS, and
+	SEC_LINK_DUPLICATES_SAME_SIZE.
+
+2011-09-22  Tristan Gingold  <gingold@adacore.com>
+
+	* configure.in: Bump version to 2.22.51
+	* configure: Regenerate.
+
+2011-09-21  David S. Miller  <davem@davemloft.net>
+
+	* elfxx-sparc.c (_bfd_sparc_elf_merge_private_bfd_data): New.
+	* elfxx-sparc.h: Declare it.
+	* elf32-sparc.c (elf32_sparc_merge_private_bfd_data): Call it.
+	* elf64-sparc.c (elf64_sparc_merge_private_bfd_data): Likewise.
+
+2011-09-21  Tristan Gingold  <gingold@adacore.com>
+
+	* mach-o.c (bfd_mach_o_convert_section_name_to_bfd): Add comment.
+	Deals with size limited strings.
+	(bfd_mach_o_build_commands): Initialize more fields.
+
+2011-09-15  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/13177
+	* elflink.c (elf_gc_sweep_symbol): Also hide symbols without PLT
+	nor GOT references.
+
+2011-09-15  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/12975
+	* bfd-in.h (bfd_elf_size_dynamic_sections): Remove pointer
+	to struct bfd_elf_version_tree.
+
+	* elflink.c (elf_info_failed): Remove verdefs.
+	(_bfd_elf_export_symbol): Updated.
+	_bfd_elf_link_assign_sym_version): Likewise.
+	(bfd_elf_size_dynamic_sections): Remove pointer to struct
+	bfd_elf_version_tree.  Updated.
+	(bfd_elf_gc_mark_dynamic_ref_symbol): Check if a symbol is hidden
+	by linker script.
+
+	* linker.c (bfd_hide_sym_by_version): New.
+
+	* bfd-in2.h: Regenerated.
+
 2011-09-12  H.J. Lu  <hongjiu.lu@intel.com>
 
 	PR ld/13178

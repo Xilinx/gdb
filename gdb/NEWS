@@ -38,6 +38,17 @@
 
   ** Symbols now provide the "type" attribute, the type of the symbol.
 
+  ** The "gdb.breakpoint" function has been deprecated in favor of
+     "gdb.breakpoints".
+
+  ** Type objects for struct and union types now allow access to
+     the fields using standard Python dictionary (mapping) methods.
+     For example, "some_type['myfield']" now works, as does
+     "some_type.items()".
+
+  ** A new event "gdb.new_objfile" has been added, triggered by loading a
+     new object file.
+
 * libthread-db-search-path now supports two special values: $sdir and $pdir.
   $sdir specifies the default system locations of shared libraries.
   $pdir specifies the directory where the libpthread used by the application

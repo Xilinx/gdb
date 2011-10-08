@@ -707,11 +707,10 @@ static void
 i386_linux_dr_set_control (unsigned long control)
 {
   struct lwp_info *lp;
-  ptid_t ptid;
 
   i386_linux_dr[DR_CONTROL] = control;
-  ALL_LWPS (lp, ptid)
-    i386_linux_dr_set (ptid, DR_CONTROL, control);
+  ALL_LWPS (lp)
+    i386_linux_dr_set (lp->ptid, DR_CONTROL, control);
 }
 
 /* Set address REGNUM (zero based) to ADDR in all LWPs of LWP_LIST.  */
@@ -720,13 +719,12 @@ static void
 i386_linux_dr_set_addr (int regnum, CORE_ADDR addr)
 {
   struct lwp_info *lp;
-  ptid_t ptid;
 
   gdb_assert (regnum >= 0 && regnum <= DR_LASTADDR - DR_FIRSTADDR);
 
   i386_linux_dr[DR_FIRSTADDR + regnum] = addr;
-  ALL_LWPS (lp, ptid)
-    i386_linux_dr_set (ptid, DR_FIRSTADDR + regnum, addr);
+  ALL_LWPS (lp)
+    i386_linux_dr_set (lp->ptid, DR_FIRSTADDR + regnum, addr);
 }
 
 /* Set address REGNUM (zero based) to zero in all LWPs of LWP_LIST.  */
@@ -751,15 +749,14 @@ static void
 i386_linux_dr_unset_status (unsigned long mask)
 {
   struct lwp_info *lp;
-  ptid_t ptid;
 
-  ALL_LWPS (lp, ptid)
+  ALL_LWPS (lp)
     {
       unsigned long value;
-      
-      value = i386_linux_dr_get (ptid, DR_STATUS);
+
+      value = i386_linux_dr_get (lp->ptid, DR_STATUS);
       value &= ~mask;
-      i386_linux_dr_set (ptid, DR_STATUS, value);
+      i386_linux_dr_set (lp->ptid, DR_STATUS, value);
     }
 }
 
@@ -893,7 +890,8 @@ i386_linux_resume (struct target_ops *ops,
 
 	      regcache_cooked_read_unsigned (regcache, I386_ESP_REGNUM, &sp);
 	      if (syscall == SYS_rt_sigreturn)
-		addr = read_memory_integer (sp + 8, 4, byte_order) + 20;
+		addr = read_memory_unsigned_integer (sp + 8, 4, byte_order)
+		  + 20;
 	      else
 		addr = sp;
 
