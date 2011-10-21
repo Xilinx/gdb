@@ -47,7 +47,9 @@ gdb_test_multiple "python print 23" "verify python support" {
 
       # If Python is not supported, verify that sourcing a python script
       # causes an error.
-      gdb_test "source $srcdir/$subdir/source2.py" "Error in sourced command file:.*"
+      gdb_test "source $srcdir/$subdir/source2.py" \
+	  "Error in sourced command file:.*" \
+	  "source source2.py when python disabled"
       return -1
     }
     -re "$gdb_prompt $"	{}
@@ -73,7 +75,7 @@ gdb_py_test_multiple "indented multi-line python command" \
   "foo ()" "" \
   "end" "hello, world!"
 
-gdb_test "source $srcdir/$subdir/source2.py" "yes"
+gdb_test "source $srcdir/$subdir/source2.py" "yes" "source source2.py"
 
 gdb_test "python print gdb.current_objfile()" "None"
 gdb_test "python print gdb.objfiles()" "\\\[\\\]"
@@ -106,7 +108,13 @@ gdb_test_no_output "set height $lines"
 
 set test "verify pagination beforehand"
 gdb_test_multiple "python print \"\\n\" * $lines" $test {
-    -re "---Type <return> to continue, or q <return> to quit---$" {
+    -re "---Type <return>" {
+	exp_continue
+    }
+    -re " to continue, or q <return>" {
+	exp_continue
+    }
+    -re " to quit---$" {
 	pass $test
     }
 }
@@ -116,7 +124,13 @@ gdb_test "python if gdb.execute('python print \"\\\\n\" * $lines', to_string=Tru
 
 set test "verify pagination afterwards"
 gdb_test_multiple "python print \"\\n\" * $lines" $test {
-    -re "---Type <return> to continue, or q <return> to quit---$" {
+    -re "---Type <return>" {
+	exp_continue
+    }
+    -re " to continue, or q <return>" {
+	exp_continue
+    }
+    -re " to quit---$" {
 	pass $test
     }
 }

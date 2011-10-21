@@ -15,6 +15,10 @@
 
 * Python scripting
 
+  ** The register_pretty_printer function in module gdb.printing now takes
+     an optional `replace' argument.  If True, the new printer replaces any
+     existing one.
+
   ** The "maint set python print-stack on|off" command has been
      deprecated, and a new command: "set python print-stack on|off" has
      replaced it.  Additionally, the default for "print-stack" is now
@@ -36,10 +40,23 @@
     'data-directory'/python/gdb/function are now automatically loaded
      on GDB start-up.
 
+  ** Blocks now provide four new attributes.  global_block and
+     static_block will return the global and static blocks
+     respectively.  is_static and is_global are boolean attributes
+     that indicate if the block is one of those two types.
+
   ** Symbols now provide the "type" attribute, the type of the symbol.
 
   ** The "gdb.breakpoint" function has been deprecated in favor of
      "gdb.breakpoints".
+
+  ** Type objects for struct and union types now allow access to
+     the fields using standard Python dictionary (mapping) methods.
+     For example, "some_type['myfield']" now works, as does
+     "some_type.items()".
+
+  ** A new event "gdb.new_objfile" has been added, triggered by loading a
+     new object file.
 
 * libthread-db-search-path now supports two special values: $sdir and $pdir.
   $sdir specifies the default system locations of shared libraries.
@@ -73,7 +90,12 @@
   the first connection is made.  The listening port used by GDBserver will
   become available after that.
 
-* New commands "info macros", and "info definitions" have been added.
+* New commands "info macros", "info definitions",
+  and "alias" have been added.
+
+* New function parameters suffix @entry specifies value of function parameter
+  at the time the function got called.  Entry values are available only since
+  gcc version 4.7.
 
 * Changed commands
 
@@ -91,6 +113,19 @@ info auto-load-scripts [REGEXP]
   tracepoints; GDB will display a warning, but will allow the experiment to
   begin, assuming that tracepoints will be enabled as needed while the trace
   is running.
+
+* New options
+
+set print entry-values (both|compact|default|if-needed|no|only|preferred)
+show print entry-values
+  Set printing of frame argument values at function entry.  In some cases
+  GDB can determine the value of function argument which was passed by the
+  function caller, even if the value was modified inside the called function.
+
+set debug entry-values
+show debug entry-values
+  Control display of debugging info for determining frame argument values at
+  function entry and virtual tail call frames.
 
 * New remote packets
 

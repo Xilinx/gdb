@@ -1,3 +1,245 @@
+2011-10-20  Nick Clifton  <nickc@redhat.com>
+
+	PR ld/13049
+	* elf32-arm.c (STUB_SUFFIX): Avoid collision with user namespace
+	symbol names.
+	* elf64-ppc.c (STUB_SUFFIX): Likewise.
+	* elf32-hppa.c (STUB_SUFFIX): Likewise.
+
+2011-10-20  Alan Modra  <amodra@gmail.com>
+
+	* elf32-i386.c (i386_opcode16): Delete.
+	(elf_i386_check_tls_transition): Use memcmp to compare contents.
+	* elf64-x86-64.c (x86_64_opcode16, x86_64_opcode32): Delete.
+	(elf_x86_64_check_tls_transition): Use memcmp to compare contents.
+
+2011-10-19  Alan Modra  <amodra@gmail.com>
+
+	PR ld/13177
+	* elflink.c (_bfd_elf_gc_mark_rsec): Set symbol "mark".
+	(elf_gc_sweep_symbol): Don't test plt/got refcounts, instead test
+	"mark".  Hide undefweak too.  Clear def_regular and ref_regular.
+	* elf-m10300.c (mn10300_elf_relocate_section): Ignore unresolved
+	reloc errors from garbage-collected code.
+	* elf32-arm.c (elf32_arm_relocate_section): Likewise.
+	* elf32-bfin.c (bfin_relocate_section): Likewise.
+	(bfinfdpic_relocate_section): Likewise.
+	* elf32-cris.c (cris_elf_relocate_section): Likewise.
+	* elf32-frv.c (elf32_frv_relocate_section): Likewise.
+	* elf32-i386.c (elf_i386_relocate_section): Likewise.
+	* elf32-m32r.c (m32r_elf_relocate_section): Likewise.
+	* elf32-m68k.c (elf_m68k_relocate_section): Likewise.
+	* elf32-ppc.c (ppc_elf_relocate_section): Likewise.
+	* elf32-s390.c (elf_s390_relocate_section): Likewise.
+	* elf32-sh.c (sh_elf_relocate_section): Likewise.
+	* elf32-spu.c (spu_elf_relocate_section): Likewise.
+	* elf32-tilepro.c (tilepro_elf_relocate_section): Likewise.
+	* elf32-xtensa.c (elf_xtensa_relocate_section): Likewise.
+	* elf64-alpha.c (elf64_alpha_relocate_section): Likewise.
+	* elf64-ppc.c (ppc64_elf_relocate_section): Likewise.
+	* elf64-s390.c (elf_s390_relocate_section): Likewise.
+	* elf64-sh64.c (sh_elf64_relocate_section): Likewise.
+	* elf64-x86-64.c (elf_x86_64_relocate_section): Likewise.
+	* elfxx-sparc.c (_bfd_sparc_elf_relocate_section): Likewise.
+	* elfxx-tilegx.c (tilegx_elf_relocate_section): Likewise.
+
+2011-10-19  Alan Modra  <amodra@gmail.com>
+
+	PR ld/13311
+	* elflink.c (elf_link_output_extsym): Correct test for warning when
+	forced local executable syms are referenced from shared libraries.
+
+2011-10-19  Alan Modra  <amodra@gmail.com>
+
+	PR ld/13254
+	* elflink.c (bfd_elf_final_link): Emit error_textrel error.
+
+2011-10-18  David S. Miller  <davem@davemloft.net>
+
+	PR binutils/13301
+	* elfxx-sparc.c (sparc_elf_find_reloc_at_ofs): New function.
+	(_bfd_sparc_elf_relocate_section): Always move the __tls_get_addr
+	call delay slot instruction forward 4 bytes when performing
+	relaxation.
+
+2011-10-17  Alan Modra  <amodra@gmail.com>
+
+	PR ld/12975
+	PR ld/13195
+	* elf64-ppc.c (ppc64_elf_gc_mark_dynamic_ref): Apply 2011-09-15
+	and 2011-09-29 bfd_elf_gc_mark_dynamic_ref_symbol changes here too.
+
+2011-10-14  Hans-Peter Nilsson  <hp@axis.com>
+
+	* elf32-cris.c (cris_elf_gc_sweep_hook) <R_CRIS_16_GOTPLT>
+	<R_CRIS_32_GOTPLT>: Fix missing update of gotplt refcount for
+	global symbols.
+	<R_CRIS_8, R_CRIS_16, R_CRIS_32>: New cases for similar missing
+	updates of the plt refcount.
+	(elf_cris_adjust_gotplt_to_got): Assert integrity of the gotplt
+	refcount in relation to the plt refcount.
+
+2011-10-13  Richard Sandiford  <richard.sandiford@linaro.org>
+
+	* elf32-arm.c (elf32_arm_final_link_relocate): Mark PLT calls via
+	stubs as resolved.
+
+2011-10-11  Alan Modra  <amodra@gmail.com>
+
+	PR binutils/13278
+	* archive.c (bfd_generic_archive_p): Only check first element
+	when target_defaulted.
+	(_bfd_construct_extended_name_table): Use ar_maxnamelen.
+	(_bfd_archive_bsd44_construct_extended_name_table): Likewise.
+
+2011-10-11  Alan Modra  <amodra@gmail.com>
+
+	PR binutils/13257
+	* archive.c (_bfd_find_nested_archive, _bfd_get_elt_at_filepos): Open
+	thin archive element using container target if not defaulted.
+
+2011-10-10  Nick Clifton  <nickc@redhat.com>
+
+	* po/es.po: Updated Spanish translation.
+	* po/fi.po: Updated Finnish translation.
+	* po/fr.po: Updated French translation.
+	* po/ru.po: Updated Russian translation.
+
+2011-10-10  Alan Modra  <amodra@gmail.com>
+
+	* elf64-ppc.c (ppc64_elf_howto_table): Add R_PPC64_TOCSAVE entry.
+	(struct ppc_link_hash_table): Add tocsave_htab.
+	(struct tocsave_entry): New.
+	(tocsave_htab_hash, tocsave_htab_eq, tocsave_find): New functions.
+	(ppc64_elf_link_hash_table_create): Create tocsave_htab..
+	(ppc64_elf_link_hash_table_free): ..and delete it.
+	(build_plt_stub): Always put STD_R2_40R1 first.
+	(ppc64_elf_size_stubs): Check for R_PPC64_TOCSAVE following reloc
+	on plt call.  If present add prologue nop location to tocsave_htab.
+	(ppc64_elf_relocate_section): Convert prologue nop to std.  Skip
+	first insn of plt call stub when R_PPC64_TOCSAVE present.
+
+2011-10-08  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/13250
+	* elflink.c (elf_link_add_object_symbols): Preserve the maximum
+	alignment and size for common symbols.
+
+2011-10-08  Alan Modra  <amodra@gmail.com>
+
+	PR ld/13229
+	PR ld/13244
+	* elflink.c (elf_link_add_object_symbols): Don't make IR symbols
+	dynamic.
+
+2011-10-08  Alan Modra  <amodra@gmail.com>
+
+	PR ld/13229
+	* elflink.c (elf_link_output_extsym): Strip defined plugin symbols
+	even when strip_discarded is false.
+
+2011-10-05  Kai Tietz  <ktietz@redhat.com>
+
+	* coffgen.c (coff_write_alien_symbol): Don't write
+	symbol for discarded sections, if strip_discarded isn't
+	explicit set to false.
+	(coff_write_native_symbol): Likewise.
+
+2011-10-05  DJ Delorie  <dj@redhat.com>
+	    Nick Clifton  <nickc@redhat.com>
+
+	* elf32-rx.c: Add support for PID mode.
+	(rx_elf_relocate_section): Add checks for unsafe PID relocations.
+	Include addend in R_RX_SYM relocations.
+
+2011-09-30  Tristan Gingold  <gingold@adacore.com>
+
+	* dwarf2.c (struct dwarf2_debug): Add field debug_sections.
+	(read_section): Add sec argument. Adjust the code to get section
+	names from it.
+	(read_indirect_string): Adjust call to read_section.
+	(read_abbrevs): Ditto.
+	(decode_line_info): Ditto.
+	(read_debug_ranges): Ditto.
+	(DWARF2_DEBUG_INFO, DWARF2_COMPRESSED_DEBUG_INFO): Remove.
+	(find_debug_info): Add debug_sections parameter.  Use it instead
+	the above macros.
+	(place_sections): Get section names from stash.
+	(find_line): Add debug_sections argument.  Initialize
+	debug_sections field of stash from it.
+	Adjust calls to find_debug_info.
+	(_bfd_dwarf2_find_nearest_line): Add debug_sections argument.
+	Adjust call to find_line.
+	(_bfd_dwarf2_find_line): Adjust call to find_line.
+	* libcoff-in.h (struct dwarf_debug_section): New declaration.
+	(coff_find_nearest_line_with_names): Likewise.
+	* libcoff.h: Regenerate.
+	* libbfd-in.h (struct dwarf_debug_section): Move declaration.
+	(dwarf_debug_sections): Likewise.
+	(_bfd_dwarf2_find_nearest_line): Add debug_sections argument.
+	* libbfd.h: Regenerate.
+	* elf.c (_bfd_elf_find_nearest_line): Adjust call to
+	_bfd_dwarf2_find_nearest_line.
+	* elfxx-mips.c (_bfd_mips_elf_find_nearest_line): Ditto.
+	* elf64-alpha.c (elf64_alpha_find_nearest_line): Ditto.
+	* elf32-arm.c (elf32_arm_find_nearest_line): Ditto.
+	* coffgen.c (coff_find_nearest_line_with_names): New function.
+	(coff_find_nearest_line): Calls coff_find_nearest_line_with_names.
+	* coff-rs6000.c (xcoff_debug_sections): New constant.
+	(xcoff_find_nearest_line): New function.
+	(rs6000coff_vec): Use xcoff_find_nearest_line.
+	(pmac_xcoff_vec): Ditto.
+
+2011-09-30  Alan Modra  <amodra@gmail.com>
+
+	PR ld/13235
+	* elf64-ppc.c (struct ppc64_elf_obj_tdata): Add ha_relocs_not_using_r2.
+	(ppc64_elf_edit_toc): Check HA relocs.
+	(ha_reloc_match): Delete function.
+	(ppc64_elf_relocate_section): Remove delayed HA nop optimization.
+	Instead do it and low part optimization based on
+	ha_relocs_not_using_r2.
+
+2011-09-29  Alan Modra  <amodra@gmail.com>
+
+	PR ld/13233
+	* elflink.c (_bfd_elf_gc_mark_extra_sections): Mark single member
+	debug and special section groups.
+
+2011-09-29  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/13195
+	* elflink.c (_bfd_elf_merge_symbol): Don't set dynamic_def when
+	clearing def_dynamic.
+	(elf_link_add_object_symbols): Likewise.  Set dynamic_def when
+	setting def_dynamic.
+	(bfd_elf_gc_mark_dynamic_ref_symbol): Check if a symbol is
+	versioned.
+
+2011-09-27  Kai Tietz  <ktietz@redhat.com>
+
+	* coffcode.h (sec_to_styp_flags): Handle
+	SEC_LINK_DUPLICATES_SAME_CONTENTS, and
+	SEC_LINK_DUPLICATES_SAME_SIZE.
+
+2011-09-22  Tristan Gingold  <gingold@adacore.com>
+
+	* configure.in: Bump version to 2.22.51
+	* configure: Regenerate.
+
+2011-09-21  David S. Miller  <davem@davemloft.net>
+
+	* elfxx-sparc.c (_bfd_sparc_elf_merge_private_bfd_data): New.
+	* elfxx-sparc.h: Declare it.
+	* elf32-sparc.c (elf32_sparc_merge_private_bfd_data): Call it.
+	* elf64-sparc.c (elf64_sparc_merge_private_bfd_data): Likewise.
+
+2011-09-21  Tristan Gingold  <gingold@adacore.com>
+
+	* mach-o.c (bfd_mach_o_convert_section_name_to_bfd): Add comment.
+	Deals with size limited strings.
+	(bfd_mach_o_build_commands): Initialize more fields.
+
 2011-09-15  H.J. Lu  <hongjiu.lu@intel.com>
 
 	PR ld/13177

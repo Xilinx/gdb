@@ -2354,9 +2354,32 @@ static const insn_sequence elf32_arm_stub_a8_veneer_blx[] =
     ARM_REL_INSN(0xea000000, -8)	/* b original_branch_dest.  */
   };
 
-/* Section name for stubs is the associated section name plus this
-   string.  */
-#define STUB_SUFFIX ".stub"
+/* For each section group there can be a specially created linker section
+   to hold the stubs for that group.  The name of the stub section is based
+   upon the name of another section within that group with the suffix below
+   applied.
+
+   PR 13049: STUB_SUFFIX used to be ".stub", but this allowed the user to
+   create what appeared to be a linker stub section when it actually
+   contained user code/data.  For example, consider this fragment:
+   
+     const char * stubborn_problems[] = { "np" };
+
+   If this is compiled with "-fPIC -fdata-sections" then gcc produces a
+   section called:
+
+     .data.rel.local.stubborn_problems
+
+   This then causes problems in arm32_arm_build_stubs() as it triggers:
+
+      // Ignore non-stub sections.
+      if (!strstr (stub_sec->name, STUB_SUFFIX))
+	continue;
+
+   And so the section would be ignored instead of being processed.  Hence
+   the change in definition of STUB_SUFFIX to a name that cannot be a valid
+   C identifier.  */
+#define STUB_SUFFIX ".__stub"
 
 /* One entry per long/short branch stub defined above.  */
 #define DEF_STUBS \
@@ -3557,7 +3580,7 @@ arm_type_of_stub (struct bfd_link_info *info,
 		  stub_type = (info->shared | globals->pic_veneer)
 		    /* PIC stubs.  */
 		    ? ((globals->use_blx
-			&& (r_type ==R_ARM_THM_CALL))
+			&& (r_type == R_ARM_THM_CALL))
 		       /* V5T and above. Stub starts with ARM code, so
 			  we must be able to switch mode before
 			  reaching it, which is only possible for 'bl'
@@ -3568,7 +3591,7 @@ arm_type_of_stub (struct bfd_link_info *info,
 
 		    /* non-PIC stubs.  */
 		    : ((globals->use_blx
-			&& (r_type ==R_ARM_THM_CALL))
+			&& (r_type == R_ARM_THM_CALL))
 		       /* V5T and above.  */
 		       ? arm_stub_long_branch_any_any
 		       /* V4T.  */
@@ -3797,7 +3820,9 @@ elf32_arm_create_or_find_stub_sec (asection **link_sec_p, asection *section,
   asection *stub_sec;
 
   link_sec = htab->stub_group[section->id].link_sec;
+  BFD_ASSERT (link_sec != NULL);
   stub_sec = htab->stub_group[section->id].stub_sec;
+
   if (stub_sec == NULL)
     {
       stub_sec = htab->stub_group[link_sec->id].stub_sec;
@@ -8220,15 +8245,19 @@ elf32_arm_final_link_relocate (reloc_howto_type *           howto,
 		{
 		  /* The target is out of reach, so redirect the
 		     branch to the local stub for this function.  */
-
 		  stub_entry = elf32_arm_get_stub_entry (input_section,
 							 sym_sec, h,
 							 rel, globals,
 							 stub_type);
-		  if (stub_entry != NULL)
-		    value = (stub_entry->stub_offset
-			     + stub_entry->stub_sec->output_offset
-			     + stub_entry->stub_sec->output_section->vma);
+		  {
+		    if (stub_entry != NULL)
+		      value = (stub_entry->stub_offset
+			       + stub_entry->stub_sec->output_offset
+			       + stub_entry->stub_sec->output_section->vma);
+
+		    if (plt_offset != (bfd_vma) -1)
+		      *unresolved_reloc_p = FALSE;
+		  }
 		}
 	      else
 		{
@@ -8653,9 +8682,14 @@ elf32_arm_final_link_relocate (reloc_howto_type *           howto,
 						       rel, globals,
 						       stub_type);
 		if (stub_entry != NULL)
-		  value = (stub_entry->stub_offset
-			   + stub_entry->stub_sec->output_offset
-			   + stub_entry->stub_sec->output_section->vma);
+		  {
+		    value = (stub_entry->stub_offset
+			     + stub_entry->stub_sec->output_offset
+			     + stub_entry->stub_sec->output_section->vma);
+
+		    if (plt_offset != (bfd_vma) -1)
+		      *unresolved_reloc_p = FALSE;
+		  }
 
 		/* If this call becomes a call to Arm, force BLX.  */
 		if (globals->use_blx && (r_type == R_ARM_THM_CALL))
@@ -10377,7 +10411,9 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
 	 not process them.  */
       if (unresolved_reloc
           && !((input_section->flags & SEC_DEBUGGING) != 0
-               && h->def_dynamic))
+               && h->def_dynamic)
+	  && _bfd_elf_section_offset (output_bfd, info, input_section,
+				      rel->r_offset) != (bfd_vma) -1)
 	{
 	  (*_bfd_error_handler)
 	    (_("%B(%A+0x%lx): unresolvable %s relocation against symbol `%s'"),
@@ -12611,7 +12647,8 @@ elf32_arm_find_nearest_line (bfd *          abfd,
 
   /* We skip _bfd_dwarf1_find_nearest_line since no known ARM toolchain uses it.  */
 
-  if (_bfd_dwarf2_find_nearest_line (abfd, section, symbols, offset,
+  if (_bfd_dwarf2_find_nearest_line (abfd, dwarf_debug_sections,
+                                     section, symbols, offset,
 				     filename_ptr, functionname_ptr,
 				     line_ptr, 0,
 				     & elf_tdata (abfd)->dwarf2_find_line_info))

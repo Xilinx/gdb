@@ -697,7 +697,7 @@ build_bp_list (struct breakpoint *b, void *arg)
 PyObject *
 gdbpy_breakpoints (PyObject *self, PyObject *args)
 {
-  PyObject *list;
+  PyObject *list, *tuple;
 
   if (bppy_live == 0)
     Py_RETURN_NONE;
@@ -715,7 +715,10 @@ gdbpy_breakpoints (PyObject *self, PyObject *args)
       return NULL;
     }
 
-  return PyList_AsTuple (list);
+  tuple = PyList_AsTuple (list);
+  Py_DECREF (list);
+
+  return tuple;
 }
 
 /* Call the "stop" method (if implemented) in the breakpoint
@@ -841,15 +844,15 @@ gdbpy_breakpoint_deleted (struct breakpoint *b)
 
   state = PyGILState_Ensure ();
   bp = get_breakpoint (num);
-  if (! bp)
-    return;
-
-  bp_obj = bp->py_bp_object;
-  if (bp_obj)
+  if (bp)
     {
-      bp_obj->bp = NULL;
-      --bppy_live;
-      Py_DECREF (bp_obj);
+      bp_obj = bp->py_bp_object;
+      if (bp_obj)
+	{
+	  bp_obj->bp = NULL;
+	  --bppy_live;
+	  Py_DECREF (bp_obj);
+	}
     }
   PyGILState_Release (state);
 }

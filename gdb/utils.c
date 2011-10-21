@@ -20,6 +20,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "defs.h"
+#include "dyn-string.h"
 #include "gdb_assert.h"
 #include <ctype.h>
 #include "gdb_string.h"
@@ -59,6 +60,7 @@
 #include "gdbcore.h"
 #include "top.h"
 #include "main.h"
+#include "solist.h"
 
 #include "inferior.h"		/* for signed_pointer_to_address */
 
@@ -238,6 +240,18 @@ make_cleanup_freeargv (char **arg)
 }
 
 static void
+do_dyn_string_delete (void *arg)
+{
+  dyn_string_delete ((dyn_string_t) arg);
+}
+
+struct cleanup *
+make_cleanup_dyn_string_delete (dyn_string_t arg)
+{
+  return make_my_cleanup (&cleanup_chain, do_dyn_string_delete, arg);
+}
+
+static void
 do_bfd_close_cleanup (void *arg)
 {
   bfd_close (arg);
@@ -403,6 +417,24 @@ make_cleanup_unpush_target (struct target_ops *ops)
   return make_my_cleanup (&cleanup_chain, do_unpush_target, ops);
 }
 
+/* Helper for make_cleanup_htab_delete compile time checking the types.  */
+
+static void
+do_htab_delete_cleanup (void *htab_voidp)
+{
+  htab_t htab = htab_voidp;
+
+  htab_delete (htab);
+}
+
+/* Return a new cleanup that deletes HTAB.  */
+
+struct cleanup *
+make_cleanup_htab_delete (htab_t htab)
+{
+  return make_cleanup (do_htab_delete_cleanup, htab);
+}
+
 struct restore_ui_file_closure
 {
   struct ui_file **variable;
@@ -462,6 +494,24 @@ struct cleanup *
 make_cleanup_value_free (struct value *value)
 {
   return make_my_cleanup (&cleanup_chain, do_value_free, value);
+}
+
+/* Helper for make_cleanup_free_so.  */
+
+static void
+do_free_so (void *arg)
+{
+  struct so_list *so = arg;
+
+  free_so (so);
+}
+
+/* Make cleanup handler calling free_so for SO.  */
+
+struct cleanup *
+make_cleanup_free_so (struct so_list *so)
+{
+  return make_my_cleanup (&cleanup_chain, do_free_so, so);
 }
 
 struct cleanup *
@@ -2909,6 +2959,27 @@ print_core_address (struct gdbarch *gdbarch, CORE_ADDR address)
     return hex_string_custom (address, 8);
   else
     return hex_string_custom (address, 16);
+}
+
+/* Callback hash_f for htab_create_alloc or htab_create_alloc_ex.  */
+
+hashval_t
+core_addr_hash (const void *ap)
+{
+  const CORE_ADDR *addrp = ap;
+
+  return *addrp;
+}
+
+/* Callback eq_f for htab_create_alloc or htab_create_alloc_ex.  */
+
+int
+core_addr_eq (const void *ap, const void *bp)
+{
+  const CORE_ADDR *addr_ap = ap;
+  const CORE_ADDR *addr_bp = bp;
+
+  return *addr_ap == *addr_bp;
 }
 
 static char *

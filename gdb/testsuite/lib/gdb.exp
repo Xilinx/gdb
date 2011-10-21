@@ -677,6 +677,7 @@ proc gdb_test_multiple { command message user_code } {
     set result -1
     set string "${command}\n";
     if { $command != "" } {
+	set multi_line_re "\[\r\n\] *>"
 	while { "$string" != "" } {
 	    set foo [string first "\n" "$string"];
 	    set len [string length "$string"];
@@ -697,10 +698,11 @@ proc gdb_test_multiple { command message user_code } {
 		# command output is not lost for pattern matching
 		# - guo
 		gdb_expect 2 {
-		    -notransfer -re "\[\r\n\]" { verbose "partial: match" 3 }
+		    -notransfer -re "$multi_line_re$" { verbose "partial: match" 3 }
 		    timeout { verbose "partial: timeout" 3 }
 		}
 		set string [string range "$string" [expr $foo + 1] end];
+		set multi_line_re "$multi_line_re.*\[\r\n\] *>"
 	    } else {
 		break;
 	    }
@@ -1626,7 +1628,7 @@ proc is_lp64_target {} {
 proc is_amd64_regs_target {} {
     global is_amd64_regs_target_saved
 
-    if {![istarget "x86_64-*-*"]} {
+    if {![istarget "x86_64-*-*"] && ![istarget "i?86-*"]} {
 	return 0
     }
 
@@ -1665,10 +1667,7 @@ proc is_amd64_regs_target {} {
 
 # Return 1 if this target is an x86 or x86-64 with -m32.
 proc is_x86_like_target {} {
-    if {[istarget i?86-*]} {
-	return 1
-    }
-    if {![istarget "x86_64-*-*"]} {
+    if {![istarget "x86_64-*-*"] && ![istarget i?86-*]} {
 	return 0
     }
     return [expr [is_ilp32_target] && ![is_amd64_regs_target]]
@@ -2233,7 +2232,7 @@ proc gdb_compile {source dest type options} {
 	      || [istarget *-*-pe*]
 	      || [istarget hppa*-*-hpux*])} {
 	    # Do not need anything.
-	} elseif { [istarget *-*-openbsd*] } {
+	} elseif { [istarget *-*-freebsd*] || [istarget *-*-openbsd*] } {
 	    lappend new_options "ldflags=-Wl,-rpath,${outdir}"
 	} elseif { [istarget arm*-*-symbianelf*] } {
 	    if { $shlib_load } {
@@ -3540,7 +3539,7 @@ proc help_test_raw { gdb_command expected_lines args } {
     gdb_test "${gdb_command}" "${expected_output}" $message
 }
 
-# Test the output of "help COMMNAD_CLASS". EXPECTED_INITIAL_LINES
+# Test the output of "help COMMAND_CLASS". EXPECTED_INITIAL_LINES
 # are regular expressions that should match the beginning of output,
 # before the list of commands in that class.  The presence of 
 # command list and standard epilogue will be tested automatically.

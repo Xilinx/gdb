@@ -1,3 +1,309 @@
+2011-10-20  Phil Muldoon  <pmuldoon@redhat.com>
+
+	PR python/12656
+
+	* gdb.python/py-block.exp: Add is_global, is_static, static_block,
+	global_block tests.
+
+2011-10-18  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.base/jit-so.exp (one_jit_test): Remove spurious backslash.
+
+2011-10-18  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.base/source.exp: Don't include full file name in test name.
+	* gdb.python/python.exp: Don't include full file name in test
+	name.
+
+2011-10-18  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.base/attach-pie-noexec.c: New files.
+	* gdb.base/attach-pie-noexec.exp: New files.
+
+2011-10-17  Joseph Myers  <joseph@codesourcery.com>
+
+	* lib/gdb.exp (gdb_test_multiple): Expect newline and secondary
+	prompt for each extra line in command.
+
+2011-10-17  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.dwarf2/dw2-simple-locdesc.exp (p &s.shl): KFAIL it.
+	Revert the part of:
+	2011-07-27  Jan Kratochvil  <jan.kratochvil@redhat.com>
+	* gdb.dwarf2/dw2-stack-boundary.exp (check partial symtab errors):
+	Change the expected string.
+
+2011-10-16  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix results with system glibc debug info installed.
+	* gdb.base/disp-step-syscall.exp (continue to $syscall (1st time))
+	(continue to $syscall (2nd time), continue to $syscall (3rd time)):
+	Accept also __libc_ symbol prefix and no prefix.
+
+2011-10-14  Keith Seitz  <keiths@redhat.com>
+
+	PR c++/13225
+	* gdb.cp/converts.cc (foo3_1): New function.
+	(foo3_2): New functions.
+	* gdb.cp/converts.exp: Add tests for int to pointer conversion
+	and null pointer conversions of integer constant zero.
+	Add test to check if all arguments are checked for incompatible
+	conversion BADNESS.
+
+2011-10-14  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.threads/attachstop-mt.exp: Add $srcfile to the linespecs.
+	* gdb.threads/attach-stopped.exp (corefunc): Add $srcfile to the
+	linespec.
+
+2011-10-13  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix internal error regression.
+	* gdb.dwarf2/implptr-optimized-out.S: New file.
+	* gdb.dwarf2/implptr-optimized-out.exp: New file.
+
+2011-10-12  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix empty DWARF expressions DATA vs. SIZE conditionals.
+	* gdb.dwarf2/dw2-op-call.S (arraycallnoloc, arraynoloc): New DIEs.
+	(loclist): New.
+	(4): New abbrev.
+	* gdb.dwarf2/dw2-op-call.exp: Remove variable srcfile and executable.
+	Use prepare_for_testing, remove clean_restart.
+	(p arraynoloc, p arraycallnoloc): New tests.
+
+2011-10-12  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.cp/namespace-enum.exp (executable): New variable.
+	(binfile): Use ${objdir}/${subdir}/ prefix.
+	Use ${executable} for clean_restart.
+
+2011-10-11  Sterling Augustine  <saugustine@google.com>
+
+	* gdb.cp/Makefile.in: Add namespace-enum test.
+	* gdb.cp/namespace-enum.exp: New file.
+	* gdb.cp/namespace-enum.c: New file.
+	* gdb.cp/namespace-enum-main.c: New file.
+
+2011-10-11  Ulrich Weigand  <ulrich.weigand@linaro.org>
+
+	* gdb.python/py-shared.exp: Relax filename check to handle remote:
+	sysroot.
+
+2011-10-11  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Reimplement @entry in input expressions.
+	* gdb.base/exprs.c (v_int_array_init): New variable.
+	* gdb.base/exprs.exp (print v_int_array_init)
+	(print *v_int_array_init@1, print *v_int_array_init@2)
+	(print v_int_array_init[0]@1, print v_int_array_init[0]@2)
+	(print v_int_array_init[1]@1): New tests.
+
+2011-10-10  Joseph Myers  <joseph@codesourcery.com>
+
+	* gdb.cp/gdb2495.exp: Do not include directories in filename in
+	expected message.
+
+2011-10-09  Doug Evans  <dje@google.com>
+
+	* gdb.base/alias.exp: Add tests for alias command.
+
+2011-10-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.arch/amd64-entry-value.s: New file.
+	* gdb.mi/mi2-amd64-entry-value.s: New file.
+
+2011-10-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Display @entry parameter values even for references.
+	* gdb.arch/amd64-entry-value.cc (reference, datap, datap_input): New
+	functions.
+	(main): New variables regvar, nodatavarp, stackvar1, stackvar2.  Call
+	reference and datap_input.
+	* gdb.arch/amd64-entry-value.exp (reference, breakhere_reference): New
+	breakpoints.
+	(continue to breakpoint: entry_reference: reference)
+	(entry_reference: bt at entry)
+	(continue to breakpoint: entry_reference: breakhere_reference)
+	(entry_reference: bt, entry_reference: ptype regparam)
+	(entry_reference: p regparam, entry_reference: ptype regparam@entry)
+	(entry_reference: p regparam@entry, entry_reference: p &regparam@entry)
+	(entry_reference: p regcopy, entry_reference: p nodataparam)
+	(entry_reference: p nodataparam@entry): New tests.
+
+2011-10-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Support @entry in input expressions.
+	* gdb.arch/amd64-entry-value.exp (entry: p i@entry, entry: p j@entry)
+	(entry_stack: p s1@entry, entry_stack: p s2@entry)
+	(entry_stack: p d9@entry, entry_stack: p da@entry, tailcall: p i@entry)
+	(tailcall: p j@entry): New tests.
+	* gdb.cp/koenig.cc (A::entry): New function.
+	(main): Call it.
+	* gdb.cp/koenig.exp (p entry (c)): New test.
+
+2011-10-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Display @entry parameter values (without references).
+	* gdb.arch/amd64-entry-value.cc (locexpr, stacktest, data, data2)
+	(different, validity, invalid): New functions.
+	(main): Call them.
+	* gdb.arch/amd64-entry-value.exp: New breakpoints breakhere_locexpr,
+	stacktest, breakhere_stacktest, different, breakhere_different,
+	breakhere_validity and breakhere_invalid.
+	(entry: bt): Update for @entry.
+	(entry_locexpr: *, entry_stack: *, entry_equal: *, entry_different: *)
+	(entry_validity: *, entry_invalid: *): Many new tests.
+	* gdb.base/break.exp
+	(run until breakpoint set at small function, optimized file): Accept
+	also the @entry suffix.
+	* gdb.mi/Makefile.in (PROGS): Add mi2-amd64-entry-value.
+	* gdb.mi/mi2-amd64-entry-value.c: New files.
+	* gdb.mi/mi2-amd64-entry-value.exp: New files.
+
+2011-10-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Protect entry values against self tail calls.
+	* gdb.arch/amd64-entry-value.cc (self2, self): New.
+	(main): Call self.
+	* gdb.arch/amd64-entry-value.exp (self: breakhere, self: bt)
+	(set debug entry-values 1, self: bt debug entry-values): New tests.
+
+2011-10-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Recognize virtual tail call frames.
+	* gdb.arch/amd64-entry-value.cc (c, a, b, amb_z, amb_y, amb_x, amb)
+	(amb_b, amb_a): New.
+	(main): Call a and b.
+	* gdb.arch/amd64-entry-value.exp (tailcall: breakhere, tailcall: bt)
+	(tailcall: p i, tailcall: p j, set $sp0=$sp, up, p $sp0 == $sp, frame 3)
+	(p $sp0 + sizeof (void *) == $sp, ambiguous: breakhere, ambiguous: bt):
+	New tests.
+
+2011-10-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Implement basic support for DW_TAG_GNU_call_site.
+	* gdb.arch/Makefile.in (EXECUTABLES): Add amd64-entry-value.
+	* gdb.arch/amd64-entry-value.cc: New file.
+	* gdb.arch/amd64-entry-value.exp: New file.
+
+2011-10-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix DW_OP_GNU_implicit_pointer for DWARF32 v3+ on 64-bit arches.
+	* gdb.dwarf2/implptr-64bit.S: New file.
+	* gdb.dwarf2/implptr-64bit.exp: New file.
+
+2011-10-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix initial language detection with -readnow.
+	* gdb.cp/readnow-language.cc: New file.
+	* gdb.cp/readnow-language.exp: New file.
+
+2011-10-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix printed anonymous struct name.
+	* gdb.cp/anon-struct.exp (print type of X::t2): New test.
+
+2011-10-09  Joseph Myers  <joseph@codesourcery.com>
+
+	* gdb.base/solib-symbol.exp: Do not include directories in
+	filenames in expected messages.
+
+2011-10-07  Doug Evans  <dje@google.com>
+
+	* gdb.python/py-pp-maint.py: Add tests for `replace' arg.
+
+2011-10-07  Kevin Pouget  <kevin.pouget@st.com>
+
+	Allow Python notification of new object-file loadings.
+	* gdb.python/py-events.exp: Test newobjfile event.
+	* gdb.python/py-events.py: Register newobjfile callback.
+	* gdb.python/py-events.c: Add call to shared library
+	* gdb.python/py-events-shlib.c: New file.
+
+2011-10-06  Joseph Myers  <joseph@codesourcery.com>
+
+	* gdb.base/fixsection.exp: Do not include directories in filename
+	in expected message.
+
+2011-10-05  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	Add tests for passing of environment variables to inferior.
+	* gdb.base/testenv.c: New test source.
+	* gdb.base/testenv.exp: New expect test.
+
+2011-10-04  Paul Koning  <paul_koning@dell.com>
+
+	* gdb.python/py-value.c (main): Break before return.
+
+2011-10-04  Kevin Pouget  <kevin.pouget@st.com>
+
+	PR python/12691: Add the inferior to Python exited event
+	* gdb.python/py-events.exp: Test the inferior attribute of exited
+	event with a fork.
+	* gdb.python/py-events.py: Print inferior number on exit.
+	* gdb.python/py-events.c: Fork the inferior.
+
+2011-10-03  Edjunior Machado  <emachado@linux.vnet.ibm.com>
+
+	* gdb.base/jit.exp: Add testcase name to log message
+
+2011-10-03  Paul Koning  <paul_koning@dell.com>
+	    Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.python/py-value.exp
+	(python inval = gdb.parse_and_eval('*(int*)0'))
+	(python argc_lazy = gdb.parse_and_eval('argc'), sanity check argc)
+	(set argc=2, python print argc_lazy): New tests.
+
+2011-10-02  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.base/save-bp.exp, gdb.base/save-bp.c: New files.
+
+2011-10-01  Jan Kratochvil  <jan.kratochvil@redhat.com>
+	    Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.python/py-value.exp (test_value_in_inferior): New variable
+	can_read_0, test for it.
+	(python print gdb.parse_and_eval('*(int*)0')): Rename to ...
+	(parse_and_eval with memory error): ... here, make it untested if
+	can_read_0.
+
+2011-09-30  Marek Polacek  <mpolacek@redhat.com>
+
+	* gdb.python/python.exp (verify pagination beforehand)
+	(verify pagination afterwards): Fix race by splitting the line.
+
+2011-09-29  Joseph Myers  <joseph@codesourcery.com>
+
+	* lib/gdb.exp (is_amd64_regs_target, is_x86_like_target): Allow
+	for 64-bit multilibs from i?86-* targets.
+
+2011-09-29  Marek Polacek  <mpolacek@redhat.com>
+
+	* lib/gdb.exp: Fix a typo in one of the comments.
+
+2011-09-29  Marek Polacek  <mpolacek@redhat.com>
+
+	* gdb.base/foll-fork.exp: Fix race by adding "y or n" to the
+	matching pattern.
+
+2011-09-28  Paul Koning  <paul_koning@dell.com>
+
+	* gdb.python/py-type.c (enum E): New.
+	* gdb.python/py-type.exp (test_fields): Add tests for Python
+	mapping access to fields.
+	(test_enums): New test for field access on enums.
+
+2011-09-27  Stan Shebs  <stan@codesourcery.com>
+
+	* gdb.trace/collection.exp: Test collection of $_ret.
+
+2011-09-22  Andreas Tobler  <andreast@fgznet.ch>
+
+	* lib/gdb.exp (gdb_compile): Set rpath and remove -ldl from the
+	list of compilation switches for <*-*-freebsd*>.
+
 2011-09-19  Stan Shebs  <stan@codesourcery.com>
 
 	* gdb.trace/tspeed.exp: New file.

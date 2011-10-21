@@ -1,3 +1,117 @@
+2011-10-20  Phil Muldoon  <pmuldoon@redhat.com>
+
+	PR python/12656
+
+	* gdb.texinfo (Blocks In Python): Document is_static, is_global,
+	global_block, static_block function.
+
+2011-10-19  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.texinfo (Commands In Python): Add missing "@"s.
+
+2011-10-13  Kevin Pouget  <kevin.pouget@st.com>
+
+	PR python/13285 Document named constants for frame unwind stop reasons
+	* gdb.texinfo (Frames In Python): Document gdb.FRAME_UNWIND_* 
+	constants.
+
+2011-10-12  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix compatibility with texinfo versions older than 4.12.
+	* Makefile.in (MAKEINFO): Set to @MAKEINFO@.
+	(MAKEINFOFLAGS, MAKEINFO_EXTRA_FLAGS, MAKEINFO_CMD): New.
+	(MAKEHTMLFLAGS): Use MAKEINFO_CMD.
+	(gdb.info, gdbint.info, stabs.info, annotate.info): Use MAKEINFO_CMD.
+	* gdb.texinfo (Tail Call Frames): Convert @arrow{} to @click, when possible.
+	Make the conversion conditional on HAVE_MAKEINFO_CLICK, using variables
+	CALLSEQ1A, CALLSEQ1B, CALLSEQ2A and CALLSEQ2B.
+
+2011-10-09  Doug Evans  <dje@google.com>
+
+	* gdb.texinfo (Extending GDB): Document alias command.
+
+2011-10-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Support @entry in input expressions.
+	* gdb.texinfo (Variables): Describe @entry names suffix.
+	(Print Settings): Add anchor for `set print entry-values'.
+
+2011-10-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+	    Eli Zaretskii  <eliz@gnu.org>
+
+	Display @entry parameter values (without references).
+	* gdb.texinfo (Tail Call Frames): Add anchor.  Add self tail call
+	example.
+	(Print Settings): New description of set print entry-values and show
+	print entry-values.
+
+2011-10-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+	    Eli Zaretskii  <eliz@gnu.org>
+
+	Recognize virtual tail call frames.
+	* gdb.texinfo (Optimized Code): Add reference to Tail Call Frames.
+	(Tail Call Frames): New node.
+	(Frames In Python): Add gdb.TAILCALL_FRAME.
+
+2011-10-07  Doug Evans  <dje@google.com>
+
+	* gdb.texinfo (gdb.printing): Document new `replace' arg to
+	register_pretty_printer.
+
+2011-10-07  Phil Muldoon  <pmuldoon@redhat.com>
+
+	PR python/12930
+	PR python/12802
+
+	* gdb.texinfo (Breakpoints In Python): Clarify behavior in the
+	stop method.
+
+2011-10-07  Ulrich Weigand  <ulrich.weigand@linaro.org>
+
+	* gdb.texinfo (Starting your Program): "set disable-randomization"
+	is no longer Linux-specific.
+	(Remote Configuration): Document "set remote
+	disable-randomization-packet".
+	(General Query Packets): Document "QDisableRandomization" packet
+	and add it to "qSupported" list.
+
+2011-10-07  Kevin Pouget  <kevin.pouget@st.com>
+
+	Allow Python notification of new object-file loadings.
+	* gdb.texinfo (Events In Python): Document `gdb.NewObjFileEvent'
+	event type.
+
+2011-10-04  Kevin Pouget  <kevin.pouget@st.com>
+
+	PR python/12691: Add the inferior to Python exited event
+	* gdb.texinfo (Events In Python): Describe exited inferior attribute.
+
+2011-10-03  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.texinfo (GDB/MI Miscellaneous Commands): Minor
+	rephasing.
+
+2011-10-03  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.texinfo (GDB/MI Ada Tasking Commands): New node.
+	(GDB/MI Miscellaneous Commands): Add `ada-task-info'
+	as possible feature returned by the `-list-features'
+	command.
+
+2011-09-28  Paul Koning  <paul_koning@dell.com>
+
+	* gdb.texinfo (gdb.Type): Document field access by dictionary
+	key syntax.
+
+2011-09-28  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.texinfo (Files): Update options for `add-symbol-file'.
+	Add one space after option `-s'.  Remove @r{} markup.
+
+2011-09-27  Stan Shebs  <stan@codesourcery.com>
+
+	* gdb.texinfo (Tracepoint Action Lists): Document $_ret.
+
 2011-09-16  Hui Zhu  <teawater@gmail.com>
 
 	* gdb.texinfo (Tracepoint Restrictions): Change *$esp@300

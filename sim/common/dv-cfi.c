@@ -27,13 +27,15 @@
 #include <math.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <unistd.h>
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
 
 #include "sim-main.h"
-#include "devices.h"
+#include "hw-base.h"
+#include "hw-main.h"
 #include "dv-cfi.h"
 
 /* Flashes are simple state machines, so here we cover all the
