@@ -53,4 +53,5 @@ $(bld_dir):
 	mkdir -p $(bld_dir)
 
 $(install_dir):
+	mkdir -p $(GDB_PREFIX)/share/; \
 	mkdir -p $(install_dir)
