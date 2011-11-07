@@ -32,7 +32,7 @@ set MIFLAGS "-i=mi"
 
 set thread_selected_re "=thread-selected,id=\"\[0-9\]+\"\r\n"
 set library_loaded_re "=library-loaded\[^\n\]+\"\r\n"
-set breakpoint_re "=(breakpoint-created|breakpoint-deleted)\[^\n\]+\"\r\n"
+set breakpoint_re "=(?:breakpoint-created|breakpoint-deleted)\[^\n\]+\"\r\n"
 
 #
 # mi_gdb_exit -- exit the GDB, killing the target program if necessary
@@ -576,7 +576,7 @@ proc mi_gdb_test { args } {
     global verbose
     global mi_gdb_prompt
     global GDB expect_out
-    global inferior_exited_re
+    global inferior_exited_re async
     upvar timeout timeout
 
     set command [lindex $args 0]
@@ -650,6 +650,11 @@ proc mi_gdb_test { args } {
 	} else {
 	    set tmt 60;
 	}
+    }
+    if {$async} {
+	# With $prompt_re "" there may come arbitrary asynchronous response
+	# from the previous command, before or after $string_regex.
+	set string_regex ".*"
     }
     verbose -log "Expecting: ^($string_regex\[\r\n\]+)?($pattern\[\r\n\]+$mi_gdb_prompt\[ \]*)"
     gdb_expect $tmt {

@@ -1,3 +1,142 @@
+2011-11-06  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	PR ld/13387
+	* elf32-hppa.c (elf32_hppa_hide_symbol): Make STT_GNU_IFUNC symbol
+	go through PLT.  Reset plt field with init_plt_offset.
+	(elf32_hppa_adjust_dynamic_symbol): Ensure that a PLT slot is
+	allocated for symbols referenced by a plabel.
+
+2011-11-02  DJ Delorie  <dj@redhat.com>
+
+	* elf32-rl78.c (rl78_elf_merge_private_bfd_data): Delete unused
+	variable.
+
+2011-11-02  Jan Beulich  <jbeulich@suse.com>
+
+	* coffgen.c (coff_write_alien_symbol): Make public. Add 'struct
+	internal_syment *' parameter. Extend 'dummy' to an array with two
+	elements. Set n_numaux early. Handle BSF_FILE.
+	(coff_write_symbols): Pass NULL as new third argument to
+	coff_write_alien_symbol().
+	* cofflink.c (_bfd_coff_final_link): Don't use COFF-specific
+	obj_raw_syment_count() on non-COFF input BFD. Insert local symbols
+	from non-COFF input BFDs.
+	* libcoff-in.h (coff_write_alien_symbol): Declare.
+	* libcoff.h (coff_write_alien_symbol): Re-generate.
+
+2011-11-01  DJ Delorie  <dj@redhat.com>
+
+	* Makefile.am (ALL_MACHINES): Add cpu-rl78.lo.
+	(ALL_MACHINES_CFILES): Add cpu-rl78.c.
+	(BFD32_BACKENDS): Add elf32-rl78.lo.
+	(BFD32_BACKENDS_CFILES): Add elf32-rl78.c.
+	(Makefile.in): Regenerate.
+	* archures.c (bfd_architecture): Define bfd_arch_rl78.
+	(bfd_archures_list): Add bfd_rl78_arch.
+	* config.bfd: Add rl78-*-elf.
+	* configure.in: Add bfd_elf32_rl78_vec.
+	* reloc.c (bfd_reloc_code_type): Add BFD_RELOC_RL78_* relocations.
+	* targets.c (bfd_target_vector): Add bfd_elf32_rl78_vec.
+	* Makefile.in: Regenerate.
+	* bfd-in2.h: Regenerate.
+	* configure: Regenerate.
+	* libbfd.h: Regenerate.
+	* cpu-rl78.c: New file.
+	* elf32-rl78.c: New file.
+
+2011-10-26  Nick Clifton  <nickc@redhat.com>
+
+	PR ld/13049
+	* elf64-ppc.c (STUB_SUFFIX): Revert previous delta.
+	* elf32-hppa.c (STUB_SUFFIX): Likewise.
+
+2011-10-25  Joern Rennecke  <joern.rennecke@embecosm.com>
+
+	* Makefile.am (ALL_MACHINES): Add cpu-epiphany.lo.
+	(ALL_MACHINES_CFILES): Add cpu-epiphany.c.
+	(BFD32_BACKENDS): Add elf32-epiphany.lo.
+	(BFD32_BACKENDS_CFILES): Add elf32-epiphany.c.
+	* archures.c (bfd_arch_epiphany): Add.
+	(bfd_mach_epiphany16, bfd_mach_epiphany32): Define.
+	(bfd_epiphany_arch): Declare.
+	(bfd_archures_list): Add &bfd_epiphany_arch.
+	* config.bfd (epiphany-*-elf): New target case.
+	* configure.in (bfd_elf32_epiphany_vec): New target vector case.
+	* reloc.c (BFD_RELOC_EPIPHANY_SIMM8): New relocation.
+	(BFD_RELOC_EPIPHANY_SIMM24, BFD_RELOC_EPIPHANY_HIGH): Likewise.
+	(BFD_RELOC_EPIPHANY_LOW, BFD_RELOC_EPIPHANY_SIMM11): Likewise.
+	(BFD_RELOC_EPIPHANY_IMM11, BFD_RELOC_EPIPHANY_IMM8): Likewise.
+	* targets.c (bfd_elf32_epiphany_vec): Declare.
+	(_bfd_target_vector): Add bfd_elf32_epiphany_vec.
+	* Makefile.in: Regenerate.
+	* bfd-in2.h: Regenerate.
+	* configure: Regenerate.
+	* libbfd.h: Regenerate.
+	* po/SRC-POTFILES.in: Regenerate.
+	* po/bfd.pot: Regenerate.
+	* cpu-epiphany.c: New file.
+	* elf32-epiphany.c: New file.
+
+2011-10-24  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* elfxx-mips.c (_bfd_mips_elf_symbol_processing): Remove
+	assertions.
+
+2011-10-24  Eugeniy Meshcheryakov  <eugen@debian.org>
+
+	PR ld/13273
+	* elf32-arm.c (elf32_arm_merge_eabi_attributes): Do not warn about
+	identical TAG_PCS_config attributes.
+
+2011-10-24  Nick Clifton  <nickc@redhat.com>
+
+	* po/ja.po: Updated Japanese translation.
+
+2011-10-24  Pau Garcia i Quiles  <pgquiles@elpauer.org>
+
+	PR binutils/13292
+	* bfd-in.h: Include <sys/stat.h> rather than forward defining
+	struct stat.
+	* bfd-in2.h: Regenerate.
+
+2011-10-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/13302
+	* elf32-i386.c (elf_i386_relocate_section): Replace
+	R_386_IRELATIVE with R_386_RELATIVE.
+
+	* elf64-x86-64.c (elf_x86_64_relocate_section): Replace
+	R_X86_64_IRELATIVE with R_X86_64_RELATIVE.
+
+2011-10-21  H.J. Lu  <hongjiu.lu@intel.com>.
+
+	* elf32-i386.c (elf_i386_relocate_section): Fix a typo in
+	comments.
+	* elf64-x86-64.c (elf_x86_64_relocate_section): Likewise.
+
+2011-10-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/13302
+	* elf32-i386.c (elf_i386_link_hash_table): Add next_jump_slot_index
+	and next_irelative_index.
+	(elf_i386_link_hash_table_create): Initialize next_jump_slot_index
+	and next_irelative_index.
+	(elf_i386_allocate_dynrelocs): Increment reloc_count instead of
+	next_tls_desc_index.
+	(elf_i386_size_dynamic_sections): Set next_tls_desc_index and
+	next_irelative_index from reloc_count.
+	(elf_i386_finish_dynamic_symbol): Put R_386_IRELATIVE after
+	R_386_JUMP_SLOT.
+
+	* elf64-x86-64.c (elf_x86_64_link_hash_table): Add
+	next_jump_slot_index and next_irelative_index.
+	(elf_x86_64_link_hash_table_create): Initialize
+	next_jump_slot_index and next_irelative_index.
+	(elf_x86_64_size_dynamic_sections): Set next_irelative_index
+	from reloc_count.
+	(elf_x86_64_finish_dynamic_symbol): Put R_X86_64_IRELATIVE after
+	R_X86_64_JUMP_SLOT.
+
 2011-10-20  Nick Clifton  <nickc@redhat.com>
 
 	PR ld/13049

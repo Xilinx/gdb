@@ -1,3 +1,127 @@
+2011-11-05  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.trace/trace-break.exp: Add test on setting two
+	fast tracepoints at the same address.
+
+2011-11-03  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.base/commands.exp (cmd1 error): Fix false ERROR with gdbserver.
+
+2011-11-02  Stan Shebs  <stan@codesourcery.com>
+
+	* gdb.trace/collection.c: Add code using strings.
+	* gdb.trace/collection.exp: Add tests of string collection.
+
+2011-11-02  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.base/skip-solib.exp (executable_main): New variable.
+	(binfile_main): Base it on that.
+	Use $executable_main in clean_restart calls.  Drop gdb_exit and
+	gdb_start calls.
+
+2011-11-01  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix racy FAILs.
+	* lib/mi-support.exp (mi_gdb_test): Replace thread_selected_re and
+	breakpoint_re globals import by async.  Set string_regex to .* for
+	async.  Remove the optional thread_selected_re and breakpoint_re
+	globals expectations.
+
+2011-11-01  Joseph Myers  <joseph@codesourcery.com>
+
+	* gdb.base/maint.exp: XFAIL "maint info sections DATA" on MinGW as
+	well as Cygwin.
+
+2011-11-01  Justin Lebar <justin.lebar@gmail.com>
+
+	Add tests for skip command.
+	* gdb.base/skip-solib-lib.c: New
+	* gdb.base/skip-solib-main.c: New
+	* gdb.base/skip-solib.exp: New
+	* gdb.base/skip.c: New
+	* gdb.base/skip.exp: New
+	* gdb.base/skip1.c: New
+	* gdb.base/Makefile.in: Adding new files.
+
+2011-10-31  Yao Qi  <yao@codesourcery.com>
+	    Pedro Alves  <pedro@codesourcery.com>
+
+        * gdb.trace/trace-break.c: New.
+        * gdb.trace/trace-break.exp: New.
+
+2011-10-28  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.threads/no-unwaited-for-left.exp: Specify $srcfile for
+	break-here-2.
+
+2011-10-28  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.threads/no-unwaited-for-left.c: New.
+	* gdb.threads/no-unwaited-for-left.exp: New.
+	* gdb.threads/non-ldr-exc-1.c: New.
+	* gdb.threads/non-ldr-exc-1.exp: New.
+	* gdb.threads/non-ldr-exc-2.c: New.
+	* gdb.threads/non-ldr-exc-2.exp: New.
+	* gdb.threads/non-ldr-exc-3.c: New.
+	* gdb.threads/non-ldr-exc-3.exp: New.
+	* gdb.threads/non-ldr-exc-4.c: New.
+	* gdb.threads/non-ldr-exc-4.exp: New.
+
+2011-10-28  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.base/async-shell.exp: Skip the testfile for use_gdb_stub.
+	* gdb.base/attach-pie-misread.exp: Likewise.
+	* gdb.base/break-interp.exp: Likewise.
+	* gdb.base/default.exp (attach, run "r" abbreviation, run): Skip these
+	testcases for use_gdb_stub.
+	* gdb.dwarf2/dw2-restore.exp: Fix the run for use_gdb_stub.
+	(continue): New testcase.
+	* gdb.python/py-events.exp: Skip the testfile for use_gdb_stub.
+	* gdb.threads/attach-into-signal.exp: Likewise.
+	* gdb.threads/attach-stopped.exp: Likewise.
+	* gdb.threads/attachstop-mt.exp: Likewise.
+
+2011-10-28  Paul Koning  <paul_koning@dell.com>
+
+	* gdb.python/lib-types.exp (deep_items): Rename from deepitems.
+
+2011-10-27  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* lib/mi-support.exp (breakpoint_re): Suppress match reporting.
+	(mi_gdb_test): Import globals thread_selected_re
+	and breakpoint_re.  Expect them optionally at the regex start.
+
+2011-10-27  Doug Evans  <dje@google.com>
+
+	* gdb.python/python.exp: Test source -s.
+
+2011-10-26  Paul Koning  <paul_koning@dell.com>
+
+	* gdb.python/lib-types.cc (struct A): New structure.
+	* gdb.python/lib-types.exp (deepitems): New tests.
+
+2011-10-25  Paul Koning  <paul_koning@dell.com>
+
+	PR python/13327
+
+	* gdb.python/py-value.exp: Add testcases for is_lazy attribute,
+	fetch_lazy method.
+
+2011-10-24  Yao Qi  <yao@codesourcery.com>
+
+	* lib/gdb.exp (can_single_step_to_signal_handler): Return 0 when
+	target is tic6x-*-*.
+
+2011-10-21  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.ada/mi_task_info/task_switch.adb: New file.
+	* gdb.ada/mi_task_info.exp: New file.
+
+2011-10-21  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.cp/expand-psymtabs-cxx.exp: New file.
+	* gdb.cp/expand-psymtabs-cxx.cc: New file.
+
 2011-10-20  Phil Muldoon  <pmuldoon@redhat.com>
 
 	PR python/12656

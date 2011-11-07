@@ -1,3 +1,338 @@
+2011-11-05  Doug Evans  <dje@google.com>
+
+	* source.c (forget_cached_source_info_for_objfile): Move call to
+	objfile->sf->qf->forget_cached_source_info outside of
+	ALL_OBJFILE_SYMTABS loop.
+	(forget_cached_source_info): Delete unused variable `s'.
+
+2011-11-05  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* i386-nat.c (dr_ref_count): Remove unused variable.
+
+2011-11-05  Doug Evans  <dje@google.com>
+
+	* main.c (captured_main): Set lim_at_start before calling
+	make_command_stats_cleanup.
+
+2011-11-04  Doug Evans  <dje@google.com>
+
+	* utils.c: #include "timeval-utils.h".
+	(cmd_stats): Rename start_time to start_cpu_time.
+	New member start_wall_time.
+	(report_command_stats): Report wall time.
+	(make_command_stats_cleanup): Record start wall time.
+
+2011-11-04  Tom Tromey  <tromey@redhat.com>
+
+	* cp-namespace.c (cp_lookup_symbol_imports): Reindent.
+
+2011-11-04  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* coff-pe-read.c: Include defs.h before bfd.h.
+
+2011-11-04  Phil Muldoon  <pmuldoon@redhat.com>
+
+	PR Python/13345
+
+	* python/python.c (python_run_simple_file): Expand tilde in path.
+
+2011-11-04  Phil Muldoon  <pmuldoon@redhat.com>
+
+	PR Python/13363
+
+	* python/py-type.c (typy_lookup_type): Do not return a type in
+          an exception handler.
+
+2011-11-03  Jan Kratochvil  <jan.kratochvil@redhat.com>
+	    Eli Zaretskii  <eliz@gnu.org>
+
+	* linux-nat.c (_initialize_linux_nat): Improve help
+	for `info proc stat', `info proc status', `info proc cwd',
+	`info proc cmdline' and `info proc exe'.
+
+2011-11-02  Stan Shebs  <stan@codesourcery.com>
+
+	String collection for tracepoints.
+	* NEWS: Mention string collection.
+	* common/ax.def (tracenz): New bytecode.
+	* ax-gdb.h (trace_string_kludge): Declare.
+	* ax-gdb.c: Include valprint.h and c-lang.h.
+	(trace_string_kludge): New global.
+	(gen_traced_pop): Add string case.
+	(agent_command): Add string case.
+	* tracepoint.h (decode_agent_options): Declare.
+	* tracepoint.c: Include cli-utils.h.
+	(decode_agent_options): New function.
+	(validate_actionline): Call it.
+	(encode_actions_1): Ditto.
+	* target.h (struct target_ops): New method to_supports_string_tracing.
+	(target_supports_string_tracing): New macro.
+	* target.c (update_current_target): Add to_supports_string_tracing.
+	* remote.c (struct remote_state): New field string_tracing.
+	(remote_string_tracing_feature): New function.
+	(remote_protocol_features): New feature tracenz.
+	(remote_supports_string_tracing): New function.
+	(init_remote_ops): Set to_supports_string_tracing.
+
+2011-11-02  Pedro Alves  <pedro@codesourcery.com>
+	    Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* linux-nat.c: Include cli/cli-utils.h.
+	(enum info_proc_what): New.
+	(linux_nat_info_proc_cmd): Rename to ...
+	(linux_nat_info_proc_cmd_1): ... here.  Remove variables argv and all.
+	New parameter what.  Initialize cmdline_f, cwd_f, exe_f, mappings_f,
+	status_f and stat_f from WHAT.  Throw error on extra parameters.
+	(linux_nat_info_proc_cmd, linux_nat_info_proc_cmd_mappings)
+	(linux_nat_info_proc_cmd_stat, linux_nat_info_proc_cmd_status)
+	(linux_nat_info_proc_cmd_cwd, linux_nat_info_proc_cmd_cmdline)
+	(linux_nat_info_proc_cmd_exe, linux_nat_info_proc_cmd_all): New.
+	(_initialize_linux_nat): New variable info_proc_cmdlist.  Install `info
+	proc mappings', `info proc stat`, `info proc status', `info proc cwd',
+	`info proc cmdline', `info proc exe' and `info proc all' as real
+	subcommands of `info proc'.
+
+2011-11-01  Justin Lebar  <justin.lebar@gmail.com>
+
+	* Makefile.in: (SFILES): Add skip.c.
+	(HFILES_NO_SRCDIR): Add skip.h.
+	(COMMON_OBS): Add skip.o.
+	* skip.h, skip.c: New.
+	* breakpoint.h (set_default_breakpoint): Remove.
+	(get_sal_arch): Declare.
+	* breakpoint.c: Remove default_breakpoint_valid,
+	default_breakpoint_address, default_breakpoint_symtab,
+	default_breakpoint_line, default_breakpoint_pspace variables.
+	(get_sal_arch): Make public.
+	(set_default_breakpoint): Remove.
+	(parse_breakpoint_sals, create_breakpoint, clear_command,
+	decode_line_spec_1): Remove uses of default_breakpoint variables;
+	replaced with function calls into stack.c.
+	* cli/cli-cmds.h: Add cmd_list_element *skiplist.
+	* cli/cli-cmds.c: Add skiplist.
+	(init_cmd_lists): Initialize skiplist.
+	(init_cli_cmds): Fix comment (classes of commands appear in
+	alphabetical order).
+	* infrun.c (handle_inferior_event): Add check that we don't step into
+	a function whose pc is marked for skip.
+	* stack.c: Declare last_displayed_sal_valid, last_displayed_pspace,
+	last_displayed_addr, last_displayed_symtab, last_displayed_line
+	variables.
+	(set_last_displayed_sal): New static function.
+	(print_frame_info): Switch call to set_default_breakpoint to call to
+	set_last_displayed_sal.
+	(clear_last_displayed_sal, last_displayed_sal_is_valid,
+	get_last_displayed_pspace, get_last_displayed_addr,
+	get_last_displayed_symtab, get_last_displayed_line,
+	get_last_displayed_sal): New public functions.
+	* stack.h (clear_last_displayed_sal, last_displayed_sal_is_valid,
+	get_last_displayed_pspace, get_last_displayed_addr,
+	get_last_displayed_symtab, get_last_displayed_line,
+	get_last_displayed_sal): Declare.
+
+2011-11-01  Justin Lebar <justin.lebar@gmail.com>
+
+	* MAINTAINERS (Write After Approval): Add myself to the list.
+
+2011-10-29  Yao Qi  <yao@codesourcery.com>
+
+	* infcmd.c (disconnect_command): Call disconnect_tracing.
+
+2011-10-29  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Code cleanup.
+	* symtab.c (skip_prologue_sal): Code reformatting.
+
+2011-10-28  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	PR symtab/13208
+	* jit.c (jit_register_code): Remove unused variable my_cleanups.  Check
+	for NULL from bfd_open_from_target_memory.  Fix ownership of NBFD and
+	SAI.
+
+2011-10-28  Pedro Alves  <pedro@codesourcery.com>
+
+	* linux-nat.c (linux_nat_filter_event): Remove `options'
+	parameter, and dead code that used it.  If we're handling a
+	PTRACE_EVENT_EXEC event, and the thread group leader is no longer
+	in our lwp list, re-add it.
+	(check_zombie_leaders): New.
+	(linux_nat_wait_1): Remove `options' and `pid' locals.  Always
+	wait for children with WNOHANG, and always wait for all children.
+	Don't check for no resumed children upfront.  Simplify wait loop.
+	Check for zombie thread group leaders after handling all wait
+	statuses.  Return TARGET_WAITKIND_NO_RESUMED if there no
+	unwaited-for children left.
+	* infrun.c (fetch_inferior_event): Handle TARGET_WAITKIND_NO_RESUMED.
+	(handle_inferior_event): Handle TARGET_WAITKIND_NO_RESUMED.
+	(normal_stop): Handle TARGET_WAITKIND_NO_RESUMED.
+	* target.h (enum target_waitkind) <TARGET_WAITKIND_NO_RESUMED>: New.
+
+2011-10-28  Sterling Augustine  <saugustine@google.com>
+
+	* psymtab.c (map_symbol_filenames_psymtab): Call QUIT.
+	* symtab.c (free_completion_list): New function.
+	(do_free_completion_list): Likewise.
+	(default_make_symbol_completion_list_break_on): New variable
+	back_to. Call make_cleanup and discard_cleanups.
+	(make_source_files_completion_list): Likewise.
+
+2011-10-28  Paul Koning  <paul_koning@dell.com>
+
+	* python/lib/gdb/types.py (deep_items): Rename from deepitems.
+	* NEWS: Mention deep_items.
+
+2011-10-28  Alen Skondro  <askondro@gmail.com>
+
+	* ser-tcp.c [USE_WIN32API] (ETIMEOUT): Don't define if already
+	defined.
+
+2011-10-27  Meador Inge  <meadori@codesourcery.com>
+
+	* MAINTAINERS (Write After Approval): Add myself to the list.
+
+2011-10-27  Joel Brobecker  <brobecker@adacore.com>
+
+	* value.h (read_frame_register_value): Add declaration.
+	* findvar.c (read_frame_register_value): New function.
+	(value_from_register): Use read_frame_register_value
+	instead of get_frame_register_value + value_contents_copy
+	to get value contents.
+
+2011-10-27  Doug Evans  <dje@google.com>
+
+	* cli/cli-cmds.c (source_script_with_search): Pass full path to
+	source_script_from_stream if it may have been found on the search path.
+	* python/py-auto-load.c (source_section_scripts): Pass full path to
+	source_python_script_for_objfile.
+	* python/python.c (source_python_script): Delete stream parameter.
+	All callers updated.
+	(source_python_script_for_objfile): Ditto.
+	* python/python-internal.h (source_python_script_for_objfile): Update.
+	* python/python.h (source_python_script): Update.
+
+2011-10-27  Tom Tromey  <tromey@redhat.com>
+
+	* ada-lang.h (ada_start_decode_line_1, ada_finish_decode_line_1)
+	(ada_sals_for_line): Remove declarations.
+
+2011-10-27  Kevin Pouget  <kevin.pouget@st.com>
+
+	Move unwind reasons to an external .def file
+	* frame.c (frame_stop_reason_string): Rewrite using
+	unwind_stop_reasons.def.
+	* frame.h (enum unwind_stop_reason): Likewise.
+	* python/py-frame.c (gdbpy_initialize_frames): Likewise.
+	(gdbpy_frame_stop_reason_string): Use new enum unwind_stop_reason
+	constants for bound-checking.
+	* unwind_stop_reasons.def: New file.
+	* stack.c (backtrace_command_1): Handle UNWIND_FIRST_ERROR as an alias
+	instead of a distinct value.
+
+2011-10-27  Phil Muldoon  <pmuldoon@redhat.com>
+
+        PR python/13331
+
+	* python/py-function.c (fnpy_call): Check 'args' is not NULL.
+	(convert_values_to_python): Return on Python tuple allocation
+	failure.  Return NULL on value conversion error.
+
+2011-10-27  Phil Muldoon  <pmuldoon@redhat.com>
+
+	* python/py-breakpoint.c (bppy_set_enabled): Use TRY_CATCH.
+	(bppy_set_task): Ditto.
+	(bppy_delete_breakpoint): Ditto.
+	* python/py-symbol.c (gdbpy_lookup_symbol): Ditto.
+	(gdbpy_lookup_global_symbol): Ditto.
+	* python/py-lazy-string.c (stpy_convert_to_value): Ditto.
+	* python/py-frame.c (frapy_is_valid): Ditto.
+	(frame_info_to_frame_object): Ditto.
+	* python/py-type.c (typy_lookup_type): Ditto.
+	(typy_getitem): Ditto.
+	(typy_has_key): Ditto.
+	(typy_richcompare): Use TRY_CATCH.  Do not return Py_NE on error.
+
+2011-10-26  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdbarch.h: Regenerate.
+
+2011-10-26  Meador Inge  <meadori@codesourcery.com>
+
+	* gdbarch.sh (function_list): Use 'pstring' when printing
+	'gcore_bfd_target'.
+	* gdbarch.c: Regenerate.
+
+2011-10-26  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* regcache.c (registers_changed_ptid): Invalidate thread architecture
+	and frame caches if PTID refers to all threads of a process.
+
+2011-10-26  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* spu-tdep.c (spu_catch_start): Pass non-NULL breakpoint ops
+	to create_breakpoint.
+
+2011-10-26  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* ppc-sysv-tdep.c (ppc_sysv_use_opencl_abi): New function.
+	(ppc_sysv_abi_push_dummy_call): Use it.
+	(do_ppc_sysv_return_value): Likewise.
+	(ppc64_sysv_abi_push_dummy_call): Likewise.
+	(ppc64_sysv_abi_return_value): Likewise.
+
+2011-10-26  Paul Koning  <paul_koning@dell.com>
+
+	* python/lib/gdb/types.py (deepitems): New function.
+	
+2011-10-25  Paul Koning  <paul_koning@dell.com>
+
+	PR python/13327
+	
+	* python/py-value.c (value_to_value_object): Remove fetching of
+	the value if it was lazy.
+	(valpy_get_is_lazy): New function.
+	(valpy_fetch_lazy): New function.
+
+2011-10-24  Joel Brobecker  <brobecker@adacore.com>
+
+	* ppc-sysv-tdep.c (do_ppc_sysv_return_value): Do not check
+	FUNC_TYPE's calling convention if FUNC_TYPE is not a function.
+
+2011-10-24  Pedro Alves  <pedro@codesourcery.com>
+
+	* linux-nat.c (linux_handle_extended_wait): When handling a clone
+	event, in non-stop, if not stopping, make sure the new lwp has
+	last_resume_kind set to resume_continue.  Assert that when we're
+	resuming the new lwp, its last_resume_kind is resume_continue.
+
+2011-10-24  Pedro Alves  <pedro@codesourcery.com>
+
+	* infrun.c (handle_inferior_event): Don't assume inferior_ptid is
+	already set when marking the event thread as not executing in
+	non-stop mode.
+
+2011-10-24  Pedro Alves  <pedro@codesourcery.com>
+
+	* infrun.c (handle_inferior_event): Add debug output for
+	TARGET_WAITKIND_NO_HISTORY.
+
+2011-10-24  Phil Muldoon  <pmuldoon@redhat.com>
+
+	* NEWS: Move set/show extended-prompt to "New Options". Expand
+	description. Fix typos.
+
+2011-10-24  Phil Muldoon  <pmuldoon@redhat.com>
+
+        PR python/13310
+
+	* python/py-param.c (call_doc_function): Correctly deference on
+	function exit.
+
+2011-10-21  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-tasks.c (print_ada_task_info): Fix computation of
+	number of tasks displayed in command output.
+
 2011-10-20  Jan Kratochvil  <jan.kratochvil@redhat.com>
 	    Ulrich Weigand  <uweigand@de.ibm.com>
 

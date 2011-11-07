@@ -30,6 +30,7 @@
 #include "exceptions.h"
 #include "event-loop.h"
 #include "serial.h"
+#include "readline/tilde.h"
 #include "python.h"
 
 #include <ctype.h>
@@ -162,13 +163,22 @@ ensure_python_env (struct gdbarch *gdbarch,
 static void
 python_run_simple_file (const char *filename)
 {
-  char *filename_copy;
+  char *full_path;
   PyObject *python_file;
   struct cleanup *cleanup;
 
-  filename_copy = xstrdup (filename);
-  cleanup = make_cleanup (xfree, filename_copy);
-  python_file = PyFile_FromString (filename_copy, "r");
+  /* Because we have a string for a filename, and are using Python to
+     open the file, we need to expand any tilde in the path first.  */
+  full_path = tilde_expand (filename);
+  cleanup = make_cleanup (xfree, full_path);
+  python_file = PyFile_FromString (full_path, "r");
+  if (! python_file)
+    {
+      do_cleanups (cleanup);
+      gdbpy_print_stack ();
+      error (_("Error while opening file: %s"), full_path);
+    }
+ 
   make_cleanup_py_decref (python_file);
   PyRun_SimpleFile (PyFile_AsFile (python_file), filename);
   do_cleanups (cleanup);
@@ -599,21 +609,18 @@ gdbpy_parse_and_eval (PyObject *self, PyObject *args)
   return value_to_value_object (result);
 }
 
-/* Read a file as Python code.  STREAM is the input file; FILE is the
-   name of the file.
-   STREAM is not closed, that is the caller's responsibility.  */
+/* Read a file as Python code.
+   FILE is the name of the file.
+   This does not throw any errors.  If an exception occurs python will print
+   the traceback and clear the error indicator.  */
 
 void
-source_python_script (FILE *stream, const char *file)
+source_python_script (const char *file)
 {
   struct cleanup *cleanup;
 
   cleanup = ensure_python_env (get_current_arch (), current_language);
-
-  /* Note: If an exception occurs python will print the traceback and
-     clear the error indicator.  */
   python_run_simple_file (file);
-
   do_cleanups (cleanup);
 }
 
@@ -941,15 +948,12 @@ gdbpy_progspaces (PyObject *unused1, PyObject *unused2)
    source_python_script_for_objfile; it is NULL at other times.  */
 static struct objfile *gdbpy_current_objfile;
 
-/* Set the current objfile to OBJFILE and then read STREAM,FILE as
-   Python code.
-   STREAM is left open, it is up to the caller to close it.
-   If an exception occurs python will print the traceback and
-   clear the error indicator.  */
+/* Set the current objfile to OBJFILE and then read FILE as Python code.
+   This does not throw any errors.  If an exception occurs python will print
+   the traceback and clear the error indicator.  */
 
 void
-source_python_script_for_objfile (struct objfile *objfile,
-				  FILE *stream, const char *file)
+source_python_script_for_objfile (struct objfile *objfile, const char *file)
 {
   struct cleanup *cleanups;
 
@@ -1032,7 +1036,7 @@ eval_python_from_control_command (struct command_line *cmd)
 }
 
 void
-source_python_script (FILE *stream, const char *file)
+source_python_script (const char *file)
 {
   throw_error (UNSUPPORTED_ERROR,
 	       _("Python scripting is not supported in this copy of GDB."));

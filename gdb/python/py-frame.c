@@ -101,9 +101,15 @@ frapy_str (PyObject *self)
 static PyObject *
 frapy_is_valid (PyObject *self, PyObject *args)
 {
-  struct frame_info *frame;
+  struct frame_info *frame = NULL;
+  volatile struct gdb_exception except;
 
-  frame = frame_object_to_frame_info ((frame_object *) self);
+  TRY_CATCH (except, RETURN_MASK_ALL)
+    {
+      frame = frame_object_to_frame_info ((frame_object *) self);
+    }
+  GDB_PY_HANDLE_EXCEPTION (except);
+
   if (frame == NULL)
     Py_RETURN_FALSE;
 
@@ -276,6 +282,7 @@ PyObject *
 frame_info_to_frame_object (struct frame_info *frame)
 {
   frame_object *frame_obj;
+  volatile struct gdb_exception except;
 
   frame_obj = PyObject_New (frame_object, &frame_object_type);
   if (frame_obj == NULL)
@@ -285,23 +292,27 @@ frame_info_to_frame_object (struct frame_info *frame)
       return NULL;
     }
 
-  /* Try to get the previous frame, to determine if this is the last frame
-     in a corrupt stack.  If so, we need to store the frame_id of the next
-     frame and not of this one (which is possibly invalid).  */
-  if (get_prev_frame (frame) == NULL
-      && get_frame_unwind_stop_reason (frame) != UNWIND_NO_REASON
-      && get_next_frame (frame) != NULL)
+  TRY_CATCH (except, RETURN_MASK_ALL)
     {
-      frame_obj->frame_id = get_frame_id (get_next_frame (frame));
-      frame_obj->frame_id_is_next = 1;
-    }
-  else
-    {
-      frame_obj->frame_id = get_frame_id (frame);
-      frame_obj->frame_id_is_next = 0;
-    }
 
-  frame_obj->gdbarch = get_frame_arch (frame);
+      /* Try to get the previous frame, to determine if this is the last frame
+	 in a corrupt stack.  If so, we need to store the frame_id of the next
+	 frame and not of this one (which is possibly invalid).  */
+      if (get_prev_frame (frame) == NULL
+	  && get_frame_unwind_stop_reason (frame) != UNWIND_NO_REASON
+	  && get_next_frame (frame) != NULL)
+	{
+	  frame_obj->frame_id = get_frame_id (get_next_frame (frame));
+	  frame_obj->frame_id_is_next = 1;
+	}
+      else
+	{
+	  frame_obj->frame_id = get_frame_id (frame);
+	  frame_obj->frame_id_is_next = 0;
+	}
+      frame_obj->gdbarch = get_frame_arch (frame);
+    }
+  GDB_PY_HANDLE_EXCEPTION (except);
 
   return (PyObject *) frame_obj;
 }
@@ -542,7 +553,7 @@ gdbpy_frame_stop_reason_string (PyObject *self, PyObject *args)
   if (!PyArg_ParseTuple (args, "i", &reason))
     return NULL;
 
-  if (reason < 0 || reason > UNWIND_NO_SAVED_PC)
+  if (reason < UNWIND_FIRST || reason > UNWIND_LAST)
     {
       PyErr_SetString (PyExc_ValueError, 
 		       _("Invalid frame stop reason."));
@@ -599,18 +610,13 @@ gdbpy_initialize_frames (void)
   PyModule_AddIntConstant (gdb_module, "SIGTRAMP_FRAME", SIGTRAMP_FRAME);
   PyModule_AddIntConstant (gdb_module, "ARCH_FRAME", ARCH_FRAME);
   PyModule_AddIntConstant (gdb_module, "SENTINEL_FRAME", SENTINEL_FRAME);
-  PyModule_AddIntConstant (gdb_module,
-			   "FRAME_UNWIND_NO_REASON", UNWIND_NO_REASON);
-  PyModule_AddIntConstant (gdb_module,
-			   "FRAME_UNWIND_NULL_ID", UNWIND_NULL_ID);
-  PyModule_AddIntConstant (gdb_module,
-			   "FRAME_UNWIND_FIRST_ERROR", UNWIND_FIRST_ERROR);
-  PyModule_AddIntConstant (gdb_module,
-			   "FRAME_UNWIND_INNER_ID", UNWIND_INNER_ID);
-  PyModule_AddIntConstant (gdb_module,
-			   "FRAME_UNWIND_SAME_ID", UNWIND_SAME_ID);
-  PyModule_AddIntConstant (gdb_module,
-			   "FRAME_UNWIND_NO_SAVED_PC", UNWIND_NO_SAVED_PC);
+
+#define SET(name, description) \
+  PyModule_AddIntConstant (gdb_module, "FRAME_"#name, name);
+#define FIRST_ERROR(name) \
+  PyModule_AddIntConstant (gdb_module, "FRAME_"#name, name);
+#include "unwind_stop_reasons.def"
+#undef SET
 
   Py_INCREF (&frame_object_type);
   PyModule_AddObject (gdb_module, "Frame", (PyObject *) &frame_object_type);

@@ -1,3 +1,30 @@
+2011-11-05  Yao Qi  <yao@codesourcery.com>
+
+	* tracepoint.c (gdb_collect): Loop over tracepoints of same
+	address as TPOINT's.
+
+2011-11-02  Stan Shebs  <stan@codesourcery.com>
+
+	* tracepoint.c (agent_mem_read_string): New function.
+	(eval_agent_expr): Call it for tracenz.
+	* server.c (handle_query): Report support for tracenz.
+
+2011-11-02  Yao Qi  <yao@codesourcery.com>
+
+	* tracepoint.c (cmd_qtstart): Remove unused local variables.
+
+2011-11-02  Yao Qi  <yao@codesourcery.com>
+
+	* target.h: Fix a typo in comment.
+
+2011-10-31  Pedro Alves  <pedro@codesourcery.com>
+
+	* mem-break.c (check_mem_write): Add `myaddr' parameter.  Don't
+	clobber the breakpoints' shadows with fast tracepoint jumps.
+	* mem-break.h (check_mem_write): Add `myaddr' parameter.
+	* target.c (write_inferior_memory): Also pass MYADDR down to
+	check_mem_write.
+
 2011-10-07  Ulrich Weigand  <ulrich.weigand@linaro.org>
 
 	* configure.ac: Check support for personality routine.

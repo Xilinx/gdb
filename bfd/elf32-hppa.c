@@ -155,8 +155,8 @@ static const bfd_byte plt_stub[] =
 };
 
 /* Section name for stubs is the associated section name plus this
-   string.  PR 13049: Use a name that is not a valid C identifier.  */
-#define STUB_SUFFIX ".__stub"
+   string.  */
+#define STUB_SUFFIX ".stub"
 
 /* We don't need to copy certain PC- or GP-relative dynamic relocs
    into a shared object's dynamic section.  All the relocs of the
@@ -1789,10 +1789,12 @@ elf32_hppa_hide_symbol (struct bfd_link_info *info,
 	}
     }
 
-  if (! hppa_elf_hash_entry (eh)->plabel)
+  /* STT_GNU_IFUNC symbol must go through PLT.  */
+  if (! hppa_elf_hash_entry (eh)->plabel
+      && eh->type != STT_GNU_IFUNC)
     {
       eh->needs_plt = 0;
-      eh->plt = elf_hash_table (info)->init_plt_refcount;
+      eh->plt = elf_hash_table (info)->init_plt_offset;
     }
 }
 
@@ -1814,6 +1816,13 @@ elf32_hppa_adjust_dynamic_symbol (struct bfd_link_info *info,
   if (eh->type == STT_FUNC
       || eh->needs_plt)
     {
+      /* If the symbol is used by a plabel, we must allocate a PLT slot.
+	 The refcounts are not reliable when it has been hidden since
+	 hide_symbol can be called before the plabel flag is set.  */
+      if (hppa_elf_hash_entry (eh)->plabel
+	  && eh->plt.refcount <= 0)
+	eh->plt.refcount = 1;
+
       if (eh->plt.refcount <= 0
 	  || (eh->def_regular
 	      && eh->root.type != bfd_link_hash_defweak
