@@ -93,6 +93,7 @@
 #include <stdarg.h>		/* For va_list.  */
 
 #include "libiberty.h"
+#include "hashtab.h"
 
 /* Rather than duplicate all the logic in BFD for figuring out what
    types to use (which can be pretty complicated), symply define them
@@ -339,6 +340,9 @@ extern struct cleanup *make_cleanup_dtor (make_cleanup_ftype *, void *,
 
 extern struct cleanup *make_cleanup_freeargv (char **);
 
+struct dyn_string;
+extern struct cleanup *make_cleanup_dyn_string_delete (struct dyn_string *);
+
 struct ui_file;
 extern struct cleanup *make_cleanup_ui_file_delete (struct ui_file *);
 
@@ -371,10 +375,15 @@ extern struct cleanup *
 extern struct cleanup *make_cleanup_value_free_to_mark (struct value *);
 extern struct cleanup *make_cleanup_value_free (struct value *);
 
+struct so_list;
+extern struct cleanup *make_cleanup_free_so (struct so_list *so);
+
 extern struct cleanup *make_final_cleanup (make_cleanup_ftype *, void *);
 
 extern struct cleanup *make_my_cleanup (struct cleanup **,
 					make_cleanup_ftype *, void *);
+
+extern struct cleanup *make_cleanup_htab_delete (htab_t htab);
 
 extern struct cleanup *make_my_cleanup2 (struct cleanup **,
 					 make_cleanup_ftype *, void *,
@@ -549,6 +558,11 @@ extern const char *paddress (struct gdbarch *gdbarch, CORE_ADDR addr);
 
 extern const char *print_core_address (struct gdbarch *gdbarch,
 				       CORE_ADDR address);
+
+/* Callback hash_f and eq_f for htab_create_alloc or htab_create_alloc_ex.  */
+
+extern hashval_t core_addr_hash (const void *ap);
+extern int core_addr_eq (const void *ap, const void *bp);
 
 /* %d for LONGEST */
 extern char *plongest (LONGEST l);

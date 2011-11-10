@@ -362,6 +362,9 @@ v:int:long_bit:::8 * sizeof (long):4*TARGET_CHAR_BIT::0
 # Number of bits in a long long or unsigned long long for the target
 # machine.
 v:int:long_long_bit:::8 * sizeof (LONGEST):2*gdbarch->long_bit::0
+# Alignment of a long long or unsigned long long for the target
+# machine.
+v:int:long_long_align_bit:::8 * sizeof (LONGEST):2*gdbarch->long_bit::0
 
 # The ABI default bit-size and format for "half", "float", "double", and
 # "long double".  These bit/format pairs should eventually be combined
@@ -637,7 +640,7 @@ M:LONGEST:core_xfer_shared_libraries:gdb_byte *readbuf, ULONGEST offset, LONGEST
 M:char *:core_pid_to_str:ptid_t ptid:ptid
 
 # BFD target to use when generating a core file.
-V:const char *:gcore_bfd_target:::0:0:::gdbarch->gcore_bfd_target
+V:const char *:gcore_bfd_target:::0:0:::pstring (gdbarch->gcore_bfd_target)
 
 # If the elements of C++ vtables are in-place function descriptors rather
 # than normal function pointers (which may point to code or a descriptor),

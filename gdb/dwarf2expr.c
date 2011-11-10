@@ -371,7 +371,7 @@ dwarf_expr_eval (struct dwarf_expr_context *ctx, const gdb_byte *addr,
 
 /* Decode the unsigned LEB128 constant at BUF into the variable pointed to
    by R, and return the new value of BUF.  Verify that it doesn't extend
-   past BUF_END.  */
+   past BUF_END.  R can be NULL, the constant is then only skipped.  */
 
 const gdb_byte *
 read_uleb128 (const gdb_byte *buf, const gdb_byte *buf_end, ULONGEST * r)
@@ -391,13 +391,14 @@ read_uleb128 (const gdb_byte *buf, const gdb_byte *buf_end, ULONGEST * r)
 	break;
       shift += 7;
     }
-  *r = result;
+  if (r)
+    *r = result;
   return buf;
 }
 
 /* Decode the signed LEB128 constant at BUF into the variable pointed to
    by R, and return the new value of BUF.  Verify that it doesn't extend
-   past BUF_END.  */
+   past BUF_END.  R can be NULL, the constant is then only skipped.  */
 
 const gdb_byte *
 read_sleb128 (const gdb_byte *buf, const gdb_byte *buf_end, LONGEST * r)
@@ -420,7 +421,8 @@ read_sleb128 (const gdb_byte *buf, const gdb_byte *buf_end, LONGEST * r)
   if (shift < (sizeof (*r) * 8) && (byte & 0x40) != 0)
     result |= -(((LONGEST) 1) << shift);
 
-  *r = result;
+  if (r)
+    *r = result;
   return buf;
 }
 
@@ -479,6 +481,160 @@ dwarf_get_base_type (struct dwarf_expr_context *ctx, ULONGEST die, int size)
     result = builtin_type (ctx->gdbarch)->builtin_int;
 
   return result;
+}
+
+/* If <BUF..BUF_END] contains DW_FORM_block* with single DW_OP_reg* return the
+   DWARF register number.  Otherwise return -1.  */
+
+int
+dwarf_block_to_dwarf_reg (const gdb_byte *buf, const gdb_byte *buf_end)
+{
+  ULONGEST dwarf_reg;
+
+  if (buf_end <= buf)
+    return -1;
+  if (*buf >= DW_OP_reg0 && *buf <= DW_OP_reg31)
+    {
+      if (buf_end - buf != 1)
+	return -1;
+      return *buf - DW_OP_reg0;
+    }
+
+  if (*buf == DW_OP_GNU_regval_type)
+    {
+      buf++;
+      buf = read_uleb128 (buf, buf_end, &dwarf_reg);
+      buf = read_uleb128 (buf, buf_end, NULL);
+    }
+  else if (*buf == DW_OP_regx)
+    {
+      buf++;
+      buf = read_uleb128 (buf, buf_end, &dwarf_reg);
+    }
+  else
+    return -1;
+  if (buf != buf_end || (int) dwarf_reg != dwarf_reg)
+    return -1;
+  return dwarf_reg;
+}
+
+/* If <BUF..BUF_END] contains DW_FORM_block* with just DW_OP_breg*(0) and
+   DW_OP_deref* return the DWARF register number.  Otherwise return -1.
+   DEREF_SIZE_RETURN contains -1 for DW_OP_deref; otherwise it contains the
+   size from DW_OP_deref_size.  */
+
+int
+dwarf_block_to_dwarf_reg_deref (const gdb_byte *buf, const gdb_byte *buf_end,
+				CORE_ADDR *deref_size_return)
+{
+  ULONGEST dwarf_reg;
+  LONGEST offset;
+
+  if (buf_end <= buf)
+    return -1;
+  if (*buf >= DW_OP_breg0 && *buf <= DW_OP_breg31)
+    {
+      dwarf_reg = *buf - DW_OP_breg0;
+      buf++;
+    }
+  else if (*buf == DW_OP_bregx)
+    {
+      buf++;
+      buf = read_uleb128 (buf, buf_end, &dwarf_reg);
+      if ((int) dwarf_reg != dwarf_reg)
+       return -1;
+    }
+  else
+    return -1;
+
+  buf = read_sleb128 (buf, buf_end, &offset);
+  if (offset != 0)
+    return -1;
+
+  if (buf >= buf_end)
+    return -1;
+
+  if (*buf == DW_OP_deref)
+    {
+      buf++;
+      *deref_size_return = -1;
+    }
+  else if (*buf == DW_OP_deref_size)
+    {
+      buf++;
+      if (buf >= buf_end)
+       return -1;
+      *deref_size_return = *buf++;
+    }
+  else
+    return -1;
+
+  if (buf != buf_end)
+    return -1;
+
+  return dwarf_reg;
+}
+
+/* If <BUF..BUF_END] contains DW_FORM_block* with single DW_OP_fbreg(X) fill
+   in FB_OFFSET_RETURN with the X offset and return 1.  Otherwise return 0.  */
+
+int
+dwarf_block_to_fb_offset (const gdb_byte *buf, const gdb_byte *buf_end,
+			  CORE_ADDR *fb_offset_return)
+{
+  LONGEST fb_offset;
+
+  if (buf_end <= buf)
+    return 0;
+
+  if (*buf != DW_OP_fbreg)
+    return 0;
+  buf++;
+
+  buf = read_sleb128 (buf, buf_end, &fb_offset);
+  *fb_offset_return = fb_offset;
+  if (buf != buf_end || fb_offset != (LONGEST) *fb_offset_return)
+    return 0;
+
+  return 1;
+}
+
+/* If <BUF..BUF_END] contains DW_FORM_block* with single DW_OP_bregSP(X) fill
+   in SP_OFFSET_RETURN with the X offset and return 1.  Otherwise return 0.
+   The matched SP register number depends on GDBARCH.  */
+
+int
+dwarf_block_to_sp_offset (struct gdbarch *gdbarch, const gdb_byte *buf,
+			  const gdb_byte *buf_end, CORE_ADDR *sp_offset_return)
+{
+  ULONGEST dwarf_reg;
+  LONGEST sp_offset;
+
+  if (buf_end <= buf)
+    return 0;
+  if (*buf >= DW_OP_breg0 && *buf <= DW_OP_breg31)
+    {
+      dwarf_reg = *buf - DW_OP_breg0;
+      buf++;
+    }
+  else
+    {
+      if (*buf != DW_OP_bregx)
+       return 0;
+      buf++;
+      buf = read_uleb128 (buf, buf_end, &dwarf_reg);
+    }
+
+  if (gdbarch_dwarf2_reg_to_regnum (gdbarch, dwarf_reg)
+      != gdbarch_sp_regnum (gdbarch))
+    return 0;
+
+  buf = read_sleb128 (buf, buf_end, &sp_offset);
+  *sp_offset_return = sp_offset;
+  if (buf != buf_end || sp_offset != (LONGEST) *sp_offset_return)
+    return 0;
+
+  return 1;
 }
 
 /* The engine for the expression evaluator.  Using the context in CTX,
@@ -709,10 +865,14 @@ execute_stack_op (struct dwarf_expr_context *ctx,
 	    ULONGEST die;
 	    LONGEST len;
 
+	    if (ctx->ref_addr_size == -1)
+	      error (_("DWARF-2 expression error: DW_OP_GNU_implicit_pointer "
+		       "is not allowed in frame context"));
+
 	    /* The referred-to DIE.  */
-	    ctx->len = extract_unsigned_integer (op_ptr, ctx->addr_size,
+	    ctx->len = extract_unsigned_integer (op_ptr, ctx->ref_addr_size,
 						 byte_order);
-	    op_ptr += ctx->addr_size;
+	    op_ptr += ctx->ref_addr_size;
 
 	    /* The byte offset into the data.  */
 	    op_ptr = read_sleb128 (op_ptr, op_end, &len);
@@ -1187,11 +1347,42 @@ execute_stack_op (struct dwarf_expr_context *ctx,
 	  goto no_push;
 	
 	case DW_OP_GNU_entry_value:
-	  /* This operation is not yet supported by GDB.  */
-	  ctx->location = DWARF_VALUE_OPTIMIZED_OUT;
-	  ctx->stack_len = 0;
-	  ctx->num_pieces = 0;
-	  goto abort_expression;
+	  {
+	    ULONGEST len;
+	    int dwarf_reg;
+	    CORE_ADDR deref_size;
+
+	    op_ptr = read_uleb128 (op_ptr, op_end, &len);
+	    if (op_ptr + len > op_end)
+	      error (_("DW_OP_GNU_entry_value: too few bytes available."));
+
+	    dwarf_reg = dwarf_block_to_dwarf_reg (op_ptr, op_ptr + len);
+	    if (dwarf_reg != -1)
+	      {
+		op_ptr += len;
+		ctx->funcs->push_dwarf_reg_entry_value (ctx, dwarf_reg,
+							0 /* unused */,
+							-1 /* deref_size */);
+		goto no_push;
+	      }
+
+	    dwarf_reg = dwarf_block_to_dwarf_reg_deref (op_ptr, op_ptr + len,
+							&deref_size);
+	    if (dwarf_reg != -1)
+	      {
+		if (deref_size == -1)
+		  deref_size = ctx->addr_size;
+		op_ptr += len;
+		ctx->funcs->push_dwarf_reg_entry_value (ctx, dwarf_reg,
+							0 /* unused */,
+							deref_size);
+		goto no_push;
+	      }
+
+	    error (_("DWARF-2 expression error: DW_OP_GNU_entry_value is "
+		     "supported only for single DW_OP_reg* "
+		     "or for DW_OP_breg*(0)+DW_OP_deref*"));
+	  }
 
 	case DW_OP_GNU_const_type:
 	  {
@@ -1280,14 +1471,6 @@ abort_expression:
   gdb_assert (ctx->recursion_depth >= 0);
 }
 
-/* Stub dwarf_expr_context_funcs.read_reg implementation.  */
-
-CORE_ADDR
-ctx_no_read_reg (void *baton, int regnum)
-{
-  error (_("Registers access is invalid in this context"));
-}
-
 /* Stub dwarf_expr_context_funcs.get_frame_base implementation.  */
 
 void
@@ -1334,6 +1517,18 @@ struct type *
 ctx_no_get_base_type (struct dwarf_expr_context *ctx, size_t die)
 {
   error (_("Support for typed DWARF is not supported in this context"));
+}
+
+/* Stub dwarf_expr_context_funcs.push_dwarf_block_entry_value
+   implementation.  */
+
+void
+ctx_no_push_dwarf_reg_entry_value (struct dwarf_expr_context *ctx,
+				   int dwarf_reg, CORE_ADDR fb_offset,
+				   int deref_size)
+{
+  internal_error (__FILE__, __LINE__,
+		  _("Support for DW_OP_GNU_entry_value is unimplemented"));
 }
 
 void

@@ -1,3 +1,282 @@
+2011-11-08  Nick Clifton  <nickc@redhat.com>
+
+	* elf-m10300.c (mn10300_elf_relax_section): Fix check for an
+	immediate move into an address register.
+
+2011-11-09  Alan Modra  <amodra@gmail.com>
+
+	* elflink.c (bfd_elf_gc_mark_dynamic_ref_symbol): Mark syms in
+	executables when export_dynamic.
+
+2011-11-08  Alan Modra  <amodra@gmail.com>
+
+	* elf64-ppc.c (struct ppc64_elf_obj_tdata): Rename
+	ha_relocs_not_using_r2 to unexpected_toc_insn.
+	(ok_lo_toc_insn): New function.
+	(ppc64_elf_edit_toc): Check insn on lo toc reloc.  Emit warning.
+	(ppc64_elf_relocate_section): Don't check insn on lo toc reloc here.
+	Handle addic on lo toc reloc.
+
+2011-11-06  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	PR ld/13387
+	* elf32-hppa.c (elf32_hppa_hide_symbol): Make STT_GNU_IFUNC symbol
+	go through PLT.  Reset plt field with init_plt_offset.
+	(elf32_hppa_adjust_dynamic_symbol): Ensure that a PLT slot is
+	allocated for symbols referenced by a plabel.
+
+2011-11-02  DJ Delorie  <dj@redhat.com>
+
+	* elf32-rl78.c (rl78_elf_merge_private_bfd_data): Delete unused
+	variable.
+
+2011-11-02  Jan Beulich  <jbeulich@suse.com>
+
+	* coffgen.c (coff_write_alien_symbol): Make public. Add 'struct
+	internal_syment *' parameter. Extend 'dummy' to an array with two
+	elements. Set n_numaux early. Handle BSF_FILE.
+	(coff_write_symbols): Pass NULL as new third argument to
+	coff_write_alien_symbol().
+	* cofflink.c (_bfd_coff_final_link): Don't use COFF-specific
+	obj_raw_syment_count() on non-COFF input BFD. Insert local symbols
+	from non-COFF input BFDs.
+	* libcoff-in.h (coff_write_alien_symbol): Declare.
+	* libcoff.h (coff_write_alien_symbol): Re-generate.
+
+2011-11-01  DJ Delorie  <dj@redhat.com>
+
+	* Makefile.am (ALL_MACHINES): Add cpu-rl78.lo.
+	(ALL_MACHINES_CFILES): Add cpu-rl78.c.
+	(BFD32_BACKENDS): Add elf32-rl78.lo.
+	(BFD32_BACKENDS_CFILES): Add elf32-rl78.c.
+	(Makefile.in): Regenerate.
+	* archures.c (bfd_architecture): Define bfd_arch_rl78.
+	(bfd_archures_list): Add bfd_rl78_arch.
+	* config.bfd: Add rl78-*-elf.
+	* configure.in: Add bfd_elf32_rl78_vec.
+	* reloc.c (bfd_reloc_code_type): Add BFD_RELOC_RL78_* relocations.
+	* targets.c (bfd_target_vector): Add bfd_elf32_rl78_vec.
+	* Makefile.in: Regenerate.
+	* bfd-in2.h: Regenerate.
+	* configure: Regenerate.
+	* libbfd.h: Regenerate.
+	* cpu-rl78.c: New file.
+	* elf32-rl78.c: New file.
+
+2011-10-26  Nick Clifton  <nickc@redhat.com>
+
+	PR ld/13049
+	* elf64-ppc.c (STUB_SUFFIX): Revert previous delta.
+	* elf32-hppa.c (STUB_SUFFIX): Likewise.
+
+2011-10-25  Joern Rennecke  <joern.rennecke@embecosm.com>
+
+	* Makefile.am (ALL_MACHINES): Add cpu-epiphany.lo.
+	(ALL_MACHINES_CFILES): Add cpu-epiphany.c.
+	(BFD32_BACKENDS): Add elf32-epiphany.lo.
+	(BFD32_BACKENDS_CFILES): Add elf32-epiphany.c.
+	* archures.c (bfd_arch_epiphany): Add.
+	(bfd_mach_epiphany16, bfd_mach_epiphany32): Define.
+	(bfd_epiphany_arch): Declare.
+	(bfd_archures_list): Add &bfd_epiphany_arch.
+	* config.bfd (epiphany-*-elf): New target case.
+	* configure.in (bfd_elf32_epiphany_vec): New target vector case.
+	* reloc.c (BFD_RELOC_EPIPHANY_SIMM8): New relocation.
+	(BFD_RELOC_EPIPHANY_SIMM24, BFD_RELOC_EPIPHANY_HIGH): Likewise.
+	(BFD_RELOC_EPIPHANY_LOW, BFD_RELOC_EPIPHANY_SIMM11): Likewise.
+	(BFD_RELOC_EPIPHANY_IMM11, BFD_RELOC_EPIPHANY_IMM8): Likewise.
+	* targets.c (bfd_elf32_epiphany_vec): Declare.
+	(_bfd_target_vector): Add bfd_elf32_epiphany_vec.
+	* Makefile.in: Regenerate.
+	* bfd-in2.h: Regenerate.
+	* configure: Regenerate.
+	* libbfd.h: Regenerate.
+	* po/SRC-POTFILES.in: Regenerate.
+	* po/bfd.pot: Regenerate.
+	* cpu-epiphany.c: New file.
+	* elf32-epiphany.c: New file.
+
+2011-10-24  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* elfxx-mips.c (_bfd_mips_elf_symbol_processing): Remove
+	assertions.
+
+2011-10-24  Eugeniy Meshcheryakov  <eugen@debian.org>
+
+	PR ld/13273
+	* elf32-arm.c (elf32_arm_merge_eabi_attributes): Do not warn about
+	identical TAG_PCS_config attributes.
+
+2011-10-24  Nick Clifton  <nickc@redhat.com>
+
+	* po/ja.po: Updated Japanese translation.
+
+2011-10-24  Pau Garcia i Quiles  <pgquiles@elpauer.org>
+
+	PR binutils/13292
+	* bfd-in.h: Include <sys/stat.h> rather than forward defining
+	struct stat.
+	* bfd-in2.h: Regenerate.
+
+2011-10-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/13302
+	* elf32-i386.c (elf_i386_relocate_section): Replace
+	R_386_IRELATIVE with R_386_RELATIVE.
+
+	* elf64-x86-64.c (elf_x86_64_relocate_section): Replace
+	R_X86_64_IRELATIVE with R_X86_64_RELATIVE.
+
+2011-10-21  H.J. Lu  <hongjiu.lu@intel.com>.
+
+	* elf32-i386.c (elf_i386_relocate_section): Fix a typo in
+	comments.
+	* elf64-x86-64.c (elf_x86_64_relocate_section): Likewise.
+
+2011-10-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/13302
+	* elf32-i386.c (elf_i386_link_hash_table): Add next_jump_slot_index
+	and next_irelative_index.
+	(elf_i386_link_hash_table_create): Initialize next_jump_slot_index
+	and next_irelative_index.
+	(elf_i386_allocate_dynrelocs): Increment reloc_count instead of
+	next_tls_desc_index.
+	(elf_i386_size_dynamic_sections): Set next_tls_desc_index and
+	next_irelative_index from reloc_count.
+	(elf_i386_finish_dynamic_symbol): Put R_386_IRELATIVE after
+	R_386_JUMP_SLOT.
+
+	* elf64-x86-64.c (elf_x86_64_link_hash_table): Add
+	next_jump_slot_index and next_irelative_index.
+	(elf_x86_64_link_hash_table_create): Initialize
+	next_jump_slot_index and next_irelative_index.
+	(elf_x86_64_size_dynamic_sections): Set next_irelative_index
+	from reloc_count.
+	(elf_x86_64_finish_dynamic_symbol): Put R_X86_64_IRELATIVE after
+	R_X86_64_JUMP_SLOT.
+
+2011-10-20  Nick Clifton  <nickc@redhat.com>
+
+	PR ld/13049
+	* elf32-arm.c (STUB_SUFFIX): Avoid collision with user namespace
+	symbol names.
+	* elf64-ppc.c (STUB_SUFFIX): Likewise.
+	* elf32-hppa.c (STUB_SUFFIX): Likewise.
+
+2011-10-20  Alan Modra  <amodra@gmail.com>
+
+	* elf32-i386.c (i386_opcode16): Delete.
+	(elf_i386_check_tls_transition): Use memcmp to compare contents.
+	* elf64-x86-64.c (x86_64_opcode16, x86_64_opcode32): Delete.
+	(elf_x86_64_check_tls_transition): Use memcmp to compare contents.
+
+2011-10-19  Alan Modra  <amodra@gmail.com>
+
+	PR ld/13177
+	* elflink.c (_bfd_elf_gc_mark_rsec): Set symbol "mark".
+	(elf_gc_sweep_symbol): Don't test plt/got refcounts, instead test
+	"mark".  Hide undefweak too.  Clear def_regular and ref_regular.
+	* elf-m10300.c (mn10300_elf_relocate_section): Ignore unresolved
+	reloc errors from garbage-collected code.
+	* elf32-arm.c (elf32_arm_relocate_section): Likewise.
+	* elf32-bfin.c (bfin_relocate_section): Likewise.
+	(bfinfdpic_relocate_section): Likewise.
+	* elf32-cris.c (cris_elf_relocate_section): Likewise.
+	* elf32-frv.c (elf32_frv_relocate_section): Likewise.
+	* elf32-i386.c (elf_i386_relocate_section): Likewise.
+	* elf32-m32r.c (m32r_elf_relocate_section): Likewise.
+	* elf32-m68k.c (elf_m68k_relocate_section): Likewise.
+	* elf32-ppc.c (ppc_elf_relocate_section): Likewise.
+	* elf32-s390.c (elf_s390_relocate_section): Likewise.
+	* elf32-sh.c (sh_elf_relocate_section): Likewise.
+	* elf32-spu.c (spu_elf_relocate_section): Likewise.
+	* elf32-tilepro.c (tilepro_elf_relocate_section): Likewise.
+	* elf32-xtensa.c (elf_xtensa_relocate_section): Likewise.
+	* elf64-alpha.c (elf64_alpha_relocate_section): Likewise.
+	* elf64-ppc.c (ppc64_elf_relocate_section): Likewise.
+	* elf64-s390.c (elf_s390_relocate_section): Likewise.
+	* elf64-sh64.c (sh_elf64_relocate_section): Likewise.
+	* elf64-x86-64.c (elf_x86_64_relocate_section): Likewise.
+	* elfxx-sparc.c (_bfd_sparc_elf_relocate_section): Likewise.
+	* elfxx-tilegx.c (tilegx_elf_relocate_section): Likewise.
+
+2011-10-19  Alan Modra  <amodra@gmail.com>
+
+	PR ld/13311
+	* elflink.c (elf_link_output_extsym): Correct test for warning when
+	forced local executable syms are referenced from shared libraries.
+
+2011-10-19  Alan Modra  <amodra@gmail.com>
+
+	PR ld/13254
+	* elflink.c (bfd_elf_final_link): Emit error_textrel error.
+
+2011-10-18  David S. Miller  <davem@davemloft.net>
+
+	PR binutils/13301
+	* elfxx-sparc.c (sparc_elf_find_reloc_at_ofs): New function.
+	(_bfd_sparc_elf_relocate_section): Always move the __tls_get_addr
+	call delay slot instruction forward 4 bytes when performing
+	relaxation.
+
+2011-10-17  Alan Modra  <amodra@gmail.com>
+
+	PR ld/12975
+	PR ld/13195
+	* elf64-ppc.c (ppc64_elf_gc_mark_dynamic_ref): Apply 2011-09-15
+	and 2011-09-29 bfd_elf_gc_mark_dynamic_ref_symbol changes here too.
+
+2011-10-14  Hans-Peter Nilsson  <hp@axis.com>
+
+	* elf32-cris.c (cris_elf_gc_sweep_hook) <R_CRIS_16_GOTPLT>
+	<R_CRIS_32_GOTPLT>: Fix missing update of gotplt refcount for
+	global symbols.
+	<R_CRIS_8, R_CRIS_16, R_CRIS_32>: New cases for similar missing
+	updates of the plt refcount.
+	(elf_cris_adjust_gotplt_to_got): Assert integrity of the gotplt
+	refcount in relation to the plt refcount.
+
+2011-10-13  Richard Sandiford  <richard.sandiford@linaro.org>
+
+	* elf32-arm.c (elf32_arm_final_link_relocate): Mark PLT calls via
+	stubs as resolved.
+
+2011-10-11  Alan Modra  <amodra@gmail.com>
+
+	PR binutils/13278
+	* archive.c (bfd_generic_archive_p): Only check first element
+	when target_defaulted.
+	(_bfd_construct_extended_name_table): Use ar_maxnamelen.
+	(_bfd_archive_bsd44_construct_extended_name_table): Likewise.
+
+2011-10-11  Alan Modra  <amodra@gmail.com>
+
+	PR binutils/13257
+	* archive.c (_bfd_find_nested_archive, _bfd_get_elt_at_filepos): Open
+	thin archive element using container target if not defaulted.
+
+2011-10-10  Nick Clifton  <nickc@redhat.com>
+
+	* po/es.po: Updated Spanish translation.
+	* po/fi.po: Updated Finnish translation.
+	* po/fr.po: Updated French translation.
+	* po/ru.po: Updated Russian translation.
+
+2011-10-10  Alan Modra  <amodra@gmail.com>
+
+	* elf64-ppc.c (ppc64_elf_howto_table): Add R_PPC64_TOCSAVE entry.
+	(struct ppc_link_hash_table): Add tocsave_htab.
+	(struct tocsave_entry): New.
+	(tocsave_htab_hash, tocsave_htab_eq, tocsave_find): New functions.
+	(ppc64_elf_link_hash_table_create): Create tocsave_htab..
+	(ppc64_elf_link_hash_table_free): ..and delete it.
+	(build_plt_stub): Always put STD_R2_40R1 first.
+	(ppc64_elf_size_stubs): Check for R_PPC64_TOCSAVE following reloc
+	on plt call.  If present add prologue nop location to tocsave_htab.
+	(ppc64_elf_relocate_section): Convert prologue nop to std.  Skip
+	first insn of plt call stub when R_PPC64_TOCSAVE present.
+
 2011-10-08  H.J. Lu  <hongjiu.lu@intel.com>
 
 	PR ld/13250

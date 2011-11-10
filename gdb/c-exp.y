@@ -208,6 +208,7 @@ static struct stoken operator_stoken (const char *);
 %token NEW DELETE
 %type <sval> operator
 %token REINTERPRET_CAST DYNAMIC_CAST STATIC_CAST CONST_CAST
+%token ENTRY
 
 /* Special type cases, put in to allow the parser to distinguish different
    legal basetypes.  */
@@ -754,6 +755,21 @@ block	:	block COLONCOLON name
 			    error (_("No function \"%s\" in specified context."),
 				   copy_name ($3));
 			  $$ = SYMBOL_BLOCK_VALUE (tem); }
+	;
+
+variable:	name_not_typename ENTRY
+			{ struct symbol *sym = $1.sym;
+
+			  if (sym == NULL || !SYMBOL_IS_ARGUMENT (sym)
+			      || !symbol_read_needs_frame (sym))
+			    error (_("@entry can be used only for function "
+				     "parameters, not for \"%s\""),
+				   copy_name ($1.stoken));
+
+			  write_exp_elt_opcode (OP_VAR_ENTRY_VALUE);
+			  write_exp_elt_sym (sym);
+			  write_exp_elt_opcode (OP_VAR_ENTRY_VALUE);
+			}
 	;
 
 variable:	block COLONCOLON name
@@ -2224,6 +2240,21 @@ lex_one_token (void)
 	return toktype;
       }
 
+    case '@':
+      {
+	char *p = &tokstart[1];
+	size_t len = strlen ("entry");
+
+	while (isspace (*p))
+	  p++;
+	if (strncmp (p, "entry", len) == 0 && !isalnum (p[len])
+	    && p[len] != '_')
+	  {
+	    lexptr = &p[len];
+	    return ENTRY;
+	  }
+      }
+      /* FALLTHRU */
     case '+':
     case '-':
     case '*':
@@ -2234,7 +2265,6 @@ lex_one_token (void)
     case '^':
     case '~':
     case '!':
-    case '@':
     case '<':
     case '>':
     case '?':

@@ -1,3 +1,104 @@
+2011-11-08  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* gdb.texinfo (MIPS): Remove duplicate "auto" reference from
+	"set mips abi" documentation.
+
+2011-11-04  Doug Evans  <dje@google.com>
+
+	* gdb.texinfo (Maintenance Commands): Update docs of "maint time".
+
+2011-11-03  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.texinfo (Stopping): Add menu entry.
+	(Continuing and Stepping): Restore @node.  Use @section, not
+	@subsection.
+
+2011-11-03  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* gdb.texinfo (Skipping Over Functions and Files): Remove node
+	designation.  Fix "Specify Location" cross-reference.
+
+2011-11-02  Stan Shebs  <stan@codesourcery.com>
+
+	* gdb.texinfo (Tracepoint Action Lists): Document collect/s.
+	(General Query Packets): Describe tracenz feature.
+	* agentexpr.texi (Bytecode Descriptions): Describe tracenz.
+
+2011-10-28  Paul Koning  <paul_koning@dell.com>
+
+	* gdb.texinfo (gdb.types): Rename deepitems to deep_items.
+
+2011-10-27  Kevin Pouget  <kevin.pouget@st.com>
+
+	* gdb.texinfo ((Frames In Python): Document 
+	gdb.FRAME_UNWIND_FIRST_ERROR contant.
+
+2011-10-26  Paul Koning  <paul_koning@dell.com>
+
+	* gdb.texinfo (gdb.types): Document new deepitems function.
+	
+2011-10-25  Paul Koning  <paul_koning@dell.com>
+
+	PR python/13327
+	
+	* gdb.texinfo (Values From Inferior): Add is_lazy attribute,
+	fetch_lazy method.
+
+2011-10-20  Phil Muldoon  <pmuldoon@redhat.com>
+
+	PR python/12656
+
+	* gdb.texinfo (Blocks In Python): Document is_static, is_global,
+	global_block, static_block function.
+
+2011-10-19  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.texinfo (Commands In Python): Add missing "@"s.
+
+2011-10-13  Kevin Pouget  <kevin.pouget@st.com>
+
+	PR python/13285 Document named constants for frame unwind stop reasons
+	* gdb.texinfo (Frames In Python): Document gdb.FRAME_UNWIND_* 
+	constants.
+
+2011-10-12  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix compatibility with texinfo versions older than 4.12.
+	* Makefile.in (MAKEINFO): Set to @MAKEINFO@.
+	(MAKEINFOFLAGS, MAKEINFO_EXTRA_FLAGS, MAKEINFO_CMD): New.
+	(MAKEHTMLFLAGS): Use MAKEINFO_CMD.
+	(gdb.info, gdbint.info, stabs.info, annotate.info): Use MAKEINFO_CMD.
+	* gdb.texinfo (Tail Call Frames): Convert @arrow{} to @click, when possible.
+	Make the conversion conditional on HAVE_MAKEINFO_CLICK, using variables
+	CALLSEQ1A, CALLSEQ1B, CALLSEQ2A and CALLSEQ2B.
+
+2011-10-09  Doug Evans  <dje@google.com>
+
+	* gdb.texinfo (Extending GDB): Document alias command.
+
+2011-10-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Support @entry in input expressions.
+	* gdb.texinfo (Variables): Describe @entry names suffix.
+	(Print Settings): Add anchor for `set print entry-values'.
+
+2011-10-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+	    Eli Zaretskii  <eliz@gnu.org>
+
+	Display @entry parameter values (without references).
+	* gdb.texinfo (Tail Call Frames): Add anchor.  Add self tail call
+	example.
+	(Print Settings): New description of set print entry-values and show
+	print entry-values.
+
+2011-10-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+	    Eli Zaretskii  <eliz@gnu.org>
+
+	Recognize virtual tail call frames.
+	* gdb.texinfo (Optimized Code): Add reference to Tail Call Frames.
+	(Tail Call Frames): New node.
+	(Frames In Python): Add gdb.TAILCALL_FRAME.
+
 2011-10-07  Doug Evans  <dje@google.com>
 
 	* gdb.texinfo (gdb.printing): Document new `replace' arg to

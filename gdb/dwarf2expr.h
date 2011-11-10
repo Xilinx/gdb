@@ -62,6 +62,17 @@ struct dwarf_expr_context_funcs
      meaningful to substitute a stub type of the correct size.  */
   struct type *(*get_base_type) (struct dwarf_expr_context *ctx, size_t die);
 
+  /* Push on DWARF stack an entry evaluated for DW_TAG_GNU_call_site's
+     DWARF_REG/FB_OFFSET at the caller of specified BATON.  If DWARF register
+     number DWARF_REG specifying the push_dwarf_reg_entry_value parameter is
+     not -1 FB_OFFSET is ignored.  Otherwise FB_OFFSET specifies stack
+     parameter offset against caller's stack pointer (which equals the callee's
+     frame base).  If DEREF_SIZE is not -1 then use
+     DW_AT_GNU_call_site_data_value instead of DW_AT_GNU_call_site_value.  */
+  void (*push_dwarf_reg_entry_value) (struct dwarf_expr_context *ctx,
+				      int dwarf_reg, CORE_ADDR fb_offset,
+				      int deref_size);
+
 #if 0
   /* Not yet implemented.  */
 
@@ -124,6 +135,10 @@ struct dwarf_expr_context
 
   /* Target address size in bytes.  */
   int addr_size;
+
+  /* DW_FORM_ref_addr size in bytes.  If -1 DWARF is executed from a frame
+     context and operations depending on DW_FORM_ref_addr are not allowed.  */
+  int ref_addr_size;
 
   /* Offset used to relocate DW_OP_addr argument.  */
   CORE_ADDR offset;
@@ -255,7 +270,6 @@ void dwarf_expr_require_composition (const gdb_byte *, const gdb_byte *,
 
 /* Stub dwarf_expr_context_funcs implementations.  */
 
-CORE_ADDR ctx_no_read_reg (void *baton, int regnum);
 void ctx_no_get_frame_base (void *baton, const gdb_byte **start,
 			    size_t *length);
 CORE_ADDR ctx_no_get_frame_cfa (void *baton);
@@ -263,5 +277,21 @@ CORE_ADDR ctx_no_get_frame_pc (void *baton);
 CORE_ADDR ctx_no_get_tls_address (void *baton, CORE_ADDR offset);
 void ctx_no_dwarf_call (struct dwarf_expr_context *ctx, size_t die_offset);
 struct type *ctx_no_get_base_type (struct dwarf_expr_context *ctx, size_t die);
+void ctx_no_push_dwarf_reg_entry_value (struct dwarf_expr_context *ctx,
+					int dwarf_reg, CORE_ADDR fb_offset,
+					int deref_size);
+
+int dwarf_block_to_dwarf_reg (const gdb_byte *buf, const gdb_byte *buf_end);
+
+int dwarf_block_to_dwarf_reg_deref (const gdb_byte *buf,
+				    const gdb_byte *buf_end,
+				    CORE_ADDR *deref_size_return);
+
+int dwarf_block_to_fb_offset (const gdb_byte *buf, const gdb_byte *buf_end,
+			      CORE_ADDR *fb_offset_return);
+
+int dwarf_block_to_sp_offset (struct gdbarch *gdbarch, const gdb_byte *buf,
+			      const gdb_byte *buf_end,
+			      CORE_ADDR *sp_offset_return);
 
 #endif /* dwarf2expr.h */

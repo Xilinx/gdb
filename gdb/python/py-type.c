@@ -29,6 +29,7 @@
 #include "language.h"
 #include "vec.h"
 #include "bcache.h"
+#include "dwarf2loc.h"
 
 typedef struct pyty_type_object
 {
@@ -293,14 +294,33 @@ make_fielditem (struct type *type, int i, enum gdbpy_iter_kind kind)
 static PyObject *
 typy_fields_items (PyObject *self, enum gdbpy_iter_kind kind)
 {
+  PyObject *py_type = self;
   PyObject *result = NULL, *iter = NULL;
-  
-  iter = typy_make_iter (self, kind);
-  if (iter == NULL)
-    return NULL;
-    
-  result = PySequence_List (iter);
-  Py_DECREF (iter);
+  volatile struct gdb_exception except;
+  struct type *type = ((type_object *) py_type)->type;
+  struct type *checked_type = type;
+
+  TRY_CATCH (except, RETURN_MASK_ALL)
+    {
+      CHECK_TYPEDEF (checked_type);
+    }
+  GDB_PY_HANDLE_EXCEPTION (except);
+
+  if (checked_type != type)
+    py_type = type_to_type_object (checked_type);
+  iter = typy_make_iter (py_type, kind);
+  if (checked_type != type)
+    {
+      /* Need to wrap this in braces because Py_DECREF isn't wrapped
+	 in a do{}while(0).  */
+      Py_DECREF (py_type);
+    }
+  if (iter != NULL)
+    {
+      result = PySequence_List (iter);
+      Py_DECREF (iter);
+    }
+
   return result;
 }
 
@@ -575,7 +595,7 @@ typy_get_sizeof (PyObject *self, void *closure)
 }
 
 static struct type *
-typy_lookup_typename (const char *type_name, struct block *block)
+typy_lookup_typename (const char *type_name, const struct block *block)
 {
   struct type *type = NULL;
   volatile struct gdb_exception except;
@@ -594,9 +614,7 @@ typy_lookup_typename (const char *type_name, struct block *block)
     }
   if (except.reason < 0)
     {
-      PyErr_Format (except.reason == RETURN_QUIT
-		    ? PyExc_KeyboardInterrupt : PyExc_RuntimeError,
-		    "%s", except.message);
+      gdbpy_convert_exception (except);
       return NULL;
     }
 
@@ -605,11 +623,12 @@ typy_lookup_typename (const char *type_name, struct block *block)
 
 static struct type *
 typy_lookup_type (struct demangle_component *demangled,
-		  struct block *block)
+		  const struct block *block)
 {
-  struct type *type;
-  char *type_name;
+  struct type *type, *rtype = NULL;
+  char *type_name = NULL;
   enum demangle_component_type demangled_type;
+  volatile struct gdb_exception except;
 
   /* Save the type: typy_lookup_type() may (indirectly) overwrite
      memory pointed by demangled.  */
@@ -624,19 +643,41 @@ typy_lookup_type (struct demangle_component *demangled,
       if (! type)
 	return NULL;
 
-      switch (demangled_type)
+      TRY_CATCH (except, RETURN_MASK_ALL)
 	{
-	case DEMANGLE_COMPONENT_REFERENCE:
-	  return lookup_reference_type (type);
-	case DEMANGLE_COMPONENT_POINTER:
-	  return lookup_pointer_type (type);
-	case DEMANGLE_COMPONENT_CONST:
-	  return make_cv_type (1, 0, type, NULL);
-	case DEMANGLE_COMPONENT_VOLATILE:
-	  return make_cv_type (0, 1, type, NULL);
+	  /* If the demangled_type matches with one of the types
+	     below, run the corresponding function and save the type
+	     to return later.  We cannot just return here as we are in
+	     an exception handler.  */
+	  switch (demangled_type)
+	    {
+	    case DEMANGLE_COMPONENT_REFERENCE:
+	      rtype =  lookup_reference_type (type);
+	      break;
+	    case DEMANGLE_COMPONENT_POINTER:
+	      rtype = lookup_pointer_type (type);
+	      break;
+	    case DEMANGLE_COMPONENT_CONST:
+	      rtype = make_cv_type (1, 0, type, NULL);
+	      break;
+	    case DEMANGLE_COMPONENT_VOLATILE:
+	      rtype = make_cv_type (0, 1, type, NULL);
+	      break;
+	    }
+	}
+      if (except.reason < 0)
+	{
+	  gdbpy_convert_exception (except);
+	  return NULL;
 	}
     }
-
+  
+  /* If we have a type from the switch statement above, just return
+     that.  */
+  if (rtype)
+    return rtype;
+  
+  /* We don't have a type, so lookup the type.  */
   type_name = cp_comp_to_string (demangled, 10);
   type = typy_lookup_typename (type_name, block);
   xfree (type_name);
@@ -650,7 +691,7 @@ typy_lookup_type (struct demangle_component *demangled,
    versions of GCC, that do not emit DW_TAG_template_*.  */
 
 static PyObject *
-typy_legacy_template_argument (struct type *type, struct block *block,
+typy_legacy_template_argument (struct type *type, const struct block *block,
 			       int argno)
 {
   int i;
@@ -715,7 +756,7 @@ typy_template_argument (PyObject *self, PyObject *args)
 {
   int argno;
   struct type *type = ((type_object *) self)->type;
-  struct block *block = NULL;
+  const struct block *block = NULL;
   PyObject *block_obj = NULL;
   struct symbol *sym;
   struct value *val = NULL;
@@ -900,6 +941,22 @@ check_types_equal (struct type *type1, struct type *type2,
 				    FIELD_STATIC_PHYSNAME (*field2)))
 		return Py_NE;
 	      break;
+	    case FIELD_LOC_KIND_DWARF_BLOCK:
+	      {
+		struct dwarf2_locexpr_baton *block1, *block2;
+
+		block1 = FIELD_DWARF_BLOCK (*field1);
+		block2 = FIELD_DWARF_BLOCK (*field2);
+		if (block1->per_cu != block2->per_cu
+		    || block1->size != block2->size
+		    || memcmp (block1->data, block2->data, block1->size) != 0)
+		return Py_NE;
+	      }
+	      break;
+	    default:
+	      internal_error (__FILE__, __LINE__, _("Unsupported field kind "
+						    "%d by check_types_equal"),
+			      FIELD_LOC_KIND (*field1));
 	    }
 
 	  entry.type1 = FIELD_TYPE (*field1);
@@ -990,11 +1047,13 @@ typy_richcompare (PyObject *self, PyObject *other, int op)
 	{
 	  result = check_types_worklist (&worklist, cache);
 	}
-      if (except.reason < 0)
-	result = Py_NE;
-
+      /* check_types_worklist calls several nested Python helper
+	 functions, some of which can raise a GDB Exception, so we
+	 just check and convert here.  If there is a GDB exception, a
+	 comparison is not capable (or trusted), so exit.  */
       bcache_xfree (cache);
       VEC_free (type_equality_entry_d, worklist);
+      GDB_PY_HANDLE_EXCEPTION (except);
     }
 
   if (op == result)
@@ -1095,7 +1154,8 @@ typy_getitem (PyObject *self, PyObject *key)
   struct type *type = ((type_object *) self)->type;
   char *field;
   int i;
-  
+  volatile struct gdb_exception except;
+
   field = python_string_to_host_string (key);
   if (field == NULL)
     return NULL;
@@ -1106,7 +1166,12 @@ typy_getitem (PyObject *self, PyObject *key)
 
   for (;;)
     {
-      CHECK_TYPEDEF (type);
+      TRY_CATCH (except, RETURN_MASK_ALL)
+	{
+	  CHECK_TYPEDEF (type);
+	}
+      GDB_PY_HANDLE_EXCEPTION (except);
+
       if (TYPE_CODE (type) != TYPE_CODE_PTR
 	  && TYPE_CODE (type) != TYPE_CODE_REF)
 	break;
@@ -1159,9 +1224,10 @@ static PyObject *
 typy_has_key (PyObject *self, PyObject *args)
 {
   struct type *type = ((type_object *) self)->type;
-  char *field;
+  const char *field;
   int i;
-  
+  volatile struct gdb_exception except;
+
   if (!PyArg_ParseTuple (args, "s", &field))
     return NULL;
 
@@ -1171,7 +1237,11 @@ typy_has_key (PyObject *self, PyObject *args)
 
   for (;;)
     {
-      CHECK_TYPEDEF (type);
+      TRY_CATCH (except, RETURN_MASK_ALL)
+	{
+	  CHECK_TYPEDEF (type);
+	}
+      GDB_PY_HANDLE_EXCEPTION (except);
       if (TYPE_CODE (type) != TYPE_CODE_PTR
 	  && TYPE_CODE (type) != TYPE_CODE_REF)
 	break;
@@ -1311,7 +1381,7 @@ gdbpy_lookup_type (PyObject *self, PyObject *args, PyObject *kw)
   const char *type_name = NULL;
   struct type *type = NULL;
   PyObject *block_obj = NULL;
-  struct block *block = NULL;
+  const struct block *block = NULL;
 
   if (! PyArg_ParseTupleAndKeywords (args, kw, "s|O", keywords,
 				     &type_name, &block_obj))

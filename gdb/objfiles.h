@@ -196,7 +196,8 @@ struct objfile
 
     CORE_ADDR addr_low;
 
-    /* Some flag bits for this objfile.  */
+    /* Some flag bits for this objfile.
+       The values are defined by OBJF_*.  */
 
     unsigned short flags;
 
@@ -243,6 +244,11 @@ struct objfile
        we read its symbols.  */
 
     long mtime;
+
+    /* Cached 32-bit CRC as computed by gnu_debuglink_crc32.  CRC32 is valid
+       iff CRC32_P.  */
+    unsigned long crc32;
+    int crc32_p;
 
     /* Obstack to hold objects that should be freed when we load a new symbol
        table from this object file.  */
@@ -433,6 +439,11 @@ struct objfile
    This is used to allow lazy reading of partial symtabs.  */
 
 #define OBJF_PSYMTABS_READ (1 << 4)
+
+/* Set if this is the main symbol file
+   (as opposed to symbol file for dynamically loaded code).  */
+
+#define OBJF_MAINLINE (1 << 5)
 
 /* The object file that contains the runtime common minimal symbols
    for SunOS4.  Note that this objfile has no associated BFD.  */

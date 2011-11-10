@@ -1282,6 +1282,20 @@ static reloc_howto_type ppc64_elf_howto_raw[] = {
 	 0,			/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
+  HOWTO (R_PPC64_TOCSAVE,
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 bfd_elf_generic_reloc,	/* special_function */
+	 "R_PPC64_TOCSAVE",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 0,			/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
   /* Computes the load module index of the load module that contains the
      definition of its TLS sym.  */
   HOWTO (R_PPC64_DTPMOD64,
@@ -2600,8 +2614,9 @@ struct ppc64_elf_obj_tdata
      the reloc to be in the range -32768 to 32767.  */
   unsigned int has_small_toc_reloc : 1;
 
-  /* Set if toc/got ha relocs detected not using r2.  */
-  unsigned int ha_relocs_not_using_r2 : 1;
+  /* Set if toc/got ha relocs detected not using r2, or lo reloc
+     instruction not one we handle.  */
+  unsigned int unexpected_toc_insn : 1;
 };
 
 #define ppc64_elf_tdata(bfd) \
@@ -3677,6 +3692,9 @@ struct ppc_link_hash_table
   /* Another hash table for plt_branch stubs.  */
   struct bfd_hash_table branch_hash_table;
 
+  /* Hash table for function prologue tocsave.  */
+  htab_t tocsave_htab;
+
   /* Linker stub bfd.  */
   bfd *stub_bfd;
 
@@ -3923,6 +3941,26 @@ link_hash_newfunc (struct bfd_hash_entry *entry,
   return entry;
 }
 
+struct tocsave_entry {
+  asection *sec;
+  bfd_vma offset;
+};
+
+static hashval_t
+tocsave_htab_hash (const void *p)
+{
+  const struct tocsave_entry *e = (const struct tocsave_entry *) p;
+  return ((bfd_vma)(intptr_t) e->sec ^ e->offset) >> 3;
+}
+
+static int
+tocsave_htab_eq (const void *p1, const void *p2)
+{
+  const struct tocsave_entry *e1 = (const struct tocsave_entry *) p1;
+  const struct tocsave_entry *e2 = (const struct tocsave_entry *) p2;
+  return e1->sec == e2->sec && e1->offset == e2->offset;
+}
+
 /* Create a ppc64 ELF linker hash table.  */
 
 static struct bfd_link_hash_table *
@@ -3953,6 +3991,13 @@ ppc64_elf_link_hash_table_create (bfd *abfd)
 			    sizeof (struct ppc_branch_hash_entry)))
     return NULL;
 
+  htab->tocsave_htab = htab_try_create (1024,
+					tocsave_htab_hash,
+					tocsave_htab_eq,
+					NULL);
+  if (htab->tocsave_htab == NULL)
+    return NULL;
+
   /* Initializing two fields of the union is just cosmetic.  We really
      only care about glist, but when compiled on a 32-bit host the
      bfd_vma fields are larger.  Setting the bfd_vma to zero makes
@@ -3974,10 +4019,12 @@ ppc64_elf_link_hash_table_create (bfd *abfd)
 static void
 ppc64_elf_link_hash_table_free (struct bfd_link_hash_table *hash)
 {
-  struct ppc_link_hash_table *ret = (struct ppc_link_hash_table *) hash;
+  struct ppc_link_hash_table *htab = (struct ppc_link_hash_table *) hash;
 
-  bfd_hash_table_free (&ret->stub_hash_table);
-  bfd_hash_table_free (&ret->branch_hash_table);
+  bfd_hash_table_free (&htab->stub_hash_table);
+  bfd_hash_table_free (&htab->branch_hash_table);
+  if (htab->tocsave_htab)
+    htab_delete (htab->tocsave_htab);
   _bfd_generic_link_hash_table_free (hash);
 }
 
@@ -5671,7 +5718,10 @@ ppc64_elf_gc_mark_dynamic_ref (struct elf_link_hash_entry *h, void *inf)
 	  || (!info->executable
 	      && eh->elf.def_regular
 	      && ELF_ST_VISIBILITY (eh->elf.other) != STV_INTERNAL
-	      && ELF_ST_VISIBILITY (eh->elf.other) != STV_HIDDEN)))
+	      && ELF_ST_VISIBILITY (eh->elf.other) != STV_HIDDEN
+	      && (strchr (eh->elf.root.root.string, ELF_VER_CHR) != NULL
+		  || !bfd_hide_sym_by_version (info->version_info,
+					       eh->elf.root.root.string)))))
     {
       asection *code_sec;
       struct ppc_link_hash_entry *fh;
@@ -6712,6 +6762,55 @@ get_tls_mask (unsigned char **tls_maskp,
       && (next_r == -1 || next_r == -2))
     return 1 - next_r;
   return 1;
+}
+
+/* Find (or create) an entry in the tocsave hash table.  */
+
+static struct tocsave_entry *
+tocsave_find (struct ppc_link_hash_table *htab,
+	      enum insert_option insert,
+	      Elf_Internal_Sym **local_syms,
+	      const Elf_Internal_Rela *irela,
+	      bfd *ibfd)
+{
+  unsigned long r_indx;
+  struct elf_link_hash_entry *h;
+  Elf_Internal_Sym *sym;
+  struct tocsave_entry ent, *p;
+  hashval_t hash;
+  struct tocsave_entry **slot;
+
+  r_indx = ELF64_R_SYM (irela->r_info);
+  if (!get_sym_h (&h, &sym, &ent.sec, NULL, local_syms, r_indx, ibfd))
+    return NULL;
+  if (ent.sec == NULL || ent.sec->output_section == NULL)
+    {
+      (*_bfd_error_handler)
+	(_("%B: undefined symbol on R_PPC64_TOCSAVE relocation"));
+      return NULL;
+    }
+
+  if (h != NULL)
+    ent.offset = h->root.u.def.value;
+  else
+    ent.offset = sym->st_value;
+  ent.offset += irela->r_addend;
+
+  hash = tocsave_htab_hash (&ent);
+  slot = ((struct tocsave_entry **)
+	  htab_find_slot_with_hash (htab->tocsave_htab, &ent, hash, insert));
+  if (slot == NULL)
+    return NULL;
+
+  if (*slot == NULL)
+    {
+      p = (struct tocsave_entry *) bfd_alloc (ibfd, sizeof (*p));
+      if (p == NULL)
+	return NULL;
+      *p = ent;
+      *slot = p;
+    }
+  return *slot;
 }
 
 /* Adjust all global syms defined in opd sections.  In gcc generated
@@ -7918,6 +8017,32 @@ adjust_toc_syms (struct elf_link_hash_entry *h, void *inf)
   return TRUE;
 }
 
+/* Return TRUE iff INSN is one we expect on a _LO variety toc/got reloc.  */
+
+static bfd_boolean
+ok_lo_toc_insn (unsigned int insn)
+{
+  return ((insn & (0x3f << 26)) == 14u << 26 /* addi */
+	  || (insn & (0x3f << 26)) == 32u << 26 /* lwz */
+	  || (insn & (0x3f << 26)) == 34u << 26 /* lbz */
+	  || (insn & (0x3f << 26)) == 36u << 26 /* stw */
+	  || (insn & (0x3f << 26)) == 38u << 26 /* stb */
+	  || (insn & (0x3f << 26)) == 40u << 26 /* lhz */
+	  || (insn & (0x3f << 26)) == 42u << 26 /* lha */
+	  || (insn & (0x3f << 26)) == 44u << 26 /* sth */
+	  || (insn & (0x3f << 26)) == 46u << 26 /* lmw */
+	  || (insn & (0x3f << 26)) == 47u << 26 /* stmw */
+	  || (insn & (0x3f << 26)) == 48u << 26 /* lfs */
+	  || (insn & (0x3f << 26)) == 50u << 26 /* lfd */
+	  || (insn & (0x3f << 26)) == 52u << 26 /* stfs */
+	  || (insn & (0x3f << 26)) == 54u << 26 /* stfd */
+	  || ((insn & (0x3f << 26)) == 58u << 26 /* lwa,ld,lmd */
+	      && (insn & 3) != 1)
+	  || ((insn & (0x3f << 26)) == 62u << 26 /* std, stmd */
+	      && ((insn & 3) == 0 || (insn & 3) == 3))
+	  || (insn & (0x3f << 26)) == 12u << 26 /* addic */);
+}
+
 /* Examine all relocs referencing .toc sections in order to remove
    unused .toc entries.  */
 
@@ -8172,11 +8297,13 @@ ppc64_elf_edit_toc (struct bfd_link_info *info)
 		struct elf_link_hash_entry *h;
 		Elf_Internal_Sym *sym;
 		bfd_vma val;
+		enum {no_check, check_lo, check_ha} insn_check;
 
 		r_type = ELF64_R_TYPE (rel->r_info);
 		switch (r_type)
 		  {
 		  default:
+		    insn_check = no_check;
 		    break;
 
 		  case R_PPC64_GOT_TLSLD16_HA:
@@ -8185,22 +8312,47 @@ ppc64_elf_edit_toc (struct bfd_link_info *info)
 		  case R_PPC64_GOT_DTPREL16_HA:
 		  case R_PPC64_GOT16_HA:
 		  case R_PPC64_TOC16_HA:
-		    {
-		      bfd_vma off = rel->r_offset & ~3;
-		      unsigned char buf[4];
-		      unsigned int insn;
-
-		      if (!bfd_get_section_contents (ibfd, sec, buf, off, 4))
-			{
-			  free (used);
-			  goto error_ret;
-			}
-		      insn = bfd_get_32 (ibfd, buf);
-		      if ((insn & ((0x3f << 26) | 0x1f << 16))
-			  != ((15u << 26) | (2 << 16)) /* addis rt,2,imm */)
-			ppc64_elf_tdata (ibfd)->ha_relocs_not_using_r2 = 1;
-		    }
+		    insn_check = check_ha;
 		    break;
+
+		  case R_PPC64_GOT_TLSLD16_LO:
+		  case R_PPC64_GOT_TLSGD16_LO:
+		  case R_PPC64_GOT_TPREL16_LO_DS:
+		  case R_PPC64_GOT_DTPREL16_LO_DS:
+		  case R_PPC64_GOT16_LO:
+		  case R_PPC64_GOT16_LO_DS:
+		  case R_PPC64_TOC16_LO:
+		  case R_PPC64_TOC16_LO_DS:
+		    insn_check = check_lo;
+		    break;
+		  }
+
+		if (insn_check != no_check)
+		  {
+		    bfd_vma off = rel->r_offset & ~3;
+		    unsigned char buf[4];
+		    unsigned int insn;
+
+		    if (!bfd_get_section_contents (ibfd, sec, buf, off, 4))
+		      {
+			free (used);
+			goto error_ret;
+		      }
+		    insn = bfd_get_32 (ibfd, buf);
+		    if (insn_check == check_lo
+			? !ok_lo_toc_insn (insn)
+			: ((insn & ((0x3f << 26) | 0x1f << 16))
+			   != ((15u << 26) | (2 << 16)) /* addis rt,2,imm */))
+		      {
+			char str[12];
+
+			ppc64_elf_tdata (ibfd)->unexpected_toc_insn = 1;
+			sprintf (str, "%#08x", insn);
+			info->callbacks->einfo
+			  (_("%P: %H: toc optimization is not supported for"
+			     " %s instruction.\n"),
+			   ibfd, sec, rel->r_offset & ~3, str);
+		      }
 		  }
 
 		switch (r_type)
@@ -9327,8 +9479,9 @@ build_plt_stub (bfd *obfd, bfd_byte *p, int offset, Elf_Internal_Rela *r,
     {
       if (r != NULL)
 	{
+	  r[0].r_offset += 4;
 	  r[0].r_info = ELF64_R_INFO (0, R_PPC64_TOC16_HA);
-	  r[1].r_offset = r[0].r_offset + 8;
+	  r[1].r_offset = r[0].r_offset + 4;
 	  r[1].r_info = ELF64_R_INFO (0, R_PPC64_TOC16_LO_DS);
 	  r[1].r_addend = r[0].r_addend;
 	  if (PPC_HA (offset + 8 + 8 * plt_static_chain) != PPC_HA (offset))
@@ -9350,8 +9503,8 @@ build_plt_stub (bfd *obfd, bfd_byte *p, int offset, Elf_Internal_Rela *r,
 		}
 	    }
 	}
-      bfd_put_32 (obfd, ADDIS_R12_R2 | PPC_HA (offset), p),	p += 4;
       bfd_put_32 (obfd, STD_R2_40R1, p),			p += 4;
+      bfd_put_32 (obfd, ADDIS_R12_R2 | PPC_HA (offset), p),	p += 4;
       bfd_put_32 (obfd, LD_R11_0R12 | PPC_LO (offset), p),	p += 4;
       if (PPC_HA (offset + 8 + 8 * plt_static_chain) != PPC_HA (offset))
 	{
@@ -11180,6 +11333,14 @@ ppc64_elf_size_stubs (struct bfd_link_info *info, bfd_signed_vma group_size,
 			continue;
 		    }
 
+		  if (stub_type == ppc_stub_plt_call
+		      && irela + 1 < irelaend
+		      && irela[1].r_offset == irela->r_offset + 4
+		      && ELF64_R_TYPE (irela[1].r_info) == R_PPC64_TOCSAVE
+		      && !tocsave_find (htab, INSERT,
+					&local_syms, irela + 1, input_bfd))
+		    goto error_ret_free_internal;
+
 		  /* Support for grouping stub sections.  */
 		  id_sec = htab->stub_group[section->id].link_sec;
 
@@ -12344,6 +12505,21 @@ ppc64_elf_relocate_section (bfd *output_bfd,
 	default:
 	  break;
 
+	case R_PPC64_TOCSAVE:
+	  if (relocation + addend == (rel->r_offset
+				      + input_section->output_offset
+				      + input_section->output_section->vma)
+	      && tocsave_find (htab, NO_INSERT,
+			       &local_syms, rel, input_bfd))
+	    {
+	      insn = bfd_get_32 (input_bfd, contents + rel->r_offset);
+	      if (insn == NOP
+		  || insn == CROR_151515 || insn == CROR_313131)
+		bfd_put_32 (input_bfd, STD_R2_40R1,
+			    contents + rel->r_offset);
+	    }
+	  break;
+
 	  /* Branch taken prediction relocations.  */
 	case R_PPC64_ADDR14_BRTAKEN:
 	case R_PPC64_REL14_BRTAKEN:
@@ -12496,6 +12672,12 @@ ppc64_elf_relocate_section (bfd *output_bfd,
 			    + stub_entry->stub_sec->output_offset
 			    + stub_entry->stub_sec->output_section->vma);
 	      addend = 0;
+
+ 	      if (stub_entry->stub_type == ppc_stub_plt_call
+		  && rel + 1 < relend
+		  && rel[1].r_offset == rel->r_offset + 4
+		  && ELF64_R_TYPE (rel[1].r_info) == R_PPC64_TOCSAVE)
+		relocation += 4;
 	    }
 
 	  if (insn != 0)
@@ -12555,6 +12737,7 @@ ppc64_elf_relocate_section (bfd *output_bfd,
 	case R_PPC64_TLS:
 	case R_PPC64_TLSGD:
 	case R_PPC64_TLSLD:
+	case R_PPC64_TOCSAVE:
 	case R_PPC64_GNU_VTINHERIT:
 	case R_PPC64_GNU_VTENTRY:
 	  continue;
@@ -13193,7 +13376,7 @@ ppc64_elf_relocate_section (bfd *output_bfd,
 	case R_PPC64_GOT16_HA:
 	case R_PPC64_TOC16_HA:
 	  if (htab->do_toc_opt && relocation + addend + 0x8000 < 0x10000
-	      && !ppc64_elf_tdata (input_bfd)->ha_relocs_not_using_r2)
+	      && !ppc64_elf_tdata (input_bfd)->unexpected_toc_insn)
 	    {
 	      bfd_byte *p = contents + (rel->r_offset & ~3);
 	      bfd_put_32 (input_bfd, NOP, p);
@@ -13209,33 +13392,22 @@ ppc64_elf_relocate_section (bfd *output_bfd,
 	case R_PPC64_TOC16_LO:
 	case R_PPC64_TOC16_LO_DS:
 	  if (htab->do_toc_opt && relocation + addend + 0x8000 < 0x10000
-	      && !ppc64_elf_tdata (input_bfd)->ha_relocs_not_using_r2)
+	      && !ppc64_elf_tdata (input_bfd)->unexpected_toc_insn)
 	    {
 	      bfd_byte *p = contents + (rel->r_offset & ~3);
 	      insn = bfd_get_32 (input_bfd, p);
-	      if ((insn & (0x3f << 26)) == 14u << 26 /* addi */
-		  || (insn & (0x3f << 26)) == 32u << 26 /* lwz */
-		  || (insn & (0x3f << 26)) == 34u << 26 /* lbz */
-		  || (insn & (0x3f << 26)) == 36u << 26 /* stw */
-		  || (insn & (0x3f << 26)) == 38u << 26 /* stb */
-		  || (insn & (0x3f << 26)) == 40u << 26 /* lhz */
-		  || (insn & (0x3f << 26)) == 42u << 26 /* lha */
-		  || (insn & (0x3f << 26)) == 44u << 26 /* sth */
-		  || (insn & (0x3f << 26)) == 46u << 26 /* lmw */
-		  || (insn & (0x3f << 26)) == 47u << 26 /* stmw */
-		  || (insn & (0x3f << 26)) == 48u << 26 /* lfs */
-		  || (insn & (0x3f << 26)) == 50u << 26 /* lfd */
-		  || (insn & (0x3f << 26)) == 52u << 26 /* stfs */
-		  || (insn & (0x3f << 26)) == 54u << 26 /* stfd */
-		  || ((insn & (0x3f << 26)) == 58u << 26 /* lwa,ld,lmd */
-		      && (insn & 3) != 1)
-		  || ((insn & (0x3f << 26)) == 62u << 26 /* std, stmd */
-		      && ((insn & 3) == 0 || (insn & 3) == 3)))
+	      if ((insn & (0x3f << 26)) == 12u << 26 /* addic */)
+		{
+		  /* Transform addic to addi when we change reg.  */
+		  insn &= ~((0x3f << 26) | (0x1f << 16));
+		  insn |= (14u << 26) | (2 << 16);
+		}
+	      else
 		{
 		  insn &= ~(0x1f << 16);
 		  insn |= 2 << 16;
-		  bfd_put_32 (input_bfd, insn, p);
 		}
+	      bfd_put_32 (input_bfd, insn, p);
 	    }
 	  break;
 	}
@@ -13330,7 +13502,9 @@ ppc64_elf_relocate_section (bfd *output_bfd,
 	 not process them.  */
       if (unresolved_reloc
 	  && !((input_section->flags & SEC_DEBUGGING) != 0
-	       && h->elf.def_dynamic))
+	       && h->elf.def_dynamic)
+	  && _bfd_elf_section_offset (output_bfd, info, input_section,
+				      rel->r_offset) != (bfd_vma) -1)
 	{
 	  info->callbacks->einfo
 	    (_("%P: %H: unresolvable %s relocation against symbol `%s'\n"),

@@ -8659,10 +8659,11 @@ elf_link_output_extsym (struct bfd_hash_entry *bh, void *data)
 
   /* We should also warn if a forced local symbol is referenced from
      shared libraries.  */
-  if (! finfo->info->relocatable
-      && (! finfo->info->shared)
+  if (!finfo->info->relocatable
+      && finfo->info->executable
       && h->forced_local
       && h->ref_dynamic
+      && h->def_regular
       && !h->dynamic_def
       && !h->dynamic_weak
       && ! elf_link_check_versioned_symbol (finfo->info, bed, h))
@@ -11187,7 +11188,8 @@ bfd_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 	goto error_return;
 
       /* Check for DT_TEXTREL (late, in case the backend removes it).  */
-      if (info->warn_shared_textrel && info->shared)
+      if ((info->warn_shared_textrel && info->shared)
+	  || info->error_textrel)
 	{
 	  bfd_byte *dyncon, *dynconend;
 
@@ -11205,8 +11207,12 @@ bfd_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 
 	      if (dyn.d_tag == DT_TEXTREL)
 		{
-		 info->callbacks->einfo
-		    (_("%P: warning: creating a DT_TEXTREL in a shared object.\n"));
+		  if (info->error_textrel)
+		    info->callbacks->einfo
+		      (_("%P%X: read-only segment has dynamic relocations.\n"));
+		  else
+		    info->callbacks->einfo
+		      (_("%P: warning: creating a DT_TEXTREL in a shared object.\n"));
 		  break;
 		}
 	    }
@@ -11571,6 +11577,7 @@ _bfd_elf_gc_mark_rsec (struct bfd_link_info *info, asection *sec,
       while (h->root.type == bfd_link_hash_indirect
 	     || h->root.type == bfd_link_hash_warning)
 	h = (struct elf_link_hash_entry *) h->root.u.i.link;
+      h->mark = 1;
       return (*gc_mark_hook) (sec, info, cookie->rel, h, NULL);
     }
 
@@ -11718,19 +11725,20 @@ struct elf_gc_sweep_symbol_info
 static bfd_boolean
 elf_gc_sweep_symbol (struct elf_link_hash_entry *h, void *data)
 {
-  if (((h->root.type == bfd_link_hash_defined
-	|| h->root.type == bfd_link_hash_defweak)
-       && !h->root.u.def.section->gc_mark
-       && (!(h->root.u.def.section->owner->flags & DYNAMIC)
-	   || (h->plt.refcount <= 0
-	       && h->got.refcount <= 0)))
-      || (h->root.type == bfd_link_hash_undefined
-	  && h->plt.refcount <= 0
-	  && h->got.refcount <= 0))
+  if (!h->mark
+      && (((h->root.type == bfd_link_hash_defined
+	    || h->root.type == bfd_link_hash_defweak)
+	   && !h->root.u.def.section->gc_mark)
+	  || h->root.type == bfd_link_hash_undefined
+	  || h->root.type == bfd_link_hash_undefweak))
     {
-      struct elf_gc_sweep_symbol_info *inf =
-	(struct elf_gc_sweep_symbol_info *) data;
+      struct elf_gc_sweep_symbol_info *inf;
+
+      inf = (struct elf_gc_sweep_symbol_info *) data;
       (*inf->hide_symbol) (inf->info, h, TRUE);
+      h->def_regular = 0;
+      h->ref_regular = 0;
+      h->ref_regular_nonweak = 0;
     }
 
   return TRUE;
@@ -11939,7 +11947,7 @@ bfd_elf_gc_mark_dynamic_ref_symbol (struct elf_link_hash_entry *h, void *inf)
   if ((h->root.type == bfd_link_hash_defined
        || h->root.type == bfd_link_hash_defweak)
       && (h->ref_dynamic
-	  || (!info->executable
+	  || ((!info->executable || info->export_dynamic)
 	      && h->def_regular
 	      && ELF_ST_VISIBILITY (h->other) != STV_INTERNAL
 	      && ELF_ST_VISIBILITY (h->other) != STV_HIDDEN

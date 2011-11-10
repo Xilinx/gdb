@@ -64,6 +64,29 @@ static const char *print_frame_arguments_choices[] =
   {"all", "scalars", "none", NULL};
 static const char *print_frame_arguments = "scalars";
 
+/* The possible choices of "set print entry-values", and the value
+   of this setting.  */
+
+const char print_entry_values_no[] = "no";
+const char print_entry_values_only[] = "only";
+const char print_entry_values_preferred[] = "preferred";
+const char print_entry_values_if_needed[] = "if-needed";
+const char print_entry_values_both[] = "both";
+const char print_entry_values_compact[] = "compact";
+const char print_entry_values_default[] = "default";
+static const char *print_entry_values_choices[] =
+{
+  print_entry_values_no,
+  print_entry_values_only,
+  print_entry_values_preferred,
+  print_entry_values_if_needed,
+  print_entry_values_both,
+  print_entry_values_compact,
+  print_entry_values_default,
+  NULL
+};
+const char *print_entry_values = print_entry_values_default;
+
 /* Prototypes for local functions.  */
 
 static void print_frame_local_vars (struct frame_info *, int,
@@ -73,6 +96,12 @@ static void print_frame (struct frame_info *frame, int print_level,
 			 enum print_what print_what,  int print_args,
 			 struct symtab_and_line sal);
 
+static void set_last_displayed_sal (int valid,
+				    struct program_space *pspace,
+				    CORE_ADDR addr,
+				    struct symtab *symtab,
+				    int line);
+
 /* Zero means do things normally; we are interacting directly with the
    user.  One means print the full filename and linenumber when a
    frame is printed, and do so in a format emacs18/emacs19.22 can
@@ -80,6 +109,14 @@ static void print_frame (struct frame_info *frame, int print_level,
    cases and in a slightly different syntax.  */
 
 int annotation_level = 0;
+
+/* These variables hold the last symtab and line we displayed to the user.
+ * This is where we insert a breakpoint or a skiplist entry by default.  */
+static int last_displayed_sal_valid = 0;
+static struct program_space *last_displayed_pspace = 0;
+static CORE_ADDR last_displayed_addr = 0;
+static struct symtab *last_displayed_symtab = 0;
+static int last_displayed_line = 0;
 
 
 /* Return 1 if we should display the address in addition to the location,
@@ -162,6 +199,286 @@ print_frame_nameless_args (struct frame_info *frame, long start, int num,
     }
 }
 
+/* Print single argument of inferior function.  ARG must be already
+   read in.
+
+   Errors are printed as if they would be the parameter value.  Use zeroed ARG
+   iff it should not be printed accoring to user settings.  */
+
+static void
+print_frame_arg (const struct frame_arg *arg)
+{
+  struct ui_out *uiout = current_uiout;
+  volatile struct gdb_exception except;
+  struct cleanup *old_chain;
+  struct ui_stream *stb;
+
+  stb = ui_out_stream_new (uiout);
+  old_chain = make_cleanup_ui_out_stream_delete (stb);
+
+  gdb_assert (!arg->val || !arg->error);
+  gdb_assert (arg->entry_kind == print_entry_values_no
+	      || arg->entry_kind == print_entry_values_only
+	      || (!ui_out_is_mi_like_p (uiout)
+		  && arg->entry_kind == print_entry_values_compact));
+
+  annotate_arg_begin ();
+
+  make_cleanup_ui_out_tuple_begin_end (uiout, NULL);
+  fprintf_symbol_filtered (stb->stream, SYMBOL_PRINT_NAME (arg->sym),
+			   SYMBOL_LANGUAGE (arg->sym), DMGL_PARAMS | DMGL_ANSI);
+  if (arg->entry_kind == print_entry_values_compact)
+    {
+      /* It is OK to provide invalid MI-like stream as with
+	 PRINT_ENTRY_VALUE_COMPACT we never use MI.  */
+      fputs_filtered ("=", stb->stream);
+
+      fprintf_symbol_filtered (stb->stream, SYMBOL_PRINT_NAME (arg->sym),
+			       SYMBOL_LANGUAGE (arg->sym),
+			       DMGL_PARAMS | DMGL_ANSI);
+    }
+  if (arg->entry_kind == print_entry_values_only
+      || arg->entry_kind == print_entry_values_compact)
+    fputs_filtered ("@entry", stb->stream);
+  ui_out_field_stream (uiout, "name", stb);
+  annotate_arg_name_end ();
+  ui_out_text (uiout, "=");
+
+  if (!arg->val && !arg->error)
+    ui_out_text (uiout, "...");
+  else
+    {
+      if (arg->error)
+	except.message = arg->error;
+      else
+	{
+	  /* TRY_CATCH has two statements, wrap it in a block.  */
+
+	  TRY_CATCH (except, RETURN_MASK_ERROR)
+	    {
+	      const struct language_defn *language;
+	      struct value_print_options opts;
+
+	      /* Avoid value_print because it will deref ref parameters.  We
+		 just want to print their addresses.  Print ??? for args whose
+		 address we do not know.  We pass 2 as "recurse" to val_print
+		 because our standard indentation here is 4 spaces, and
+		 val_print indents 2 for each recurse.  */ 
+
+	      annotate_arg_value (value_type (arg->val));
+
+	      /* Use the appropriate language to display our symbol, unless the
+		 user forced the language to a specific language.  */
+	      if (language_mode == language_mode_auto)
+		language = language_def (SYMBOL_LANGUAGE (arg->sym));
+	      else
+		language = current_language;
+
+	      get_raw_print_options (&opts);
+	      opts.deref_ref = 1;
+
+	      /* True in "summary" mode, false otherwise.  */
+	      opts.summary = !strcmp (print_frame_arguments, "scalars");
+
+	      common_val_print (arg->val, stb->stream, 2, &opts, language);
+	    }
+	}
+      if (except.message)
+	fprintf_filtered (stb->stream, _("<error reading variable: %s>"),
+			  except.message);
+    }
+
+  ui_out_field_stream (uiout, "value", stb);
+
+  /* Aleo invoke ui_out_tuple_end.  */
+  do_cleanups (old_chain);
+
+  annotate_arg_end ();
+}
+
+/* Read in inferior function parameter SYM at FRAME into ARGP.  Caller is
+   responsible for xfree of ARGP->ERROR.  This function never throws an
+   exception.  */
+
+void
+read_frame_arg (struct symbol *sym, struct frame_info *frame,
+	        struct frame_arg *argp, struct frame_arg *entryargp)
+{
+  struct value *val = NULL, *entryval = NULL;
+  char *val_error = NULL, *entryval_error = NULL;
+  int val_equal = 0;
+  volatile struct gdb_exception except;
+
+  if (print_entry_values != print_entry_values_only
+      && print_entry_values != print_entry_values_preferred)
+    {
+      TRY_CATCH (except, RETURN_MASK_ERROR)
+	{
+	  val = read_var_value (sym, frame);
+	}
+      if (!val)
+	{
+	  val_error = alloca (strlen (except.message) + 1);
+	  strcpy (val_error, except.message);
+	}
+    }
+
+  if (SYMBOL_CLASS (sym) == LOC_COMPUTED
+      && print_entry_values != print_entry_values_no
+      && (print_entry_values != print_entry_values_if_needed
+	  || !val || value_optimized_out (val)))
+    {
+      TRY_CATCH (except, RETURN_MASK_ERROR)
+	{
+	  const struct symbol_computed_ops *ops;
+
+	  ops = SYMBOL_COMPUTED_OPS (sym);
+	  entryval = ops->read_variable_at_entry (sym, frame);
+	}
+      if (!entryval)
+	{
+	  entryval_error = alloca (strlen (except.message) + 1);
+	  strcpy (entryval_error, except.message);
+	}
+
+      if (except.error == NO_ENTRY_VALUE_ERROR
+	  || (entryval && value_optimized_out (entryval)))
+	{
+	  entryval = NULL;
+	  entryval_error = NULL;
+	}
+
+      if (print_entry_values == print_entry_values_compact
+	  || print_entry_values == print_entry_values_default)
+	{
+	  /* For MI do not try to use print_entry_values_compact for ARGP.  */
+
+	  if (val && entryval && !ui_out_is_mi_like_p (current_uiout))
+	    {
+	      unsigned len = TYPE_LENGTH (value_type (val));
+
+	      if (!value_optimized_out (val) && value_lazy (val))
+		value_fetch_lazy (val);
+	      if (!value_optimized_out (val) && value_lazy (entryval))
+		value_fetch_lazy (entryval);
+	      if (!value_optimized_out (val)
+		  && value_available_contents_eq (val, 0, entryval, 0, len))
+		{
+		  /* Initialize it just to avoid a GCC false warning.  */
+		  struct value *val_deref = NULL, *entryval_deref;
+
+		  /* DW_AT_GNU_call_site_value does match with the current
+		     value.  If it is a reference still try to verify if
+		     dereferenced DW_AT_GNU_call_site_data_value does not
+		     differ.  */
+
+		  TRY_CATCH (except, RETURN_MASK_ERROR)
+		    {
+		      unsigned len_deref;
+
+		      val_deref = coerce_ref (val);
+		      if (value_lazy (val_deref))
+			value_fetch_lazy (val_deref);
+		      len_deref = TYPE_LENGTH (value_type (val_deref));
+
+		      entryval_deref = coerce_ref (entryval);
+		      if (value_lazy (entryval_deref))
+			value_fetch_lazy (entryval_deref);
+
+		      /* If the reference addresses match but dereferenced
+			 content does not match print them.  */
+		      if (val != val_deref
+			  && value_available_contents_eq (val_deref, 0,
+							  entryval_deref, 0,
+							  len_deref))
+			val_equal = 1;
+		    }
+
+		  /* Value was not a reference; and its content matches.  */
+		  if (val == val_deref)
+		    val_equal = 1;
+		  /* If the dereferenced content could not be fetched do not
+		     display anything.  */
+		  else if (except.error == NO_ENTRY_VALUE_ERROR)
+		    val_equal = 1;
+		  else if (except.message)
+		    {
+		      entryval_error = alloca (strlen (except.message) + 1);
+		      strcpy (entryval_error, except.message);
+		    }
+
+		  if (val_equal)
+		    entryval = NULL;
+		}
+	    }
+
+	  /* Try to remove possibly duplicate error message for ENTRYARGP even
+	     in MI mode.  */
+
+	  if (val_error && entryval_error
+	      && strcmp (val_error, entryval_error) == 0)
+	    {
+	      entryval_error = NULL;
+
+	      /* Do not se VAL_EQUAL as the same error message may be shown for
+		 the entry value even if no entry values are present in the
+		 inferior.  */
+	    }
+	}
+    }
+
+  if (entryval == NULL)
+    {
+      if (print_entry_values == print_entry_values_preferred)
+	{
+	  TRY_CATCH (except, RETURN_MASK_ERROR)
+	    {
+	      val = read_var_value (sym, frame);
+	    }
+	  if (!val)
+	    {
+	      val_error = alloca (strlen (except.message) + 1);
+	      strcpy (val_error, except.message);
+	    }
+	}
+      if (print_entry_values == print_entry_values_only
+	  || print_entry_values == print_entry_values_both
+	  || (print_entry_values == print_entry_values_preferred
+	      && (!val || value_optimized_out (val))))
+	entryval = allocate_optimized_out_value (SYMBOL_TYPE (sym));
+    }
+  if ((print_entry_values == print_entry_values_compact
+       || print_entry_values == print_entry_values_if_needed
+       || print_entry_values == print_entry_values_preferred)
+      && (!val || value_optimized_out (val)) && entryval != NULL)
+    {
+      val = NULL;
+      val_error = NULL;
+    }
+
+  argp->sym = sym;
+  argp->val = val;
+  argp->error = val_error ? xstrdup (val_error) : NULL;
+  if (!val && !val_error)
+    argp->entry_kind = print_entry_values_only;
+  else if ((print_entry_values == print_entry_values_compact
+	   || print_entry_values == print_entry_values_default) && val_equal)
+    {
+      argp->entry_kind = print_entry_values_compact;
+      gdb_assert (!ui_out_is_mi_like_p (current_uiout));
+    }
+  else
+    argp->entry_kind = print_entry_values_no;
+
+  entryargp->sym = sym;
+  entryargp->val = entryval;
+  entryargp->error = entryval_error ? xstrdup (entryval_error) : NULL;
+  if (!entryval && !entryval_error)
+    entryargp->entry_kind = print_entry_values_no;
+  else
+    entryargp->entry_kind = print_entry_values_only;
+}
+
 /* Print the arguments of frame FRAME on STREAM, given the function
    FUNC running in that frame (as a symbol), where NUM is the number
    of arguments according to the stack frame (or -1 if the number of
@@ -198,10 +515,11 @@ print_frame_args (struct symbol *func, struct frame_info *frame,
       struct block *b = SYMBOL_BLOCK_VALUE (func);
       struct dict_iterator iter;
       struct symbol *sym;
-      struct value *val;
 
       ALL_BLOCK_SYMBOLS (b, iter, sym)
         {
+	  struct frame_arg arg, entryarg;
+
 	  QUIT;
 
 	  /* Keep track of the highest stack argument offset seen, and
@@ -314,65 +632,34 @@ print_frame_args (struct symbol *func, struct frame_info *frame,
 	    ui_out_text (uiout, ", ");
 	  ui_out_wrap_hint (uiout, "    ");
 
-	  annotate_arg_begin ();
+	  if (!print_args)
+	    {
+	      memset (&arg, 0, sizeof (arg));
+	      arg.sym = sym;
+	      arg.entry_kind = print_entry_values_no;
+	      memset (&entryarg, 0, sizeof (entryarg));
+	      entryarg.sym = sym;
+	      entryarg.entry_kind = print_entry_values_no;
+	    }
+	  else
+	    read_frame_arg (sym, frame, &arg, &entryarg);
 
-	  list_chain = make_cleanup_ui_out_tuple_begin_end (uiout, NULL);
-	  fprintf_symbol_filtered (stb->stream, SYMBOL_PRINT_NAME (sym),
-				   SYMBOL_LANGUAGE (sym),
-				   DMGL_PARAMS | DMGL_ANSI);
-	  ui_out_field_stream (uiout, "name", stb);
-	  annotate_arg_name_end ();
-	  ui_out_text (uiout, "=");
+	  if (arg.entry_kind != print_entry_values_only)
+	    print_frame_arg (&arg);
 
-          if (print_args)
-            {
-	      volatile struct gdb_exception except;
-
-	      TRY_CATCH (except, RETURN_MASK_ERROR)
+	  if (entryarg.entry_kind != print_entry_values_no)
+	    {
+	      if (arg.entry_kind != print_entry_values_only)
 		{
-		  const struct language_defn *language;
-		  struct value_print_options opts;
-
-		  /* Avoid value_print because it will deref ref parameters.
-		     We just want to print their addresses.  Print ??? for
-		     args whose address we do not know.  We pass 2 as
-		     "recurse" to val_print because our standard indentation
-		     here is 4 spaces, and val_print indents 2 for each
-		     recurse.  */
-		  val = read_var_value (sym, frame);
-
-		  annotate_arg_value (value_type (val));
-
-		  /* Use the appropriate language to display our symbol,
-		     unless the user forced the language to a specific
-		     language.  */
-		  if (language_mode == language_mode_auto)
-		    language = language_def (SYMBOL_LANGUAGE (sym));
-		  else
-		    language = current_language;
-
-		  get_raw_print_options (&opts);
-		  opts.deref_ref = 0;
-		  opts.summary = summary;
-		  common_val_print (val, stb->stream, 2, &opts, language);
-		  ui_out_field_stream (uiout, "value", stb);
+		  ui_out_text (uiout, ", ");
+		  ui_out_wrap_hint (uiout, "    ");
 		}
-	      if (except.reason < 0)
-		{
-		  fprintf_filtered (stb->stream,
-				    _("<error reading variable: %s>"),
-				    except.message);
-		  ui_out_field_stream (uiout, "value", stb);
-		}
-            }
-          else
-            ui_out_text (uiout, "...");
 
+	      print_frame_arg (&entryarg);
+	    }
 
-	  /* Invoke ui_out_tuple_end.  */
-	  do_cleanups (list_chain);
-
-	  annotate_arg_end ();
+	  xfree (arg.error);
+	  xfree (entryarg.error);
 
 	  first = 0;
 	}
@@ -599,15 +886,115 @@ print_frame_info (struct frame_info *frame, int print_level,
       CORE_ADDR pc;
 
       if (get_frame_pc_if_available (frame, &pc))
-	set_default_breakpoint (1, sal.pspace, pc, sal.symtab, sal.line);
+	set_last_displayed_sal (1, sal.pspace, pc, sal.symtab, sal.line);
       else
-	set_default_breakpoint (0, 0, 0, 0, 0);
+	set_last_displayed_sal (0, 0, 0, 0, 0);
     }
 
   annotate_frame_end ();
 
   gdb_flush (gdb_stdout);
 }
+
+/* Remember the last symtab and line we displayed, which we use e.g.
+ * as the place to put a breakpoint when the `break' command is
+ * invoked with no arguments.  */
+
+static void
+set_last_displayed_sal (int valid, struct program_space *pspace,
+			CORE_ADDR addr, struct symtab *symtab,
+			int line)
+{
+  last_displayed_sal_valid = valid;
+  last_displayed_pspace = pspace;
+  last_displayed_addr = addr;
+  last_displayed_symtab = symtab;
+  last_displayed_line = line;
+}
+
+/* Forget the last sal we displayed.  */
+
+void
+clear_last_displayed_sal (void)
+{
+  last_displayed_sal_valid = 0;
+  last_displayed_pspace = 0;
+  last_displayed_addr = 0;
+  last_displayed_symtab = 0;
+  last_displayed_line = 0;
+}
+
+/* Is our record of the last sal we displayed valid?  If not,
+ * the get_last_displayed_* functions will return NULL or 0, as
+ * appropriate.  */
+
+int
+last_displayed_sal_is_valid (void)
+{
+  return last_displayed_sal_valid;
+}
+
+/* Get the pspace of the last sal we displayed, if it's valid.  */
+
+struct program_space *
+get_last_displayed_pspace (void)
+{
+  if (last_displayed_sal_valid)
+    return last_displayed_pspace;
+  return 0;
+}
+
+/* Get the address of the last sal we displayed, if it's valid.  */
+
+CORE_ADDR
+get_last_displayed_addr (void)
+{
+  if (last_displayed_sal_valid)
+    return last_displayed_addr;
+  return 0;
+}
+
+/* Get the symtab of the last sal we displayed, if it's valid.  */
+
+struct symtab*
+get_last_displayed_symtab (void)
+{
+  if (last_displayed_sal_valid)
+    return last_displayed_symtab;
+  return 0;
+}
+
+/* Get the line of the last sal we displayed, if it's valid.  */
+
+int
+get_last_displayed_line (void)
+{
+  if (last_displayed_sal_valid)
+    return last_displayed_line;
+  return 0;
+}
+
+/* Get the last sal we displayed, if it's valid.  */
+
+void
+get_last_displayed_sal (struct symtab_and_line *sal)
+{
+  if (last_displayed_sal_valid)
+    {
+      sal->pspace = last_displayed_pspace;
+      sal->pc = last_displayed_addr;
+      sal->symtab = last_displayed_symtab;
+      sal->line = last_displayed_line;
+    }
+  else
+    {
+      sal->pspace = 0;
+      sal->pc = 0;
+      sal->symtab = 0;
+      sal->line = 0;
+    }
+}
+
 
 /* Attempt to obtain the FUNNAME, FUNLANG and optionally FUNCP of the function
    corresponding to FRAME.  */
@@ -1086,6 +1473,8 @@ frame_info (char *addr_exp, int from_tty)
 	printf_filtered (_(" Outermost frame: %s\n"),
 			 frame_stop_reason_string (reason));
     }
+  else if (get_frame_type (fi) == TAILCALL_FRAME)
+    puts_filtered (" tail call frame");
   else if (get_frame_type (fi) == INLINE_FRAME)
     printf_filtered (" inlined into frame %d",
 		     frame_relative_level (get_prev_frame (fi)));
@@ -1350,7 +1739,7 @@ backtrace_command_1 (char *count_exp, int show_locals, int from_tty)
       enum unwind_stop_reason reason;
 
       reason = get_frame_unwind_stop_reason (trailing);
-      if (reason > UNWIND_FIRST_ERROR)
+      if (reason >= UNWIND_FIRST_ERROR)
 	printf_filtered (_("Backtrace stopped: %s\n"),
 			 frame_stop_reason_string (reason));
     }
@@ -2251,4 +2640,17 @@ source line."),
 			        show_disassemble_next_line,
 			        &setlist, &showlist);
   disassemble_next_line = AUTO_BOOLEAN_FALSE;
+
+  add_setshow_enum_cmd ("entry-values", class_stack,
+			print_entry_values_choices, &print_entry_values,
+			_("Set printing of function arguments at function "
+			  "entry"),
+			_("Show printing of function arguments at function "
+			  "entry"),
+			_("\
+GDB can sometimes determine the values of function arguments at entry,\n\
+in addition to their current values.  This option tells GDB whether\n\
+to print the current value, the value at entry (marked as val@entry),\n\
+or both.  Note that one or both of these values may be <optimized out>."),
+			NULL, NULL, &setprintlist, &showprintlist);
 }

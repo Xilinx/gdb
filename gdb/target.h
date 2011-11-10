@@ -151,7 +151,10 @@ enum target_waitkind
 
     /* The target has run out of history information,
        and cannot run backward any further.  */
-    TARGET_WAITKIND_NO_HISTORY
+    TARGET_WAITKIND_NO_HISTORY,
+
+    /* There are no resumed children left in the program.  */
+    TARGET_WAITKIND_NO_RESUMED
   };
 
 struct target_waitstatus
@@ -656,6 +659,9 @@ struct target_ops
     /* Does this target support disabling address space randomization?  */
     int (*to_supports_disable_randomization) (void);
 
+    /* Does this target support the tracenz bytecode for string collection?  */
+    int (*to_supports_string_tracing) (void);
+
     /* Determine current architecture of thread PTID.
 
        The target is supposed to determine the architecture of the code where
@@ -900,6 +906,9 @@ int target_supports_disable_randomization (void);
 
 #define target_supports_enable_disable_tracepoint() \
   (*current_target.to_supports_enable_disable_tracepoint) ()
+
+#define target_supports_string_tracing() \
+  (*current_target.to_supports_string_tracing) ()
 
 /* Invalidate all target dcaches.  */
 extern void target_dcache_invalidate (void);

@@ -31,6 +31,9 @@ struct axs_value;
 /* This header is private to the DWARF-2 reader.  It is shared between
    dwarf2read.c and dwarf2loc.c.  */
 
+/* `set debug entry-values' setting.  */
+extern int entry_values_debug;
+
 /* Return the OBJFILE associated with the compilation unit CU.  If CU
    came from a separate debuginfo file, then the master objfile is
    returned.  */
@@ -38,6 +41,10 @@ struct objfile *dwarf2_per_cu_objfile (struct dwarf2_per_cu_data *cu);
 
 /* Return the address size given in the compilation unit header for CU.  */
 CORE_ADDR dwarf2_per_cu_addr_size (struct dwarf2_per_cu_data *cu);
+
+/* Return the DW_FORM_ref_addr size given in the compilation unit header for
+   CU.  */
+int dwarf2_per_cu_ref_addr_size (struct dwarf2_per_cu_data *cu);
 
 /* Return the offset size given in the compilation unit header for CU.  */
 int dwarf2_per_cu_offset_size (struct dwarf2_per_cu_data *cu);
@@ -80,10 +87,12 @@ struct value *dwarf2_evaluate_loc_desc (struct type *type,
 
 struct dwarf2_locexpr_baton
 {
-  /* Pointer to the start of the location expression.  */
+  /* Pointer to the start of the location expression.  Valid only if SIZE is
+     not zero.  */
   const gdb_byte *data;
 
-  /* Length of the location expression.  */
+  /* Length of the location expression.  For optimized out expressions it is
+     zero.  */
   unsigned long size;
 
   /* The compilation unit containing the symbol whose location
@@ -131,5 +140,24 @@ extern void dwarf2_compile_expr_to_ax (struct agent_expr *expr,
 				       const gdb_byte *op_ptr,
 				       const gdb_byte *op_end,
 				       struct dwarf2_per_cu_data *per_cu);
+
+/* Determined tail calls for constructing virtual tail call frames.  */
+
+struct call_site_chain
+  {
+    /* Initially CALLERS == CALLEES == LENGTH.  For partially ambiguous result
+       CALLERS + CALLEES < LENGTH.  */
+    int callers, callees, length;
+
+    /* Variably sized array with LENGTH elements.  Later [0..CALLERS-1] contain
+       top (GDB "prev") sites and [LENGTH-CALLEES..LENGTH-1] contain bottom
+       (GDB "next") sites.  One is interested primarily in the PC field.  */
+    struct call_site *call_site[1];
+  };
+
+struct call_site_stuff;
+extern struct call_site_chain *call_site_find_chain (struct gdbarch *gdbarch,
+						     CORE_ADDR caller_pc,
+						     CORE_ADDR callee_pc);
 
 #endif /* dwarf2loc.h */
