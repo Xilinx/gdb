@@ -161,10 +161,15 @@ static const gdb_byte *
 microblaze_breakpoint_from_pc (struct gdbarch *gdbarch, CORE_ADDR *pc, 
 			       int *len)
 {
+  enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   static gdb_byte break_insn[] = MICROBLAZE_BREAKPOINT;
+  static gdb_byte break_insn_le[] = MICROBLAZE_BREAKPOINT_LE;
 
   *len = sizeof (break_insn);
-  return break_insn;
+  if (byte_order == BFD_ENDIAN_BIG)
+    return break_insn;
+  else
+    return break_insn_le;
 }
 
 /* Allocate and initialize a frame cache.  */
