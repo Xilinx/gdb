@@ -116,5 +116,6 @@ enum microblaze_regnum
 /* MICROBLAZE_BREAKPOINT defines the breakpoint that should be used.
    Only used for native debugging.  */
 #define MICROBLAZE_BREAKPOINT {0xb9, 0xcc, 0x00, 0x60}
+#define MICROBLAZE_BREAKPOINT_LE {0x60, 0x00, 0xcc, 0xb9}
 
 #endif /* microblaze-tdep.h */
