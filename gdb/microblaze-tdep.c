@@ -235,6 +235,10 @@ microblaze_analyze_prologue (struct gdbarch *gdbarch, CORE_ADDR pc,
   int flags = 0;
   int save_hidden_pointer_found = 0;
   int non_stack_instruction_found = 0;
+  int n_insns;
+  unsigned long *insn_block;
+  gdb_byte *buf_block;
+  int ti, tj;
 
   /* Find the start of this function.  */
   find_pc_partial_function (pc, &name, &func_addr, &func_end);
@@ -274,9 +278,23 @@ microblaze_analyze_prologue (struct gdbarch *gdbarch, CORE_ADDR pc,
 		    name, paddress (gdbarch, func_addr), 
 		    paddress (gdbarch, stop));
 
+/* Do a block read to minimize the transaction with the Debug Agent */
+  n_insns = (stop == func_addr) ? 1 : ((stop - func_addr) / INST_WORD_SIZE);
+  insn_block = (unsigned long *)calloc(n_insns, sizeof(unsigned long));
+  buf_block = (gdb_byte *)calloc(n_insns * INST_WORD_SIZE, sizeof(gdb_byte));
+
+  target_read_memory (func_addr, buf_block, n_insns * INST_WORD_SIZE );
+
+  for(ti = 0; ti < n_insns; ti++){
+         insn_block[ti] = 0;
+         for( tj = ti * INST_WORD_SIZE; tj < (ti + 1) * INST_WORD_SIZE; tj++ )
+                 insn_block[ti] = (insn_block[ti] << 8) | buf_block[tj];
+  }
+
   for (addr = func_addr; addr < stop; addr += INST_WORD_SIZE)
     {
-      insn = microblaze_fetch_instruction (addr);
+     //insn = microblaze_fetch_instruction (addr);
+      insn = insn_block[(addr - func_addr) / INST_WORD_SIZE];
       op = microblaze_decode_insn (insn, &rd, &ra, &rb, &imm);
       microblaze_debug ("%s %08lx\n", paddress (gdbarch, pc), insn);
 
@@ -402,8 +420,9 @@ microblaze_analyze_prologue (struct gdbarch *gdbarch, CORE_ADDR pc,
      part of the prologue.  */
   if (save_hidden_pointer_found)
     prologue_end_addr -= INST_WORD_SIZE;
-
-  return prologue_end_addr;
+    free(insn_block);
+    free(buf_block);
+    return prologue_end_addr;
 }
 
 static CORE_ADDR
