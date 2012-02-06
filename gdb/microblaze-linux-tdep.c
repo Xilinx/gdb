@@ -37,6 +37,22 @@
 #include "tramp-frame.h"
 #include "linux-tdep.h"
 
+static int microblaze_debug_flag = 0;
+
+static void
+microblaze_debug (const char *fmt, ...)
+{
+  if (microblaze_debug_flag)
+    {
+       va_list args;
+
+       va_start (args, fmt);
+       printf_unfiltered ("MICROBLAZE LINUX: ");
+       vprintf_unfiltered (fmt, args);
+       va_end (args);
+    }
+}
+
 static int
 microblaze_linux_memory_remove_breakpoint (struct gdbarch *gdbarch, 
 					   struct bp_target_info *bp_tgt)
@@ -46,20 +62,27 @@ microblaze_linux_memory_remove_breakpoint (struct gdbarch *gdbarch,
   int val;
   int bplen;
   gdb_byte old_contents[BREAKPOINT_MAX];
+  struct cleanup *cleanup;
 
   /* Determine appropriate breakpoint contents and size for this address.  */
   bp = gdbarch_breakpoint_from_pc (gdbarch, &addr, &bplen);
   if (bp == NULL)
     error (_("Software breakpoints not implemented for this target."));
 
+  /* Make sure we see the memory breakpoints.  */
+  cleanup = make_show_memory_breakpoints_cleanup (1);
   val = target_read_memory (addr, old_contents, bplen);
 
   /* If our breakpoint is no longer at the address, this means that the
      program modified the code on us, so it is wrong to put back the
      old value.  */
   if (val == 0 && memcmp (bp, old_contents, bplen) == 0)
-    val = target_write_raw_memory (addr, bp_tgt->shadow_contents, bplen);
+  {
+      val = target_write_raw_memory (addr, bp_tgt->shadow_contents, bplen);
+      microblaze_debug ("microblaze_linux_memory_remove_breakpoint writing back to memory at addr 0x%lx\n", addr);
+  }
 
+  do_cleanups (cleanup);
   return val;
 }
 
@@ -135,6 +158,11 @@ microblaze_linux_init_abi (struct gdbarch_info info,
   /* Trampolines.  */
   tramp_frame_prepend_unwinder (gdbarch,
 				&microblaze_linux_sighandler_tramp_frame);
+
+  /* Enable TLS support.  */
+  set_gdbarch_fetch_tls_load_module_address (gdbarch,
+                                             svr4_fetch_objfile_link_map);
+
 }
 
 /* -Wmissing-prototypes */

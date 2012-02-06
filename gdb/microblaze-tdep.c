@@ -157,6 +157,39 @@ microblaze_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   return sp;
 }
 
+static int
+microblaze_linux_memory_remove_breakpoint (struct gdbarch *gdbarch,
+				    struct bp_target_info *bp_tgt)
+{
+  CORE_ADDR addr = bp_tgt->placed_address;
+  const unsigned char *bp;
+  int val;
+  int bplen;
+  gdb_byte old_contents[BREAKPOINT_MAX];
+  struct cleanup *cleanup;
+
+  /* Determine appropriate breakpoint contents and size for this address.  */
+  bp = gdbarch_breakpoint_from_pc (gdbarch, &addr, &bplen);
+  if (bp == NULL)
+    error (_("Software breakpoints not implemented for this target."));
+
+  /* Make sure we see the memory breakpoints.  */
+  cleanup = make_show_memory_breakpoints_cleanup (1);
+  val = target_read_memory (addr, old_contents, bplen);
+
+  /* If our breakpoint is no longer at the address, this means that the
+     program modified the code on us, so it is wrong to put back the
+     old value.  */
+  if (val == 0 && memcmp (bp, old_contents, bplen) == 0)
+  {
+    val = target_write_raw_memory (addr, bp_tgt->shadow_contents, bplen);
+    microblaze_debug ("microblaze_linux_memory_remove_breakpoint writing back to memory at addr 0x%lx\n", addr);
+  }
+
+  do_cleanups (cleanup);
+  return val;
+}
+
 static const gdb_byte *
 microblaze_breakpoint_from_pc (struct gdbarch *gdbarch, CORE_ADDR *pc, 
 			       int *len)
@@ -284,8 +317,8 @@ microblaze_analyze_prologue (struct gdbarch *gdbarch, CORE_ADDR pc,
 
   for (addr = func_addr; addr < stop; addr += INST_WORD_SIZE)
     {
-     //insn = microblaze_fetch_instruction (addr);
-      insn = insn_block[(addr - func_addr) / INST_WORD_SIZE];
+      insn = microblaze_fetch_instruction (addr);
+      //insn = insn_block[(addr - func_addr) / INST_WORD_SIZE];
       op = microblaze_decode_insn (insn, &rd, &ra, &rb, &imm);
       microblaze_debug ("%s %08lx op=%x r%d r%d imm=%d\n", paddress (gdbarch, addr), insn, op, rd, ra, imm);
 
@@ -711,13 +744,15 @@ microblaze_software_single_step (struct frame_info *frame)
 	  rb = get_frame_register_unsigned (frame, lrb);
 	else
 	  rb = 0;
+
 	stepbreaks[1].address = microblaze_get_target_address (insn, immfound, imm, pc, ra, rb, &targetvalid, &unconditionalbranch);
-        microblaze_debug ("single-step uncondbr=%d targetvalid=%d target=%x\n", unconditionalbranch, targetvalid, stepbreaks[1].address);
+	microblaze_debug ("single-step uncondbr=%d targetvalid=%d target=%x\n", unconditionalbranch, targetvalid, stepbreaks[1].address);
+
 	if (unconditionalbranch)
 	  stepbreaks[0].valid = FALSE; /* This is a unconditional branch: will not come to the next address */
 	if (targetvalid && (stepbreaks[0].valid == FALSE ||
 			    (stepbreaks[0].address != stepbreaks[1].address))
-	                && (stepbreaks[1].address != pc)) {
+			&& (stepbreaks[1].address != pc)) {
 	  stepbreaks[1].valid = TRUE;
 	} else {
 	  stepbreaks[1].valid = FALSE;
@@ -817,6 +852,8 @@ microblaze_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   /* Stack grows downward.  */
   set_gdbarch_inner_than (gdbarch, core_addr_lessthan);
+
+  set_gdbarch_memory_remove_breakpoint (gdbarch, microblaze_linux_memory_remove_breakpoint);
 
   set_gdbarch_breakpoint_from_pc (gdbarch, microblaze_breakpoint_from_pc);
   set_gdbarch_software_single_step (gdbarch, microblaze_software_single_step);
