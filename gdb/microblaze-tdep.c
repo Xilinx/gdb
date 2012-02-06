@@ -157,6 +157,39 @@ microblaze_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   return sp;
 }
 
+static int
+microblaze_linux_memory_remove_breakpoint (struct gdbarch *gdbarch,
+				    struct bp_target_info *bp_tgt)
+{
+  CORE_ADDR addr = bp_tgt->placed_address;
+  const unsigned char *bp;
+  int val;
+  int bplen;
+  gdb_byte old_contents[BREAKPOINT_MAX];
+  struct cleanup *cleanup;
+
+  /* Determine appropriate breakpoint contents and size for this address.  */
+  bp = gdbarch_breakpoint_from_pc (gdbarch, &addr, &bplen);
+  if (bp == NULL)
+    error (_("Software breakpoints not implemented for this target."));
+
+  /* Make sure we see the memory breakpoints.  */
+  cleanup = make_show_memory_breakpoints_cleanup (1);
+  val = target_read_memory (addr, old_contents, bplen);
+
+  /* If our breakpoint is no longer at the address, this means that the
+     program modified the code on us, so it is wrong to put back the
+     old value.  */
+  if (val == 0 && memcmp (bp, old_contents, bplen) == 0)
+  {
+    val = target_write_raw_memory (addr, bp_tgt->shadow_contents, bplen);
+    microblaze_debug ("microblaze_linux_memory_remove_breakpoint writing back to memory at addr 0x%lx\n", addr);
+  }
+
+  do_cleanups (cleanup);
+  return val;
+}
+
 static const gdb_byte *
 microblaze_breakpoint_from_pc (struct gdbarch *gdbarch, CORE_ADDR *pc, 
 			       int *len)
@@ -706,6 +739,8 @@ microblaze_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   /* Stack grows downward.  */
   set_gdbarch_inner_than (gdbarch, core_addr_lessthan);
+
+  set_gdbarch_memory_remove_breakpoint (gdbarch, microblaze_linux_memory_remove_breakpoint);
 
   set_gdbarch_breakpoint_from_pc (gdbarch, microblaze_breakpoint_from_pc);
 
