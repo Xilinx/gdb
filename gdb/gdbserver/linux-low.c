@@ -104,9 +104,6 @@ int stopping_threads;
 /* FIXME make into a target method?  */
 int using_threads = 1;
 
-/* Is this process 64bit?  */
-int linux_is_64bit;
-
 /* True if we're presently stabilizing threads (moving them out of
    jump pads).  */
 static int stabilizing_threads;

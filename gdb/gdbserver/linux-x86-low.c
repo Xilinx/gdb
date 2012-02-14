@@ -943,6 +943,9 @@ x86_siginfo_fixup (struct siginfo *native, void *inf, int direction)
 
 static int use_xml;
 
+/* Is this process 64bit?  */
+static int linux_is_64bit;
+
 /* Update gdbserver_xmltarget.  */
 
 static void
