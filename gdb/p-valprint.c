@@ -1,7 +1,7 @@
 /* Support for printing Pascal values for GDB, the GNU debugger.
 
-   Copyright (C) 2000, 2001, 2003, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2001, 2003, 2005-2012 Free Software Foundation,
+   Inc.
 
    This file is part of GDB.
 
@@ -649,7 +649,7 @@ const char pascal_vtbl_ptr_name[] =
 int
 pascal_object_is_vtbl_ptr_type (struct type *type)
 {
-  char *typename = type_name_no_tag (type);
+  const char *typename = type_name_no_tag (type);
 
   return (typename != NULL
 	  && strcmp (typename, pascal_vtbl_ptr_name) == 0);
@@ -912,7 +912,7 @@ pascal_object_print_value (struct type *type, const gdb_byte *valaddr,
     {
       int boffset = 0;
       struct type *baseclass = check_typedef (TYPE_BASECLASS (type, i));
-      char *basename = type_name_no_tag (baseclass);
+      const char *basename = type_name_no_tag (baseclass);
       const gdb_byte *base_valaddr = NULL;
       int thisoffset;
       volatile struct gdb_exception ex;

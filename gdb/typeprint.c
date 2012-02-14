@@ -1,7 +1,6 @@
 /* Language independent support for printing types for GDB, the GNU debugger.
 
-   Copyright (C) 1986, 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1998, 1999,
-   2000, 2001, 2003, 2006, 2007, 2008, 2009, 2010, 2011
+   Copyright (C) 1986, 1988-1989, 1991-1995, 1998-2001, 2003, 2006-2012
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -74,7 +73,7 @@ default_print_typedef (struct type *type, struct symbol *new_symbol,
    If SHOW is negative, we never show the details of elements' types.  */
 
 void
-type_print (struct type *type, char *varstring, struct ui_file *stream,
+type_print (struct type *type, const char *varstring, struct ui_file *stream,
 	    int show)
 {
   LA_PRINT_TYPE (type, varstring, stream, show, 0);

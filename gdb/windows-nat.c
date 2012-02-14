@@ -1,7 +1,6 @@
 /* Target-vector operations for controlling windows child processes, for GDB.
 
-   Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005, 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1995-2012 Free Software Foundation, Inc.
 
    Contributed by Cygnus Solutions, A Red Hat Company.
 
@@ -173,7 +172,9 @@ static void windows_kill_inferior (struct target_ops *);
 
 static void cygwin_set_dr (int i, CORE_ADDR addr);
 static void cygwin_set_dr7 (unsigned long val);
+static CORE_ADDR cygwin_get_dr (int i);
 static unsigned long cygwin_get_dr6 (void);
+static unsigned long cygwin_get_dr7 (void);
 
 static enum target_signal last_sig = TARGET_SIGNAL_0;
 /* Set if a signal was received from the debugged process.  */
@@ -1117,7 +1118,7 @@ handle_exception (struct target_waitstatus *ourstatus)
 	   cygwin later in the process and will be sent as a
 	   cygwin-specific-signal.  So, ignore SEGVs if they show up
 	   within the text segment of the DLL itself.  */
-	char *fn;
+	const char *fn;
 	CORE_ADDR addr = (CORE_ADDR) (uintptr_t)
 	  current_event.u.Exception.ExceptionRecord.ExceptionAddress;
 
@@ -2494,8 +2495,9 @@ init_windows_ops (void)
 
   i386_dr_low.set_control = cygwin_set_dr7;
   i386_dr_low.set_addr = cygwin_set_dr;
-  i386_dr_low.reset_addr = NULL;
+  i386_dr_low.get_addr = cygwin_get_dr;
   i386_dr_low.get_status = cygwin_get_dr6;
+  i386_dr_low.get_control = cygwin_get_dr7;
 
   /* i386_dr_low.debug_register_length field is set by
      calling i386_set_debug_register_length function
@@ -2627,6 +2629,14 @@ cygwin_set_dr7 (unsigned long val)
   debug_registers_used = 1;
 }
 
+/* Get the value of debug register I from the inferior.  */
+
+static CORE_ADDR
+cygwin_get_dr (int i)
+{
+  return dr[i];
+}
+
 /* Get the value of the DR6 debug status register from the inferior.
    Here we just return the value stored in dr[6]
    by the last call to thread_rec for current_event.dwThreadId id.  */
@@ -2634,6 +2644,16 @@ static unsigned long
 cygwin_get_dr6 (void)
 {
   return (unsigned long) dr[6];
+}
+
+/* Get the value of the DR7 debug status register from the inferior.
+   Here we just return the value stored in dr[7] by the last call to
+   thread_rec for current_event.dwThreadId id.  */
+
+static unsigned long
+cygwin_get_dr7 (void)
+{
+  return (unsigned long) dr[7];
 }
 
 /* Determine if the thread referenced by "ptid" is alive

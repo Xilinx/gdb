@@ -1,4 +1,4 @@
-# Copyright (C) 2010, 2011 Free Software Foundation, Inc.
+# Copyright (C) 2010-2012 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,10 +15,6 @@
 
 if [target_info exists use_gdb_stub] {
     return 0
-}
-
-if $tracelevel then {
-    strace $tracelevel
 }
 
 load_lib gdb-python.exp
@@ -72,6 +68,18 @@ gdb_test "continue" ".*event type: continue.*
 .*breakpoint number: 2.*
 .*breakpoint number: 3.*
 all threads stopped"
+
+# Test that when "step N" trips on a breakpoint, we get a stop event
+# with breakpoint stop reason.
+gdb_breakpoint "do_nothing"
+gdb_test "step 3" ".*event type: continue.*
+.*event type: stop.*
+.*stop reason: breakpoint.*
+.*first breakpoint number: 4.*
+.*breakpoint number: 4.*
+all threads stopped"
+
+delete_breakpoints
 
 #test exited event.
 gdb_test "continue" ".*event type: continue.*

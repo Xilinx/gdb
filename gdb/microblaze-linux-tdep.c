@@ -1,6 +1,6 @@
 /* Target-dependent code for Xilinx MicroBlaze.
 
-   Copyright 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright 2009-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -58,7 +58,7 @@ microblaze_linux_memory_remove_breakpoint (struct gdbarch *gdbarch,
      program modified the code on us, so it is wrong to put back the
      old value.  */
   if (val == 0 && memcmp (bp, old_contents, bplen) == 0)
-    val = target_write_memory (addr, bp_tgt->shadow_contents, bplen);
+    val = target_write_raw_memory (addr, bp_tgt->shadow_contents, bplen);
 
   return val;
 }

@@ -1,8 +1,7 @@
 /* PPC GNU/Linux native support.
 
-   Copyright (C) 1988, 1989, 1991, 1992, 1994, 1996, 2000, 2001, 2002, 2003,
-   2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1988-1989, 1991-1992, 1994, 1996, 2000-2012 Free
+   Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -594,9 +593,10 @@ fetch_register (struct regcache *regcache, int tid, int regno)
        bytes_transferred < register_size (gdbarch, regno);
        bytes_transferred += sizeof (long))
     {
+      long l;
+
       errno = 0;
-      *(long *) &buf[bytes_transferred]
-        = ptrace (PTRACE_PEEKUSER, tid, (PTRACE_TYPE_ARG3) regaddr, 0);
+      l = ptrace (PTRACE_PEEKUSER, tid, (PTRACE_TYPE_ARG3) regaddr, 0);
       regaddr += sizeof (long);
       if (errno != 0)
 	{
@@ -605,6 +605,7 @@ fetch_register (struct regcache *regcache, int tid, int regno)
 		   gdbarch_register_name (gdbarch, regno), regno);
 	  perror_with_name (message);
 	}
+      memcpy (&buf[bytes_transferred], &l, sizeof (l));
     }
 
   /* Now supply the register.  Keep in mind that the regcache's idea
@@ -1074,9 +1075,11 @@ store_register (const struct regcache *regcache, int tid, int regno)
 
   for (i = 0; i < bytes_to_transfer; i += sizeof (long))
     {
+      long l;
+
+      memcpy (&l, &buf[i], sizeof (l));
       errno = 0;
-      ptrace (PTRACE_POKEUSER, tid, (PTRACE_TYPE_ARG3) regaddr,
-	      *(long *) &buf[i]);
+      ptrace (PTRACE_POKEUSER, tid, (PTRACE_TYPE_ARG3) regaddr, l);
       regaddr += sizeof (long);
 
       if (errno == EIO 
@@ -2010,7 +2013,8 @@ create_watchpoint_request (struct ppc_hw_breakpoint *p, CORE_ADDR addr,
 			   int len, int rw, struct expression *cond,
 			   int insert)
 {
-  if (len == 1)
+  if (len == 1
+      || !(booke_debug_info.features & PPC_DEBUG_FEATURE_DATA_BP_RANGE))
     {
       int use_condition;
       CORE_ADDR data_value;
@@ -2151,9 +2155,9 @@ ppc_linux_remove_watchpoint (CORE_ADDR addr, int len, int rw,
 }
 
 static void
-ppc_linux_new_thread (ptid_t ptid)
+ppc_linux_new_thread (struct lwp_info *lp)
 {
-  int tid = TIDGET (ptid);
+  int tid = TIDGET (lp->ptid);
 
   if (have_ptrace_booke_interface ())
     {

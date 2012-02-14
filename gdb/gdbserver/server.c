@@ -1,7 +1,6 @@
 /* Main code for remote server for GDB.
-   Copyright (C) 1989, 1993, 1994, 1995, 1997, 1998, 1999, 2000, 2002, 2003,
-   2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1989, 1993-1995, 1997-2000, 2002-2012 Free Software
+   Foundation, Inc.
 
    This file is part of GDB.
 
@@ -285,7 +284,7 @@ start_inferior (char **argv)
       resume_info.kind = resume_continue;
       resume_info.sig = 0;
 
-      mywait (pid_to_ptid (signal_pid), &last_status, 0, 0);
+      last_ptid = mywait (pid_to_ptid (signal_pid), &last_status, 0, 0);
 
       if (last_status.kind != TARGET_WAITKIND_STOPPED)
 	return signal_pid;
@@ -294,7 +293,7 @@ start_inferior (char **argv)
 	{
 	  (*the_target->resume) (&resume_info, 1);
 
- 	  mywait (pid_to_ptid (signal_pid), &last_status, 0, 0);
+ 	  last_ptid = mywait (pid_to_ptid (signal_pid), &last_status, 0, 0);
 	  if (last_status.kind != TARGET_WAITKIND_STOPPED)
 	    return signal_pid;
 
@@ -338,6 +337,10 @@ attach_inferior (int pid)
      attach function, so that it can be the main thread instead of
      whichever we were told to attach to.  */
   signal_pid = pid;
+
+  /* Clear this so the backend doesn't get confused, thinking
+     CONT_THREAD died, and it needs to resume all threads.  */
+  cont_thread = null_ptid;
 
   if (!non_stop)
     {
@@ -808,7 +811,7 @@ handle_search_memory (char *own_buf, int packet_len)
 /* Handle monitor commands not handled by target-specific handlers.  */
 
 static void
-handle_monitor_command (char *mon)
+handle_monitor_command (char *mon, char *own_buf)
 {
   if (strcmp (mon, "set debug 1") == 0)
     {
@@ -942,6 +945,10 @@ handle_qxfer_libraries (const char *annex,
   if (annex[0] != '\0' || !target_running ())
     return -1;
 
+  /* Do not confuse this packet with qXfer:libraries-svr4:read.  */
+  if (the_target->qxfer_libraries_svr4 != NULL)
+    return 0;
+
   /* Over-estimate the necessary memory.  Assume that every character
      in the library name must be escaped.  */
   total_len = 64;
@@ -990,6 +997,23 @@ handle_qxfer_libraries (const char *annex,
   memcpy (readbuf, document + offset, len);
   free (document);
   return len;
+}
+
+/* Handle qXfer:libraries-svr4:read.  */
+
+static int
+handle_qxfer_libraries_svr4 (const char *annex,
+			     gdb_byte *readbuf, const gdb_byte *writebuf,
+			     ULONGEST offset, LONGEST len)
+{
+  if (writebuf != NULL)
+    return -2;
+
+  if (annex[0] != '\0' || !target_running ()
+      || the_target->qxfer_libraries_svr4 == NULL)
+    return -1;
+
+  return the_target->qxfer_libraries_svr4 (annex, readbuf, writebuf, offset, len);
 }
 
 /* Handle qXfer:osadata:read.  */
@@ -1216,6 +1240,7 @@ static const struct qxfer qxfer_packets[] =
     { "fdpic", handle_qxfer_fdpic},
     { "features", handle_qxfer_features },
     { "libraries", handle_qxfer_libraries },
+    { "libraries-svr4", handle_qxfer_libraries_svr4 },
     { "osdata", handle_qxfer_osdata },
     { "siginfo", handle_qxfer_siginfo },
     { "spu", handle_qxfer_spu },
@@ -1536,9 +1561,14 @@ handle_query (char *own_buf, int packet_len, int *new_packet_len_p)
 
       sprintf (own_buf, "PacketSize=%x;QPassSignals+", PBUFSIZ - 1);
 
-      /* We do not have any hook to indicate whether the target backend
-	 supports qXfer:libraries:read, so always report it.  */
-      strcat (own_buf, ";qXfer:libraries:read+");
+      if (the_target->qxfer_libraries_svr4 != NULL)
+	strcat (own_buf, ";qXfer:libraries-svr4:read+");
+      else
+	{
+	  /* We do not have any hook to indicate whether the non-SVR4 target
+	     backend supports qXfer:libraries:read, so always report it.  */
+	  strcat (own_buf, ";qXfer:libraries:read+");
+	}
 
       if (the_target->read_auxv != NULL)
 	strcat (own_buf, ";qXfer:auxv:read+");
@@ -1584,6 +1614,7 @@ handle_query (char *own_buf, int packet_len, int *new_packet_len_p)
 	  if (gdb_supports_qRelocInsn && target_supports_fast_tracepoints ())
 	    strcat (own_buf, ";FastTracepoints+");
 	  strcat (own_buf, ";StaticTracepoints+");
+	  strcat (own_buf, ";InstallInTrace+");
 	  strcat (own_buf, ";qXfer:statictrace:read+");
 	  strcat (own_buf, ";qXfer:traceframe-info:read+");
 	  strcat (own_buf, ";EnableDisableTracepoints+");
@@ -1706,7 +1737,7 @@ handle_query (char *own_buf, int packet_len, int *new_packet_len_p)
       if (the_target->handle_monitor_command == NULL
 	  || (*the_target->handle_monitor_command) (mon) == 0)
 	/* Default processing.  */
-	handle_monitor_command (mon);
+	handle_monitor_command (mon, own_buf);
 
       free (mon);
       return;
@@ -2113,7 +2144,7 @@ handle_v_requests (char *own_buf, int packet_len, int *new_packet_len)
 
   if (strncmp (own_buf, "vAttach;", 8) == 0)
     {
-      if (!multi_process && target_running ())
+      if ((!extended_protocol || !multi_process) && target_running ())
 	{
 	  fprintf (stderr, "Already debugging a process\n");
 	  write_enn (own_buf);
@@ -2125,7 +2156,7 @@ handle_v_requests (char *own_buf, int packet_len, int *new_packet_len)
 
   if (strncmp (own_buf, "vRun;", 5) == 0)
     {
-      if (!multi_process && target_running ())
+      if ((!extended_protocol || !multi_process) && target_running ())
 	{
 	  fprintf (stderr, "Already debugging a process\n");
 	  write_enn (own_buf);
@@ -2342,7 +2373,7 @@ static void
 gdbserver_version (void)
 {
   printf ("GNU gdbserver %s%s\n"
-	  "Copyright (C) 2011 Free Software Foundation, Inc.\n"
+	  "Copyright (C) 2012 Free Software Foundation, Inc.\n"
 	  "gdbserver is free software, covered by the "
 	  "GNU General Public License.\n"
 	  "This gdbserver was configured as \"%s\"\n",
@@ -2578,6 +2609,13 @@ main (int argc, char *argv[])
 		}
 	    }
 	}
+      else if (strcmp (*next_arg, "-") == 0)
+	{
+	  /* "-" specifies a stdio connection and is a form of port
+	     specification.  */
+	  *next_arg = STDIO_CONNECTION_NAME;
+	  break;
+	}
       else if (strcmp (*next_arg, "--disable-randomization") == 0)
 	disable_randomization = 1;
       else if (strcmp (*next_arg, "--no-disable-randomization") == 0)
@@ -2607,6 +2645,12 @@ main (int argc, char *argv[])
       gdbserver_usage (stderr);
       exit (1);
     }
+
+  /* We need to know whether the remote connection is stdio before
+     starting the inferior.  Inferiors created in this scenario have
+     stdin,stdout redirected.  So do this here before we call
+     start_inferior.  */
+  remote_prepare (port);
 
   bad_attach = 0;
   pid = 0;
@@ -2679,7 +2723,14 @@ main (int argc, char *argv[])
 
   if (setjmp (toplevel))
     {
-      detach_or_kill_for_exit ();
+      /* If something fails and longjmps while detaching or killing
+	 inferiors, we'd end up here again, stuck in an infinite loop
+	 trap.  Be sure that if that happens, we exit immediately
+	 instead.  */
+      if (setjmp (toplevel) == 0)
+	detach_or_kill_for_exit ();
+      else
+	fprintf (stderr, "Detach or kill failed.  Exiting\n");
       exit (1);
     }
 
@@ -2694,8 +2745,6 @@ main (int argc, char *argv[])
       fprintf (stderr, "No program to debug.  GDBserver exiting.\n");
       exit (1);
     }
-
-  remote_prepare (port);
 
   while (1)
     {
@@ -2727,8 +2776,20 @@ main (int argc, char *argv[])
 
       if (exit_requested || run_once)
 	{
-	  detach_or_kill_for_exit ();
-	  exit (0);
+	  /* If something fails and longjmps while detaching or
+	     killing inferiors, we'd end up here again, stuck in an
+	     infinite loop trap.  Be sure that if that happens, we
+	     exit immediately instead.  */
+	  if (setjmp (toplevel) == 0)
+	    {
+	      detach_or_kill_for_exit ();
+	      exit (0);
+	    }
+	  else
+	    {
+	      fprintf (stderr, "Detach or kill failed.  Exiting\n");
+	      exit (1);
+	    }
 	}
 
       fprintf (stderr,

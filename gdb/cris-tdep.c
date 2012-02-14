@@ -1,7 +1,6 @@
 /* Target dependent code for CRIS, for GDB, the GNU debugger.
 
-   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-   2011 Free Software Foundation, Inc.
+   Copyright (C) 2001-2012 Free Software Foundation, Inc.
 
    Contributed by Axis Communications AB.
    Written by Hendrik Ruijter, Stefan Andersson, and Orjan Friberg.
@@ -152,7 +151,7 @@ static int usr_cmd_cris_version_valid = 0;
 
 static const char cris_mode_normal[] = "normal";
 static const char cris_mode_guru[] = "guru";
-static const char *cris_modes[] = {
+static const char *const cris_modes[] = {
   cris_mode_normal,
   cris_mode_guru,
   0

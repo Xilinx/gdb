@@ -1,4 +1,4 @@
-# Copyright (C) 2007, 2009, 2010, 2011 Free Software Foundation, Inc.
+# Copyright (C) 2007, 2009-2012 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,10 +31,6 @@ if ![istarget *-*-linux*] then {
 # about new threads.  This is expected, so don't test for that.
 if [is_remote target] then {
     return
-}
-
-if $tracelevel then {
-        strace $tracelevel
 }
 
 

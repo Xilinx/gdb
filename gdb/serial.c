@@ -1,8 +1,6 @@
 /* Generic serial interface routines
 
-   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1992-2002, 2004-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -55,7 +53,7 @@ static void serial_logchar (struct ui_file *stream,
 static const char logbase_hex[] = "hex";
 static const char logbase_octal[] = "octal";
 static const char logbase_ascii[] = "ascii";
-static const char *logbase_enums[] =
+static const char *const logbase_enums[] =
 {logbase_hex, logbase_octal, logbase_ascii, NULL};
 static const char *serial_logbase = logbase_ascii;
 

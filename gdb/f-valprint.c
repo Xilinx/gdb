@@ -1,7 +1,7 @@
 /* Support for printing Fortran values for GDB, the GNU debugger.
 
-   Copyright (C) 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2003, 2005, 2006,
-   2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1993-1996, 1998-2000, 2003, 2005-2012 Free Software
+   Foundation, Inc.
 
    Contributed by Motorola.  Adapted from the C definitions by Farooq Butt
    (fmbutt@engage.sps.mot.com), additionally worked over by Stan Shebs.
@@ -41,7 +41,7 @@ static int there_is_a_visible_common_named (char *);
 
 extern void _initialize_f_valprint (void);
 static void info_common_command (char *, int);
-static void list_all_visible_commons (char *);
+static void list_all_visible_commons (const char *);
 static void f77_create_arrayprint_offset_tbl (struct type *,
 					      struct ui_file *);
 static void f77_get_dynamic_length_of_aggregate (struct type *);
@@ -518,7 +518,7 @@ f_val_print (struct type *type, const gdb_byte *valaddr, int embedded_offset,
 }
 
 static void
-list_all_visible_commons (char *funname)
+list_all_visible_commons (const char *funname)
 {
   SAVED_F77_COMMON_PTR tmp;
 
@@ -545,7 +545,7 @@ info_common_command (char *comname, int from_tty)
   SAVED_F77_COMMON_PTR the_common;
   COMMON_ENTRY_PTR entry;
   struct frame_info *fi;
-  char *funname = 0;
+  const char *funname = 0;
   struct symbol *func;
 
   /* We have been told to display the contents of F77 COMMON 

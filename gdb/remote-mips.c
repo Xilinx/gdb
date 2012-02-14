@@ -1,8 +1,6 @@
 /* Remote debugging interface for MIPS remote debugging protocol.
 
-   Copyright (C) 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1993-2004, 2006-2012 Free Software Foundation, Inc.
 
    Contributed by Cygnus Support.  Written by Ian Lance Taylor
    <ian@cygnus.com>.
@@ -1956,7 +1954,7 @@ mips_wait (struct target_ops *ops,
          is not a normal breakpoint.  */
       if (strcmp (target_shortname, "lsi") == 0)
 	{
-	  char *func_name;
+	  const char *func_name;
 	  CORE_ADDR func_start;
 	  CORE_ADDR pc = regcache_read_pc (get_current_regcache ());
 

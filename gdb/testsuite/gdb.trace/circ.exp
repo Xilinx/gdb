@@ -1,4 +1,4 @@
-# Copyright 1998, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+# Copyright 1998, 2007-2012 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,10 +14,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 load_lib "trace-support.exp"
-
-if $tracelevel then {
-	strace $tracelevel
-}
 
 
 set testfile "circ"
@@ -192,10 +188,6 @@ gdb_start
 gdb_reinitialize_dir $srcdir/$subdir
 gdb_load $binfile
  
-if [target_info exists gdb_stub] {
-    gdb_step_for_stub;
-}
-
 gdb_test_no_output "set circular-trace-buffer on" \
     "set circular-trace-buffer on"
 

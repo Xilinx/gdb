@@ -1,7 +1,6 @@
 /* Target-dependent code for GNU/Linux x86-64.
 
-   Copyright (C) 2001, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2001, 2003-2012 Free Software Foundation, Inc.
    Contributed by Jiri Smid, SuSE Labs.
 
    This file is part of GDB.
@@ -174,7 +173,7 @@ static int
 amd64_linux_sigtramp_p (struct frame_info *this_frame)
 {
   CORE_ADDR pc = get_frame_pc (this_frame);
-  char *name;
+  const char *name;
 
   find_pc_partial_function (pc, &name, NULL, NULL);
 
@@ -356,9 +355,9 @@ amd64_all_but_ip_registers_record (struct regcache *regcache)
    process record.  */
 
 static enum gdb_syscall
-amd64_canonicalize_syscall (enum amd64_syscall syscall)
+amd64_canonicalize_syscall (enum amd64_syscall syscall_number)
 {
-  switch (syscall) {
+  switch (syscall_number) {
   case amd64_sys_read:
     return gdb_sys_read;
 

@@ -1,7 +1,6 @@
 /* Frame unwinder for frames with DWARF Call Frame Information.
 
-   Copyright (C) 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2005, 2007-2012 Free Software Foundation, Inc.
 
    Contributed by Mark Kettenis.
 
@@ -1491,6 +1490,10 @@ dwarf2_frame_cfa (struct frame_info *this_frame)
   if (!frame_unwinder_is (this_frame, &dwarf2_frame_unwind)
       && !frame_unwinder_is (this_frame, &dwarf2_tailcall_frame_unwind))
     error (_("can't compute CFA for this frame"));
+  if (get_frame_unwind_stop_reason (this_frame) == UNWIND_UNAVAILABLE)
+    throw_error (NOT_AVAILABLE_ERROR,
+		 _("can't compute CFA for this frame: "
+		   "required registers or memory are unavailable"));
   return get_frame_base (this_frame);
 }
 

@@ -1,7 +1,7 @@
 /* Source-language-related definitions for GDB.
 
-   Copyright (C) 1991, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2003, 2004,
-   2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1991-1995, 1998-2000, 2003-2004, 2007-2012 Free
+   Software Foundation, Inc.
 
    Contributed by the Department of Computer Science at the State University
    of New York at Buffalo.
@@ -135,6 +135,16 @@ struct language_arch_info
   /* Otherwise, this is the default boolean builtin type.  */
   struct type *bool_type_default;
 };
+
+/* A pointer to a function expected to return nonzero if
+   SYMBOL_SEARCH_NAME matches the given LOOKUP_NAME.
+
+   SYMBOL_SEARCH_NAME should be a symbol's "search" name.
+   LOOKUP_NAME should be the name of an entity after it has been
+   transformed for lookup.  */
+
+typedef int (*symbol_name_cmp_ftype) (const char *symbol_search_name,
+					  const char *lookup_name);
 
 /* Structure tying together assorted information about a language.  */
 
@@ -318,6 +328,34 @@ struct language_defn
     void (*la_get_string) (struct value *value, gdb_byte **buffer, int *length,
 			   struct type **chartype, const char **charset);
 
+    /* Return a pointer to the function that should be used to match
+       a symbol name against LOOKUP_NAME. This is mostly for languages
+       such as Ada where the matching algorithm depends on LOOKUP_NAME.
+
+       This field may be NULL, in which case strcmp_iw will be used
+       to perform the matching.  */
+    symbol_name_cmp_ftype (*la_get_symbol_name_cmp) (const char *lookup_name);
+
+    /* Find all symbols in the current program space matching NAME in
+       DOMAIN, according to this language's rules.
+
+       The search starts with BLOCK.  This function iterates upward
+       through blocks.  When the outermost block has been finished,
+       the function returns.
+
+       For each one, call CALLBACK with the symbol and the DATA
+       argument.  If CALLBACK returns zero, the iteration ends at that
+       point.
+
+       This field may not be NULL.  If the language does not need any
+       special processing here, 'iterate_over_symbols' should be
+       used as the definition.  */
+    void (*la_iterate_over_symbols) (const struct block *block,
+				     const char *name,
+				     domain_enum domain,
+				     symbol_found_callback_ftype *callback,
+				     void *data);
+
     /* Add fields above this point, so the magic number is always last.  */
     /* Magic number for compat checking.  */
 
@@ -422,6 +460,10 @@ extern enum language set_language (enum language);
 #define LA_PRINT_ARRAY_INDEX(index_value, stream, options) \
   (current_language->la_print_array_index(index_value, stream, options))
 
+#define LA_ITERATE_OVER_SYMBOLS(BLOCK, NAME, DOMAIN, CALLBACK, DATA) \
+  (current_language->la_iterate_over_symbols (BLOCK, NAME, DOMAIN, CALLBACK, \
+					      DATA))
+
 /* Test a character to decide whether it can be printed in literal form
    or needs to be printed in another representation.  For example,
    in C the literal form of the character with octal value 141 is 'a'
@@ -435,25 +477,7 @@ extern enum language set_language (enum language);
 
 /* Type predicates */
 
-extern int simple_type (struct type *);
-
-extern int ordered_type (struct type *);
-
-extern int same_type (struct type *, struct type *);
-
-extern int integral_type (struct type *);
-
-extern int numeric_type (struct type *);
-
-extern int character_type (struct type *);
-
-extern int boolean_type (struct type *);
-
-extern int float_type (struct type *);
-
 extern int pointer_type (struct type *);
-
-extern int structured_type (struct type *);
 
 /* Checks Binary and Unary operations for semantic type correctness.  */
 /* FIXME:  Does not appear to be used.  */

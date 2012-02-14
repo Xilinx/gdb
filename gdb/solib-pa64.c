@@ -1,7 +1,6 @@
 /* Handle PA64 shared libraries for GDB, the GNU Debugger.
 
-   Copyright (C) 2004, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2004, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -384,8 +383,8 @@ manpage for methods to privately map shared library text."));
 	 routine.  */
       load_addr = regcache_read_pc (get_current_regcache ())
 		  - tmp_bfd->start_address;
-      sym_addr = bfd_lookup_symbol_from_symtab (tmp_bfd, cmp_name,
-						"__dld_break");
+      sym_addr = gdb_bfd_lookup_symbol_from_symtab (tmp_bfd, cmp_name,
+						    "__dld_break");
       sym_addr = load_addr + sym_addr + 4;
       
       /* Create the shared library breakpoint.  */

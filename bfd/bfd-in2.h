@@ -1882,6 +1882,8 @@ enum bfd_architecture
 #define bfd_mach_mips_loongson_3a      3003
 #define bfd_mach_mips_sb1              12310201 /* octal 'SB', 01 */
 #define bfd_mach_mips_octeon           6501
+#define bfd_mach_mips_octeonp          6601
+#define bfd_mach_mips_octeon2          6502
 #define bfd_mach_mips_xlr              887682   /* decimal 'XLR'  */
 #define bfd_mach_mipsisa32             32
 #define bfd_mach_mipsisa32r2           33
@@ -2159,7 +2161,6 @@ enum bfd_architecture
 #define bfd_mach_tilegx    1
   bfd_arch_last
   };
-
 typedef struct bfd_arch_info
 {
   int bits_per_word;
@@ -2178,6 +2179,12 @@ typedef struct bfd_arch_info
     (const struct bfd_arch_info *a, const struct bfd_arch_info *b);
 
   bfd_boolean (*scan) (const struct bfd_arch_info *, const char *);
+
+  /* Allocate via bfd_malloc and return a fill buffer of size COUNT.  If
+     IS_BIGENDIAN is TRUE, the order of bytes is big endian.  If CODE is
+     TRUE, the buffer contains code.  */
+  void *(*fill) (bfd_size_type count, bfd_boolean is_bigendian,
+                 bfd_boolean code);
 
   const struct bfd_arch_info *next;
 }
@@ -2783,6 +2790,15 @@ to compensate for the borrow when the low bits are added.  */
 
 /* MIPS16 low 16 bits.  */
   BFD_RELOC_MIPS16_LO16,
+
+/* MIPS16 TLS relocations  */
+  BFD_RELOC_MIPS16_TLS_GD,
+  BFD_RELOC_MIPS16_TLS_LDM,
+  BFD_RELOC_MIPS16_TLS_DTPREL_HI16,
+  BFD_RELOC_MIPS16_TLS_DTPREL_LO16,
+  BFD_RELOC_MIPS16_TLS_GOTTPREL,
+  BFD_RELOC_MIPS16_TLS_TPREL_HI16,
+  BFD_RELOC_MIPS16_TLS_TPREL_LO16,
 
 /* Relocation against a MIPS literal section.  */
   BFD_RELOC_MIPS_LITERAL,

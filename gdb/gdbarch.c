@@ -239,6 +239,8 @@ struct gdbarch
   gdbarch_fetch_pointer_argument_ftype *fetch_pointer_argument;
   gdbarch_regset_from_core_section_ftype *regset_from_core_section;
   struct core_regset_section * core_regset_sections;
+  gdbarch_make_corefile_notes_ftype *make_corefile_notes;
+  gdbarch_find_memory_regions_ftype *find_memory_regions;
   gdbarch_core_xfer_shared_libraries_ftype *core_xfer_shared_libraries;
   gdbarch_core_pid_to_str_ftype *core_pid_to_str;
   const char * gcore_bfd_target;
@@ -272,6 +274,7 @@ struct gdbarch
   const char * solib_symbols_extension;
   int has_dos_based_file_system;
   gdbarch_gen_return_address_ftype *gen_return_address;
+  gdbarch_info_proc_ftype *info_proc;
 };
 
 
@@ -394,6 +397,8 @@ struct gdbarch startup_gdbarch =
   0,  /* fetch_pointer_argument */
   0,  /* regset_from_core_section */
   0,  /* core_regset_sections */
+  0,  /* make_corefile_notes */
+  0,  /* find_memory_regions */
   0,  /* core_xfer_shared_libraries */
   0,  /* core_pid_to_str */
   0,  /* gcore_bfd_target */
@@ -427,6 +432,7 @@ struct gdbarch startup_gdbarch =
   0,  /* solib_symbols_extension */
   0,  /* has_dos_based_file_system */
   default_gen_return_address,  /* gen_return_address */
+  0,  /* info_proc */
   /* startup_gdbarch() */
 };
 
@@ -681,6 +687,8 @@ verify_gdbarch (struct gdbarch *gdbarch)
   /* Skip verify of register_reggroup_p, invalid_p == 0 */
   /* Skip verify of fetch_pointer_argument, has predicate.  */
   /* Skip verify of regset_from_core_section, has predicate.  */
+  /* Skip verify of make_corefile_notes, has predicate.  */
+  /* Skip verify of find_memory_regions, has predicate.  */
   /* Skip verify of core_xfer_shared_libraries, has predicate.  */
   /* Skip verify of core_pid_to_str, has predicate.  */
   /* Skip verify of gcore_bfd_target, has predicate.  */
@@ -715,6 +723,7 @@ verify_gdbarch (struct gdbarch *gdbarch)
   /* Skip verify of auto_wide_charset, invalid_p == 0 */
   /* Skip verify of has_dos_based_file_system, invalid_p == 0 */
   /* Skip verify of gen_return_address, invalid_p == 0 */
+  /* Skip verify of info_proc, has predicate.  */
   buf = ui_file_xstrdup (log, &length);
   make_cleanup (xfree, buf);
   if (length > 0)
@@ -922,6 +931,12 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
                       "gdbarch_dump: fetch_tls_load_module_address = <%s>\n",
                       host_address_to_string (gdbarch->fetch_tls_load_module_address));
   fprintf_unfiltered (file,
+                      "gdbarch_dump: gdbarch_find_memory_regions_p() = %d\n",
+                      gdbarch_find_memory_regions_p (gdbarch));
+  fprintf_unfiltered (file,
+                      "gdbarch_dump: find_memory_regions = <%s>\n",
+                      host_address_to_string (gdbarch->find_memory_regions));
+  fprintf_unfiltered (file,
                       "gdbarch_dump: float_bit = %s\n",
                       plongest (gdbarch->float_bit));
   fprintf_unfiltered (file,
@@ -1003,6 +1018,12 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
                       "gdbarch_dump: in_solib_return_trampoline = <%s>\n",
                       host_address_to_string (gdbarch->in_solib_return_trampoline));
   fprintf_unfiltered (file,
+                      "gdbarch_dump: gdbarch_info_proc_p() = %d\n",
+                      gdbarch_info_proc_p (gdbarch));
+  fprintf_unfiltered (file,
+                      "gdbarch_dump: info_proc = <%s>\n",
+                      host_address_to_string (gdbarch->info_proc));
+  fprintf_unfiltered (file,
                       "gdbarch_dump: inner_than = <%s>\n",
                       host_address_to_string (gdbarch->inner_than));
   fprintf_unfiltered (file,
@@ -1029,6 +1050,12 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
   fprintf_unfiltered (file,
                       "gdbarch_dump: long_long_bit = %s\n",
                       plongest (gdbarch->long_long_bit));
+  fprintf_unfiltered (file,
+                      "gdbarch_dump: gdbarch_make_corefile_notes_p() = %d\n",
+                      gdbarch_make_corefile_notes_p (gdbarch));
+  fprintf_unfiltered (file,
+                      "gdbarch_dump: make_corefile_notes = <%s>\n",
+                      host_address_to_string (gdbarch->make_corefile_notes));
   fprintf_unfiltered (file,
                       "gdbarch_dump: gdbarch_max_insn_length_p() = %d\n",
                       gdbarch_max_insn_length_p (gdbarch));
@@ -2981,7 +3008,7 @@ set_gdbarch_skip_solib_resolver (struct gdbarch *gdbarch,
 }
 
 int
-gdbarch_in_solib_return_trampoline (struct gdbarch *gdbarch, CORE_ADDR pc, char *name)
+gdbarch_in_solib_return_trampoline (struct gdbarch *gdbarch, CORE_ADDR pc, const char *name)
 {
   gdb_assert (gdbarch != NULL);
   gdb_assert (gdbarch->in_solib_return_trampoline != NULL);
@@ -3233,6 +3260,54 @@ set_gdbarch_core_regset_sections (struct gdbarch *gdbarch,
                                   struct core_regset_section * core_regset_sections)
 {
   gdbarch->core_regset_sections = core_regset_sections;
+}
+
+int
+gdbarch_make_corefile_notes_p (struct gdbarch *gdbarch)
+{
+  gdb_assert (gdbarch != NULL);
+  return gdbarch->make_corefile_notes != NULL;
+}
+
+char *
+gdbarch_make_corefile_notes (struct gdbarch *gdbarch, bfd *obfd, int *note_size)
+{
+  gdb_assert (gdbarch != NULL);
+  gdb_assert (gdbarch->make_corefile_notes != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_make_corefile_notes called\n");
+  return gdbarch->make_corefile_notes (gdbarch, obfd, note_size);
+}
+
+void
+set_gdbarch_make_corefile_notes (struct gdbarch *gdbarch,
+                                 gdbarch_make_corefile_notes_ftype make_corefile_notes)
+{
+  gdbarch->make_corefile_notes = make_corefile_notes;
+}
+
+int
+gdbarch_find_memory_regions_p (struct gdbarch *gdbarch)
+{
+  gdb_assert (gdbarch != NULL);
+  return gdbarch->find_memory_regions != NULL;
+}
+
+int
+gdbarch_find_memory_regions (struct gdbarch *gdbarch, find_memory_region_ftype func, void *data)
+{
+  gdb_assert (gdbarch != NULL);
+  gdb_assert (gdbarch->find_memory_regions != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_find_memory_regions called\n");
+  return gdbarch->find_memory_regions (gdbarch, func, data);
+}
+
+void
+set_gdbarch_find_memory_regions (struct gdbarch *gdbarch,
+                                 gdbarch_find_memory_regions_ftype find_memory_regions)
+{
+  gdbarch->find_memory_regions = find_memory_regions;
 }
 
 int
@@ -3571,8 +3646,8 @@ gdbarch_static_transform_name_p (struct gdbarch *gdbarch)
   return gdbarch->static_transform_name != NULL;
 }
 
-char *
-gdbarch_static_transform_name (struct gdbarch *gdbarch, char *name)
+const char *
+gdbarch_static_transform_name (struct gdbarch *gdbarch, const char *name)
 {
   gdb_assert (gdbarch != NULL);
   gdb_assert (gdbarch->static_transform_name != NULL);
@@ -3909,6 +3984,30 @@ set_gdbarch_gen_return_address (struct gdbarch *gdbarch,
                                 gdbarch_gen_return_address_ftype gen_return_address)
 {
   gdbarch->gen_return_address = gen_return_address;
+}
+
+int
+gdbarch_info_proc_p (struct gdbarch *gdbarch)
+{
+  gdb_assert (gdbarch != NULL);
+  return gdbarch->info_proc != NULL;
+}
+
+void
+gdbarch_info_proc (struct gdbarch *gdbarch, char *args, enum info_proc_what what)
+{
+  gdb_assert (gdbarch != NULL);
+  gdb_assert (gdbarch->info_proc != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_info_proc called\n");
+  gdbarch->info_proc (gdbarch, args, what);
+}
+
+void
+set_gdbarch_info_proc (struct gdbarch *gdbarch,
+                       gdbarch_info_proc_ftype info_proc)
+{
+  gdbarch->info_proc = info_proc;
 }
 
 

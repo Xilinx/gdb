@@ -2664,7 +2664,14 @@ default_data_link_order (bfd *abfd,
 
   fill = link_order->u.data.contents;
   fill_size = link_order->u.data.size;
-  if (fill_size != 0 && fill_size < size)
+  if (fill_size == 0)
+    {
+      fill = abfd->arch_info->fill (size, bfd_big_endian (abfd),
+				    (sec->flags & SEC_CODE) != 0);
+      if (fill == NULL)
+	return FALSE;
+    }
+  else if (fill_size < size)
     {
       bfd_byte *p;
       fill = (bfd_byte *) bfd_malloc (size);
@@ -3200,6 +3207,12 @@ fix_syms (struct bfd_link_hash_entry *h, void *data)
 	      if (h->u.def.value < op->vma)
 		op = op1;
 	    }
+
+	  /* Refuse to choose a section for which we are out of bounds.  */
+	  /* ??? This may make most of the above moot.  */
+	  if (h->u.def.value < op->vma
+	      || h->u.def.value > op->vma + op->size)
+	    op = bfd_abs_section_ptr;
 
 	  h->u.def.value -= op->vma;
 	  h->u.def.section = op;

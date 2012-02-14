@@ -1,7 +1,6 @@
 /* DWARF 2 location expression support for GDB.
 
-   Copyright (C) 2003, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003, 2005, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -40,7 +39,7 @@ extern int entry_values_debug;
 struct objfile *dwarf2_per_cu_objfile (struct dwarf2_per_cu_data *cu);
 
 /* Return the address size given in the compilation unit header for CU.  */
-CORE_ADDR dwarf2_per_cu_addr_size (struct dwarf2_per_cu_data *cu);
+int dwarf2_per_cu_addr_size (struct dwarf2_per_cu_data *cu);
 
 /* Return the DW_FORM_ref_addr size given in the compilation unit header for
    CU.  */

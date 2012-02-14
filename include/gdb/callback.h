@@ -1,5 +1,5 @@
 /* Remote target system call callback support.
-   Copyright 1997, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright 1997, 2007-2012 Free Software Foundation, Inc.
    Contributed by Cygnus Solutions.
 
    This file is part of GDB.
@@ -323,6 +323,9 @@ void cb_store_target_endian (host_callback *, char *, int, long);
 int cb_is_stdin (host_callback *, int);
 int cb_is_stdout (host_callback *, int);
 int cb_is_stderr (host_callback *, int);
+
+/* Read a string out of the target.  */
+int cb_get_string (host_callback *, CB_SYSCALL *, char *, int, unsigned long);
 
 /* Perform a system call.  */
 CB_RC cb_syscall (host_callback *, CB_SYSCALL *);

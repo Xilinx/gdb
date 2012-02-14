@@ -1,7 +1,6 @@
 /* Core dump and executable file functions above target vector, for GDB.
 
-   Copyright (C) 1986, 1987, 1989, 1991, 1992, 1993, 1994, 1996, 1997, 1998,
-   1999, 2000, 2001, 2003, 2006, 2007, 2008, 2009, 2010, 2011
+   Copyright (C) 1986-1987, 1989, 1991-1994, 1996-2001, 2003, 2006-2012
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -61,7 +60,7 @@ static int exec_file_hook_count = 0;		/* Size of array.  */
 
 bfd *core_bfd = NULL;
 
-/* corelow.c target (if included for this gdb target).  */
+/* corelow.c target.  It is never NULL after GDB initialization.  */
 
 struct target_ops *core_target;
 
@@ -73,8 +72,7 @@ core_file_command (char *filename, int from_tty)
 {
   dont_repeat ();		/* Either way, seems bogus.  */
 
-  if (core_target == NULL)
-    error (_("GDB can't read core files on this machine."));
+  gdb_assert (core_target != NULL);
 
   if (!filename)
     (core_target->to_detach) (core_target, filename, from_tty);
@@ -133,26 +131,9 @@ specify_exec_file_hook (void (*hook) (char *))
     deprecated_exec_file_display_hook = hook;
 }
 
-/* The exec file must be closed before running an inferior.
-   If it is needed again after the inferior dies, it must
-   be reopened.  */
-
-void
-close_exec_file (void)
-{
-#if 0				/* FIXME */
-  if (exec_bfd)
-    bfd_tempclose (exec_bfd);
-#endif
-}
-
 void
 reopen_exec_file (void)
 {
-#if 0				/* FIXME */
-  if (exec_bfd)
-    bfd_reopen (exec_bfd);
-#else
   char *filename;
   int res;
   struct stat st;
@@ -176,7 +157,6 @@ reopen_exec_file (void)
     bfd_cache_close_all ();
 
   do_cleanups (cleanups);
-#endif
 }
 
 /* If we have both a core file and an exec file,

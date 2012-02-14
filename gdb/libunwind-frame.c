@@ -1,7 +1,6 @@
 /* Frame unwinder for frames using the libunwind library.
 
-   Copyright (C) 2003, 2004, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2004, 2006-2012 Free Software Foundation, Inc.
 
    Written by Jeff Johnston, contributed by Red Hat Inc.
 
@@ -509,7 +508,11 @@ libunwind_load (void)
 
   handle = dlopen (LIBUNWIND_SO, RTLD_NOW);
   if (handle == NULL)
-    return 0;
+    {
+      fprintf_unfiltered (gdb_stderr, _("[GDB failed to load %s: %s]\n"),
+                          LIBUNWIND_SO, dlerror ());
+      return 0;
+    }
 
   /* Initialize pointers to the dynamic library functions we will use.  */
 

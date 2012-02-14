@@ -1,5 +1,4 @@
-#   Copyright 1998, 2002, 2005, 2007, 2008, 2009, 2010, 2011
-#   Free Software Foundation, Inc.
+#   Copyright 1998, 2002, 2005, 2007-2012 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,10 +16,6 @@
 # This file was written by Michael Snyder (msnyder@cygnus.com)
 
 load_lib "trace-support.exp";
-
-if $tracelevel then {
-    strace $tracelevel
-}
 
 
 gdb_exit
@@ -109,7 +104,7 @@ if { $return_me == 1 } then {
 gdb_test "tstatus" "\[Tt\]race is running.*" "test tstatus on"
 
 # 6.2 test help tstart
-gdb_test "help tstart" "Start trace data collection." "6.2: help tstart"
+gdb_test "help tstart" "Start trace data collection\.\[\r\n\]+Usage: tstart \\\[ <notes> \.\.\. \\\]\[\r\n\]+Any arguments supplied are recorded with the trace as a note and\[\r\n\]+reported by tstatus \\(if the target supports trace notes\\)\." "6.2: help tstart"
 
 gdb_test "break end" ".*" ""
 gdb_test "continue" \
@@ -140,7 +135,7 @@ if { $return_me == 1 } then {
 }
 
 # 7.2 test help tstop
-gdb_test "help tstop" "Stop trace data collection." "7.2: help tstop"
+gdb_test "help tstop" "Stop trace data collection\.\[\r\n\]+Usage: tstop \\\[ <notes> \.\.\. \\\]\[\r\n\]+Any arguments supplied are recorded with the trace as a stop reason and\[\r\n\]+reported by tstatus \\(if the target supports trace notes\\)\." "7.2: help tstop"
 
 # test tstatus (when trace off)
 gdb_test "tstatus" "Trace stopped by a tstop command.*" \
@@ -333,10 +328,10 @@ gdb_test "disassemble gdb_c_test" \
     "8.36: trace disassembly"
 
 gdb_test "tfind line 0" \
-	"out of range.*|failed to find.*" \
+	"out of range.*|failed to find.*|No line 0 in .*" \
 	"8.18: tfind line 0";
 gdb_test "tfind line 32767" \
-	"out of range.*|failed to find.*" \
+	"out of range.*|failed to find.*|No line 32767 in .*" \
 	"8.27: tfind line 32767";
 gdb_test "tfind line NoSuChFiLe.c:$baseline" \
 	"No source file named.*" \

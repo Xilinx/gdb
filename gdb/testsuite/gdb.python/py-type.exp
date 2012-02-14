@@ -1,4 +1,4 @@
-# Copyright (C) 2009, 2010, 2011 Free Software Foundation, Inc.
+# Copyright (C) 2009-2012 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,10 +15,6 @@
 
 # This file is part of the GDB testsuite.  It tests the mechanism
 # of exposing types to Python.
-
-if $tracelevel then {
-    strace $tracelevel
-}
 
 load_lib gdb-python.exp
 
@@ -97,6 +93,16 @@ proc test_fields {lang} {
     gdb_test "python print \[(n, v.bitpos) for (n, v) in st.type.items()\]" {\[\('a', 0L\), \('b', 32L\)\]} "Check fields items list"
   gdb_test "python print 'a' in st.type" "True" "Check field name exists test"
   gdb_test "python print 'nosuch' in st.type" "False" "Check field name nonexists test"
+  gdb_test "python print not not st.type" "True" "Check conversion to bool"
+
+  # Test rejection of mapping operations on scalar types
+  gdb_test "python print len (st.type\['a'\].type)" "TypeError: Type is not a structure, union, or enum type.*"
+  gdb_test "python print st.type\['a'\].type.has_key ('x')" "TypeError: Type is not a structure, union, or enum type.*"
+  gdb_test "python print st.type\['a'\].type.keys ()" "TypeError: Type is not a structure, union, or enum type.*"
+  gdb_test "python print st.type\['a'\].type\['x'\]" "TypeError: Type is not a structure, union, or enum type.*"
+
+  # Test conversion to bool on scalar types
+  gdb_test "python print not not st.type\['a'\].type" "True"
   
   # Test regression PR python/10805
   gdb_py_test_silent_cmd "print ar" "print value" 1
@@ -183,7 +189,10 @@ proc test_template {} {
     gdb_test "python print isinstance(ttype.template_argument(1), gdb.Value)" \
 	"True"
 
-    setup_kfail "gcc/41736" *-*-*
+    if {[test_compiler_info {gcc-[0-3]-*}]
+	|| [test_compiler_info {gcc-4-[0-5]-*}]} {
+	setup_xfail "gcc/46955" *-*-*
+    }
     gdb_test "python print ttype.template_argument(2)" "&C::c"
 }
 

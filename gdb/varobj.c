@@ -1,7 +1,6 @@
 /* Implementation of the GDB variable objects API.
 
-   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1999-2012 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +21,6 @@
 #include "expression.h"
 #include "frame.h"
 #include "language.h"
-#include "wrapper.h"
 #include "gdbcmd.h"
 #include "block.h"
 #include "valprint.h"
@@ -42,6 +40,10 @@
 #else
 typedef int PyObject;
 #endif
+
+/* The names of varobjs representing anonymous structs or unions.  */
+#define ANONYMOUS_STRUCT_NAME _("<anonymous struct>")
+#define ANONYMOUS_UNION_NAME _("<anonymous union>")
 
 /* Non-zero if we want to see trace of varobj level stuff.  */
 
@@ -574,6 +576,7 @@ varobj_create (char *objname,
       char *p;
       enum varobj_languages lang;
       struct value *value = NULL;
+      volatile struct gdb_exception except;
 
       /* Parse and evaluate the expression, filling in as much of the
          variable's data as possible.  */
@@ -608,7 +611,12 @@ varobj_create (char *objname,
       innermost_block = NULL;
       /* Wrap the call to parse expression, so we can 
          return a sensible error.  */
-      if (!gdb_parse_exp_1 (&p, block, 0, &var->root->exp))
+      TRY_CATCH (except, RETURN_MASK_ERROR)
+	{
+	  var->root->exp = parse_exp_1 (&p, block, 0);
+	}
+
+      if (except.reason < 0)
 	{
 	  do_cleanups (old_chain);
 	  return NULL;
@@ -651,7 +659,12 @@ varobj_create (char *objname,
       /* We definitely need to catch errors here.
          If evaluate_expression succeeds we got the value we wanted.
          But if it fails, we still go on with a call to evaluate_type().  */
-      if (!gdb_evaluate_expression (var->root->exp, &value))
+      TRY_CATCH (except, RETURN_MASK_ERROR)
+	{
+	  value = evaluate_expression (var->root->exp);
+	}
+
+      if (except.reason < 0)
 	{
 	  /* Error getting the value.  Try to at least get the
 	     right type.  */
@@ -1289,6 +1302,39 @@ varobj_get_gdb_type (struct varobj *var)
   return var->type;
 }
 
+/* Is VAR a path expression parent, i.e., can it be used to construct
+   a valid path expression?  */
+
+static int
+is_path_expr_parent (struct varobj *var)
+{
+  struct type *type;
+
+  /* "Fake" children are not path_expr parents.  */
+  if (CPLUS_FAKE_CHILD (var))
+    return 0;
+
+  type = get_value_type (var);
+
+  /* Anonymous unions and structs are also not path_expr parents.  */
+  return !((TYPE_CODE (type) == TYPE_CODE_STRUCT
+	    || TYPE_CODE (type) == TYPE_CODE_UNION)
+	   && TYPE_NAME (type) == NULL);
+}
+
+/* Return the path expression parent for VAR.  */
+
+static struct varobj *
+get_path_expr_parent (struct varobj *var)
+{
+  struct varobj *parent = var;
+
+  while (!is_root_p (parent) && !is_path_expr_parent (parent))
+    parent = parent->parent;
+
+  return parent;
+}
+
 /* Return a pointer to the full rooted expression of varobj VAR.
    If it has not been computed yet, compute it.  */
 char *
@@ -1350,21 +1396,26 @@ varobj_get_value (struct varobj *var)
 int
 varobj_set_value (struct varobj *var, char *expression)
 {
-  struct value *val;
-
+  struct value *val = NULL; /* Initialize to keep gcc happy.  */
   /* The argument "expression" contains the variable's new value.
      We need to first construct a legal expression for this -- ugh!  */
   /* Does this cover all the bases?  */
   struct expression *exp;
-  struct value *value;
+  struct value *value = NULL; /* Initialize to keep gcc happy.  */
   int saved_input_radix = input_radix;
   char *s = expression;
+  volatile struct gdb_exception except;
 
   gdb_assert (varobj_editable_p (var));
 
   input_radix = 10;		/* ALWAYS reset to decimal temporarily.  */
   exp = parse_exp_1 (&s, 0, 0);
-  if (!gdb_evaluate_expression (exp, &value))
+  TRY_CATCH (except, RETURN_MASK_ERROR)
+    {
+      value = evaluate_expression (exp);
+    }
+
+  if (except.reason < 0)
     {
       /* We cannot proceed without a valid expression.  */
       xfree (exp);
@@ -1386,13 +1437,16 @@ varobj_set_value (struct varobj *var, char *expression)
      array's content.  */
   value = coerce_array (value);
 
-  /* The new value may be lazy.  gdb_value_assign, or 
-     rather value_contents, will take care of this.
-     If fetching of the new value will fail, gdb_value_assign
-     with catch the exception.  */
-  if (!gdb_value_assign (var->value, value, &val))
+  /* The new value may be lazy.  value_assign, or
+     rather value_contents, will take care of this.  */
+  TRY_CATCH (except, RETURN_MASK_ERROR)
+    {
+      val = value_assign (var->value, value);
+    }
+
+  if (except.reason < 0)
     return 0;
-     
+
   /* If the value has changed, record it, so that next -var-update can
      report this change.  If a variable had a value of '1', we've set it
      to '333' and then set again to '1', when -var-update will report this
@@ -1595,15 +1649,29 @@ install_new_value (struct varobj *var, struct value *value, int initial)
 	     explicitly asked to compare the new value with the old one.  */
 	  intentionally_not_fetched = 1;
 	}
-      else if (!gdb_value_fetch_lazy (value))
+      else
 	{
-	  /* Set the value to NULL, so that for the next -var-update,
-	     we don't try to compare the new value with this value,
-	     that we couldn't even read.  */
-	  value = NULL;
+	  volatile struct gdb_exception except;
+
+	  TRY_CATCH (except, RETURN_MASK_ERROR)
+	    {
+	      value_fetch_lazy (value);
+	    }
+
+	  if (except.reason < 0)
+	    {
+	      /* Set the value to NULL, so that for the next -var-update,
+		 we don't try to compare the new value with this value,
+		 that we couldn't even read.  */
+	      value = NULL;
+	    }
 	}
     }
 
+  /* Get a reference now, before possibly passing it to any Python
+     code that might release it.  */
+  if (value != NULL)
+    value_incref (value);
 
   /* Below, we'll be comparing string rendering of old and new
      values.  Don't get string rendering if the value is
@@ -1671,8 +1739,6 @@ install_new_value (struct varobj *var, struct value *value, int initial)
   if (var->value != NULL && var->value != value)
     value_free (var->value);
   var->value = value;
-  if (value != NULL)
-    value_incref (value);
   if (value && value_lazy (value) && intentionally_not_fetched)
     var->not_fetched = 1;
   else
@@ -1773,7 +1839,8 @@ varobj_set_visualizer (struct varobj *var, const char *visualizer)
    returns TYPE_CHANGED, then it has done this and VARP will be modified
    to point to the new varobj.  */
 
-VEC(varobj_update_result) *varobj_update (struct varobj **varp, int explicit)
+VEC(varobj_update_result) *
+varobj_update (struct varobj **varp, int explicit)
 {
   int changed = 0;
   int type_changed = 0;
@@ -2170,6 +2237,20 @@ create_child (struct varobj *parent, int index, char *name)
 				  value_of_child (parent, index));
 }
 
+/* Does CHILD represent a child with no name?  This happens when
+   the child is an anonmous struct or union and it has no field name
+   in its parent variable.
+
+   This has already been determined by *_describe_child. The easiest
+   thing to do is to compare the child's name with ANONYMOUS_*_NAME.  */
+
+static int
+is_anonymous_child (struct varobj *child)
+{
+  return (strcmp (child->name, ANONYMOUS_STRUCT_NAME) == 0
+	  || strcmp (child->name, ANONYMOUS_UNION_NAME) == 0);
+}
+
 static struct varobj *
 create_child_with_value (struct varobj *parent, int index, const char *name,
 			 struct value *value)
@@ -2185,8 +2266,13 @@ create_child_with_value (struct varobj *parent, int index, const char *name,
   child->index = index;
   child->parent = parent;
   child->root = parent->root;
-  childs_name = xstrprintf ("%s.%s", parent->obj_name, name);
+
+  if (is_anonymous_child (child))
+    childs_name = xstrprintf ("%s.%d_anonymous", parent->obj_name, index);
+  else
+    childs_name = xstrprintf ("%s.%s", parent->obj_name, name);
   child->obj_name = childs_name;
+
   install_variable (child);
 
   /* Compute the type of the child.  Must do this before
@@ -2818,9 +2904,14 @@ adjust_value_for_child_access (struct value **value,
 	{
 	  if (value && *value)
 	    {
-	      int success = gdb_value_ind (*value, value);
+	      volatile struct gdb_exception except;
 
-	      if (!success)
+	      TRY_CATCH (except, RETURN_MASK_ERROR)
+		{
+		  *value = value_ind (*value);
+		}
+
+	      if (except.reason < 0)
 		*value = NULL;
 	    }
 	  *type = target_type;
@@ -2945,6 +3036,7 @@ c_describe_child (struct varobj *parent, int index,
   struct type *type = get_value_type (parent);
   char *parent_expression = NULL;
   int was_ptr;
+  volatile struct gdb_exception except;
 
   if (cname)
     *cname = NULL;
@@ -2955,7 +3047,7 @@ c_describe_child (struct varobj *parent, int index,
   if (cfull_expression)
     {
       *cfull_expression = NULL;
-      parent_expression = varobj_get_path_expr (parent);
+      parent_expression = varobj_get_path_expr (get_path_expr_parent (parent));
     }
   adjust_value_for_child_access (&value, &type, &was_ptr);
       
@@ -2972,7 +3064,10 @@ c_describe_child (struct varobj *parent, int index,
 	{
 	  int real_index = index + TYPE_LOW_BOUND (TYPE_INDEX_TYPE (type));
 
-	  gdb_value_subscript (value, real_index, cvalue);
+	  TRY_CATCH (except, RETURN_MASK_ERROR)
+	    {
+	      *cvalue = value_subscript (value, real_index);
+	    }
 	}
 
       if (ctype)
@@ -2990,26 +3085,49 @@ c_describe_child (struct varobj *parent, int index,
 
     case TYPE_CODE_STRUCT:
     case TYPE_CODE_UNION:
-      if (cname)
-	*cname = xstrdup (TYPE_FIELD_NAME (type, index));
+      {
+	const char *field_name;
 
-      if (cvalue && value)
-	{
-	  /* For C, varobj index is the same as type index.  */
-	  *cvalue = value_struct_element_index (value, index);
-	}
+	/* If the type is anonymous and the field has no name,
+	   set an appropriate name.  */
+	field_name = TYPE_FIELD_NAME (type, index);
+	if (field_name == NULL || *field_name == '\0')
+	  {
+	    if (cname)
+	      {
+		if (TYPE_CODE (TYPE_FIELD_TYPE (type, index))
+		    == TYPE_CODE_STRUCT)
+		  *cname = xstrdup (ANONYMOUS_STRUCT_NAME);
+		else
+		  *cname = xstrdup (ANONYMOUS_UNION_NAME);
+	      }
 
-      if (ctype)
-	*ctype = TYPE_FIELD_TYPE (type, index);
+	    if (cfull_expression)
+	      *cfull_expression = xstrdup ("");
+	  }
+	else
+	  {
+	    if (cname)
+	      *cname = xstrdup (field_name);
 
-      if (cfull_expression)
-	{
-	  char *join = was_ptr ? "->" : ".";
+	    if (cfull_expression)
+	      {
+		char *join = was_ptr ? "->" : ".";
 
-	  *cfull_expression = xstrprintf ("(%s)%s%s", parent_expression, join,
-					  TYPE_FIELD_NAME (type, index));
-	}
+		*cfull_expression = xstrprintf ("(%s)%s%s", parent_expression,
+						join, field_name);
+	      }
+	  }
 
+	if (cvalue && value)
+	  {
+	    /* For C, varobj index is the same as type index.  */
+	    *cvalue = value_struct_element_index (value, index);
+	  }
+
+	if (ctype)
+	  *ctype = TYPE_FIELD_TYPE (type, index);
+      }
       break;
 
     case TYPE_CODE_PTR:
@@ -3018,9 +3136,12 @@ c_describe_child (struct varobj *parent, int index,
 
       if (cvalue && value)
 	{
-	  int success = gdb_value_ind (value, cvalue);
+	  TRY_CATCH (except, RETURN_MASK_ERROR)
+	    {
+	      *cvalue = value_ind (value);
+	    }
 
-	  if (!success)
+	  if (except.reason < 0)
 	    *cvalue = NULL;
 	}
 
@@ -3124,9 +3245,15 @@ c_value_of_root (struct varobj **var_handle)
 
   if (within_scope)
     {
+      volatile struct gdb_exception except;
+
       /* We need to catch errors here, because if evaluate
          expression fails we want to just return NULL.  */
-      gdb_evaluate_expression (var->root->exp, &new_val);
+      TRY_CATCH (except, RETURN_MASK_ERROR)
+	{
+	  new_val = evaluate_expression (var->root->exp);
+	}
+
       return new_val;
     }
 
@@ -3357,14 +3484,16 @@ cplus_describe_child (struct varobj *parent, int index,
       value = parent->parent->value;
       type = get_value_type (parent->parent);
       if (cfull_expression)
-	parent_expression = varobj_get_path_expr (parent->parent);
+	parent_expression
+	  = varobj_get_path_expr (get_path_expr_parent (parent->parent));
     }
   else
     {
       value = parent->value;
       type = get_value_type (parent);
       if (cfull_expression)
-	parent_expression = varobj_get_path_expr (parent);
+	parent_expression
+	  = varobj_get_path_expr (get_path_expr_parent (parent));
     }
 
   adjust_value_for_child_access (&value, &type, &was_ptr);
@@ -3386,6 +3515,7 @@ cplus_describe_child (struct varobj *parent, int index,
 	  enum accessibility acc = public_field;
 	  int vptr_fieldno;
 	  struct type *basetype = NULL;
+	  const char *field_name;
 
 	  vptr_fieldno = get_vptr_fieldno (type, &basetype);
 	  if (strcmp (parent->name, "private") == 0)
@@ -3404,20 +3534,40 @@ cplus_describe_child (struct varobj *parent, int index,
 	    }
 	  --type_index;
 
-	  if (cname)
-	    *cname = xstrdup (TYPE_FIELD_NAME (type, type_index));
+	  /* If the type is anonymous and the field has no name,
+	     set an appopriate name.  */
+	  field_name = TYPE_FIELD_NAME (type, type_index);
+	  if (field_name == NULL || *field_name == '\0')
+	    {
+	      if (cname)
+		{
+		  if (TYPE_CODE (TYPE_FIELD_TYPE (type, type_index))
+		      == TYPE_CODE_STRUCT)
+		    *cname = xstrdup (ANONYMOUS_STRUCT_NAME);
+		  else if (TYPE_CODE (TYPE_FIELD_TYPE (type, type_index))
+			   == TYPE_CODE_UNION)
+		    *cname = xstrdup (ANONYMOUS_UNION_NAME);
+		}
+
+	      if (cfull_expression)
+		*cfull_expression = xstrdup ("");
+	    }
+	  else
+	    {
+	      if (cname)
+		*cname = xstrdup (TYPE_FIELD_NAME (type, type_index));
+
+	      if (cfull_expression)
+		*cfull_expression
+		  = xstrprintf ("((%s)%s%s)", parent_expression, join,
+				field_name);
+	    }
 
 	  if (cvalue && value)
 	    *cvalue = value_struct_element_index (value, type_index);
 
 	  if (ctype)
 	    *ctype = TYPE_FIELD_TYPE (type, type_index);
-
-	  if (cfull_expression)
-	    *cfull_expression
-	      = xstrprintf ("((%s)%s%s)", parent_expression,
-			    join, 
-			    TYPE_FIELD_NAME (type, type_index));
 	}
       else if (index < TYPE_N_BASECLASSES (type))
 	{

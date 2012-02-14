@@ -1,6 +1,6 @@
 /* GDB routines for supporting auto-loaded scripts.
 
-   Copyright (C) 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2010-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -312,9 +312,9 @@ Use `info auto-load-scripts [REGEXP]' to list them."),
 	{
 	  /* If this file is not currently loaded, load it.  */
 	  if (! in_hash_table)
-	    source_python_script_for_objfile (objfile, full_path);
+	    source_python_script_for_objfile (objfile, stream, full_path);
 	  fclose (stream);
-	  free (full_path);
+	  xfree (full_path);
 	}
     }
 }
@@ -431,7 +431,7 @@ auto_load_objfile_script (struct objfile *objfile, const char *suffix)
 	 It's highly unlikely that we'd ever load it twice,
 	 and these scripts are required to be idempotent under multiple
 	 loads anyway.  */
-      source_python_script_for_objfile (objfile, debugfile);
+      source_python_script_for_objfile (objfile, input, debugfile);
       fclose (input);
     }
 
@@ -481,10 +481,10 @@ static int
 collect_matching_scripts (void **slot, void *info)
 {
   struct loaded_script *script = *slot;
-  VEC (loaded_script_ptr) *scripts = info;
+  VEC (loaded_script_ptr) **scripts_ptr = info;
 
   if (re_exec (script->name))
-    VEC_safe_push (loaded_script_ptr, scripts, script);
+    VEC_safe_push (loaded_script_ptr, *scripts_ptr, script);
 
   return 1;
 }
@@ -563,8 +563,9 @@ info_auto_load_scripts (char *pattern, int from_tty)
   if (pspace_info != NULL && pspace_info->loaded_scripts != NULL)
     {
       immediate_quit++;
+      /* Pass a pointer to scripts as VEC_safe_push can realloc space.  */
       htab_traverse_noresize (pspace_info->loaded_scripts,
-			      collect_matching_scripts, scripts);
+			      collect_matching_scripts, &scripts);
       immediate_quit--;
     }
 

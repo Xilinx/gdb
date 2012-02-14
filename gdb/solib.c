@@ -1,8 +1,6 @@
 /* Handle shared libraries for GDB, the GNU Debugger.
 
-   Copyright (C) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1990-2003, 2005-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -760,6 +758,9 @@ update_solib_list (int from_tty, struct target_ops *target)
 	     unloaded before we remove it from GDB's tables.  */
 	  observer_notify_solib_unloaded (gdb);
 
+	  VEC_safe_push (char_ptr, current_program_space->deleted_solibs,
+			 xstrdup (gdb->so_name));
+
 	  *gdb_link = gdb->next;
 
 	  /* Unless the user loaded it explicitly, free SO's objfile.  */
@@ -795,6 +796,7 @@ update_solib_list (int from_tty, struct target_ops *target)
 	  volatile struct gdb_exception e;
 
 	  i->pspace = current_program_space;
+	  VEC_safe_push (so_list_ptr, current_program_space->added_solibs, i);
 
 	  TRY_CATCH (e, RETURN_MASK_ERROR)
 	    {

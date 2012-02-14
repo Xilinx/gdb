@@ -1,8 +1,7 @@
 /* Support for printing C++ values for GDB, the GNU debugger.
 
-   Copyright (C) 1986, 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   2000, 2001, 2002, 2003, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1986, 1988-1989, 1991-1997, 2000-2003, 2005-2012 Free
+   Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -99,7 +98,7 @@ const char vtbl_ptr_name[] = "__vtbl_ptr_type";
 int
 cp_is_vtbl_ptr_type (struct type *type)
 {
-  char *typename = type_name_no_tag (type);
+  const char *typename = type_name_no_tag (type);
 
   return (typename != NULL && !strcmp (typename, vtbl_ptr_name));
 }
@@ -496,7 +495,7 @@ cp_print_value (struct type *type, struct type *real_type,
       int boffset = 0;
       int skip;
       struct type *baseclass = check_typedef (TYPE_BASECLASS (type, i));
-      char *basename = TYPE_NAME (baseclass);
+      const char *basename = TYPE_NAME (baseclass);
       const gdb_byte *base_valaddr = NULL;
       const struct value *base_val = NULL;
       volatile struct gdb_exception ex;
@@ -795,7 +794,7 @@ cp_print_class_member (const gdb_byte *valaddr, struct type *type,
 
   if (domain != NULL)
     {
-      char *name;
+      const char *name;
 
       fputs_filtered (prefix, stream);
       name = type_name_no_tag (domain);

@@ -1,6 +1,6 @@
 /* Private partial symbol table definitions.
 
-   Copyright (C) 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2009-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -92,7 +92,8 @@ struct partial_symtab
   struct section_offsets *section_offsets;
 
   /* Range of text addresses covered by this file; texthigh is the
-     beginning of the next section.  */
+     beginning of the next section.  Do not use if PSYMTABS_ADDRMAP_SUPPORTED
+     is set.  */
 
   CORE_ADDR textlow;
   CORE_ADDR texthigh;
@@ -135,6 +136,12 @@ struct partial_symtab
 
   unsigned char readin;
 
+  /* True iff objfile->psymtabs_addrmap is properly populated for this
+     partial_symtab.  For discontiguous overlapping psymtabs is the only usable
+     info in PSYMTABS_ADDRMAP.  */
+
+  unsigned char psymtabs_addrmap_supported;
+
   /* Pointer to symtab eventually allocated for this source file, 0 if
      !readin or if we haven't looked for the symtab after it was readin.  */
 
@@ -157,13 +164,12 @@ extern void sort_pst_symbols (struct partial_symtab *);
 
 /* Add any kind of symbol to a psymbol_allocation_list.  */
 
-extern const
-struct partial_symbol *add_psymbol_to_list (const char *, int,
-					    int, domain_enum,
-					    enum address_class,
-					    struct psymbol_allocation_list *,
-					    long, CORE_ADDR,
-					    enum language, struct objfile *);
+extern void add_psymbol_to_list (const char *, int,
+				 int, domain_enum,
+				 enum address_class,
+				 struct psymbol_allocation_list *,
+				 long, CORE_ADDR,
+				 enum language, struct objfile *);
 
 extern void init_psymbol_list (struct objfile *, int);
 

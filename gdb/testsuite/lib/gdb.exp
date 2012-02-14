@@ -1,6 +1,4 @@
-# Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-# 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-# Free Software Foundation, Inc.
+# Copyright 1992-2005, 2007-2012 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -187,16 +185,17 @@ proc delete_breakpoints {} {
     }
 }
 
-
-#
 # Generic run command.
 #
 # The second pattern below matches up to the first newline *only*.
 # Using ``.*$'' could swallow up output that we attempt to match
 # elsewhere.
 #
+# N.B. This function does not wait for gdb to return to the prompt,
+# that is the caller's responsibility.
+
 proc gdb_run_cmd {args} {
-    global gdb_prompt
+    global gdb_prompt use_gdb_stub
 
     if [target_info exists gdb_init_command] {
 	send_gdb "[target_info gdb_init_command]\n";
@@ -209,7 +208,7 @@ proc gdb_run_cmd {args} {
 	}
     }
 
-    if [target_info exists use_gdb_stub] {
+    if $use_gdb_stub {
 	if [target_info exists gdb,do_reload_on_run] {
 	    if { [gdb_reload] != 0 } {
 		return;
@@ -267,13 +266,6 @@ proc gdb_run_cmd {args} {
 		}
 	    }
 	}
-	if [target_info exists gdb_stub] {
-	    gdb_expect 60 {
-		-re "$gdb_prompt $" {
-		    send_gdb "continue\n"
-		}
-	    }
-	}
 	return
     }
 
@@ -300,9 +292,12 @@ proc gdb_run_cmd {args} {
 
 # Generic start command.  Return 0 if we could start the program, -1
 # if we could not.
+#
+# N.B. This function does not wait for gdb to return to the prompt,
+# that is the caller's responsibility.
 
 proc gdb_start_cmd {args} {
-    global gdb_prompt
+    global gdb_prompt use_gdb_stub
 
     if [target_info exists gdb_init_command] {
 	send_gdb "[target_info gdb_init_command]\n";
@@ -310,12 +305,12 @@ proc gdb_start_cmd {args} {
 	    -re "$gdb_prompt $" { }
 	    default {
 		perror "gdb_init_command for target failed";
-		return;
+		return -1;
 	    }
 	}
     }
 
-    if [target_info exists use_gdb_stub] {
+    if $use_gdb_stub {
 	return -1
     }
 
@@ -451,27 +446,14 @@ proc runto { function args } {
     return 1
 }
 
+# Ask gdb to run until we hit a breakpoint at main.
 #
-# runto_main -- ask gdb to run until we hit a breakpoint at main.
-#		The case where the target uses stubs has to be handled
-#		specially--if it uses stubs, assuming we hit
-#		breakpoint() and just step out of the function.
-#
+# N.B. This function deletes all existing breakpoints.
+# If you don't want that, use gdb_start_cmd.
+
 proc runto_main { } {
-    global gdb_prompt
-    global decimal
-
-    if ![target_info exists gdb_stub] {
-	return [runto main]
-    }			
-
-    delete_breakpoints
-
-    gdb_step_for_stub;
-
-    return 1
+    return [runto main]
 }
-
 
 ### Continue, and expect to hit a breakpoint.
 ### Report a pass or fail, depending on whether it seems to have
@@ -582,7 +564,7 @@ proc gdb_internal_error_resync {} {
 # ...", all being implicitly appended to that list.
 #
 proc gdb_test_multiple { command message user_code } {
-    global verbose
+    global verbose use_gdb_stub
     global gdb_prompt
     global GDB
     global inferior_exited_re
@@ -599,6 +581,12 @@ proc gdb_test_multiple { command message user_code } {
 
     if [string match "*\[\r\n\]*" $message] {
 	error "Invalid newline in \"$message\" test"
+    }
+
+    if {$use_gdb_stub
+        && [regexp -nocase {^\s*(r|run|star|start|at|att|atta|attac|attach)\M} \
+	    $command]} {
+	error "gdbserver does not support $command without extended-remote"
     }
 
     # TCL/EXPECT WART ALERT
@@ -844,11 +832,7 @@ proc gdb_test_multiple { command message user_code } {
     if {$code == 1} {
 	global errorInfo errorCode;
 	return -code error -errorinfo $errorInfo -errorcode $errorCode $string
-    } elseif {$code == 2} {
-	return -code return $string
-    } elseif {$code == 3} {
-	return
-    } elseif {$code > 4} {
+    } elseif {$code > 1} {
 	return -code $code $string
     }
     return $result
@@ -1316,7 +1300,7 @@ proc gdb_file_cmd { arg } {
 # get really slow.  Give gdb at least 3 minutes to start up.
 #
 proc default_gdb_start { } {
-    global verbose
+    global verbose use_gdb_stub
     global GDB
     global INTERNAL_GDBFLAGS GDBFLAGS
     global gdb_prompt
@@ -1324,6 +1308,15 @@ proc default_gdb_start { } {
     global gdb_spawn_id;
 
     gdb_stop_suppressing_tests;
+
+    # Set the default value, it may be overriden later by specific testfile.
+    #
+    # Use `set_board_info use_gdb_stub' for the board file to flag the inferior
+    # is already started after connecting and run/attach are not supported.
+    # This is used for the "remote" protocol.  After GDB starts you should
+    # check global $use_gdb_stub instead of the board as the testfile may force
+    # a specific different target protocol itself.
+    set use_gdb_stub [target_info exists use_gdb_stub]
 
     verbose "Spawning $GDB $INTERNAL_GDBFLAGS $GDBFLAGS"
 
@@ -1539,7 +1532,7 @@ proc can_single_step_to_signal_handler {} {
     # to determine the next instruction addresses, because start of signal
     # handler is one of them.
     if { [istarget "arm*-*-*"] || [istarget "mips*-*-*"]
-	 || [istarget "tic6x-*-*"] } {
+	 || [istarget "tic6x-*-*"] || [istarget "sparc*-*-linux*"] } {
 	return 0
     }
 
@@ -2278,14 +2271,8 @@ proc gdb_compile {source dest type options} {
     }
     set options $new_options
 
-    if [target_info exists gdb_stub] {
-	set options2 { "additional_flags=-Dusestubs" }
-	lappend options "libs=[target_info gdb_stub]";
-	set options [concat $options2 $options]
-    }
     if [target_info exists is_vxworks] {
 	set options2 { "additional_flags=-Dvxworks" }
-	lappend options "libs=[target_info gdb_stub]";
 	set options [concat $options2 $options]
     }
     if [info exists GDB_TESTCASE_OPTIONS] {
@@ -2640,11 +2627,7 @@ proc gdb_expect { args } {
         global errorInfo errorCode;
 
 	return -code error -errorinfo $errorInfo -errorcode $errorCode $string
-    } elseif {$code == 2} {
-	return -code return $string
-    } elseif {$code == 3} {
-	return
-    } elseif {$code > 4} {
+    } else {
 	return -code $code $string
     }
 }
@@ -2981,6 +2964,10 @@ proc default_gdb_init { args } {
     } else {
 	set gdb_prompt "\\(gdb\\)"
     }
+    global use_gdb_stub
+    if [info exists use_gdb_stub] {
+	unset use_gdb_stub
+    }
 }
 
 # The default timeout used when testing GDB commands.  We want to use
@@ -2996,14 +2983,19 @@ if ![info exists gdb_test_timeout] {
 # an error when that happens.
 set banned_variables { bug_id prms_id }
 
+# A list of procedures that GDB testcases should not use.
+# We try to prevent their use by monitoring invocations and raising
+# an error when that happens.
+set banned_procedures { strace }
+
 # gdb_init is called by runtest at start, but also by several
 # tests directly; gdb_finish is only called from within runtest after
 # each test source execution.
 # Placing several traces by repetitive calls to gdb_init leads
 # to problems, as only one trace is removed in gdb_finish.
 # To overcome this possible problem, we add a variable that records
-# if the banned variables are traced.
-set banned_variables_traced 0
+# if the banned variables and procedures are already traced.
+set banned_traced 0
 
 proc gdb_init { args } {
     # Reset the timeout value to the default.  This way, any testcase
@@ -3013,15 +3005,21 @@ proc gdb_init { args } {
     global timeout
     set timeout $gdb_test_timeout
 
-    # Block writes to all banned variables...
+    # Block writes to all banned variables, and invocation of all
+    # banned procedures...
     global banned_variables
-    global banned_variables_traced
-    if (!$banned_variables_traced) {
+    global banned_procedures
+    global banned_traced
+    if (!$banned_traced) {
     	foreach banned_var $banned_variables {
             global "$banned_var"
             trace add variable "$banned_var" write error
 	}
-	set banned_variables_traced 1
+	foreach banned_proc $banned_procedures {
+	    global "$banned_proc"
+	    trace add execution "$banned_proc" enter error
+	}
+	set banned_traced 1
     }
 
     # We set LC_ALL, LC_CTYPE, and LANG to C so that we get the same
@@ -3070,13 +3068,18 @@ proc gdb_finish { } {
     # Unblock write access to the banned variables.  Dejagnu typically
     # resets some of them between testcases.
     global banned_variables
-    global banned_variables_traced
-    if ($banned_variables_traced) {
+    global banned_procedures
+    global banned_traced
+    if ($banned_traced) {
     	foreach banned_var $banned_variables {
             global "$banned_var"
             trace remove variable "$banned_var" write error
 	}
-	set banned_variables_traced 0
+	foreach banned_proc $banned_procedures {
+	    global "$banned_proc"
+	    trace remove execution "$banned_proc" enter error
+	}
+	set banned_traced 0
     }
 }
 
@@ -3147,65 +3150,6 @@ proc setup_xfail_format { format } {
 proc setup_kfail_for_target { PR target } {
     if { [istarget $target] } {
 	setup_kfail $PR $target
-    }
-}
-
-proc gdb_step_for_stub { } {
-    global gdb_prompt;
-
-    if ![target_info exists gdb,use_breakpoint_for_stub] {
-	if [target_info exists gdb_stub_step_command] {
-	    set command [target_info gdb_stub_step_command];
-	} else {
-	    set command "step";
-	}
-	send_gdb "${command}\n";
-	set tries 0;
-	gdb_expect 60 {
-	    -re "(main.* at |.*in .*start).*$gdb_prompt" {
-		return;
-	    }
-	    -re ".*$gdb_prompt" {
-		incr tries;
-		if { $tries == 5 } {
-		    fail "stepping out of breakpoint function";
-		    return;
-		}
-		send_gdb "${command}\n";
-		exp_continue;
-	    }
-	    default {
-		fail "stepping out of breakpoint function";
-		return;
-	    }
-	}
-    }
-    send_gdb "where\n";
-    gdb_expect {
-	-re "main\[^\r\n\]*at \(\[^:]+\):\(\[0-9\]+\)" {
-	    set file $expect_out(1,string);
-	    set linenum [expr $expect_out(2,string) + 1];
-	    set breakplace "${file}:${linenum}";
-	}
-	default {}
-    }
-    send_gdb "break ${breakplace}\n";
-    gdb_expect 60 {
-	-re "Breakpoint (\[0-9\]+) at.*$gdb_prompt" {
-	    set breakpoint $expect_out(1,string);
-	}
-	-re "Breakpoint (\[0-9\]+): file.*$gdb_prompt" {
-	    set breakpoint $expect_out(1,string);
-	}
-	default {}
-    }
-    send_gdb "continue\n";
-    gdb_expect 60 {
-	-re "Breakpoint ${breakpoint},.*$gdb_prompt" {
-	    gdb_test "delete $breakpoint" ".*" "";
-	    return;
-	}
-	default {}
     }
 }
 
@@ -3327,7 +3271,7 @@ proc gdb_get_line_number { text { file "" } } {
 #	is accepted.
 
 proc gdb_continue_to_end {{mssg ""} {command continue} {allow_extra 0}} {
-  global inferior_exited_re
+  global inferior_exited_re use_gdb_stub
 
   if {$mssg == ""} {
       set text "continue until exit"
@@ -3339,7 +3283,7 @@ proc gdb_continue_to_end {{mssg ""} {command continue} {allow_extra 0}} {
   } else {
       set extra ""
   }
-  if [target_info exists use_gdb_stub] {
+  if $use_gdb_stub {
     if {![gdb_breakpoint "exit"]} {
       return 0
     }
@@ -3356,9 +3300,9 @@ proc gdb_continue_to_end {{mssg ""} {command continue} {allow_extra 0}} {
 }
 
 proc rerun_to_main {} {
-  global gdb_prompt
+  global gdb_prompt use_gdb_stub
 
-  if [target_info exists use_gdb_stub] {
+  if $use_gdb_stub {
     gdb_run_cmd
     gdb_expect {
       -re ".*Breakpoint .*main .*$gdb_prompt $"\
@@ -3667,10 +3611,6 @@ proc clean_restart { executable } {
     gdb_start
     gdb_reinitialize_dir $srcdir/$subdir
     gdb_load ${binfile}
-
-    if [target_info exists gdb_stub] {
-        gdb_step_for_stub;
-    }    
 }
 
 # Prepares for testing, by calling build_executable, and then clean_restart.

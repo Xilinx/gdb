@@ -1,8 +1,7 @@
 /* Support for printing C values for GDB, the GNU debugger.
 
-   Copyright (C) 1986, 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2001, 2003, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1986, 1988-1989, 1991-2001, 2003, 2005-2012 Free
+   Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -457,10 +456,41 @@ c_val_print (struct type *type, const gdb_byte *valaddr,
 	{
 	  fputs_filtered (TYPE_FIELD_NAME (type, i), stream);
 	}
-      else
+      else if (TYPE_FLAG_ENUM (type))
 	{
-	  print_longest (stream, 'd', 0, val);
+	  int first = 1;
+
+	  /* We have a "flag" enum, so we try to decompose it into
+	     pieces as appropriate.  A flag enum has disjoint
+	     constants by definition.  */
+	  fputs_filtered ("(", stream);
+	  for (i = 0; i < len; ++i)
+	    {
+	      QUIT;
+
+	      if ((val & TYPE_FIELD_BITPOS (type, i)) != 0)
+		{
+		  if (!first)
+		    fputs_filtered (" | ", stream);
+		  first = 0;
+
+		  val &= ~TYPE_FIELD_BITPOS (type, i);
+		  fputs_filtered (TYPE_FIELD_NAME (type, i), stream);
+		}
+	    }
+
+	  if (first || val != 0)
+	    {
+	      if (!first)
+		fputs_filtered (" | ", stream);
+	      fputs_filtered ("unknown: ", stream);
+	      print_longest (stream, 'd', 0, val);
+	    }
+
+	  fputs_filtered (")", stream);
 	}
+      else
+	print_longest (stream, 'd', 0, val);
       break;
 
     case TYPE_CODE_FLAGS:

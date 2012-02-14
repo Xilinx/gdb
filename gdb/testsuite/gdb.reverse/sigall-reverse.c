@@ -1,6 +1,6 @@
 /* This testcase is part of GDB, the GNU debugger.
 
-   Copyright 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright 2009-2012 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1168,11 +1168,6 @@ return 0;
 int
 main ()
 {
-#ifdef usestubs
-  set_debug_traps ();
-  breakpoint ();
-#endif
-
 #ifdef SIG_SETMASK
   /* Ensure all the signals aren't blocked.
      The environment in which the testsuite is run may have blocked some

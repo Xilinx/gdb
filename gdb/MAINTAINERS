@@ -157,7 +157,7 @@ future, if there are, a reference to the list will be included here.
 
 The current global maintainers are (in alphabetical order):
 
-Pedro Alves                     pedro@codesourcery.com
+Pedro Alves                     palves@redhat.com
 Joel Brobecker			brobecker@adacore.com
 Kevin Buettner			kevinb@redhat.com
 Andrew Cagney			cagney@gnu.org
@@ -268,7 +268,6 @@ the native maintainer when resolving ABI issues.
 
 	ia64		--target=ia64-linux-gnu ,-Werror
 			(--target=ia64-elf broken)
-			Jan Kratochvil		jan.kratochvil@redhat.com
 
 	lm32		--target=lm32-elf ,-Werror
 
@@ -323,6 +322,9 @@ the native maintainer when resolving ABI issues.
 
 	spu		--target=spu-elf ,-Werror
 			Ulrich Weigand		uweigand@de.ibm.com
+
+	tic6x		--target=tic6x-elf ,-Werror
+			Yao Qi			yao@codesourcery.com
 
 	v850		--target=v850-elf ,-Werror
 
@@ -487,6 +489,7 @@ Nick Clifton					nickc@redhat.com
 J.T. Conklin					jtc@acorntoolworks.com
 Brendan Conoboy					blc@redhat.com
 Ludovic Courtès					ludo@gnu.org
+Sanjoy Das					sanjoy@playingwithpointers.com
 Jean-Charles Delay				delay@adacore.com
 DJ Delorie					dj@redhat.com
 Chris Demetriou					cgd@google.com
@@ -606,6 +609,7 @@ Mark Shinwell					shinwell@codesourcery.com
 Craig Silverstein				csilvers@google.com
 Aidan Skinner					aidan@velvet.net
 Jiri Smid					smid@suse.cz
+Andrey Smirnov					andrew.smirnov@gmail.com
 David Smith					dsmith@redhat.com
 Stephen P. Smith				ischis2@cox.net
 Jackie Smith Cashion				jsmith@redhat.com

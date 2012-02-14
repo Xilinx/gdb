@@ -1,3 +1,14 @@
+2012-02-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* linux-low.c (linux_pid_exe_is_elf_64_file): Also return the
+	e_machine field.
+	(linux_qxfer_libraries_svr4): Update call to elf_64_file_p.
+
+	* linux-low.h (linux_pid_exe_is_elf_64_file): Updated.
+
+	* linux-x86-low.c (x86_arch_setup): Update call to
+	linux_pid_exe_is_elf_64_file.
+
 2011-03-03  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* Makefile.in: Replace intel32 with x32.

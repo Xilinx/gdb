@@ -1,7 +1,6 @@
 /* DWARF 2 location expression support for GDB.
 
-   Copyright (C) 2003, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003, 2005, 2007-2012 Free Software Foundation, Inc.
 
    Contributed by Daniel Jacobowitz, MontaVista Software, Inc.
 
@@ -442,9 +441,6 @@ func_addr_to_tail_call_list (struct gdbarch *gdbarch, CORE_ADDR addr)
 
   return sym;
 }
-
-/* Define VEC (CORE_ADDR) functions.  */
-DEF_VEC_I (CORE_ADDR);
 
 /* Verify function with entry point exact address ADDR can never call itself
    via its tail calls (incl. transitively).  Throw NO_ENTRY_VALUE_ERROR if it

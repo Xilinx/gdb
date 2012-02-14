@@ -1,6 +1,5 @@
 /* MI Command Set - breakpoint and watchpoint commands.
-   Copyright (C) 2000, 2001, 2002, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2002, 2007-2012 Free Software Foundation, Inc.
    Contributed by Cygnus Solutions (a Red Hat company).
 
    This file is part of GDB.
@@ -99,13 +98,13 @@ mi_cmd_break_insert (char *command, char **argv, int argc)
 
   /* Parse arguments. It could be -r or -h or -t, <location> or ``--''
      to denote the end of the option list. */
-  int optind = 0;
-  char *optarg;
+  int oind = 0;
+  char *oarg;
 
   while (1)
     {
       int opt = mi_getopt ("-break-insert", argc, argv,
-			   opts, &optind, &optarg);
+			   opts, &oind, &oarg);
       if (opt < 0)
 	break;
       switch ((enum opt) opt)
@@ -117,13 +116,13 @@ mi_cmd_break_insert (char *command, char **argv, int argc)
 	  hardware = 1;
 	  break;
 	case CONDITION_OPT:
-	  condition = optarg;
+	  condition = oarg;
 	  break;
 	case IGNORE_COUNT_OPT:
-	  ignore_count = atol (optarg);
+	  ignore_count = atol (oarg);
 	  break;
 	case THREAD_OPT:
-	  thread = atol (optarg);
+	  thread = atol (oarg);
 	  break;
 	case PENDING_OPT:
 	  pending = 1;
@@ -137,11 +136,11 @@ mi_cmd_break_insert (char *command, char **argv, int argc)
 	}
     }
 
-  if (optind >= argc)
+  if (oind >= argc)
     error (_("-break-insert: Missing <location>"));
-  if (optind < argc - 1)
+  if (oind < argc - 1)
     error (_("-break-insert: Garbage following <location>"));
-  address = argv[optind];
+  address = argv[oind];
 
   /* Now we have what we need, let's insert the breakpoint! */
   if (! mi_breakpoint_observers_installed)
@@ -229,13 +228,13 @@ mi_cmd_break_watch (char *command, char **argv, int argc)
   };
 
   /* Parse arguments. */
-  int optind = 0;
-  char *optarg;
+  int oind = 0;
+  char *oarg;
 
   while (1)
     {
       int opt = mi_getopt ("-break-watch", argc, argv,
-			   opts, &optind, &optarg);
+			   opts, &oind, &oarg);
 
       if (opt < 0)
 	break;
@@ -249,11 +248,11 @@ mi_cmd_break_watch (char *command, char **argv, int argc)
 	  break;
 	}
     }
-  if (optind >= argc)
+  if (oind >= argc)
     error (_("-break-watch: Missing <expression>"));
-  if (optind < argc - 1)
+  if (oind < argc - 1)
     error (_("-break-watch: Garbage following <expression>"));
-  expr = argv[optind];
+  expr = argv[oind];
 
   /* Now we have what we need, let's insert the watchpoint! */
   switch (type)

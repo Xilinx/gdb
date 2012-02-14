@@ -1,6 +1,5 @@
-#   Copyright 1988, 1990, 1991, 1992, 1994, 1995, 1996, 1997, 1998, 1999,
-#   2000, 2002, 2003, 2007, 2008, 2009, 2010, 2011
-#   Free Software Foundation, Inc.
+#   Copyright 1988, 1990-1992, 1994-2000, 2002-2003, 2007-2012 Free
+#   Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -119,14 +118,7 @@ gdb_test "break multi_line_while_conditional" \
 set bp_location5 [gdb_get_line_number "set breakpoint 5 here"]
 set bp_location6 [gdb_get_line_number "set breakpoint 6 here"]
 
-#
-# check to see what breakpoints are set
-#
-if [target_info exists gdb_stub] {
-    set main_line $bp_location5
-} else {
-    set main_line $bp_location6
-}
+set main_line $bp_location6
 
 if {$hp_aCC_compiler} {
     set proto "\\(int\\)"
@@ -363,9 +355,6 @@ gdb_test "disable \$1foo" \
 # handle arguments.
 # Huh? There doesn't *appear* to be anything that passes arguments
 # below.
-if [istarget "mips-idt-*"] then {
-    return
-}
 
 #
 # run until the breakpoint at main is hit. For non-stubs-using targets.
@@ -540,8 +529,9 @@ gdb_test_multiple "catch exec" "$name" {
 # Verify that GDB responds gracefully when asked to set a breakpoint
 # on a nonexistent source line.
 #
+gdb_test_no_output "set breakpoint pending off"
 gdb_test "break 999" \
-    "No line 999 in file .*" \
+    "No line 999 in the current file." \
     "break on non-existent source line"
 
 # Run to the desired default location. If not positioned here, the
@@ -582,14 +572,7 @@ gdb_test_multiple "break $bp_location1" \
 	}
     }
 
-send_gdb "commands $expect_out(1,string)\n"
-send_gdb "silent\n"
-send_gdb "end\n"
-gdb_expect {
-  -re ".*$gdb_prompt $"\
-          {pass "set silent break bp_location1"}
-  timeout {fail "(timeout) set silent break bp_location1"}
-}
+gdb_test "commands $expect_out(1,string)\nsilent\nend" ">end" "set silent break bp_location1"
 
 gdb_test "info break $expect_out(1,string)" \
     "\[0-9\]*\[ \t\]*breakpoint.*:$bp_location1\r\n\[ \t\]*silent.*" \

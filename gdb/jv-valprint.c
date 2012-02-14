@@ -1,7 +1,6 @@
 /* Support for printing Java values for GDB, the GNU debugger.
 
-   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007,
-   2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1997-2005, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -43,7 +42,7 @@ java_value_print (struct value *val, struct ui_file *stream,
   struct type *type;
   CORE_ADDR address;
   int i;
-  char *name;
+  const char *name;
   struct value_print_options opts;
 
   type = value_type (val);
@@ -284,7 +283,7 @@ java_print_value_fields (struct type *type, const gdb_byte *valaddr,
 	{
 	  int boffset;
 	  struct type *baseclass = check_typedef (TYPE_BASECLASS (type, i));
-	  char *basename = TYPE_NAME (baseclass);
+	  const char *basename = TYPE_NAME (baseclass);
 	  const gdb_byte *base_valaddr;
 
 	  if (BASETYPE_VIA_VIRTUAL (type, i))
@@ -326,7 +325,7 @@ java_print_value_fields (struct type *type, const gdb_byte *valaddr,
 	  /* If requested, skip printing of static fields.  */
 	  if (field_is_static (&TYPE_FIELD (type, i)))
 	    {
-	      char *name = TYPE_FIELD_NAME (type, i);
+	      const char *name = TYPE_FIELD_NAME (type, i);
 
 	      if (!options->static_field_print)
 		continue;

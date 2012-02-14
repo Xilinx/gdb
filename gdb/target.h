@@ -1,8 +1,6 @@
 /* Interface between GDB and target environments, including files and processes
 
-   Copyright (C) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1990-2012 Free Software Foundation, Inc.
 
    Contributed by Cygnus Support.  Written by John Gilmore.
 
@@ -255,6 +253,8 @@ enum target_object
   TARGET_OBJECT_AVAILABLE_FEATURES,
   /* Currently loaded libraries, in XML format.  */
   TARGET_OBJECT_LIBRARIES,
+  /* Currently loaded libraries specific for SVR4 systems, in XML format.  */
+  TARGET_OBJECT_LIBRARIES_SVR4,
   /* Get OS specific data.  The ANNEX specifies the type (running
      processes, etc.).  The data being transfered is expected to follow
      the DTD specified in features/osdata.dtd.  */
@@ -681,13 +681,54 @@ struct target_ops
     struct address_space *(*to_thread_address_space) (struct target_ops *,
 						      ptid_t);
 
+    /* Target file operations.  */
+
+    /* Open FILENAME on the target, using FLAGS and MODE.  Return a
+       target file descriptor, or -1 if an error occurs (and set
+       *TARGET_ERRNO).  */
+    int (*to_fileio_open) (const char *filename, int flags, int mode,
+			   int *target_errno);
+
+    /* Write up to LEN bytes from WRITE_BUF to FD on the target.
+       Return the number of bytes written, or -1 if an error occurs
+       (and set *TARGET_ERRNO).  */
+    int (*to_fileio_pwrite) (int fd, const gdb_byte *write_buf, int len,
+			     ULONGEST offset, int *target_errno);
+
+    /* Read up to LEN bytes FD on the target into READ_BUF.
+       Return the number of bytes read, or -1 if an error occurs
+       (and set *TARGET_ERRNO).  */
+    int (*to_fileio_pread) (int fd, gdb_byte *read_buf, int len,
+			    ULONGEST offset, int *target_errno);
+
+    /* Close FD on the target.  Return 0, or -1 if an error occurs
+       (and set *TARGET_ERRNO).  */
+    int (*to_fileio_close) (int fd, int *target_errno);
+
+    /* Unlink FILENAME on the target.  Return 0, or -1 if an error
+       occurs (and set *TARGET_ERRNO).  */
+    int (*to_fileio_unlink) (const char *filename, int *target_errno);
+
+    /* Read value of symbolic link FILENAME on the target.  Return a
+       null-terminated string allocated via xmalloc, or NULL if an error
+       occurs (and set *TARGET_ERRNO).  */
+    char *(*to_fileio_readlink) (const char *filename, int *target_errno);
+
+
+    /* Implement the "info proc" command.  */
+    void (*to_info_proc) (struct target_ops *, char *, enum info_proc_what);
+
     /* Tracepoint-related operations.  */
 
     /* Prepare the target for a tracing run.  */
     void (*to_trace_init) (void);
 
-    /* Send full details of a tracepoint to the target.  */
-    void (*to_download_tracepoint) (struct breakpoint *t);
+    /* Send full details of a tracepoint location to the target.  */
+    void (*to_download_tracepoint) (struct bp_location *location);
+
+    /* Is the target able to download tracepoint locations in current
+       state?  */
+    int (*to_can_download_tracepoint) (void);
 
     /* Send full details of a trace state variable to the target.  */
     void (*to_download_trace_state_variable) (struct trace_state_variable *tsv);
@@ -708,6 +749,9 @@ struct target_ops
 
     /* Get the current status of a tracing run.  */
     int (*to_get_trace_status) (struct trace_status *ts);
+
+    void (*to_get_tracepoint_status) (struct breakpoint *tp,
+				      struct uploaded_tp *utp);
 
     /* Stop a trace run.  */
     void (*to_trace_stop) (void);
@@ -734,10 +778,20 @@ struct target_ops
     LONGEST (*to_get_raw_trace_data) (gdb_byte *buf,
 				      ULONGEST offset, LONGEST len);
 
+    /* Get the minimum length of instruction on which a fast tracepoint
+       may be set on the target.  If this operation is unsupported,
+       return -1.  If for some reason the minimum length cannot be
+       determined, return 0.  */
+    int (*to_get_min_fast_tracepoint_insn_len) (void);
+
     /* Set the target's tracing behavior in response to unexpected
        disconnection - set VAL to 1 to keep tracing, 0 to stop.  */
     void (*to_set_disconnected_tracing) (int val);
     void (*to_set_circular_trace_buffer) (int val);
+
+    /* Add/change textual notes about the trace run, returning 1 if
+       successful, 0 otherwise.  */
+    int (*to_set_trace_notes) (char *user, char *notes, char* stopnotes);
 
     /* Return the processor core that thread PTID was last seen on.
        This information is updated only when:
@@ -803,10 +857,10 @@ extern struct target_ops current_target;
    longer going to be calling.  QUITTING indicates that GDB is exiting
    and should not get hung on an error (otherwise it is important to
    perform clean termination, even if it takes a while).  This routine
-   is automatically always called when popping the target off the
-   target stack (to_beneath is undefined).  Closing file descriptors
-   and freeing all memory allocated memory are typical things it
-   should do.  */
+   is automatically always called after popping the target off the
+   target stack - the target's own methods are no longer available
+   through the target vector.  Closing file descriptors and freeing all
+   memory allocated memory are typical things it should do.  */
 
 void target_close (struct target_ops *targ, int quitting);
 
@@ -891,6 +945,10 @@ extern void target_store_registers (struct regcache *regcache, int regs);
 
 struct address_space *target_thread_address_space (ptid_t);
 
+/* Implement the "info proc" command.  */
+
+void target_info_proc (char *, enum info_proc_what);
+
 /* Returns true if this target can debug multiple processes
    simultaneously.  */
 
@@ -921,6 +979,9 @@ extern int target_read_stack (CORE_ADDR memaddr, gdb_byte *myaddr, int len);
 
 extern int target_write_memory (CORE_ADDR memaddr, const gdb_byte *myaddr,
 				int len);
+
+extern int target_write_raw_memory (CORE_ADDR memaddr, const gdb_byte *myaddr,
+				    int len);
 
 /* Fetches the target's memory map.  If one is found it is sorted
    and returned, after some consistency checking.  Otherwise, NULL
@@ -1469,6 +1530,59 @@ extern int target_search_memory (CORE_ADDR start_addr,
                                  ULONGEST pattern_len,
                                  CORE_ADDR *found_addrp);
 
+/* Target file operations.  */
+
+/* Open FILENAME on the target, using FLAGS and MODE.  Return a
+   target file descriptor, or -1 if an error occurs (and set
+   *TARGET_ERRNO).  */
+extern int target_fileio_open (const char *filename, int flags, int mode,
+			       int *target_errno);
+
+/* Write up to LEN bytes from WRITE_BUF to FD on the target.
+   Return the number of bytes written, or -1 if an error occurs
+   (and set *TARGET_ERRNO).  */
+extern int target_fileio_pwrite (int fd, const gdb_byte *write_buf, int len,
+				 ULONGEST offset, int *target_errno);
+
+/* Read up to LEN bytes FD on the target into READ_BUF.
+   Return the number of bytes read, or -1 if an error occurs
+   (and set *TARGET_ERRNO).  */
+extern int target_fileio_pread (int fd, gdb_byte *read_buf, int len,
+				ULONGEST offset, int *target_errno);
+
+/* Close FD on the target.  Return 0, or -1 if an error occurs
+   (and set *TARGET_ERRNO).  */
+extern int target_fileio_close (int fd, int *target_errno);
+
+/* Unlink FILENAME on the target.  Return 0, or -1 if an error
+   occurs (and set *TARGET_ERRNO).  */
+extern int target_fileio_unlink (const char *filename, int *target_errno);
+
+/* Read value of symbolic link FILENAME on the target.  Return a
+   null-terminated string allocated via xmalloc, or NULL if an error
+   occurs (and set *TARGET_ERRNO).  */
+extern char *target_fileio_readlink (const char *filename, int *target_errno);
+
+/* Read target file FILENAME.  The return value will be -1 if the transfer
+   fails or is not supported; 0 if the object is empty; or the length
+   of the object otherwise.  If a positive value is returned, a
+   sufficiently large buffer will be allocated using xmalloc and
+   returned in *BUF_P containing the contents of the object.
+
+   This method should be used for objects sufficiently small to store
+   in a single xmalloc'd buffer, when no fixed bound on the object's
+   size is known in advance.  */
+extern LONGEST target_fileio_read_alloc (const char *filename,
+					 gdb_byte **buf_p);
+
+/* Read target file FILENAME.  The result is NUL-terminated and
+   returned as a string, allocated using xmalloc.  If an error occurs
+   or the transfer is unsupported, NULL is returned.  Empty objects
+   are returned as allocated but empty strings.  A warning is issued
+   if the result contains any embedded NUL bytes.  */
+extern char *target_fileio_read_stralloc (const char *filename);
+
+
 /* Tracepoint-related operations.  */
 
 #define target_trace_init() \
@@ -1476,6 +1590,9 @@ extern int target_search_memory (CORE_ADDR start_addr,
 
 #define target_download_tracepoint(t) \
   (*current_target.to_download_tracepoint) (t)
+
+#define target_can_download_tracepoint() \
+  (*current_target.to_can_download_tracepoint) ()
 
 #define target_download_trace_state_variable(tsv) \
   (*current_target.to_download_trace_state_variable) (tsv)
@@ -1494,6 +1611,9 @@ extern int target_search_memory (CORE_ADDR start_addr,
 
 #define target_get_trace_status(ts) \
   (*current_target.to_get_trace_status) (ts)
+
+#define target_get_tracepoint_status(tp,utp)		\
+  (*current_target.to_get_tracepoint_status) (tp, utp)
 
 #define target_trace_stop() \
   (*current_target.to_trace_stop) ()
@@ -1516,11 +1636,17 @@ extern int target_search_memory (CORE_ADDR start_addr,
 #define target_get_raw_trace_data(buf,offset,len) \
   (*current_target.to_get_raw_trace_data) ((buf), (offset), (len))
 
+#define target_get_min_fast_tracepoint_insn_len() \
+  (*current_target.to_get_min_fast_tracepoint_insn_len) ()
+
 #define target_set_disconnected_tracing(val) \
   (*current_target.to_set_disconnected_tracing) (val)
 
 #define	target_set_circular_trace_buffer(val)	\
   (*current_target.to_set_circular_trace_buffer) (val)
+
+#define	target_set_trace_notes(user,notes,stopnotes)		\
+  (*current_target.to_set_trace_notes) ((user), (notes), (stopnotes))
 
 #define target_get_tib_address(ptid, addr) \
   (*current_target.to_get_tib_address) ((ptid), (addr))

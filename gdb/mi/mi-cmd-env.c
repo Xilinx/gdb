@@ -1,7 +1,6 @@
 /* MI Command Set - environment commands.
 
-   Copyright (C) 2002, 2003, 2004, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2002-2004, 2007-2012 Free Software Foundation, Inc.
 
    Contributed by Red Hat Inc.
 
@@ -118,9 +117,9 @@ mi_cmd_env_path (char *command, char **argv, int argc)
   char *exec_path;
   char *env;
   int reset = 0;
-  int optind = 0;
+  int oind = 0;
   int i;
-  char *optarg;
+  char *oarg;
   enum opt
     {
       RESET_OPT
@@ -144,7 +143,7 @@ mi_cmd_env_path (char *command, char **argv, int argc)
   while (1)
     {
       int opt = mi_getopt ("-environment-path", argc, argv, opts,
-                           &optind, &optarg);
+                           &oind, &oarg);
 
       if (opt < 0)
         break;
@@ -155,8 +154,8 @@ mi_cmd_env_path (char *command, char **argv, int argc)
           break;
         }
     }
-  argv += optind;
-  argc -= optind;
+  argv += oind;
+  argc -= oind;
 
 
   if (reset)
@@ -190,9 +189,9 @@ mi_cmd_env_dir (char *command, char **argv, int argc)
 {
   struct ui_out *uiout = current_uiout;
   int i;
-  int optind = 0;
+  int oind = 0;
   int reset = 0;
-  char *optarg;
+  char *oarg;
   enum opt
     {
       RESET_OPT
@@ -216,7 +215,7 @@ mi_cmd_env_dir (char *command, char **argv, int argc)
   while (1)
     {
       int opt = mi_getopt ("-environment-directory", argc, argv, opts,
-                           &optind, &optarg);
+                           &oind, &oarg);
 
       if (opt < 0)
         break;
@@ -227,8 +226,8 @@ mi_cmd_env_dir (char *command, char **argv, int argc)
           break;
         }
     }
-  argv += optind;
-  argc -= optind;
+  argv += oind;
+  argc -= oind;
 
   if (reset)
     {

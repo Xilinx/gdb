@@ -1,8 +1,6 @@
 /* Evaluate expressions for GDB.
 
-   Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007, 2008,
-   2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1986-2003, 2005-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -43,7 +41,6 @@
 #include "gdb_obstack.h"
 #include "objfiles.h"
 #include "python/python.h"
-#include "wrapper.h"
 
 #include "gdb_assert.h"
 
@@ -236,9 +233,21 @@ fetch_subexp_value (struct expression *exp, int *pc, struct value **valp,
 
   /* Make sure it's not lazy, so that after the target stops again we
      have a non-lazy previous value to compare with.  */
-  if (result != NULL
-      && (!value_lazy (result) || gdb_value_fetch_lazy (result)))
-    *valp = result;
+  if (result != NULL)
+    {
+      if (!value_lazy (result))
+	*valp = result;
+      else
+	{
+	  volatile struct gdb_exception except;
+
+	  TRY_CATCH (except, RETURN_MASK_ERROR)
+	    {
+	      value_fetch_lazy (result);
+	      *valp = result;
+	    }
+	}
+    }
 
   if (val_chain)
     {
@@ -326,7 +335,8 @@ evaluate_struct_tuple (struct value *struct_val,
 	      for (fieldno = 0; fieldno < TYPE_NFIELDS (struct_type);
 		   fieldno++)
 		{
-		  char *field_name = TYPE_FIELD_NAME (struct_type, fieldno);
+		  const char *field_name =
+		    TYPE_FIELD_NAME (struct_type, fieldno);
 
 		  if (field_name != NULL && strcmp (field_name, label) == 0)
 		    {
@@ -339,7 +349,8 @@ evaluate_struct_tuple (struct value *struct_val,
 	      for (fieldno = 0; fieldno < TYPE_NFIELDS (struct_type);
 		   fieldno++)
 		{
-		  char *field_name = TYPE_FIELD_NAME (struct_type, fieldno);
+		  const char *field_name =
+		    TYPE_FIELD_NAME (struct_type, fieldno);
 
 		  field_type = TYPE_FIELD_TYPE (struct_type, fieldno);
 		  if ((field_name == 0 || *field_name == '\0')

@@ -1,4 +1,4 @@
-# Copyright (C) 2010, 2011 Free Software Foundation, Inc.
+# Copyright (C) 2010-2012 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,10 +15,6 @@
 
 # This file is part of the GDB testsuite.  It tests the mechanism
 # exposing values to Python.
-
-if $tracelevel then {
-    strace $tracelevel
-}
 
 load_lib gdb-python.exp
 
@@ -47,7 +43,8 @@ if ![runto_main] then {
 global hex decimal
 
 # Setup and get the symbol table.
-gdb_breakpoint [gdb_get_line_number "Block break here."]
+set line_no [gdb_get_line_number "Block break here."]
+gdb_breakpoint $line_no
 gdb_continue_to_breakpoint "Block break here."
 gdb_py_test_silent_cmd "python frame = gdb.selected_frame()" "Get Frame" 0
 gdb_py_test_silent_cmd "python sal = frame.find_sal()" "Get block" 0
@@ -56,7 +53,7 @@ gdb_py_test_silent_cmd "python symtab = sal.symtab" "Get block" 0
 # Test sal.
 gdb_test "python print sal.symtab" ".*gdb.python/py-symbol.c.*" "Test symtab"
 gdb_test "python print sal.pc" "${decimal}" "Test sal.pc"
-gdb_test "python print sal.line" "42" "Test sal.line"
+gdb_test "python print sal.line" "$line_no" "Test sal.line"
 gdb_test "python print sal.is_valid()" "True" "Test sal.is_valid"
 
 # Test symbol table.

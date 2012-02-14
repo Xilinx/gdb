@@ -1,7 +1,7 @@
 /* GDB-specific functions for operating on agent expressions.
 
-   Copyright (C) 1998, 1999, 2000, 2001, 2003, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1998-2001, 2003, 2007-2012 Free Software Foundation,
+   Inc.
 
    This file is part of GDB.
 
@@ -1477,7 +1477,7 @@ gen_struct_ref_recursive (struct expression *exp, struct agent_expr *ax,
 
   for (i = TYPE_NFIELDS (type) - 1; i >= nbases; i--)
     {
-      char *this_name = TYPE_FIELD_NAME (type, i);
+      const char *this_name = TYPE_FIELD_NAME (type, i);
 
       if (this_name)
 	{
@@ -1625,7 +1625,7 @@ gen_struct_elt_for_reference (struct expression *exp,
 
   for (i = TYPE_NFIELDS (t) - 1; i >= TYPE_N_BASECLASSES (t); i--)
     {
-      char *t_field_name = TYPE_FIELD_NAME (t, i);
+      const char *t_field_name = TYPE_FIELD_NAME (t, i);
 
       if (t_field_name && strcmp (t_field_name, fieldname) == 0)
 	{

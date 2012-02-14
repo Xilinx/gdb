@@ -1,7 +1,7 @@
 /* MI Command Set - varobj commands.
 
-   Copyright (C) 2000, 2002, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2000, 2002, 2004-2005, 2007-2012 Free Software
+   Foundation, Inc.
 
    Contributed by Cygnus Solutions (a Red Hat company).
 
@@ -554,8 +554,8 @@ mi_cmd_var_evaluate_expression (char *command, char **argv, int argc)
 
   enum varobj_display_formats format;
   int formatFound;
-  int optind;
-  char *optarg;
+  int oind;
+  char *oarg;
     
   enum opt
     {
@@ -570,11 +570,11 @@ mi_cmd_var_evaluate_expression (char *command, char **argv, int argc)
   /* Parse arguments */
   format = FORMAT_NATURAL;
   formatFound = 0;
-  optind = 0;
+  oind = 0;
   while (1)
     {
       int opt = mi_getopt ("-var-evaluate-expression", argc, argv,
-			   opts, &optind, &optarg);
+			   opts, &oind, &oarg);
 
       if (opt < 0)
 	break;
@@ -584,20 +584,20 @@ mi_cmd_var_evaluate_expression (char *command, char **argv, int argc)
 	  if (formatFound)
 	    error (_("Cannot specify format more than once"));
    
-	  format = mi_parse_format (optarg);
+	  format = mi_parse_format (oarg);
 	  formatFound = 1;
 	  break;
       }
     }
 
-  if (optind >= argc)
+  if (oind >= argc)
     error (_("Usage: [-f FORMAT] NAME"));
    
-  if (optind < argc - 1)
+  if (oind < argc - 1)
     error (_("Garbage at end of command"));
  
      /* Get varobj handle, if a valid var obj name was specified */
-  var = varobj_get_handle (argv[optind]);
+  var = varobj_get_handle (argv[oind]);
    
   if (formatFound)
     {

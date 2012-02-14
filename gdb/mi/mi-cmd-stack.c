@@ -1,6 +1,6 @@
 /* MI Command Set - stack commands.
-   Copyright (C) 2000, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2000, 2002-2005, 2007-2012 Free Software Foundation,
+   Inc.
    Contributed by Cygnus Solutions (a Red Hat company).
 
    This file is part of GDB.
@@ -389,11 +389,12 @@ list_args_or_locals (enum what_to_list what, enum print_values values,
 	      struct frame_arg arg, entryarg;
 
 	      if (SYMBOL_IS_ARGUMENT (sym))
-		sym2 = lookup_symbol (SYMBOL_NATURAL_NAME (sym),
+		sym2 = lookup_symbol (SYMBOL_LINKAGE_NAME (sym),
 				      block, VAR_DOMAIN,
 				      (int *) NULL);
 	      else
 		sym2 = sym;
+	      gdb_assert (sym2 != NULL);
 
 	      memset (&arg, 0, sizeof (arg));
 	      arg.sym = sym2;

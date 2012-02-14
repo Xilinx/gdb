@@ -1,4 +1,4 @@
-# Copyright (C) 2009, 2010, 2011 Free Software Foundation, Inc.
+# Copyright (C) 2009-2012 Free Software Foundation, Inc.
 #
 # This file is part of GDB.
 #
@@ -166,7 +166,7 @@ class StructMainTypePrettyPrinter:
         """Return an image of the main_type field number FIELDNO.
         """
         f = self.val['flds_bnds']['fields'][fieldno]
-        label = "field[%d]:" % fieldno
+        label = "flds_bnds.fields[%d]:" % fieldno
         if f['artificial']:
             label += " (artificial)"
         fields = []
@@ -186,7 +186,7 @@ class StructMainTypePrettyPrinter:
         high = str(b['high'])
         if b['high_undefined'] != 0:
             high += " (undefined)"
-        return "bounds = {%s, %s}" % (low, high)
+        return "flds_bnds.bounds = {%s, %s}" % (low, high)
     def type_specific_img(self):
         """Return a string image of the main_type type_specific union.
         Only the relevant component of that union is printed (based on

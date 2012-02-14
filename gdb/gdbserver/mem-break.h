@@ -1,6 +1,5 @@
 /* Memory breakpoint interfaces for the remote server for GDB.
-   Copyright (C) 2002, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2002, 2005, 2007-2012 Free Software Foundation, Inc.
 
    Contributed by MontaVista Software.
 
@@ -136,6 +135,9 @@ void validate_breakpoints (void);
 struct fast_tracepoint_jump *set_fast_tracepoint_jump (CORE_ADDR where,
 						       unsigned char *insn,
 						       ULONGEST length);
+
+/* Increment reference counter of JP.  */
+void inc_ref_fast_tracepoint_jump (struct fast_tracepoint_jump *jp);
 
 /* Delete fast tracepoint jump TODEL from our tables, and uninsert if
    from memory.  */

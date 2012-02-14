@@ -1,7 +1,6 @@
 /* Character set conversion support for GDB.
 
-   Copyright (C) 2001, 2003, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2001, 2003, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -28,6 +27,7 @@
 #include "vec.h"
 #include "environ.h"
 #include "arch-utils.h"
+#include "gdb_vecs.h"
 
 #include <stddef.h>
 #include "gdb_string.h"
@@ -718,8 +718,6 @@ wchar_iterate (struct wchar_iterator *iter,
 
 extern initialize_file_ftype _initialize_charset; /* -Wmissing-prototype */
 
-DEF_VEC_P (char_ptr);
-
 static VEC (char_ptr) *charsets;
 
 #ifdef PHONY_ICONV
@@ -841,7 +839,7 @@ find_charset_names (void)
 	 parse the glibc and libiconv formats; feel free to add others
 	 as needed.  */
 
-      while (!feof (in))
+      while (in != NULL && !feof (in))
 	{
 	  /* The size of buf is chosen arbitrarily.  */
 	  char buf[1024];

@@ -1,7 +1,61 @@
 		What has changed in GDB?
 	     (Organized release by release)
 
-*** Changes since GDB 7.3.1
+*** Changes since GDB 7.4
+
+* Python scripting
+
+  ** The "maint set python print-stack on|off" is now deleted.
+
+  ** A new class, gdb.printing.FlagEnumerationPrinter, can be used to
+     apply "flag enum"-style pretty-printing to any enum.
+
+  ** gdb.lookup_symbol can now work when there is no current frame.
+
+  ** gdb.Symbol now has a 'line' attribute, holding the line number in
+     the source at which the symbol was defined.
+
+  ** gdb.Symbol now has the new attribute 'needs_frame' and the new
+     method 'value'.  The former indicates whether the symbol needs a
+     frame in order to compute its value, and the latter computes the
+     symbol's value.
+
+* GDBserver now supports stdio connections.
+  E.g. (gdb) target remote | ssh myhost gdbserver - hello
+
+* The binary "gdbtui" can no longer be built or installed.
+  Use "gdb -tui" instead.
+
+* GDB will now print "flag" enums specially.  A flag enum is one where
+  all the enumerator values have no bits in common when pairwise
+  "and"ed.  When printing a value whose type is a flag enum, GDB will
+  show all the constants, e.g., for enum E { ONE = 1, TWO = 2}:
+  (gdb) print (enum E) 3
+  $1 = (ONE | TWO)
+
+* The filename part of a linespec will now match trailing components
+  of a source file name.  For example, "break gcc/expr.c:1000" will
+  now set a breakpoint in build/gcc/expr.c, but not
+  build/libcpp/expr.c.
+
+* The "info proc" and "generate-core-file" commands will now also
+  work on remote targets connected to GDBserver on Linux.
+
+* The command "info catch" has been removed.  It has been disabled
+  since December 2007.
+
+* New commands
+
+  ** "catch load" and "catch unload" can be used to stop when a shared
+     library is loaded or unloaded, respectively.
+
+*** Changes in GDB 7.4
+
+* GDB now handles ambiguous linespecs more consistently; the existing
+  FILE:LINE support has been expanded to other types of linespecs.  A
+  breakpoint will now be set on all matching locations in all
+  inferiors, and locations will be added or removed according to
+  inferior changes.
 
 * GDB now allows you to skip uninteresting functions and files when
   stepping with the "skip function" and "skip file" commands.
@@ -23,9 +77,11 @@
      existing one.
 
   ** The "maint set python print-stack on|off" command has been
-     deprecated, and a new command: "set python print-stack on|off" has
-     replaced it.  Additionally, the default for "print-stack" is now
-     "off".
+     deprecated and will be deleted in GDB 7.5.
+     A new command: "set python print-stack none|full|message" has
+     replaced it.  Additionally, the default for "print-stack" is
+     now "message", which just prints the error message without
+     the stack trace.
    
   ** A prompt substitution hook (prompt_hook) is now available to the
      Python API.
@@ -51,6 +107,10 @@
   ** The "gdb.breakpoint" function has been deprecated in favor of
      "gdb.breakpoints".
 
+  ** A new class "gdb.FinishBreakpoint" is provided to catch the return
+     of a function.  This class is based on the "finish" command
+     available in the CLI. 
+
   ** Type objects for struct and union types now allow access to
      the fields using standard Python dictionary (mapping) methods.
      For example, "some_type['myfield']" now works, as does
@@ -64,6 +124,16 @@
      an iterator over the fields of a struct or union type.  Unlike
      the standard Python "iteritems" method, it will recursively traverse
      any anonymous fields.
+
+* MI changes
+
+  ** "*stopped" events can report several new "reason"s, such as
+     "solib-event".
+
+  ** Breakpoint changes are now notified using new async records, like
+     "=breakpoint-modified".
+
+  ** New command -ada-task-info.
 
 * libthread-db-search-path now supports two special values: $sdir and $pdir.
   $sdir specifies the default system locations of shared libraries.
@@ -97,12 +167,17 @@
   the first connection is made.  The listening port used by GDBserver will
   become available after that.
 
-* New commands "info macros", "info definitions",
-  and "alias" have been added.
+* New commands "info macros" and "alias" have been added.
 
 * New function parameters suffix @entry specifies value of function parameter
   at the time the function got called.  Entry values are available only since
   gcc version 4.7.
+
+* New commands
+
+!SHELL COMMAND
+  "!" is now an alias of the "shell" command.
+  Note that no space is needed between "!" and SHELL COMMAND.
 
 * Changed commands
 
@@ -114,6 +189,12 @@ info auto-load-scripts [REGEXP]
   This command was formerly named "maintenance print section-scripts".
   It is now generally useful and is no longer a maintenance-only command.
 
+info macro [-all] [--] MACRO
+  The info macro command has new options `-all' and `--'.  The first for
+  printing all definitions of a macro.  The second for explicitly specifying
+  the end of arguments and the beginning of the macro name in case the macro
+  name starts with a hyphen.
+
 collect[/s] EXPRESSIONS
   The tracepoint collect command now takes an optional modifier "/s"
   that directs it to dereference pointer-to-character types and
@@ -122,12 +203,27 @@ collect[/s] EXPRESSIONS
   string.  An optional integer following the "/s" sets a bound on the
   number of bytes that will be collected.
 
+tstart [NOTES]
+  The trace start command now interprets any supplied arguments as a
+  note to be recorded with the trace run, with an effect similar to
+  setting the variable trace-notes.
+
+tstop [NOTES]
+  The trace stop command now interprets any arguments as a note to be
+  mentioned along with the tstatus report that the trace was stopped
+  with a command.  The effect is similar to setting the variable
+  trace-stop-notes.
+
 * Tracepoints can now be enabled and disabled at any time after a trace
   experiment has been started using the standard "enable" and "disable"
   commands.  It is now possible to start a trace experiment with no enabled
   tracepoints; GDB will display a warning, but will allow the experiment to
   begin, assuming that tracepoints will be enabled as needed while the trace
   is running.
+
+* Fast tracepoints on 32-bit x86-architectures can now be placed at
+  locations with 4-byte instructions, when they were previously
+  limited to locations with instructions of 5 bytes or longer.
 
 * New options
 
@@ -150,6 +246,33 @@ show debug entry-values
   Control display of debugging info for determining frame argument values at
   function entry and virtual tail call frames.
 
+set basenames-may-differ
+show basenames-may-differ
+  Set whether a source file may have multiple base names.
+  (A "base name" is the name of a file with the directory part removed.
+  Example: The base name of "/home/user/hello.c" is "hello.c".)
+  If set, GDB will canonicalize file names (e.g., expand symlinks)
+  before comparing them.  Canonicalization is an expensive operation,
+  but it allows the same file be known by more than one base name.
+  If not set (the default), all source files are assumed to have just
+  one base name, and gdb will do file name comparisons more efficiently.
+
+set trace-user
+show trace-user
+set trace-notes
+show trace-notes
+  Set a user name and notes for the current and any future trace runs.
+  This is useful for long-running and/or disconnected traces, to
+  inform others (or yourself) as to who is running the trace, supply
+  contact information, or otherwise explain what is going on.
+
+set trace-stop-notes
+show trace-stop-notes
+  Set a note attached to the trace run, that is displayed when the
+  trace has been stopped by a tstop command.  This is useful for
+  instance as an explanation, if you are stopping a trace run that was
+  started by someone else.
+
 * New remote packets
 
 QTEnable
@@ -160,12 +283,29 @@ QTDisable
 
   Dynamically disable a tracepoint in a started trace experiment.
 
+QTNotes
+
+  Set the user and notes of the trace run.
+
+qTP
+
+  Query the current status of a tracepoint.
+
+qTMinFTPILen
+
+  Query the minimum length of instruction at which a fast tracepoint may
+  be placed.
+
 * Dcache size (number of lines) and line-size are now runtime-configurable
   via "set dcache line" and "set dcache line-size" commands.
 
 * New targets
 
 Texas Instruments TMS320C6x		tic6x-*-*
+
+* New Simulators
+
+Renesas RL78				rl78-*-elf
 
 *** Changes in GDB 7.3.1
 

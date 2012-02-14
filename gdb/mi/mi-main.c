@@ -1,7 +1,6 @@
 /* MI Command Set.
 
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010,
-   2011 Free Software Foundation, Inc.
+   Copyright (C) 2000-2005, 2007-2012 Free Software Foundation, Inc.
 
    Contributed by Cygnus Solutions (a Red Hat company).
 
@@ -53,6 +52,7 @@
 #include "splay-tree.h"
 #include "tracepoint.h"
 #include "ada-lang.h"
+#include "linespec.h"
 
 #include <ctype.h>
 #include <sys/time.h>
@@ -807,13 +807,13 @@ mi_cmd_list_thread_groups (char *command, char **argv, int argc)
     { 0, 0, 0 }
   };
 
-  int optind = 0;
-  char *optarg;
+  int oind = 0;
+  char *oarg;
 
   while (1)
     {
       int opt = mi_getopt ("-list-thread-groups", argc, argv, opts,
-			   &optind, &optarg);
+			   &oind, &oarg);
 
       if (opt < 0)
 	break;
@@ -823,9 +823,9 @@ mi_cmd_list_thread_groups (char *command, char **argv, int argc)
 	  available = 1;
 	  break;
 	case RECURSE_OPT:
-	  if (strcmp (optarg, "0") == 0)
+	  if (strcmp (oarg, "0") == 0)
 	    ;
-	  else if (strcmp (optarg, "1") == 0)
+	  else if (strcmp (oarg, "1") == 0)
 	    recurse = 1;
 	  else
 	    error (_("only '0' and '1' are valid values "
@@ -834,18 +834,18 @@ mi_cmd_list_thread_groups (char *command, char **argv, int argc)
 	}
     }
 
-  for (; optind < argc; ++optind)
+  for (; oind < argc; ++oind)
     {
       char *end;
       int inf;
 
-      if (*(argv[optind]) != 'i')
-	error (_("invalid syntax of group id '%s'"), argv[optind]);
+      if (*(argv[oind]) != 'i')
+	error (_("invalid syntax of group id '%s'"), argv[oind]);
 
-      inf = strtoul (argv[optind] + 1, &end, 0);
+      inf = strtoul (argv[oind] + 1, &end, 0);
 
       if (*end != '\0')
-	error (_("invalid syntax of group id '%s'"), argv[optind]);
+	error (_("invalid syntax of group id '%s'"), argv[oind]);
       VEC_safe_push (int, ids, inf);
     }
   if (VEC_length (int, ids) > 1)
@@ -1302,8 +1302,8 @@ mi_cmd_data_read_memory (char *command, char **argv, int argc)
   gdb_byte *mbuf;
   int nr_bytes;
   long offset = 0;
-  int optind = 0;
-  char *optarg;
+  int oind = 0;
+  char *oarg;
   enum opt
     {
       OFFSET_OPT
@@ -1317,19 +1317,19 @@ mi_cmd_data_read_memory (char *command, char **argv, int argc)
   while (1)
     {
       int opt = mi_getopt ("-data-read-memory", argc, argv, opts,
-			   &optind, &optarg);
+			   &oind, &oarg);
 
       if (opt < 0)
 	break;
       switch ((enum opt) opt)
 	{
 	case OFFSET_OPT:
-	  offset = atol (optarg);
+	  offset = atol (oarg);
 	  break;
 	}
     }
-  argv += optind;
-  argc -= optind;
+  argv += oind;
+  argc -= oind;
 
   if (argc < 5 || argc > 6)
     error (_("-data-read-memory: Usage: "
@@ -1488,8 +1488,8 @@ mi_cmd_data_read_memory_bytes (char *command, char **argv, int argc)
   int ix;
   VEC(memory_read_result_s) *result;
   long offset = 0;
-  int optind = 0;
-  char *optarg;
+  int oind = 0;
+  char *oarg;
   enum opt
     {
       OFFSET_OPT
@@ -1503,18 +1503,18 @@ mi_cmd_data_read_memory_bytes (char *command, char **argv, int argc)
   while (1)
     {
       int opt = mi_getopt ("-data-read-memory-bytes", argc, argv, opts,
-			   &optind, &optarg);
+			   &oind, &oarg);
       if (opt < 0)
 	break;
       switch ((enum opt) opt)
 	{
 	case OFFSET_OPT:
-	  offset = atol (optarg);
+	  offset = atol (oarg);
 	  break;
 	}
     }
-  argv += optind;
-  argc -= optind;
+  argv += oind;
+  argc -= oind;
 
   if (argc != 2)
     error (_("Usage: [ -o OFFSET ] ADDR LENGTH."));
@@ -1589,8 +1589,8 @@ mi_cmd_data_write_memory (char *command, char **argv, int argc)
   void *buffer;
   struct cleanup *old_chain;
   long offset = 0;
-  int optind = 0;
-  char *optarg;
+  int oind = 0;
+  char *oarg;
   enum opt
     {
       OFFSET_OPT
@@ -1604,19 +1604,19 @@ mi_cmd_data_write_memory (char *command, char **argv, int argc)
   while (1)
     {
       int opt = mi_getopt ("-data-write-memory", argc, argv, opts,
-			   &optind, &optarg);
+			   &oind, &oarg);
 
       if (opt < 0)
 	break;
       switch ((enum opt) opt)
 	{
 	case OFFSET_OPT:
-	  offset = atol (optarg);
+	  offset = atol (oarg);
 	  break;
 	}
     }
-  argv += optind;
-  argc -= optind;
+  argv += oind;
+  argc -= oind;
 
   if (argc != 4)
     error (_("-data-write-memory: Usage: "
@@ -2437,7 +2437,7 @@ mi_cmd_trace_find (char *command, char **argv, int argc)
       if (argc != 2)
 	error (_("Line is required"));
 
-      sals = decode_line_spec (argv[1], 1);
+      sals = decode_line_spec (argv[1], DECODE_LINE_FUNFIRSTLINE);
       back_to = make_cleanup (xfree, sals.sals);
 
       sal = sals.sals[0];
@@ -2490,7 +2490,7 @@ mi_cmd_trace_save (char *command, char **argv, int argc)
 void
 mi_cmd_trace_start (char *command, char **argv, int argc)
 {
-  start_tracing ();
+  start_tracing (NULL);
 }
 
 void
@@ -2502,7 +2502,7 @@ mi_cmd_trace_status (char *command, char **argv, int argc)
 void
 mi_cmd_trace_stop (char *command, char **argv, int argc)
 {
-  stop_tracing ();
+  stop_tracing (NULL);
   trace_status_mi (1);
 }
 

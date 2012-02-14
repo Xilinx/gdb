@@ -1,8 +1,6 @@
 /* Definitions for values of C expressions, for GDB.
 
-   Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1986-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -772,12 +770,14 @@ extern void free_value_chain (struct value *v);
 
 extern void release_value (struct value *val);
 
+extern void release_value_or_incref (struct value *val);
+
 extern int record_latest_value (struct value *val);
 
 extern void modify_field (struct type *type, gdb_byte *addr,
 			  LONGEST fieldval, int bitpos, int bitsize);
 
-extern void type_print (struct type *type, char *varstring,
+extern void type_print (struct type *type, const char *varstring,
 			struct ui_file *stream, int show);
 
 extern char *type_to_string (struct type *type);

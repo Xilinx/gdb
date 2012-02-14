@@ -1,6 +1,5 @@
 /* Support for printing Pascal types for GDB, the GNU debugger.
-   Copyright (C) 2000, 2001, 2002, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2002, 2006-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -31,7 +30,7 @@
 #include "language.h"
 #include "p-lang.h"
 #include "typeprint.h"
-
+#include "gdb-demangle.h"
 #include "gdb_string.h"
 #include <errno.h>
 #include <ctype.h>
@@ -132,7 +131,7 @@ pascal_print_typedef (struct type *type, struct symbol *new_symbol,
 static void
 pascal_type_print_derivation_info (struct ui_file *stream, struct type *type)
 {
-  char *name;
+  const char *name;
   int i;
 
   for (i = 0; i < TYPE_N_BASECLASSES (type); i++)
@@ -631,7 +630,7 @@ pascal_type_print_base (struct type *type, struct ui_file *stream, int show,
 	    {
 	      struct fn_field *f = TYPE_FN_FIELDLIST1 (type, i);
 	      int j, len2 = TYPE_FN_FIELDLIST_LENGTH (type, i);
-	      char *method_name = TYPE_FN_FIELDLIST_NAME (type, i);
+	      const char *method_name = TYPE_FN_FIELDLIST_NAME (type, i);
 
 	      /* this is GNU C++ specific
 	         how can we know constructor/destructor?

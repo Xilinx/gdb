@@ -1,6 +1,6 @@
 /* Skipping uninteresting files and functions while stepping.
 
-   Copyright (C) 2011 Free Software Foundation, Inc.
+   Copyright (C) 2011-2012 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ static void skip_file_command (char *arg, int from_tty);
 static void skip_info (char *arg, int from_tty);
 
 static void add_skiplist_entry (struct skiplist_entry *e);
-static void skip_function_pc (CORE_ADDR pc, char *name,
+static void skip_function_pc (CORE_ADDR pc, const char *name,
 			      struct gdbarch *arch,
 			      int pending);
 
@@ -133,7 +133,7 @@ static void
 skip_function_command (char *arg, int from_tty)
 {
   CORE_ADDR func_pc;
-  char *name = NULL;
+  const char *name = NULL;
 
   /* Default to the current function if no argument is given.  */
   if (arg == 0)
@@ -160,11 +160,11 @@ skip_function_command (char *arg, int from_tty)
       int pending = 0;
       char *orig_arg = arg; /* decode_line_1 modifies the arg pointer.  */
       volatile struct gdb_exception decode_exception;
-      struct symtabs_and_lines sals;
+      struct symtabs_and_lines sals = { 0 };
 
       TRY_CATCH (decode_exception, RETURN_MASK_ERROR)
 	{
-	  sals = decode_line_1 (&arg, 1, 0, 0, 0);
+	  sals = decode_line_1 (&arg, DECODE_LINE_FUNFIRSTLINE, 0, 0);
 	}
 
       if (decode_exception.reason < 0)
@@ -397,7 +397,7 @@ skip_delete_command (char *arg, int from_tty)
    function name and add it to the list.  */
 
 static void
-skip_function_pc (CORE_ADDR pc, char *name, struct gdbarch *arch,
+skip_function_pc (CORE_ADDR pc, const char *name, struct gdbarch *arch,
 		  int pending)
 {
   struct skiplist_entry *e = XZALLOC (struct skiplist_entry);
@@ -509,12 +509,12 @@ skip_re_set (void)
       else if (e->function_name != 0)
         {
 	  char *func_name = e->function_name;
-	  struct symtabs_and_lines sals;
+	  struct symtabs_and_lines sals = { 0 };
 	  volatile struct gdb_exception decode_exception;
 
 	  TRY_CATCH (decode_exception, RETURN_MASK_ERROR)
 	    {
-	      sals = decode_line_1 (&func_name, 1, 0, 0, 0);
+	      sals = decode_line_1 (&func_name, DECODE_LINE_FUNFIRSTLINE, 0, 0);
 	    }
 
 	  if (decode_exception.reason >= 0
@@ -524,7 +524,7 @@ skip_re_set (void)
 	      CORE_ADDR pc = sal.pc;
 	      CORE_ADDR func_start = 0;
 	      struct gdbarch *arch = get_sal_arch (sal);
-              char *func_name;
+              const char *func_name;
 
 	      if (find_pc_partial_function (pc, &func_name, &func_start, 0))
 		{
