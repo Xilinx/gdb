@@ -1,4 +1,4 @@
-# Copyright 2010, 2011 Free Software Foundation, Inc.
+# Copyright 2010-2012 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,7 +46,6 @@ gdb_test_no_output {set variable $brk = $bpnum}
 # runto or runto_main would call delete_breakpoints.
 gdb_breakpoint "main"
 gdb_run_cmd
-setup_kfail breakpoints/11657 *-*-* 
 gdb_test "" ".*" "start"
 
 set test "breakpoint resolved"

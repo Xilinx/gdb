@@ -1,6 +1,6 @@
 /* General python/gdb code
 
-   Copyright (C) 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2008-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -35,9 +35,25 @@
 
 #include <ctype.h>
 
-/* True if we should print the stack when catching a Python error,
-   false otherwise.  */
-static int gdbpy_should_print_stack = 0;
+/* Declared constants and enum for python stack printing.  */
+static const char python_excp_none[] = "none";
+static const char python_excp_full[] = "full";
+static const char python_excp_message[] = "message";
+
+/* "set python print-stack" choices.  */
+static const char *python_excp_enums[] =
+  {
+    python_excp_none,
+    python_excp_full,
+    python_excp_message,
+    NULL
+  };
+
+/* The exception printing variable.  'full' if we want to print the
+   error message and stack, 'none' if we want to print nothing, and
+   'message' if we only want to print the error message.  'message' is
+   the default.  */
+static const char *gdbpy_should_print_stack = python_excp_message;
 
 #ifdef HAVE_PYTHON
 
@@ -233,10 +249,7 @@ eval_python_from_control_command (struct command_line *cmd)
   ret = PyRun_SimpleString (script);
   xfree (script);
   if (ret)
-    {
-      gdbpy_print_stack ();
-      error (_("Error while executing Python code."));
-    }
+    error (_("Error while executing Python code."));
 
   do_cleanups (cleanup);
 }
@@ -258,10 +271,7 @@ python_command (char *arg, int from_tty)
   if (arg && *arg)
     {
       if (PyRun_SimpleString (arg))
-	{
-	  gdbpy_print_stack ();
-	  error (_("Error while executing Python code."));
-	}
+	error (_("Error while executing Python code."));
     }
   else
     {
@@ -504,7 +514,7 @@ gdbpy_decode_line (PyObject *self, PyObject *args)
   if (! PyArg_ParseTuple (args, "|s", &arg))
     return NULL;
 
-  cleanups = ensure_python_env (get_current_arch (), current_language);
+  cleanups = make_cleanup (null_cleanup, NULL);
 
   TRY_CATCH (except, RETURN_MASK_ALL)
     {
@@ -512,7 +522,7 @@ gdbpy_decode_line (PyObject *self, PyObject *args)
 	{
 	  copy = xstrdup (arg);
 	  make_cleanup (xfree, copy);
-	  sals = decode_line_1 (&copy, 0, 0, 0, 0);
+	  sals = decode_line_1 (&copy, 0, 0, 0);
 	  make_cleanup (xfree, sals.sals);
 	}
       else
@@ -881,13 +891,20 @@ gdbpy_flush (PyObject *self, PyObject *args, PyObject *kw)
   Py_RETURN_NONE;
 }
 
-/* Print a python exception trace, or print nothing and clear the
-   python exception, depending on gdbpy_should_print_stack.  Only call
-   this if a python exception is set.  */
+/* Print a python exception trace, print just a message, or print
+   nothing and clear the python exception, depending on
+   gdbpy_should_print_stack.  Only call this if a python exception is
+   set.  */
 void
 gdbpy_print_stack (void)
 {
-  if (gdbpy_should_print_stack)
+  /* Print "none", just clear exception.  */
+  if (gdbpy_should_print_stack == python_excp_none)
+    {
+      PyErr_Clear ();
+    }
+  /* Print "full" message and backtrace.  */
+  else if (gdbpy_should_print_stack == python_excp_full)
     {
       PyErr_Print ();
       /* PyErr_Print doesn't necessarily end output with a newline.
@@ -895,8 +912,34 @@ gdbpy_print_stack (void)
 	 printf_filtered.  */
       begin_line ();
     }
+  /* Print "message", just error print message.  */
   else
-    PyErr_Clear ();
+    {
+      PyObject *ptype, *pvalue, *ptraceback;
+      char *msg = NULL, *type = NULL;
+
+      PyErr_Fetch (&ptype, &pvalue, &ptraceback);
+
+      /* Fetch the error message contained within ptype, pvalue.  */
+      msg = gdbpy_exception_to_string (ptype, pvalue);
+      type = gdbpy_obj_to_string (ptype);
+      if (msg == NULL)
+	{
+	  /* An error occurred computing the string representation of the
+	     error message.  */
+	  fprintf_filtered (gdb_stderr,
+			    _("Error occurred computing Python error"	\
+			      "message.\n"));
+	}
+      else
+	fprintf_filtered (gdb_stderr, "Python Exception %s %s: \n",
+			  type, msg);
+
+      Py_XDECREF (ptype);
+      Py_XDECREF (pvalue);
+      Py_XDECREF (ptraceback);
+      xfree (msg);
+    }
 }
 
 
@@ -1061,16 +1104,14 @@ gdbpy_breakpoint_has_py_cond (struct breakpoint_object *bp_obj)
 #endif /* HAVE_PYTHON */
 
 
+/* Support for "mt set python print-stack on|off" is present in gdb 7.4
+   to not break Eclipse.
+   ref: https://bugs.eclipse.org/bugs/show_bug.cgi?id=367788.  */
 
 /* Lists for 'maint set python' commands.  */
 
 static struct cmd_list_element *maint_set_python_list;
 static struct cmd_list_element *maint_show_python_list;
-
-/* Lists for 'set python' commands.  */
-
-static struct cmd_list_element *user_set_python_list;
-static struct cmd_list_element *user_show_python_list;
 
 /* Function for use by 'maint set python' prefix command.  */
 
@@ -1088,6 +1129,38 @@ maint_show_python (char *args, int from_tty)
 {
   cmd_show_list (maint_show_python_list, from_tty, "");
 }
+
+/* True if we should print the stack when catching a Python error,
+   false otherwise.  */
+static int gdbpy_should_print_stack_deprecated = 0;
+
+static void
+set_maint_python_print_stack (char *args, int from_tty,
+			      struct cmd_list_element *e)
+{
+  if (gdbpy_should_print_stack_deprecated)
+    gdbpy_should_print_stack = python_excp_full;
+  else
+    gdbpy_should_print_stack = python_excp_none;
+}
+
+static void
+show_maint_python_print_stack (struct ui_file *file, int from_tty,
+			       struct cmd_list_element *c, const char *value)
+{
+  fprintf_filtered (file,
+		    _("The mode of Python stack printing on error is"
+		      " \"%s\".\n"),
+		    gdbpy_should_print_stack == python_excp_full
+		    ? "on" : "off");
+}
+
+
+
+/* Lists for 'set python' commands.  */
+
+static struct cmd_list_element *user_set_python_list;
+static struct cmd_list_element *user_show_python_list;
 
 /* Function for use by 'set python' prefix command.  */
 
@@ -1148,11 +1221,12 @@ This command is only a placeholder.")
 		  &maintenance_set_cmdlist);
 
   add_setshow_boolean_cmd ("print-stack", class_maintenance,
-			   &gdbpy_should_print_stack, _("\
+			   &gdbpy_should_print_stack_deprecated, _("\
 Enable or disable printing of Python stack dump on error."), _("\
 Show whether Python stack will be printed on error."), _("\
 Enables or disables printing of Python stack traces."),
-			   NULL, NULL,
+			   set_maint_python_print_stack,
+			   show_maint_python_print_stack,
 			   &maint_set_python_list,
 			   &maint_show_python_list);
 
@@ -1176,14 +1250,16 @@ Enables or disables printing of Python stack traces."),
 		  &user_set_python_list, "set python ", 0,
 		  &setlist);
 
-  add_setshow_boolean_cmd ("print-stack", no_class,
-			   &gdbpy_should_print_stack, _("\
-Enable or disable printing of Python stack dump on error."), _("\
-Show whether Python stack will be printed on error."), _("\
-Enables or disables printing of Python stack traces."),
-			   NULL, NULL,
-			   &user_set_python_list,
-			   &user_show_python_list);
+  add_setshow_enum_cmd ("print-stack", no_class, python_excp_enums,
+			&gdbpy_should_print_stack, _("\
+Set mode for Python stack dump on error."), _("\
+Show the mode of Python stack printing on error."), _("\
+none  == no stack or message will be printed.\n\
+full == a message and a stack will be printed.\n\
+message == an error message without a stack will be printed."),
+			NULL, NULL,
+			&user_set_python_list,
+			&user_show_python_list);
 
 #ifdef HAVE_PYTHON
 #ifdef WITH_PYTHON_PATH
@@ -1247,6 +1323,7 @@ Enables or disables printing of Python stack traces."),
   gdbpy_initialize_pspace ();
   gdbpy_initialize_objfile ();
   gdbpy_initialize_breakpoints ();
+  gdbpy_initialize_finishbreakpoints ();
   gdbpy_initialize_lazy_string ();
   gdbpy_initialize_thread ();
   gdbpy_initialize_inferior ();

@@ -1,6 +1,6 @@
 /* Skipping uninteresting files and functions while stepping.
 
-   Copyright (C) 2011 Free Software Foundation, Inc.
+   Copyright (C) 2011-2012 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -160,11 +160,11 @@ skip_function_command (char *arg, int from_tty)
       int pending = 0;
       char *orig_arg = arg; /* decode_line_1 modifies the arg pointer.  */
       volatile struct gdb_exception decode_exception;
-      struct symtabs_and_lines sals;
+      struct symtabs_and_lines sals = { 0 };
 
       TRY_CATCH (decode_exception, RETURN_MASK_ERROR)
 	{
-	  sals = decode_line_1 (&arg, 1, 0, 0, 0);
+	  sals = decode_line_1 (&arg, DECODE_LINE_FUNFIRSTLINE, 0, 0);
 	}
 
       if (decode_exception.reason < 0)
@@ -509,12 +509,12 @@ skip_re_set (void)
       else if (e->function_name != 0)
         {
 	  char *func_name = e->function_name;
-	  struct symtabs_and_lines sals;
+	  struct symtabs_and_lines sals = { 0 };
 	  volatile struct gdb_exception decode_exception;
 
 	  TRY_CATCH (decode_exception, RETURN_MASK_ERROR)
 	    {
-	      sals = decode_line_1 (&func_name, 1, 0, 0, 0);
+	      sals = decode_line_1 (&func_name, DECODE_LINE_FUNFIRSTLINE, 0, 0);
 	    }
 
 	  if (decode_exception.reason >= 0

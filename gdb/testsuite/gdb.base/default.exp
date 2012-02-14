@@ -1,6 +1,5 @@
-#   Copyright 1988, 1990, 1991, 1992, 1994, 1995, 1996, 1997, 1998, 1999,
-#   2000, 2001, 2002, 2003, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-#   Free Software Foundation, Inc.
+#   Copyright 1988, 1990-1992, 1994-2003, 2005-2012 Free Software
+#   Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -39,7 +38,7 @@ gdb_test "append value"  "Missing filename\."
 gdb_test "append binary memory" "Missing filename\." 
 gdb_test "append binary value"  "Missing filename\." 
 
-if ![target_info exists use_gdb_stub] {
+if !$use_gdb_stub {
     setup_xfail "mips-idt-*"
     gdb_test_multiple "attach" "attach" {
 	-re "Argument required .(process-id|program) to attach.*$gdb_prompt $"\
@@ -420,7 +419,7 @@ gdb_test "ptype" "The history is empty." "ptype"
 gdb_test "pwd" "Working directory .*" "pwd"
 
 #test run "r" abbreviation
-if [target_info exists use_gdb_stub] {
+if $use_gdb_stub {
     # Only extended-remote supports "run".
 } elseif [istarget "*-*-vxworks*"] then {
     gdb_test "set args" ".*" "" 
@@ -448,7 +447,7 @@ You must specify a function name to run, and arguments if any"\
 }
 
 #test run
-if [target_info exists use_gdb_stub] {
+if $use_gdb_stub {
     # Only extended-remote supports "run".
 } elseif [istarget "*-*-vxworks*"] then {
     gdb_test "set args" ".*" "" 

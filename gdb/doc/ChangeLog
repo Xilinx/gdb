@@ -1,3 +1,99 @@
+2011-12-23  Kevin Pouget  <kevin.pouget@st.com>
+
+	Introduce gdb.FinishBreakpoint in Python
+	* gdb.texinfo (Finish Breakpoints in Python): New subsection.
+	(Python API): Add menu entry for Finish Breakpoints.
+
+2011-12-16  Phil Muldoon  <pmuldoon@redhat.com>
+
+	* gdb.texinfo (Python Commands): Remove "maint set/show print
+	stack".  Add documentation for "set/show python print-stack".
+
+2011-12-06  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.texinfo (Set Breaks): Update for new behavior.
+
+2011-12-02  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.texinfo (Requirements, Remote Protocol): Reference also `Library
+	List Format for SVR4 Targets'.
+	(General Query Packets): New item qXfer:libraries-svr4:read.
+	(Library List Format for SVR4 Targets): New node.
+
+2011-12-01  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.texinfo (Writing a Pretty-Printer): Use append method, not
+	add.
+
+2011-11-22  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.texinfo (GDB/MI Async Records): Document new *stopped
+	reasons.
+
+2011-11-20  Stan Shebs  <stan@codesourcery.com>
+
+	* gdb.texinfo (Starting and Stopping Trace Experiments): Document
+	note-related options and variables.
+	(Tracepoint Packets): Document packet changes.
+
+2011-11-20  Sanjoy Das  <sdas@igalia.com>
+
+	* gdb.texinfo (JIT Interface): Add documentation on writing and
+	usind JIT debug info readers.
+	(Custom Debug Info, Using JIT Debug Info Readers, Writing JIT
+	Debug Info Readers): New nodes.
+
+2011-11-18  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.texinfo (Create and Delete Tracepoints): Mention pending
+	tracepoint.
+
+2011-11-15  Doug Evans  <dje@google.com>
+
+	* gdb.texinfo (Files): Document basenames-may-differ.
+
+2011-11-14  Doug Evans  <dje@google.com>
+
+	* gdb.texinfo (Shell Commands): Document "!".
+
+2011-11-14  Stan Shebs  <stan@codesourcery.com>
+	    Kwok Cheung Yeung  <kcy@codesourcery.com>
+
+	* gdb.texinfo (Create and Delete Tracepoints): Describe what is
+	needed to get shorter fast tracepoints.
+	(Tracepoint Packets): Document new qTMinFTPILen packet.
+
+2011-11-14  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.texinfo (Create and Delete Tracepoints): Describe changed
+	behavior of tracepoint.
+	(General Query Packets): New feature InstallInTrace.
+	(Remote Configuration): Document "set remote
+	install-in-trace-packet".
+
+2011-11-12  Matt Rice  <ratmice@gmail.com>
+
+	* gdb.texinfo (C Preprocessor Macros): Remove info definitions.
+	Add arguments to info macro.
+
+2011-11-10  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.texinfo (Compilation): Don't mention -gdwarf-2.  Link to GCC
+	manual.
+	(Variables): Don't mention -gdwarf-2.  Link to Compilation node.
+	(Macros): Add a footnote.
+	(C): Remove paragraph about compiler options.
+	(C Constants): Mention wide character and string constants.
+	(C Plus Plus Expressions): Update compiler option advice.  Mention
+	using declarations.  Mention ADL.  Remove old HP compiler
+	information.
+
+2011-11-10  Tom Tromey  <tromey@redhat.com>
+
+	PR c++/9257:
+	* gdb.texinfo (Print Settings): Add an extra note about the need
+	for a vtable.
+
 2011-11-08  Maciej W. Rozycki  <macro@codesourcery.com>
 
 	* gdb.texinfo (MIPS): Remove duplicate "auto" reference from

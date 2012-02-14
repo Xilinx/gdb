@@ -1,7 +1,7 @@
 /* Handle lists of commands, their decoding and documentation, for GDB.
 
-   Copyright (c) 1986, 1989, 1990, 1991, 1998, 2000, 2001, 2002, 2004, 2007,
-   2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (c) 1986, 1989-1991, 1998, 2000-2002, 2004, 2007-2012 Free
+   Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1127,11 +1127,16 @@ find_command_name_length (const char *text)
      Note that this is larger than the character set allowed when
      creating user-defined commands.  */
 
+  /* Recognize '!' as a single character command so that, e.g., "!ls"
+     works as expected.  */
+  if (*p == '!')
+    return 1;
+
   while (isalnum (*p) || *p == '-' || *p == '_'
 	 /* Characters used by TUI specific commands.  */
 	 || *p == '+' || *p == '<' || *p == '>' || *p == '$'
 	 /* Characters used for XDB compatibility.  */
-	 || (xdb_commands && (*p == '!' || *p == '/' || *p == '?')))
+	 || (xdb_commands && (*p == '/' || *p == '?')))
     p++;
 
   return p - text;

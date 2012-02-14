@@ -1,3 +1,405 @@
+2012-01-06  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.base/auxv.exp: Reformat the copyright notice.
+
+2012-01-06  Joel Brobecker  <brobecker@adacore.com>
+
+	* dg-extract-results.sh, gdb.arch/gcore.c, gdb.arch/gdb1558.c,
+	gdb.arch/i386-gnu-cfi.c, gdb.base/complex.c, gdb.base/cvexpr.c,
+	gdb.base/gcore.c, gdb.base/gdb1555-main.c, gdb.base/gdb1555.c,
+	gdb.base/gdb1821.c, gdb.base/long_long.c, gdb.base/restore.c,
+	gdb.base/sepdebug.c, gdb.base/type-opaque-lib.c,
+	gdb.base/type-opaque-main.c, gdb.cp/maint.exp, gdb.cp/namespace1.cc,
+	gdb.cp/pr9631.cc, gdb.cp/psmang1.cc, gdb.cp/psmang2.cc,
+	gdb.cp/try_catch.cc, gdb.cp/virtfunc.cc, gdb.hp/gdb.base-hp/reg.exp,
+	gdb.mi/basics.c, gdb.mi/mi-stack.c, gdb.mi/mi-var-child.c,
+	gdb.mi/mi2-var-child.exp, gdb.mi/var-cmd.c,
+	gdb.threads/thread_check.c: Reformat copyright header.
+
+2012-01-04  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix compatibility with gcc-4.7.
+	* gdb.python/py-frame-inline.c (f): Use inline for __always_inline__.
+
+2012-01-04  Edjunior Machado  <emachado@linux.vnet.ibm.com>
+
+	* gdb.python/py-finish-breakpoint.exp: Add `.' prefix for ppc64.
+	* gdb.python/py-finish-breakpoint2.exp: Skip testcase if python support
+	is not enabled.
+
+2012-01-04  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.python/py-finish-breakpoint.c (test_exec_exit): Change the
+	parameter to self_exec, adjust the function.
+	(main): Check for argv[1] "exit".  Use argv[0] for test_exec_exit.
+	* gdb.python/py-finish-breakpoint.exp (set var self_exec = 0): New test.
+	(set var do_exit = 0): Remove test.
+	(newline at end of file): Add one.
+
+2011-01-04  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.base/dmsym.c, gdb.base/dmsym_main.c, gdb.base/dmsym.exp:
+	New files.
+
+2012-01-02  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* gdb.cell/fork.exp: Delete breakpoints after reaching main.
+	* gdb.cell/gcore.exp: Likewise.
+	* gdb.cell/solib-symbol.exp: Use "info symbol" instead of "break"
+	to verify the correct instance of main is selected.
+
+2011-12-23  Kevin Pouget  <kevin.pouget@st.com>
+
+	Introduce gdb.FinishBreakpoint in Python
+	* Makefile.in (EXECUTABLES): Add py-finish-breakpoint and
+	py-finish-breakpoint2
+	(MISCALLANEOUS): Add py-events-shlib.so and py-events-shlib-nodebug.so
+	* gdb.python/py-breakpoint.exp (mult_line): Define and use variable
+	instead of line number.
+	* gdb.python/py-finish-breakpoint.c: New file.
+	* gdb.python/py-finish-breakpoint.exp: New file.
+	* gdb.python/py-finish-breakpoint.py: New file.
+	* gdb.python/py-finish-breakpoint2.cc: New file.
+	* gdb.python/py-finish-breakpoint2.exp: New file.
+	* gdb.python/py-finish-breakpoint2.py: New file.
+
+2011-12-21  Ulrich Weigand  <ulrich.weigand@linaro.org>
+
+	PR tdep/12797
+	* gdb.base/callfuncs.exp: Remove KFAIL.
+
+2011-12-19  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.base/reread.exp: If srcfile2 fails to build retry it with
+	-DNO_SECTIONS.
+	* gdb.base/reread2.c <!NO_SECTIONS>: New sections block.
+
+2011-12-16  Phil Muldoon  <pmuldoon@redhat.com>
+
+	* gdb.python/py-function.exp: Change "on" to "full" for
+	python print-stack.  Add set/show python print-stack
+	off|full|message tests.
+
+2011-12-11  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.trace/status-stop.exp: Skip it if target doesn't support trace.
+
+2011-12-11  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.ada/catch_ex.exp, gdb.ada/mi_catch_ex.exp: Adjust
+	expected output for unsupported case.
+
+2011-12-10  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	PR testsuite/12649
+	* gdb.trace/ftrace.exp (test_fast_tracepoints): Import gdb_prompt.
+	Protect gdb_test_multiple by final $gdb_prompt match.
+
+2011-12-10  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.cp/static-method.exp (have_gcc_45682_fixed, info addr A::func()):
+	New variable, new test.
+	(list static-method.cc:xxx::(anonymous namespace)::A::func)
+	(list 'static-method.cc:xxx::(anonymous namespace)::A::func')
+	(list 'static-method.cc':'xxx::(anonymous namespace)::A::func')
+	(list static-method.cc:'xxx::(anonymous namespace)::A::func'): KFAIL
+	them if HAVE_GCC_45682_FIXED is not set.
+
+2011-12-10  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.trace/status-stop.exp: New.
+	* gdb.trace/status-stop.c: New.
+
+2011-12-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.reverse/until-precsave.exp (run to end of main) Extend the
+	timeout.
+
+2011-12-08  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.cp/ovsrch.exp (test_class): Correctly use "a_param" in
+	condition.
+
+2011-12-07  Stan Shebs  <stan@codesourcery.com>
+
+	* gdb.trace/tfind.exp: Update for output changes.
+
+2011-12-07  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.ada/catch_ex.exp: Skip as unsupported if "catch exception"
+	throws "Cannot insert catchpoints in this configuration".
+	* gdb.ada/mi_catch_ex.exp: Likewise.
+
+2011-12-06  Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.base/break-always.exp: Test changing memory at addresses
+	with breakpoints inserted.
+
+2011-12-06  Joel Brobecker  <brobecker@acacore.com>
+
+        * gdb.ada/fullname_bp.exp: Add tests for other valid linespecs
+        involving a fully qualified function name.
+
+2011-12-06  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.ada/homonym.exp: Add three breakpoint tests.
+
+2011-12-06  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.base/solib-weak.exp (do_test): Remove kfail.
+	* gdb.trace/tracecmd.exp: Disable pending breakpoints earlier.
+	* gdb.objc/objcdecode.exp: Update for output changes.
+	* gdb.linespec/linespec.exp: New file.
+	* gdb.linespec/lspec.cc: New file.
+	* gdb.linespec/lspec.h: New file.
+	* gdb.linespec/body.h: New file.
+	* gdb.linespec/base/two/thefile.cc: New file.
+	* gdb.linespec/base/one/thefile.cc: New file.
+	* gdb.linespec/Makefile.in: New file.
+	* gdb.cp/templates.exp (test_template_breakpoints): Update for
+	output changes.
+	* gdb.cp/re-set-overloaded.exp: Remove kfail.
+	* gdb.cp/ovldbreak.exp: Update for output changes.  "all" test now
+	makes one breakpoint.
+	* gdb.cp/method2.exp (test_break): Update for output changes.
+	* gdb.cp/mb-templates.exp: Update for output changes.
+	* gdb.cp/mb-inline.exp: Update for output changes.
+	* gdb.cp/mb-ctor.exp: Update for output changes.
+	* gdb.cp/ovsrch.exp: Use fully-qualified names.
+	* gdb.base/solib-symbol.exp: Run to main later.  Breakpoint now
+	has multiple matches.
+	* gdb.base/sepdebug.exp: Disable pending breakpoints.  Update for
+	error message change.
+	* gdb.base/list.exp (test_list_filename_and_number): Update for
+	error message change.
+	* gdb.base/break.exp: Disable pending breakpoints.  Update for
+	output changes.
+	* configure.ac: Add gdb.linespec.
+	* configure: Rebuild.
+	* Makefile.in (ALL_SUBDIRS): Add gdb.linespec.
+
+2011-12-06  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* gdb.base/callfuncs.exp (fetch_all_registers): Filter out read-only
+	last_break register on s390*-*-* targets.
+
+2011-12-06  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.ada/watch_arg/pck.ads, gdb.ada/watch_arg/pck.adb: New files.
+	* gdb.ada/watch_arg/watch.adb: Adjust code to avoid modification
+	of parameter X in procedure Foo.
+
+2011-12-05  Stan Shebs  <stan@codesourcery.com>
+
+	* gdb.trace/tfind.exp: Update help string matches.
+
+2011-12-05  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.server/ext-run.exp (get process list): Accept also systemd
+	as PID 1.
+
+2011-12-03  Jan Kratochvil  <jan.kratochvil@redhat.com>
+	    Pedro Alves  <pedro@codesourcery.com>
+
+	* gdb.base/break-entry.exp: Move the target use_gdb_stub test before
+	starting GDB.
+	* gdb.base/default.exp: Replace target use_gdb_stub checks by global
+	$use_gdb_stub.
+	* gdb.base/display.exp: Likewise.
+	* gdb.base/ending-run.exp: Likewise.
+	* gdb.base/list.exp (test_listsize): Likewise.
+	* gdb.base/setshow.exp: Likewise.
+	* gdb.base/valgrind-db-attach.exp: Set global use_gdb_stub to 1.
+	* lib/gdb.exp (gdb_run_cmd, gdb_start_cmd): Replace target use_gdb_stub
+	check by global $use_gdb_stub.
+	(gdb_test_multiple): Forbid run, start or attach for !$use_gdb_stub.
+	(default_gdb_start): Set global use_gdb_stub from target use_gdb_stub.
+	(default_gdb_init): Unset global $use_gdb_stub.
+	(gdb_continue_to_end, rerun_to_main): Replace target use_gdb_stub check
+	by global $use_gdb_stub.
+	* lib/gdbserver-support.exp: Extend comments for set_board_info
+	gdb_protocol and gdb,socketport.
+	(gdbserver_start_extended): Set global gdbserver_protocol and
+	gdbserver_gdbport.  Clear global use_gdb_stub.
+	* lib/mi-support.exp (default_mi_gdb_start): Set global use_gdb_stub
+	from target use_gdb_stub.
+	(mi_run_cmd): Replace target use_gdb_stub check by global $use_gdb_stub.
+
+2011-12-03  Doug Evans  <dje@google.com>
+
+	* lib/gdb.exp (gdb_run_cmd, gdb_start_cmd, run_to_main): Add comments.
+	(gdb_step_for_stub): Add comments.
+
+2011-12-02  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* lib/gdb.exp (gdb_expect): Pass all the exception conditions up
+	to the caller.
+	(gdb_test_multiple): Likewise.
+
+2011-12-02  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix gdb.mi/mi-solib.exp without system debug info installed.
+	* lib/mi-support.exp (mi_expect_stop): Accept FILE also for `from'
+	expect attribute, return 0 for it.  Update comments.
+
+2011-12-02  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.base/solib-corrupted.exp: Suppress test on is_remote target.
+	(corrupted list): Adjust the expectation.
+
+2011-12-02  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	PR threads/13448
+	* gdb.dwarf2/dw2-var-zero-addr.S: New file.
+	* gdb.dwarf2/dw2-var-zero-addr.exp: New file.
+	* gdb.threads/tls-var-main.c: New file.
+	* gdb.threads/tls-var.c: New file.
+	* gdb.threads/tls-var.exp: New file.
+
+2011-12-02  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	PR testsuite/12649
+	* gdb.trace/collection.exp (gdb_collect_return_test): Import gdb_prompt.
+	Protect gdb_test_multiple by final $gdb_prompt match.
+	* gdb.trace/tspeed.exp (gdb_fast_trace_speed_test): Likewise.
+	* gdb.trace/tstatus.exp (run_trace_experiment): Likewise.
+	(test_tracepoints): Likewise.
+
+2011-12-02  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	PR breakpoints/13346
+	* gdb.dwarf2/dw2-objfile-overlap-inner.S: New file.
+	* gdb.dwarf2/dw2-objfile-overlap-outer.S: New file.
+	* gdb.dwarf2/dw2-objfile-overlap.exp: New file.
+
+2011-12-01  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.ada/homonym/pck.ads, gdb.ada/homonym/pck.adb: New files.
+	* gdb.ada/homonym/homonym.adb: For use of all types defined
+	locally inside both Get_Value subprograms.
+
+2011-12-01  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix racy FAILs.
+	* gdb.base/foll-exec.exp (zap_session): Use gdb_test_no_output instead
+	of send_gdb.
+
+2011-11-30  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* gdb.base/testenv.exp: Skip on remote targets.  Unset global
+	environment variable after test completed.
+
+2011-11-30  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* gdb.base/solib-nodir.exp: Skip if remote target.
+	* gdb.base/gdb.fortran.exp: Use shlib= flag when linking main
+	application.  Call gdb_load_shlibs.
+	* gdb.mi/mi-solib.exp: Use mi_load_shlibs instead of gdb_load_shlibs.
+
+2011-11-29  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.base/infoline.c, gdb.base/infoline.exp: New files.
+
+2011-11-28  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.ada/fullname_bp: New testcase.
+
+2011-11-25  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	PR testsuite/12649
+	* gdb.reverse/i386-sse-reverse.exp (continue to end of sse_test #2):
+	Wrap send_gdb into a new gdb_test.
+
+	Code cleanup.
+	* gdb.reverse/i386-sse-reverse.exp (continue to end of sse4_test):
+	Convert send_gdb and gdb_expect to gdb_test_multiple.
+
+2011-11-25  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.base/jit-so.exp (one_jit_test): Add testcase name to log message.
+
+2011-11-23  Keith Seitz  <keiths@redhat.com>
+
+	* lib/mi-support.exp (varobj_tree): New namespace and procs.
+	(mi_varobj_tree_test_children_callback): New proc.
+	(mi_walk_varobj_tree): New proc.
+
+2011-11-22  Tom Tromey  <tromey@redhat.com>
+
+	* lib/mi-support.exp (mi_run_cmd_full): Rename from mi_run_cmd.
+	Add "use_mi_command" argument.
+	(mi_run_cmd, mi_run_with_cli): New procs.
+	* gdb.mi/solib-lib.c: New file.
+	* gdb.mi/solib-main.c: New file.
+	* gdb.mi/mi-solib.exp: New file.
+
+2011-11-21  Doug Evans  <dje@google.com>
+
+	* gdb.cp/nextoverthrow.exp: Skip test if debug info for
+	_Unwind_DebugHook is missing.
+
+2011-11-20  Stan Shebs  <stan@codesourcery.com>
+
+	* gdb.trace/tstatus.exp: New.
+	* gdb.trace/actions.c: Include string.h.
+
+2011-11-18  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.trace/pending.exp: New.
+	* gdb.trace/pending.c: New.
+	* gdb.trace/pendshr1.c: New.
+	* gdb.trace/pendshr2.c: New.
+	* gdb.trace/change-loc.exp (tracepoint_change_loc_1): Check one
+	tracepoint location becomes pending.
+	(tracepoint_change_loc_2): New.
+
+2011-11-16  David S. Miller  <davem@davemloft.net>
+
+	* lib/gdb.exp (can_single_step_to_signal_handler): Return zero when
+	target is sparc*-*-linux*
+
+2011-11-15  Paul Koning  <paul_koning@dell.com>
+
+	* gdb.python/py-type.exp: New testcases for exceptions on scalar
+	types.
+
+2011-11-14  Doug Evans  <dje@google.com>
+
+	* gdb.base/shell.exp: New file.
+
+2011-11-14  Stan Shebs  <stan@codesourcery.com>
+
+	* gdb.trace/ftrace.c: New.
+	* gdb.trace/ftrace.exp: New.
+
+2011-11-14  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.trace/change-loc-1.c: New.
+	* gdb.trace/change-loc-2.c: New.
+	* gdb.trace/change-loc.c: New.
+	* gdb.trace/change-loc.exp:  New.
+	* gdb.trace/change-loc.h:  New.
+	* gdb.trace/trace-break.c (marker): Define new symbol.
+	* gdb.trace/trace-break.exp (break_trace_same_addr_5):
+        New.
+	(break_trace_same_addr_6): New.
+
+2011-11-12  Matt Rice  <ratmice@gmail.com>
+
+	* gdb.base/info-macros.exp: Make tests for info definitions
+	test info macro.  Add tests for info macro argument processing.
+	Rename a few tests.
+
+2011-11-11  Keith Seitz  <keiths@redhat.com>
+
+	PR gdb/12843
+	* gdb.base/linespecs.exp: New file.
+
+2011-11-11  Doug Evans  <dje@google.com>
+
+	* gdb.threads/print-threads.exp: Extend timeout for slower
+	tests.
+
 2011-11-10  Doug Evans  <dje@google.com>
 
 	* gdb.reverse/i387-env-reverse.exp: Extend timeout of
@@ -22,7 +424,7 @@
 	(switch_stack_to_other): New test function.
 	* gdb.arch/thumb-prologue.exp: New test cases.
 
-2010-11-08  Maciej W. Rozycki  <macro@codesourcery.com>
+2011-11-08  Maciej W. Rozycki  <macro@codesourcery.com>
 
 	* lib/mi-support.exp (mi_send_resuming_command_raw): Fix a typo.
 
@@ -25664,7 +26066,6 @@ Sun Feb 21 10:55:55 1993  Mike Werner  (mtw@poseidon.cygnus.com)
 ;; version-control: never
 ;; End:
 
-    Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-    2003, 2004, 2005 Free Software Foundation, Inc.
+    Copyright 1993-2005, 2012 Free Software Foundation, Inc.
   Copying and distribution of this file, with or without modification,
   are permitted provided the copyright notice and this notice are preserved.

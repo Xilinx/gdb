@@ -1,6 +1,6 @@
 /* Internal interfaces for the GNU/Linux specific target code for gdbserver.
-   Copyright (C) 2002, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2002, 2004-2005, 2007-2012 Free Software Foundation,
+   Inc.
 
    This file is part of GDB.
 
@@ -56,6 +56,9 @@ struct process_info_private
   /* libthread_db-specific additions.  Not NULL if this process has loaded
      thread_db, and it is active.  */
   struct thread_db *thread_db;
+
+  /* &_r_debug.  0 if not yet determined.  -1 if no PT_DYNAMIC in Phdrs.  */
+  CORE_ADDR r_debug;
 };
 
 struct lwp_info;
@@ -132,14 +135,22 @@ struct linux_target_ops
 					   CORE_ADDR lockaddr,
 					   ULONGEST orig_size,
 					   CORE_ADDR *jump_entry,
+					   CORE_ADDR *trampoline,
+					   ULONGEST *trampoline_size,
 					   unsigned char *jjump_pad_insn,
 					   ULONGEST *jjump_pad_insn_size,
 					   CORE_ADDR *adjusted_insn_addr,
-					   CORE_ADDR *adjusted_insn_addr_end);
+					   CORE_ADDR *adjusted_insn_addr_end,
+					   char *err);
 
   /* Return the bytecode operations vector for the current inferior.
      Returns NULL if bytecode compilation is not supported.  */
   struct emit_ops *(*emit_ops) (void);
+
+  /* Return the minimum length of an instruction that can be safely overwritten
+     for use as a fast tracepoint.  */
+  int (*get_min_fast_tracepoint_insn_len) (void);
+
 };
 
 extern struct linux_target_ops the_low_target;

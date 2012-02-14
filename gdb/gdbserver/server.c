@@ -1,7 +1,6 @@
 /* Main code for remote server for GDB.
-   Copyright (C) 1989, 1993, 1994, 1995, 1997, 1998, 1999, 2000, 2002, 2003,
-   2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1989, 1993-1995, 1997-2000, 2002-2012 Free Software
+   Foundation, Inc.
 
    This file is part of GDB.
 
@@ -942,6 +941,10 @@ handle_qxfer_libraries (const char *annex,
   if (annex[0] != '\0' || !target_running ())
     return -1;
 
+  /* Do not confuse this packet with qXfer:libraries-svr4:read.  */
+  if (the_target->qxfer_libraries_svr4 != NULL)
+    return 0;
+
   /* Over-estimate the necessary memory.  Assume that every character
      in the library name must be escaped.  */
   total_len = 64;
@@ -990,6 +993,23 @@ handle_qxfer_libraries (const char *annex,
   memcpy (readbuf, document + offset, len);
   free (document);
   return len;
+}
+
+/* Handle qXfer:libraries-svr4:read.  */
+
+static int
+handle_qxfer_libraries_svr4 (const char *annex,
+			     gdb_byte *readbuf, const gdb_byte *writebuf,
+			     ULONGEST offset, LONGEST len)
+{
+  if (writebuf != NULL)
+    return -2;
+
+  if (annex[0] != '\0' || !target_running ()
+      || the_target->qxfer_libraries_svr4 == NULL)
+    return -1;
+
+  return the_target->qxfer_libraries_svr4 (annex, readbuf, writebuf, offset, len);
 }
 
 /* Handle qXfer:osadata:read.  */
@@ -1216,6 +1236,7 @@ static const struct qxfer qxfer_packets[] =
     { "fdpic", handle_qxfer_fdpic},
     { "features", handle_qxfer_features },
     { "libraries", handle_qxfer_libraries },
+    { "libraries-svr4", handle_qxfer_libraries_svr4 },
     { "osdata", handle_qxfer_osdata },
     { "siginfo", handle_qxfer_siginfo },
     { "spu", handle_qxfer_spu },
@@ -1536,9 +1557,14 @@ handle_query (char *own_buf, int packet_len, int *new_packet_len_p)
 
       sprintf (own_buf, "PacketSize=%x;QPassSignals+", PBUFSIZ - 1);
 
-      /* We do not have any hook to indicate whether the target backend
-	 supports qXfer:libraries:read, so always report it.  */
-      strcat (own_buf, ";qXfer:libraries:read+");
+      if (the_target->qxfer_libraries_svr4 != NULL)
+	strcat (own_buf, ";qXfer:libraries-svr4:read+");
+      else
+	{
+	  /* We do not have any hook to indicate whether the non-SVR4 target
+	     backend supports qXfer:libraries:read, so always report it.  */
+	  strcat (own_buf, ";qXfer:libraries:read+");
+	}
 
       if (the_target->read_auxv != NULL)
 	strcat (own_buf, ";qXfer:auxv:read+");
@@ -1584,6 +1610,7 @@ handle_query (char *own_buf, int packet_len, int *new_packet_len_p)
 	  if (gdb_supports_qRelocInsn && target_supports_fast_tracepoints ())
 	    strcat (own_buf, ";FastTracepoints+");
 	  strcat (own_buf, ";StaticTracepoints+");
+	  strcat (own_buf, ";InstallInTrace+");
 	  strcat (own_buf, ";qXfer:statictrace:read+");
 	  strcat (own_buf, ";qXfer:traceframe-info:read+");
 	  strcat (own_buf, ";EnableDisableTracepoints+");
@@ -2342,7 +2369,7 @@ static void
 gdbserver_version (void)
 {
   printf ("GNU gdbserver %s%s\n"
-	  "Copyright (C) 2011 Free Software Foundation, Inc.\n"
+	  "Copyright (C) 2012 Free Software Foundation, Inc.\n"
 	  "gdbserver is free software, covered by the "
 	  "GNU General Public License.\n"
 	  "This gdbserver was configured as \"%s\"\n",

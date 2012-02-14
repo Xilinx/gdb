@@ -1,4 +1,4 @@
-# Copyright 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+# Copyright 2008-2012 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -62,7 +62,7 @@ set bp_location [gdb_get_line_number "set breakpoint here" $hdrfile]
 # Set a breakpoint with multiple locations.
 
 gdb_test "break $hdrfile:$bp_location" \
-    "Breakpoint.*at.* file .*$hdrfile, line.*\\(2 locations\\).*" \
+    "Breakpoint.*at.*: $hdrfile:$bp_location. \\(2 locations\\).*" \
     "set breakpoint"
 
 gdb_run_cmd
@@ -128,7 +128,7 @@ if { ![runto_main] } {
 }
 
 gdb_test "break $hdrfile:$bp_location" \
-    "Breakpoint.*at.* file .*$hdrfile, line.*\\(2 locations\\).*" \
+    "Breakpoint.*at.*: $hdrfile:$bp_location. \\(2 locations\\).*" \
     "set multi_line_foo breakpoint"
 gdb_test "continue" \
     ".*Breakpoint.*multi_line_foo \\(i=0\\).*" \

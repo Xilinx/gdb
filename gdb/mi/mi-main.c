@@ -1,7 +1,6 @@
 /* MI Command Set.
 
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010,
-   2011 Free Software Foundation, Inc.
+   Copyright (C) 2000-2005, 2007-2012 Free Software Foundation, Inc.
 
    Contributed by Cygnus Solutions (a Red Hat company).
 
@@ -53,6 +52,7 @@
 #include "splay-tree.h"
 #include "tracepoint.h"
 #include "ada-lang.h"
+#include "linespec.h"
 
 #include <ctype.h>
 #include <sys/time.h>
@@ -2437,7 +2437,7 @@ mi_cmd_trace_find (char *command, char **argv, int argc)
       if (argc != 2)
 	error (_("Line is required"));
 
-      sals = decode_line_spec (argv[1], 1);
+      sals = decode_line_spec (argv[1], DECODE_LINE_FUNFIRSTLINE);
       back_to = make_cleanup (xfree, sals.sals);
 
       sal = sals.sals[0];
@@ -2490,7 +2490,7 @@ mi_cmd_trace_save (char *command, char **argv, int argc)
 void
 mi_cmd_trace_start (char *command, char **argv, int argc)
 {
-  start_tracing ();
+  start_tracing (NULL);
 }
 
 void
@@ -2502,7 +2502,7 @@ mi_cmd_trace_status (char *command, char **argv, int argc)
 void
 mi_cmd_trace_stop (char *command, char **argv, int argc)
 {
-  stop_tracing ();
+  stop_tracing (NULL);
   trace_status_mi (1);
 }
 

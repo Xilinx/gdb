@@ -1,6 +1,5 @@
 /* Common target dependent code for GDB on ARM systems.
-   Copyright (C) 2002, 2003, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2002-2003, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -313,6 +312,7 @@ CORE_ADDR arm_skip_stub (struct frame_info *, CORE_ADDR);
 CORE_ADDR arm_get_next_pc (struct frame_info *, CORE_ADDR);
 void arm_insert_single_step_breakpoint (struct gdbarch *,
 					struct address_space *, CORE_ADDR);
+int arm_deal_with_atomic_sequence (struct frame_info *);
 int arm_software_single_step (struct frame_info *);
 int arm_frame_is_thumb (struct frame_info *frame);
 

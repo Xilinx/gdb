@@ -1,8 +1,7 @@
 /* PPC GNU/Linux native support.
 
-   Copyright (C) 1988, 1989, 1991, 1992, 1994, 1996, 2000, 2001, 2002, 2003,
-   2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1988-1989, 1991-1992, 1994, 1996, 2000-2012 Free
+   Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -2010,7 +2009,8 @@ create_watchpoint_request (struct ppc_hw_breakpoint *p, CORE_ADDR addr,
 			   int len, int rw, struct expression *cond,
 			   int insert)
 {
-  if (len == 1)
+  if (len == 1
+      || !(booke_debug_info.features & PPC_DEBUG_FEATURE_DATA_BP_RANGE))
     {
       int use_condition;
       CORE_ADDR data_value;

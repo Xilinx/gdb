@@ -1,8 +1,6 @@
 /* General utility routines for GDB, the GNU debugger.
 
-   Copyright (C) 1986, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
-   1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1986, 1988-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -50,7 +48,7 @@
 #include "serial.h"
 #include "bfd.h"
 #include "target.h"
-#include "demangle.h"
+#include "gdb-demangle.h"
 #include "expression.h"
 #include "language.h"
 #include "charset.h"
@@ -137,35 +135,6 @@ int quit_flag;
    expect to block), call QUIT after setting immediate_quit.  */
 
 int immediate_quit;
-
-/* Nonzero means that encoded C++/ObjC names should be printed out in their
-   C++/ObjC form rather than raw.  */
-
-int demangle = 1;
-static void
-show_demangle (struct ui_file *file, int from_tty,
-	       struct cmd_list_element *c, const char *value)
-{
-  fprintf_filtered (file,
-		    _("Demangling of encoded C++/ObjC names "
-		      "when displaying symbols is %s.\n"),
-		    value);
-}
-
-/* Nonzero means that encoded C++/ObjC names should be printed out in their
-   C++/ObjC form even in assembler language displays.  If this is set, but
-   DEMANGLE is zero, names are printed raw, i.e. DEMANGLE controls.  */
-
-int asm_demangle = 0;
-static void
-show_asm_demangle (struct ui_file *file, int from_tty,
-		   struct cmd_list_element *c, const char *value)
-{
-  fprintf_filtered (file,
-		    _("Demangling of C++/ObjC names in "
-		      "disassembly listings is %s.\n"),
-		    value);
-}
 
 /* Nonzero means that strings with character values >0x7F should be printed
    as octal escapes.  Zero means just print the value (e.g. it's an
@@ -736,7 +705,8 @@ report_command_stats (void *arg)
 			 ? _("Startup time: %ld.%06ld (cpu), %ld.%06ld (wall)\n")
 			 : _("Command execution time: %ld.%06ld (cpu), %ld.%06ld (wall)\n"),
 			 cmd_time / 1000000, cmd_time % 1000000,
-			 delta_wall_time.tv_sec, delta_wall_time.tv_usec);
+			 (long) delta_wall_time.tv_sec,
+			 (long) delta_wall_time.tv_usec);
     }
 
   if (display_space)
@@ -2864,13 +2834,6 @@ Show number of lines gdb thinks are in a page."), NULL,
 
   init_page_info ();
 
-  add_setshow_boolean_cmd ("demangle", class_support, &demangle, _("\
-Set demangling of encoded C++/ObjC names when displaying symbols."), _("\
-Show demangling of encoded C++/ObjC names when displaying symbols."), NULL,
-			   NULL,
-			   show_demangle,
-			   &setprintlist, &showprintlist);
-
   add_setshow_boolean_cmd ("pagination", class_support,
 			   &pagination_enabled, _("\
 Set state of pagination."), _("\
@@ -2893,13 +2856,6 @@ Set printing of 8-bit characters in strings as \\nnn."), _("\
 Show printing of 8-bit characters in strings as \\nnn."), NULL,
 			   NULL,
 			   show_sevenbit_strings,
-			   &setprintlist, &showprintlist);
-
-  add_setshow_boolean_cmd ("asm-demangle", class_support, &asm_demangle, _("\
-Set demangling of C++/ObjC names in disassembly listings."), _("\
-Show demangling of C++/ObjC names in disassembly listings."), NULL,
-			   NULL,
-			   show_asm_demangle,
 			   &setprintlist, &showprintlist);
 
   add_setshow_boolean_cmd ("timestamp", class_maintenance,
@@ -3691,6 +3647,17 @@ compare_positive_ints (const void *ap, const void *bp)
   /* Because we know we're comparing two ints which are positive,
      there's no danger of overflow here.  */
   return * (int *) ap - * (int *) bp;
+}
+
+/* String compare function for qsort.  */
+
+int
+compare_strings (const void *arg1, const void *arg2)
+{
+  const char **s1 = (const char **) arg1;
+  const char **s2 = (const char **) arg2;
+
+  return strcmp (*s1, *s2);
 }
 
 #define AMBIGUOUS_MESS1	".\nMatching formats:"

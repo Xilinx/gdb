@@ -1,7 +1,6 @@
 /* GDB CLI commands.
 
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010,
-   2011 Free Software Foundation, Inc.
+   Copyright (C) 2000-2005, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -92,6 +91,9 @@ void apropos_command (char *, int);
 /* Prototypes for local utility functions */
 
 static void ambiguous_line_spec (struct symtabs_and_lines *);
+
+static void filter_sals (struct symtabs_and_lines *);
+
 
 /* Limit the call depth of user-defined commands */
 int max_user_call_depth;
@@ -246,16 +248,6 @@ help_command (char *command, int from_tty)
   help_cmd (command, gdb_stdout);
 }
 
-/* String compare function for qsort.  */
-static int
-compare_strings (const void *arg1, const void *arg2)
-{
-  const char **s1 = (const char **) arg1;
-  const char **s2 = (const char **) arg2;
-
-  return strcmp (*s1, *s2);
-}
-
 /* The "complete" command is used by Emacs to implement completion.  */
 
 static void
@@ -796,8 +788,9 @@ edit_command (char *arg, int from_tty)
       /* Now should only be one argument -- decode it in SAL.  */
 
       arg1 = arg;
-      sals = decode_line_1 (&arg1, 0, 0, 0, 0);
+      sals = decode_line_1 (&arg1, DECODE_LINE_LIST_MODE, 0, 0);
 
+      filter_sals (&sals);
       if (! sals.nelts)
 	{
 	  /*  C++  */
@@ -926,8 +919,9 @@ list_command (char *arg, int from_tty)
     dummy_beg = 1;
   else
     {
-      sals = decode_line_1 (&arg1, 0, 0, 0, 0);
+      sals = decode_line_1 (&arg1, DECODE_LINE_LIST_MODE, 0, 0);
 
+      filter_sals (&sals);
       if (!sals.nelts)
 	return;			/*  C++  */
       if (sals.nelts > 1)
@@ -959,9 +953,11 @@ list_command (char *arg, int from_tty)
       else
 	{
 	  if (dummy_beg)
-	    sals_end = decode_line_1 (&arg1, 0, 0, 0, 0);
+	    sals_end = decode_line_1 (&arg1, DECODE_LINE_LIST_MODE, 0, 0);
 	  else
-	    sals_end = decode_line_1 (&arg1, 0, sal.symtab, sal.line, 0);
+	    sals_end = decode_line_1 (&arg1, DECODE_LINE_LIST_MODE,
+				      sal.symtab, sal.line);
+	  filter_sals (&sals);
 	  if (sals_end.nelts == 0)
 	    return;
 	  if (sals_end.nelts > 1)
@@ -1472,6 +1468,85 @@ ambiguous_line_spec (struct symtabs_and_lines *sals)
 		     sals->sals[i].symtab->filename, sals->sals[i].line);
 }
 
+/* Sort function for filter_sals.  */
+
+static int
+compare_symtabs (const void *a, const void *b)
+{
+  const struct symtab_and_line *sala = a;
+  const struct symtab_and_line *salb = b;
+  int r;
+
+  if (!sala->symtab->dirname)
+    {
+      if (salb->symtab->dirname)
+	return -1;
+    }
+  else if (!salb->symtab->dirname)
+    {
+      if (sala->symtab->dirname)
+	return 1;
+    }
+  else
+    {
+      r = filename_cmp (sala->symtab->dirname, salb->symtab->dirname);
+      if (r)
+	return r;
+    }
+
+  r = filename_cmp (sala->symtab->filename, salb->symtab->filename);
+  if (r)
+    return r;
+
+  if (sala->line < salb->line)
+    return -1;
+  return sala->line == salb->line ? 0 : 1;
+}
+
+/* Remove any SALs that do not match the current program space, or
+   which appear to be "file:line" duplicates.  */
+
+static void
+filter_sals (struct symtabs_and_lines *sals)
+{
+  int i, out, prev;
+
+  out = 0;
+  for (i = 0; i < sals->nelts; ++i)
+    {
+      if (sals->sals[i].pspace == current_program_space
+	  && sals->sals[i].symtab != NULL)
+	{
+	  sals->sals[out] = sals->sals[i];
+	  ++out;
+	}
+    }
+  sals->nelts = out;
+
+  qsort (sals->sals, sals->nelts, sizeof (struct symtab_and_line),
+	 compare_symtabs);
+
+  out = 1;
+  prev = 0;
+  for (i = 1; i < sals->nelts; ++i)
+    {
+      if (compare_symtabs (&sals->sals[prev], &sals->sals[i]))
+	{
+	  /* Symtabs differ.  */
+	  sals->sals[out] = sals->sals[i];
+	  prev = out;
+	  ++out;
+	}
+    }
+  sals->nelts = out;
+
+  if (sals->nelts == 0)
+    {
+      xfree (sals->sals);
+      sals->sals = NULL;
+    }
+}
+
 static void
 set_debug (char *arg, int from_tty)
 {
@@ -1825,14 +1900,7 @@ Two arguments (separated by a comma) are taken as a range of memory to dump,\n\
   if (xdb_commands)
     add_com_alias ("va", "disassemble", class_xdb, 0);
 
-  /* NOTE: cagney/2000-03-20: Being able to enter ``(gdb) !ls'' would
-     be a really useful feature.  Unfortunately, the below wont do
-     this.  Instead it adds support for the form ``(gdb) ! ls''
-     (i.e. the space is required).  If the ``!'' command below is
-     added the complains about no ``!'' command would be replaced by
-     complains about how the ``!'' command is broken :-)  */
-  if (xdb_commands)
-    add_com_alias ("!", "shell", class_support, 0);
+  add_com_alias ("!", "shell", class_support, 0);
 
   c = add_com ("make", class_support, make_command, _("\
 Run the ``make'' program using the rest of the line as arguments."));

@@ -1,7 +1,7 @@
 /* C language support routines for GDB, the GNU debugger.
 
-   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2002, 2003,
-   2004, 2005, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1992-1996, 1998-2000, 2002-2005, 2007-2012 Free
+   Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -863,6 +863,8 @@ const struct language_defn c_language_defn =
   default_print_array_index,
   default_pass_by_reference,
   c_get_string,
+  strcmp_iw_ordered,
+  iterate_over_symbols,
   LANG_MAGIC
 };
 
@@ -984,6 +986,8 @@ const struct language_defn cplus_language_defn =
   default_print_array_index,
   cp_pass_by_reference,
   c_get_string,
+  strcmp_iw_ordered,
+  iterate_over_symbols,
   LANG_MAGIC
 };
 
@@ -1023,6 +1027,8 @@ const struct language_defn asm_language_defn =
   default_print_array_index,
   default_pass_by_reference,
   c_get_string,
+  strcmp_iw_ordered,
+  iterate_over_symbols,
   LANG_MAGIC
 };
 
@@ -1067,6 +1073,8 @@ const struct language_defn minimal_language_defn =
   default_print_array_index,
   default_pass_by_reference,
   c_get_string,
+  strcmp_iw_ordered,
+  iterate_over_symbols,
   LANG_MAGIC
 };
 

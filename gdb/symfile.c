@@ -1,8 +1,6 @@
 /* Generic symbol file reading for the GNU debugger, GDB.
 
-   Copyright (C) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1990-2012 Free Software Foundation, Inc.
 
    Contributed by Cygnus Support, using pieces from other GDB modules.
 
@@ -1164,8 +1162,6 @@ symbol_file_add_with_addrs_or_offsets (bfd *abfd,
      info_verbose' is true, so make sure they go out at the right
      time.  */
   gdb_flush (gdb_stdout);
-
-  do_cleanups (my_cleanups);
 
   if (objfile->sf == NULL)
     {
@@ -2448,6 +2444,29 @@ reread_symbols (void)
 	      exec_file_attach (bfd_get_filename (objfile->obfd), 0);
 	    }
 
+	  /* Keep the calls order approx. the same as in free_objfile.  */
+
+	  /* Free the separate debug objfiles.  It will be
+	     automatically recreated by sym_read.  */
+	  free_objfile_separate_debug (objfile);
+
+	  /* Remove any references to this objfile in the global
+	     value lists.  */
+	  preserve_values (objfile);
+
+	  /* Nuke all the state that we will re-read.  Much of the following
+	     code which sets things to NULL really is necessary to tell
+	     other parts of GDB that there is nothing currently there.
+
+	     Try to keep the freeing order compatible with free_objfile.  */
+
+	  if (objfile->sf != NULL)
+	    {
+	      (*objfile->sf->sym_finish) (objfile);
+	    }
+
+	  clear_objfile_data (objfile);
+
 	  /* Clean up any state BFD has sitting around.  We don't need
 	     to close the descriptor but BFD lacks a way of closing the
 	     BFD without closing the descriptor.  */
@@ -2472,27 +2491,6 @@ reread_symbols (void)
 		     alloca (SIZEOF_N_SECTION_OFFSETS (num_offsets)));
 	  memcpy (offsets, objfile->section_offsets,
 		  SIZEOF_N_SECTION_OFFSETS (num_offsets));
-
-	  /* Remove any references to this objfile in the global
-	     value lists.  */
-	  preserve_values (objfile);
-
-	  /* Nuke all the state that we will re-read.  Much of the following
-	     code which sets things to NULL really is necessary to tell
-	     other parts of GDB that there is nothing currently there.
-
-	     Try to keep the freeing order compatible with free_objfile.  */
-
-	  if (objfile->sf != NULL)
-	    {
-	      (*objfile->sf->sym_finish) (objfile);
-	    }
-
-	  clear_objfile_data (objfile);
-
-	  /* Free the separate debug objfiles.  It will be
-	     automatically recreated by sym_read.  */
-          free_objfile_separate_debug (objfile);
 
 	  /* FIXME: Do we have to free a whole linked list, or is this
 	     enough?  */

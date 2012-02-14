@@ -1,8 +1,6 @@
 /* Print and select stack frames for GDB, the GNU debugger.
 
-   Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008,
-   2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1986-2005, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -47,6 +45,7 @@
 #include "cp-support.h"
 #include "disasm.h"
 #include "inline-frame.h"
+#include "linespec.h"
 
 #include "gdb_assert.h"
 #include <ctype.h>
@@ -2444,20 +2443,25 @@ func_command (char *arg, int from_tty)
   int i;
   int level = 1;
   struct function_bounds *func_bounds = NULL;
+  struct cleanup *cleanups;
 
   if (arg != NULL)
     return;
 
   frame = parse_frame_specification ("0");
-  sals = decode_line_spec (arg, 1);
+  sals = decode_line_spec (arg, DECODE_LINE_FUNFIRSTLINE);
+  cleanups = make_cleanup (xfree, sals.sals);
   func_bounds = (struct function_bounds *) xmalloc (
 			      sizeof (struct function_bounds) * sals.nelts);
+  make_cleanup (xfree, func_bounds);
   for (i = 0; (i < sals.nelts && !found); i++)
     {
-      if (sals.sals[i].pc == 0
-	  || find_pc_partial_function (sals.sals[i].pc, NULL,
-				       &func_bounds[i].low,
-				       &func_bounds[i].high) == 0)
+      if (sals.sals[i].pspace != current_program_space)
+	func_bounds[i].low = func_bounds[i].high = 0;
+      else if (sals.sals[i].pc == 0
+	       || find_pc_partial_function (sals.sals[i].pc, NULL,
+					    &func_bounds[i].low,
+					    &func_bounds[i].high) == 0)
 	{
 	  func_bounds[i].low = func_bounds[i].high = 0;
 	}
@@ -2476,8 +2480,7 @@ func_command (char *arg, int from_tty)
     }
   while (!found && level == 0);
 
-  if (func_bounds)
-    xfree (func_bounds);
+  do_cleanups (cleanups);
 
   if (!found)
     printf_filtered (_("'%s' not within current stack frame.\n"), arg);

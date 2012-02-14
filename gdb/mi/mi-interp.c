@@ -1,7 +1,6 @@
 /* MI Interpreter Definitions and Commands for GDB, the GNU debugger.
 
-   Copyright (C) 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2002-2005, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -427,8 +426,14 @@ mi_on_normal_stop (struct bpstats *bs, int print_frame)
 	     the frame again.  In practice, this can only happen when running
 	     a CLI command in MI.  */
 	  struct ui_out *saved_uiout = current_uiout;
+	  struct target_waitstatus last;
+	  ptid_t last_ptid;
 
 	  current_uiout = mi_uiout;
+
+	  get_last_target_status (&last_ptid, &last);
+	  bpstat_print (bs, last.kind);
+
 	  print_stack_frame (get_selected_frame (NULL), 0, SRC_AND_LOC);
 	  current_uiout = saved_uiout;
 	}

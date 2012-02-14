@@ -1,7 +1,6 @@
 /* YACC parser for C++ names, for GDB.
 
-   Copyright (C) 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2005, 2007-2012 Free Software Foundation, Inc.
 
    Parts of the lexer are based on c-exp.y from GDB.
 
@@ -2028,9 +2027,6 @@ cp_merge_demangle_parse_infos (struct demangle_parse_info *dest,
   /* Clear the (pointer to) SRC's parse data so that it is not freed when
      cp_demangled_parse_info_free is called.  */
   src->info = NULL;
-
-  /* Assert if the SRC obstack is not empty.  */
-  gdb_assert (obstack_empty_p (&src->obstack));
 
   /* Free SRC.  */
   cp_demangled_name_parse_free (src);

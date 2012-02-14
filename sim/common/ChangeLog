@@ -1,3 +1,31 @@
+2012-01-02  Joel Brobecker  <brobecker@adacore.com>
+
+	* dv-sockser.h, sim-assert.h, sim-fpu.c: Reformat the copyright
+	header.
+
+2011-12-19  Joel Brobecker  <brobecker@adacore.com>
+
+	* Make-common.in (hw-config.h): Work around bug in Solaris 2.8
+	system bourne shell.
+
+2011-12-03  Mike Frysinger  <vapier@gentoo.org>
+
+	* syscall.c (cb_get_string): Rename from "get_string".
+	(get_path): Rename get_string call to cb_get_string.
+
+2011-12-03  Mike Frysinger  <vapier@gentoo.org>
+
+	* Make-common.in (VPATH): Add $(srccom).
+	(DEP): Delete.
+	(DEPMODE, DEPDIR, depcomp, COMPILE.pre, COMPILE.post, COMPILE,
+	POSTCOMPILE): New variables.
+	(.c.o): Replace recipe with call to $(COMPILE) and $(POSTCOMPILE).
+	Include dependency files, when using GNU Make.  Delete all
+	dependency-only rules.
+	* aclocal.m4: Include ../../config/depstand.m4.  Call
+	ZW_CREATE_DEPDIR and ZW_PROG_COMPILER_DEPENDENCIES.
+	(MAKE, GMAKE): New substs.
+
 2011-11-07  Mike Frysinger  <vapier@gentoo.org>
 
 	PR sim/13161

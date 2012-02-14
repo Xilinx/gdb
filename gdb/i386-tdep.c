@@ -1,8 +1,6 @@
 /* Intel 386 target-dependent stuff.
 
-   Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-   2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1988-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -1682,7 +1680,10 @@ i386_frame_cache_1 (struct frame_info *this_frame,
   get_frame_register (this_frame, I386_EBP_REGNUM, buf);
   cache->base = extract_unsigned_integer (buf, 4, byte_order);
   if (cache->base == 0)
-    return;
+    {
+      cache->base_p = 1;
+      return;
+    }
 
   /* For normal frames, %eip is stored at 4(%ebp).  */
   cache->saved_regs[I386_EIP_REGNUM] = 4;
@@ -7109,10 +7110,12 @@ static const int i386_record_regmap[] =
 };
 
 /* Check that the given address appears suitable for a fast
-   tracepoint, which on x86 means that we need an instruction of at
+   tracepoint, which on x86-64 means that we need an instruction of at
    least 5 bytes, so that we can overwrite it with a 4-byte-offset
    jump and not have to worry about program jumps to an address in the
-   middle of the tracepoint jump.  Returns 1 if OK, and writes a size
+   middle of the tracepoint jump.  On x86, it may be possible to use
+   4-byte jumps with a 2-byte offset to a trampoline located in the
+   bottom 64 KiB of memory.  Returns 1 if OK, and writes a size
    of instruction to replace, and 0 if not, plus an explanatory
    string.  */
 
@@ -7123,10 +7126,26 @@ i386_fast_tracepoint_valid_at (struct gdbarch *gdbarch,
   int len, jumplen;
   static struct ui_file *gdb_null = NULL;
 
-  /* This is based on the target agent using a 4-byte relative jump.
-     Alternate future possibilities include 8-byte offset for x86-84,
-     or 3-byte jumps if the program has trampoline space close by.  */
-  jumplen = 5;
+  /*  Ask the target for the minimum instruction length supported.  */
+  jumplen = target_get_min_fast_tracepoint_insn_len ();
+
+  if (jumplen < 0)
+    {
+      /* If the target does not support the get_min_fast_tracepoint_insn_len
+	 operation, assume that fast tracepoints will always be implemented
+	 using 4-byte relative jumps on both x86 and x86-64.  */
+      jumplen = 5;
+    }
+  else if (jumplen == 0)
+    {
+      /* If the target does support get_min_fast_tracepoint_insn_len but
+	 returns zero, then the IPA has not loaded yet.  In this case,
+	 we optimistically assume that truncated 2-byte relative jumps
+	 will be available on x86, and compensate later if this assumption
+	 turns out to be incorrect.  On x86-64 architectures, 4-byte relative
+	 jumps will always be used.  */
+      jumplen = (register_size (gdbarch, 0) == 8) ? 5 : 4;
+    }
 
   /* Dummy file descriptor for the disassembler.  */
   if (!gdb_null)
@@ -7134,6 +7153,9 @@ i386_fast_tracepoint_valid_at (struct gdbarch *gdbarch,
 
   /* Check for fit.  */
   len = gdb_print_insn (gdbarch, addr, gdb_null, NULL);
+  if (isize)
+    *isize = len;
+
   if (len < jumplen)
     {
       /* Return a bit of target-specific detail to add to the caller's
@@ -7144,12 +7166,12 @@ i386_fast_tracepoint_valid_at (struct gdbarch *gdbarch,
 			   len, jumplen);
       return 0;
     }
-
-  if (isize)
-    *isize = len;
-  if (msg)
-    *msg = NULL;
-  return 1;
+  else
+    {
+      if (msg)
+	*msg = NULL;
+      return 1;
+    }
 }
 
 static int

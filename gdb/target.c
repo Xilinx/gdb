@@ -1,8 +1,6 @@
 /* Select target systems and architectures at runtime for GDB.
 
-   Copyright (C) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1990-2012 Free Software Foundation, Inc.
 
    Contributed by Cygnus Support.
 
@@ -675,12 +673,14 @@ update_current_target (void)
       INHERIT (to_supports_string_tracing, t);
       INHERIT (to_trace_init, t);
       INHERIT (to_download_tracepoint, t);
+      INHERIT (to_can_download_tracepoint, t);
       INHERIT (to_download_trace_state_variable, t);
       INHERIT (to_enable_tracepoint, t);
       INHERIT (to_disable_tracepoint, t);
       INHERIT (to_trace_set_readonly_regions, t);
       INHERIT (to_trace_start, t);
       INHERIT (to_get_trace_status, t);
+      INHERIT (to_get_tracepoint_status, t);
       INHERIT (to_trace_stop, t);
       INHERIT (to_trace_find, t);
       INHERIT (to_get_trace_state_variable_value, t);
@@ -688,8 +688,10 @@ update_current_target (void)
       INHERIT (to_upload_tracepoints, t);
       INHERIT (to_upload_trace_state_variables, t);
       INHERIT (to_get_raw_trace_data, t);
+      INHERIT (to_get_min_fast_tracepoint_insn_len, t);
       INHERIT (to_set_disconnected_tracing, t);
       INHERIT (to_set_circular_trace_buffer, t);
+      INHERIT (to_set_trace_notes, t);
       INHERIT (to_get_tib_address, t);
       INHERIT (to_set_permissions, t);
       INHERIT (to_static_tracepoint_marker_at, t);
@@ -848,8 +850,11 @@ update_current_target (void)
 	    (void (*) (void))
 	    tcomplain);
   de_fault (to_download_tracepoint,
-	    (void (*) (struct breakpoint *))
+	    (void (*) (struct bp_location *))
 	    tcomplain);
+  de_fault (to_can_download_tracepoint,
+	    (int (*) (void))
+	    return_zero);
   de_fault (to_download_trace_state_variable,
 	    (void (*) (struct trace_state_variable *))
 	    tcomplain);
@@ -868,6 +873,9 @@ update_current_target (void)
   de_fault (to_get_trace_status,
 	    (int (*) (struct trace_status *))
 	    return_minus_one);
+  de_fault (to_get_tracepoint_status,
+	    (void (*) (struct breakpoint *, struct uploaded_tp *))
+	    tcomplain);
   de_fault (to_trace_stop,
 	    (void (*) (void))
 	    tcomplain);
@@ -889,12 +897,18 @@ update_current_target (void)
   de_fault (to_get_raw_trace_data,
 	    (LONGEST (*) (gdb_byte *, ULONGEST, LONGEST))
 	    tcomplain);
+  de_fault (to_get_min_fast_tracepoint_insn_len,
+	    (int (*) (void))
+	    return_minus_one);
   de_fault (to_set_disconnected_tracing,
 	    (void (*) (int))
 	    target_ignore);
   de_fault (to_set_circular_trace_buffer,
 	    (void (*) (int))
 	    target_ignore);
+  de_fault (to_set_trace_notes,
+	    (int (*) (char *, char *, char *))
+	    return_zero);
   de_fault (to_get_tib_address,
 	    (int (*) (ptid_t, CORE_ADDR *))
 	    tcomplain);
@@ -1372,18 +1386,14 @@ memory_xfer_live_readonly_partial (struct target_ops *ops,
    For docs see target.h, to_xfer_partial.  */
 
 static LONGEST
-memory_xfer_partial (struct target_ops *ops, enum target_object object,
-		     void *readbuf, const void *writebuf, ULONGEST memaddr,
-		     LONGEST len)
+memory_xfer_partial_1 (struct target_ops *ops, enum target_object object,
+		       void *readbuf, const void *writebuf, ULONGEST memaddr,
+		       LONGEST len)
 {
   LONGEST res;
   int reg_len;
   struct mem_region *region;
   struct inferior *inf;
-
-  /* Zero length requests are ok and require no work.  */
-  if (len == 0)
-    return 0;
 
   /* For accesses to unmapped overlay sections, read directly from
      files.  Must do this first, as MEMADDR may need adjustment.  */
@@ -1535,11 +1545,7 @@ memory_xfer_partial (struct target_ops *ops, enum target_object object,
       if (res <= 0)
 	return -1;
       else
-	{
-	  if (readbuf && !show_memory_breakpoints)
-	    breakpoint_restore_shadows (readbuf, memaddr, reg_len);
-	  return res;
-	}
+	return res;
     }
 
   /* If none of those methods found the memory we wanted, fall back
@@ -1568,9 +1574,6 @@ memory_xfer_partial (struct target_ops *ops, enum target_object object,
     }
   while (ops != NULL);
 
-  if (res > 0 && readbuf != NULL && !show_memory_breakpoints)
-    breakpoint_restore_shadows (readbuf, memaddr, reg_len);
-
   /* Make sure the cache gets updated no matter what - if we are writing
      to the stack.  Even if this write is not tagged as such, we still need
      to update the cache.  */
@@ -1587,6 +1590,48 @@ memory_xfer_partial (struct target_ops *ops, enum target_object object,
 
   /* If we still haven't got anything, return the last error.  We
      give up.  */
+  return res;
+}
+
+/* Perform a partial memory transfer.  For docs see target.h,
+   to_xfer_partial.  */
+
+static LONGEST
+memory_xfer_partial (struct target_ops *ops, enum target_object object,
+		     void *readbuf, const void *writebuf, ULONGEST memaddr,
+		     LONGEST len)
+{
+  int res;
+
+  /* Zero length requests are ok and require no work.  */
+  if (len == 0)
+    return 0;
+
+  /* Fill in READBUF with breakpoint shadows, or WRITEBUF with
+     breakpoint insns, thus hiding out from higher layers whether
+     there are software breakpoints inserted in the code stream.  */
+  if (readbuf != NULL)
+    {
+      res = memory_xfer_partial_1 (ops, object, readbuf, NULL, memaddr, len);
+
+      if (res > 0 && !show_memory_breakpoints)
+	breakpoint_xfer_memory (readbuf, NULL, NULL, memaddr, res);
+    }
+  else
+    {
+      void *buf;
+      struct cleanup *old_chain;
+
+      buf = xmalloc (len);
+      old_chain = make_cleanup (xfree, buf);
+      memcpy (buf, writebuf, len);
+
+      breakpoint_xfer_memory (NULL, buf, writebuf, memaddr, len);
+      res = memory_xfer_partial_1 (ops, object, NULL, buf, memaddr, len);
+
+      do_cleanups (old_chain);
+    }
+
   return res;
 }
 
@@ -1739,6 +1784,25 @@ target_write_memory (CORE_ADDR memaddr, const gdb_byte *myaddr, int len)
      Memory accesses check target->to_has_(all_)memory, and the
      flattened target doesn't inherit those.  */
   if (target_write (current_target.beneath, TARGET_OBJECT_MEMORY, NULL,
+		    myaddr, memaddr, len) == len)
+    return 0;
+  else
+    return EIO;
+}
+
+/* Write LEN bytes from MYADDR to target raw memory at address
+   MEMADDR.  Returns either 0 for success or an errno value if any
+   error occurs.  If an error occurs, no guarantee is made about how
+   much data got written.  Callers that can deal with partial writes
+   should call target_write.  */
+
+int
+target_write_raw_memory (CORE_ADDR memaddr, const gdb_byte *myaddr, int len)
+{
+  /* Dispatch to the topmost target, not the flattened current_target.
+     Memory accesses check target->to_has_(all_)memory, and the
+     flattened target doesn't inherit those.  */
+  if (target_write (current_target.beneath, TARGET_OBJECT_RAW_MEMORY, NULL,
 		    myaddr, memaddr, len) == len)
     return 0;
   else
@@ -3443,6 +3507,8 @@ target_waitstatus_to_string (const struct target_waitstatus *ws)
       return xstrprintf ("%signore", kind_str);
     case TARGET_WAITKIND_NO_HISTORY:
       return xstrprintf ("%sno-history", kind_str);
+    case TARGET_WAITKIND_NO_RESUMED:
+      return xstrprintf ("%sno-resumed", kind_str);
     default:
       return xstrprintf ("%sunknown???", kind_str);
     }

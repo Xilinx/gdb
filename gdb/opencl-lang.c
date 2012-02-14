@@ -1,5 +1,5 @@
 /* OpenCL language support for GDB, the GNU debugger.
-   Copyright (C) 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2010-2012 Free Software Foundation, Inc.
 
    Contributed by Ken Werner <ken.werner@de.ibm.com>.
 
@@ -1024,6 +1024,8 @@ const struct language_defn opencl_language_defn =
   default_print_array_index,
   default_pass_by_reference,
   c_get_string,
+  strcmp_iw_ordered,
+  iterate_over_symbols,
   LANG_MAGIC
 };
 

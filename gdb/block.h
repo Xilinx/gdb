@@ -1,7 +1,6 @@
 /* Code dealing with blocks for GDB.
 
-   Copyright (C) 2003, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -130,6 +129,8 @@ struct blockvector
 #define BLOCKVECTOR_MAP(blocklist) ((blocklist)->map)
 
 extern struct symbol *block_linkage_function (const struct block *);
+
+extern struct symbol *block_containing_function (const struct block *);
 
 extern int block_inlined_p (const struct block *block);
 

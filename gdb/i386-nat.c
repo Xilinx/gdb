@@ -1,7 +1,7 @@
 /* Native-dependent code for the i386.
 
-   Copyright (C) 2001, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2001, 2004-2005, 2007-2012 Free Software Foundation,
+   Inc.
 
    This file is part of GDB.
 
@@ -684,8 +684,14 @@ i386_insert_hw_breakpoint (struct gdbarch *gdbarch,
 {
   unsigned len_rw = i386_length_and_rw_bits (1, hw_execute);
   CORE_ADDR addr = bp_tgt->placed_address;
-  int retval = i386_insert_aligned_watchpoint (&dr_mirror,
+  /* Work on a local copy of the debug registers, and on success,
+     commit the change back to the inferior.  */
+  struct i386_debug_reg_state local_state = dr_mirror;
+  int retval = i386_insert_aligned_watchpoint (&local_state,
 					       addr, len_rw) ? EBUSY : 0;
+
+  if (retval == 0)
+    i386_update_inferior_debug_regs (&local_state);
 
   if (maint_show_dr)
     i386_show_dr (&dr_mirror, "insert_hwbp", addr, 1, hw_execute);
@@ -702,8 +708,14 @@ i386_remove_hw_breakpoint (struct gdbarch *gdbarch,
 {
   unsigned len_rw = i386_length_and_rw_bits (1, hw_execute);
   CORE_ADDR addr = bp_tgt->placed_address;
-  int retval = i386_remove_aligned_watchpoint (&dr_mirror,
+  /* Work on a local copy of the debug registers, and on success,
+     commit the change back to the inferior.  */
+  struct i386_debug_reg_state local_state = dr_mirror;
+  int retval = i386_remove_aligned_watchpoint (&local_state,
 					       addr, len_rw);
+
+  if (retval == 0)
+    i386_update_inferior_debug_regs (&local_state);
 
   if (maint_show_dr)
     i386_show_dr (&dr_mirror, "remove_hwbp", addr, 1, hw_execute);

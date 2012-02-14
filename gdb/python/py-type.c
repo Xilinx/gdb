@@ -1,6 +1,6 @@
 /* Python interface to types.
 
-   Copyright (C) 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2008-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -327,9 +327,39 @@ typy_fields_items (PyObject *self, enum gdbpy_iter_kind kind)
 /* Return a sequence of all fields.  Each field is a gdb.Field object.  */
 
 static PyObject *
-typy_fields (PyObject *self, PyObject *args)
+typy_values (PyObject *self, PyObject *args)
 {
   return typy_fields_items (self, iter_values);
+}
+
+/* Return a sequence of all fields.  Each field is a gdb.Field object.
+   This method is similar to typy_values, except where the supplied 
+   gdb.Type is an array, in which case it returns a list of one entry
+   which is a gdb.Field object for a range (the array bounds).  */
+
+static PyObject *
+typy_fields (PyObject *self, PyObject *args)
+{
+  struct type *type = ((type_object *) self)->type;
+  PyObject *r, *rl;
+  
+  if (TYPE_CODE (type) != TYPE_CODE_ARRAY)
+    return typy_fields_items (self, iter_values);
+
+  /* Array type.  Handle this as a special case because the common
+     machinery wants struct or union or enum types.  Build a list of
+     one entry which is the range for the array.  */
+  r = convert_field (type, 0);
+  if (r == NULL)
+    return NULL;
+  
+  rl = Py_BuildValue ("[O]", r);
+  if (rl == NULL)
+    {
+      Py_DECREF (r);
+    }
+
+  return rl;
 }
 
 /* Return a sequence of all field names.  Each field is a gdb.Field object.  */
@@ -365,8 +395,57 @@ static PyObject *
 typy_strip_typedefs (PyObject *self, PyObject *args)
 {
   struct type *type = ((type_object *) self)->type;
+  volatile struct gdb_exception except;
+
+  TRY_CATCH (except, RETURN_MASK_ALL)
+    {
+      type = check_typedef (type);
+    }
+  GDB_PY_HANDLE_EXCEPTION (except);
 
   return type_to_type_object (check_typedef (type));
+}
+
+/* Strip typedefs and pointers/reference from a type.  Then check that
+   it is a struct, union, or enum type.  If not, raise TypeError.  */
+
+static struct type *
+typy_get_composite (struct type *type)
+{
+  volatile struct gdb_exception except;
+
+  for (;;)
+    {
+      TRY_CATCH (except, RETURN_MASK_ALL)
+	{
+	  CHECK_TYPEDEF (type);
+	}
+      /* Don't use GDB_PY_HANDLE_EXCEPTION here because that returns
+	 a (NULL) pointer of the wrong type.  */
+      if (except.reason < 0)
+	{
+	  gdbpy_convert_exception (except);
+	  return NULL;
+	}
+
+      if (TYPE_CODE (type) != TYPE_CODE_PTR
+	  && TYPE_CODE (type) != TYPE_CODE_REF)
+	break;
+      type = TYPE_TARGET_TYPE (type);
+    }
+
+  /* If this is not a struct, union, or enum type, raise TypeError
+     exception.  */
+  if (TYPE_CODE (type) != TYPE_CODE_STRUCT 
+      && TYPE_CODE (type) != TYPE_CODE_UNION
+      && TYPE_CODE (type) != TYPE_CODE_ENUM)
+    {
+      PyErr_SetString (PyExc_TypeError,
+		       "Type is not a structure, union, or enum type.");
+      return NULL;
+    }
+  
+  return type;
 }
 
 /* Return an array type.  */
@@ -696,10 +775,11 @@ typy_legacy_template_argument (struct type *type, const struct block *block,
 {
   int i;
   struct demangle_component *demangled;
-  struct demangle_parse_info *info;
+  struct demangle_parse_info *info = NULL;
   const char *err;
   struct type *argtype;
   struct cleanup *cleanup;
+  volatile struct gdb_exception except;
 
   if (TYPE_NAME (type) == NULL)
     {
@@ -707,8 +787,13 @@ typy_legacy_template_argument (struct type *type, const struct block *block,
       return NULL;
     }
 
-  /* Note -- this is not thread-safe.  */
-  info = cp_demangled_name_to_comp (TYPE_NAME (type), &err);
+  TRY_CATCH (except, RETURN_MASK_ALL)
+    {
+      /* Note -- this is not thread-safe.  */
+      info = cp_demangled_name_to_comp (TYPE_NAME (type), &err);
+    }
+  GDB_PY_HANDLE_EXCEPTION (except);
+
   if (! info)
     {
       PyErr_SetString (PyExc_RuntimeError, err);
@@ -862,7 +947,7 @@ DEF_VEC_O (type_equality_entry_d);
    the same, 0 otherwise.  Handles NULLs properly.  */
 
 static int
-compare_strings (const char *s, const char *t)
+compare_maybe_null_strings (const char *s, const char *t)
 {
   if (s == NULL && t != NULL)
     return 0;
@@ -898,9 +983,10 @@ check_types_equal (struct type *type1, struct type *type2,
       || TYPE_NFIELDS (type1) != TYPE_NFIELDS (type2))
     return Py_NE;
 
-  if (!compare_strings (TYPE_TAG_NAME (type1), TYPE_TAG_NAME (type2)))
+  if (!compare_maybe_null_strings (TYPE_TAG_NAME (type1),
+				   TYPE_TAG_NAME (type2)))
     return Py_NE;
-  if (!compare_strings (TYPE_NAME (type1), TYPE_NAME (type2)))
+  if (!compare_maybe_null_strings (TYPE_NAME (type1), TYPE_NAME (type2)))
     return Py_NE;
 
   if (TYPE_CODE (type1) == TYPE_CODE_RANGE)
@@ -923,7 +1009,8 @@ check_types_equal (struct type *type1, struct type *type2,
 	      || FIELD_BITSIZE (*field1) != FIELD_BITSIZE (*field2)
 	      || FIELD_LOC_KIND (*field1) != FIELD_LOC_KIND (*field2))
 	    return Py_NE;
-	  if (!compare_strings (FIELD_NAME (*field1), FIELD_NAME (*field2)))
+	  if (!compare_maybe_null_strings (FIELD_NAME (*field1),
+					   FIELD_NAME (*field2)))
 	    return Py_NE;
 	  switch (FIELD_LOC_KIND (*field1))
 	    {
@@ -937,8 +1024,8 @@ check_types_equal (struct type *type1, struct type *type2,
 		return Py_NE;
 	      break;
 	    case FIELD_LOC_KIND_PHYSNAME:
-	      if (!compare_strings (FIELD_STATIC_PHYSNAME (*field1),
-				    FIELD_STATIC_PHYSNAME (*field2)))
+	      if (!compare_maybe_null_strings (FIELD_STATIC_PHYSNAME (*field1),
+					       FIELD_STATIC_PHYSNAME (*field2)))
 		return Py_NE;
 	      break;
 	    case FIELD_LOC_KIND_DWARF_BLOCK:
@@ -1143,7 +1230,21 @@ typy_length (PyObject *self)
 {
   struct type *type = ((type_object *) self)->type;
 
+  type = typy_get_composite (type);
+  if (type == NULL)
+    return -1;
+
   return TYPE_NFIELDS (type);
+}
+
+/* Implements boolean evaluation of gdb.Type.  Handle this like other
+   Python objects that don't have a meaningful truth value -- all 
+   values are true.  */
+
+static int
+typy_nonzero (PyObject *self)
+{
+  return 1;
 }
 
 /* Return a gdb.Field object for the field named by the argument.  */
@@ -1164,20 +1265,10 @@ typy_getitem (PyObject *self, PyObject *key)
      using lookup_struct_elt_type, portions of that function are
      copied here.  */
 
-  for (;;)
-    {
-      TRY_CATCH (except, RETURN_MASK_ALL)
-	{
-	  CHECK_TYPEDEF (type);
-	}
-      GDB_PY_HANDLE_EXCEPTION (except);
-
-      if (TYPE_CODE (type) != TYPE_CODE_PTR
-	  && TYPE_CODE (type) != TYPE_CODE_REF)
-	break;
-      type = TYPE_TARGET_TYPE (type);
-    }
-
+  type = typy_get_composite (type);
+  if (type == NULL)
+    return NULL;
+  
   for (i = 0; i < TYPE_NFIELDS (type); i++)
     {
       char *t_field_name = TYPE_FIELD_NAME (type, i);
@@ -1235,18 +1326,9 @@ typy_has_key (PyObject *self, PyObject *args)
      using lookup_struct_elt_type, portions of that function are
      copied here.  */
 
-  for (;;)
-    {
-      TRY_CATCH (except, RETURN_MASK_ALL)
-	{
-	  CHECK_TYPEDEF (type);
-	}
-      GDB_PY_HANDLE_EXCEPTION (except);
-      if (TYPE_CODE (type) != TYPE_CODE_PTR
-	  && TYPE_CODE (type) != TYPE_CODE_REF)
-	break;
-      type = TYPE_TARGET_TYPE (type);
-    }
+  type = typy_get_composite (type);
+  if (type == NULL)
+    return NULL;
 
   for (i = 0; i < TYPE_NFIELDS (type); i++)
     {
@@ -1265,6 +1347,10 @@ typy_make_iter (PyObject *self, enum gdbpy_iter_kind kind)
 {
   typy_iterator_object *typy_iter_obj;
 
+  /* Check that "self" is a structure or union type.  */
+  if (typy_get_composite (((type_object *) self)->type) == NULL)
+    return NULL;
+  
   typy_iter_obj = PyObject_New (typy_iterator_object,
 				&type_iterator_object_type);
   if (typy_iter_obj == NULL)
@@ -1456,8 +1542,10 @@ static PyGetSetDef type_object_getset[] =
 static PyMethodDef type_object_methods[] =
 {
   { "array", typy_array, METH_VARARGS,
-    "array (N) -> Type\n\
-Return a type which represents an array of N objects of this type." },
+    "array ([LOW_BOUND,] HIGH_BOUND) -> Type\n\
+Return a type which represents an array of objects of this type.\n\
+The bounds of the array are [LOW_BOUND, HIGH_BOUND] inclusive.\n\
+If LOW_BOUND is omitted, a value of zero is used." },
    { "__contains__", typy_has_key, METH_VARARGS,
      "T.__contains__(k) -> True if T has a field named k, else False" },
   { "const", typy_const, METH_NOARGS,
@@ -1508,7 +1596,7 @@ Return the type of a template argument." },
   { "unqualified", typy_unqualified, METH_NOARGS,
     "unqualified () -> Type\n\
 Return a variant of this type without const or volatile attributes." },
-  { "values", typy_fields, METH_NOARGS,
+  { "values", typy_values, METH_NOARGS,
     "values () -> list\n\
 Return a list holding all the fields of this type.\n\
 Each field is a gdb.Field object." },
@@ -1516,6 +1604,32 @@ Each field is a gdb.Field object." },
     "volatile () -> Type\n\
 Return a volatile variant of this type" },
   { NULL }
+};
+
+static PyNumberMethods type_object_as_number = {
+  NULL,			      /* nb_add */
+  NULL,			      /* nb_subtract */
+  NULL,			      /* nb_multiply */
+  NULL,			      /* nb_divide */
+  NULL,			      /* nb_remainder */
+  NULL,			      /* nb_divmod */
+  NULL,			      /* nb_power */
+  NULL,			      /* nb_negative */
+  NULL,			      /* nb_positive */
+  NULL,			      /* nb_absolute */
+  typy_nonzero,		      /* nb_nonzero */
+  NULL,			      /* nb_invert */
+  NULL,			      /* nb_lshift */
+  NULL,			      /* nb_rshift */
+  NULL,			      /* nb_and */
+  NULL,			      /* nb_xor */
+  NULL,			      /* nb_or */
+  NULL,			      /* nb_coerce */
+  NULL,			      /* nb_int */
+  NULL,			      /* nb_long */
+  NULL,			      /* nb_float */
+  NULL,			      /* nb_oct */
+  NULL			      /* nb_hex */
 };
 
 static PyMappingMethods typy_mapping = {
@@ -1537,7 +1651,7 @@ static PyTypeObject type_object_type =
   0,				  /*tp_setattr*/
   0,				  /*tp_compare*/
   0,				  /*tp_repr*/
-  0,				  /*tp_as_number*/
+  &type_object_as_number,	  /*tp_as_number*/
   0,				  /*tp_as_sequence*/
   &typy_mapping,		  /*tp_as_mapping*/
   0,				  /*tp_hash */

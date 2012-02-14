@@ -1966,6 +1966,8 @@ elf32_arm_nabi_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 	return FALSE;
 
       case 124:		/* Linux/ARM elf_prpsinfo.  */
+	elf_tdata (abfd)->core_pid
+	 = bfd_get_32 (abfd, note->descdata + 12);
 	elf_tdata (abfd)->core_program
 	 = _bfd_elfcore_strndup (abfd, note->descdata + 28, 16);
 	elf_tdata (abfd)->core_command
@@ -6931,7 +6933,7 @@ elf32_thumb_to_arm_stub (struct bfd_link_info * info,
 	{
 	  (*_bfd_error_handler)
 	    (_("%B(%s): warning: interworking not enabled.\n"
-	       "  first occurrence: %B: thumb call to arm"),
+	       "  first occurrence: %B: Thumb call to ARM"),
 	     sym_sec->owner, input_bfd, name);
 
 	  return FALSE;

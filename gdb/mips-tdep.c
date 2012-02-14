@@ -1,8 +1,6 @@
 /* Target-dependent code for the MIPS architecture, for GDB, the GNU Debugger.
 
-   Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-   2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1988-2012 Free Software Foundation, Inc.
 
    Contributed by Alessandro Forin(af@cs.cmu.edu) at CMU
    and by Per Bothner(bothner@cs.wisc.edu) at U.Wisconsin.
@@ -989,18 +987,15 @@ mips_pc_is_mips16 (CORE_ADDR memaddr)
 {
   struct minimal_symbol *sym;
 
-  /* If bit 0 of the address is set, assume this is a MIPS16 address.  */
-  if (is_mips16_addr (memaddr))
-    return 1;
-
-  /* A flag indicating that this is a MIPS16 function is stored by elfread.c in
-     the high bit of the info field.  Use this to decide if the function is
-     MIPS16 or normal MIPS.  */
+  /* A flag indicating that this is a MIPS16 function is stored by
+     elfread.c in the high bit of the info field.  Use this to decide
+     if the function is MIPS16 or normal MIPS.  Otherwise if bit 0 of
+     the address is set, assume this is a MIPS16 address.  */
   sym = lookup_minimal_symbol_by_pc (memaddr);
   if (sym)
     return msymbol_is_special (sym);
   else
-    return 0;
+    return is_mips16_addr (memaddr);
 }
 
 /* MIPS believes that the PC has a sign extended value.  Perhaps the
@@ -1147,7 +1142,7 @@ mips32_next_pc (struct frame_info *frame, CORE_ADDR pc)
 	    get_frame_register_signed (frame,
 				       mips_regnum (get_frame_arch (frame))->
 						fp_control_status);
-	  int cond = ((fcrcs >> 24) & 0x0e) | ((fcrcs >> 23) & 0x01);
+	  int cond = ((fcrcs >> 24) & 0xfe) | ((fcrcs >> 23) & 0x01);
 
 	  if (((cond >> cnum) & 0x01) == tf)
 	    pc += mips32_relative_offset (inst) + 4;
@@ -1321,11 +1316,13 @@ static CORE_ADDR
 extended_offset (unsigned int extension)
 {
   CORE_ADDR value;
-  value = (extension >> 21) & 0x3f;	/* * extract 15:11 */
+
+  value = (extension >> 16) & 0x1f;	/* Extract 15:11.  */
   value = value << 6;
-  value |= (extension >> 16) & 0x1f;	/* extract 10:5 */
+  value |= (extension >> 21) & 0x3f;	/* Extract 10:5.  */
   value = value << 5;
-  value |= extension & 0x01f;	/* extract 4:0 */
+  value |= extension & 0x1f;		/* Extract 4:0.  */
+
   return value;
 }
 
@@ -1362,14 +1359,13 @@ unpack_mips16 (struct gdbarch *gdbarch, CORE_ADDR pc,
 	CORE_ADDR value;
 	if (extension)
 	  {
-	    value = extended_offset (extension);
-	    value = value << 11;	/* rom for the original value */
-	    value |= inst & 0x7ff;	/* eleven bits from instruction */
+	    value = extended_offset ((extension << 16) | inst);
+	    value = (value ^ 0x8000) - 0x8000;		/* Sign-extend.  */
 	  }
 	else
 	  {
 	    value = inst & 0x7ff;
-	    /* FIXME : Consider sign extension.  */
+	    value = (value ^ 0x400) - 0x400;		/* Sign-extend.  */
 	  }
 	offset = value;
 	regx = -1;
@@ -1384,28 +1380,16 @@ unpack_mips16 (struct gdbarch *gdbarch, CORE_ADDR pc,
 	CORE_ADDR value;
 	if (extension)
 	  {
-	    value = extended_offset (extension);
-	    value = value << 8;		/* from the original instruction */
-	    value |= inst & 0xff;	/* eleven bits from instruction */
-	    regx = (extension >> 8) & 0x07;	/* or i8 funct */
-	    if (value & 0x4000)		/* Test the sign bit, bit 26.  */
-	      {
-		value &= ~0x3fff;	/* Remove the sign bit.  */
-		value = -value;
-	      }
+	    value = extended_offset ((extension << 16) | inst);
+	    value = (value ^ 0x8000) - 0x8000;		/* Sign-extend.  */
 	  }
 	else
 	  {
-	    value = inst & 0xff;	/* 8 bits */
-	    regx = (inst >> 8) & 0x07;	/* or i8 funct */
-	    /* FIXME: Do sign extension, this format needs it.  */
-	    if (value & 0x80)	/* THIS CONFUSES ME.  */
-	      {
-		value &= 0xef;	/* Remove the sign bit.  */
-		value = -value;
-	      }
+	    value = inst & 0xff;			/* 8 bits */
+	    value = (value ^ 0x80) - 0x80;		/* Sign-extend.  */
 	  }
 	offset = value;
+	regx = (inst >> 8) & 0x07;			/* i8 funct */
 	regy = -1;
 	break;
       }
@@ -1451,13 +1435,7 @@ extended_mips16_next_pc (struct frame_info *frame, CORE_ADDR pc,
 	CORE_ADDR offset;
 	struct upk_mips16 upk;
 	unpack_mips16 (gdbarch, pc, extension, insn, itype, &upk);
-	offset = upk.offset;
-	if (offset & 0x800)
-	  {
-	    offset &= 0xeff;
-	    offset = -offset;
-	  }
-	pc += (offset << 1) + 2;
+	pc += (upk.offset << 1) + 2;
 	break;
       }
     case 3:			/* JAL , JALX - Watch out, these are 32 bit
@@ -1477,7 +1455,7 @@ extended_mips16_next_pc (struct frame_info *frame, CORE_ADDR pc,
 	struct upk_mips16 upk;
 	int reg;
 	unpack_mips16 (gdbarch, pc, extension, insn, ritype, &upk);
-	reg = get_frame_register_signed (frame, upk.regx);
+	reg = get_frame_register_signed (frame, mips16_to_32_reg[upk.regx]);
 	if (reg == 0)
 	  pc += (upk.offset << 1) + 2;
 	else
@@ -1489,7 +1467,7 @@ extended_mips16_next_pc (struct frame_info *frame, CORE_ADDR pc,
 	struct upk_mips16 upk;
 	int reg;
 	unpack_mips16 (gdbarch, pc, extension, insn, ritype, &upk);
-	reg = get_frame_register_signed (frame, upk.regx);
+	reg = get_frame_register_signed (frame, mips16_to_32_reg[upk.regx]);
 	if (reg != 0)
 	  pc += (upk.offset << 1) + 2;
 	else
@@ -1521,21 +1499,10 @@ extended_mips16_next_pc (struct frame_info *frame, CORE_ADDR pc,
 	    int reg;
 	    upk.regx = (insn >> 8) & 0x07;
 	    upk.regy = (insn >> 5) & 0x07;
-	    switch (upk.regy)
-	      {
-	      case 0:
-		reg = upk.regx;
-		break;
-	      case 1:
-		reg = 31;
-		break;		/* Function return instruction.  */
-	      case 2:
-		reg = upk.regx;
-		break;
-	      default:
-		reg = 31;
-		break;		/* BOGUS Guess */
-	      }
+	    if ((upk.regy & 1) == 0)
+	      reg = mips16_to_32_reg[upk.regx];
+	    else
+	      reg = 31;		/* Function return instruction.  */
 	    pc = get_frame_register_signed (frame, reg);
 	  }
 	else
@@ -1577,7 +1544,7 @@ mips16_next_pc (struct frame_info *frame, CORE_ADDR pc)
 static CORE_ADDR
 mips_next_pc (struct frame_info *frame, CORE_ADDR pc)
 {
-  if (is_mips16_addr (pc))
+  if (mips_pc_is_mips16 (pc))
     return mips16_next_pc (frame, pc);
   else
     return mips32_next_pc (frame, pc);
@@ -2247,7 +2214,8 @@ restart:
                    || high_word == 0x3408 /* ori $t0,$zero,n */
                   ))
        {
-          load_immediate_bytes += MIPS_INSN32_SIZE;     	/* FIXME!  */
+	 if (end_prologue_addr == 0)
+	   load_immediate_bytes += MIPS_INSN32_SIZE;		/* FIXME!  */
        }
       else
        {
@@ -2621,7 +2589,7 @@ deal_with_atomic_sequence (struct gdbarch *gdbarch,
 	    return 0; /* fallback to the standard single-step code.  */
 	  break;
 	case 1: /* REGIMM */
-	  is_branch = ((itype_rt (insn) & 0xc0) == 0); /* B{LT,GE}Z* */
+	  is_branch = ((itype_rt (insn) & 0xc) == 0); /* B{LT,GE}Z* */
 	  break;
 	case 2: /* J */
 	case 3: /* JAL */
@@ -5386,7 +5354,6 @@ mips_skip_mips16_trampoline_code (struct frame_info *frame, CORE_ADDR pc)
 	         address from those two instructions.  */
 
 	      CORE_ADDR target_pc = get_frame_register_signed (frame, 2);
-	      ULONGEST inst;
 	      int i;
 
 	      /* See if the name of the target function is  __fn_stub_*.  */
@@ -5403,11 +5370,15 @@ mips_skip_mips16_trampoline_code (struct frame_info *frame, CORE_ADDR pc)
 	         instructions.  FIXME.  */
 	      for (i = 0, pc = 0; i < 20; i++, target_pc += MIPS_INSN32_SIZE)
 		{
-		  inst = mips_fetch_instruction (gdbarch, target_pc);
+		  ULONGEST inst = mips_fetch_instruction (gdbarch, target_pc);
+		  CORE_ADDR addr = inst;
+
 		  if ((inst & 0xffff0000) == 0x3c010000)	/* lui $at */
-		    pc = (inst << 16) & 0xffff0000;		/* high word */
+		    pc = (((addr & 0xffff) ^ 0x8000) - 0x8000) << 16;
+								/* high word */
 		  else if ((inst & 0xffff0000) == 0x24210000)	/* addiu $at */
-		    return pc | (inst & 0xffff);		/* low word */
+		    return pc + ((addr & 0xffff) ^ 0x8000) - 0x8000;
+								/* low word */
 		}
 
 	      /* Couldn't find the lui/addui pair, so return stub address.  */

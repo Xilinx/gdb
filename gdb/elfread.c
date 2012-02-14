@@ -1,8 +1,6 @@
 /* Read ELF (Executable and Linking Format) object files for GDB.
 
-   Copyright (C) 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1991-2012 Free Software Foundation, Inc.
 
    Written by Fred Fish at Cygnus Support.
 
@@ -1032,7 +1030,7 @@ elf_gnu_ifunc_resolver_return_stop (struct breakpoint *b)
     }
   gdb_assert (b->type == bp_gnu_ifunc_resolver);
 
-  gdb_assert (current_program_space == b->pspace);
+  gdb_assert (current_program_space == b->pspace || b->pspace == NULL);
   elf_gnu_ifunc_record_cache (b->addr_string, resolved_pc);
 
   sal = find_pc_line (resolved_pc, 0);

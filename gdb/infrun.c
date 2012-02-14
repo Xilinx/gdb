@@ -1,9 +1,7 @@
 /* Target-struct-independent code to start (run) and stop an inferior
    process.
 
-   Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1986-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -5971,22 +5969,10 @@ normal_stop (void)
 	  int do_frame_printing = 1;
 	  struct thread_info *tp = inferior_thread ();
 
-	  bpstat_ret = bpstat_print (tp->control.stop_bpstat);
+	  bpstat_ret = bpstat_print (tp->control.stop_bpstat, last.kind);
 	  switch (bpstat_ret)
 	    {
 	    case PRINT_UNKNOWN:
-	      /* If we had hit a shared library event breakpoint,
-		 bpstat_print would print out this message.  If we hit
-		 an OS-level shared library event, do the same
-		 thing.  */
-	      if (last.kind == TARGET_WAITKIND_LOADED)
-		{
-		  printf_filtered (_("Stopped due to shared library event\n"));
-		  source_flag = SRC_LINE;	/* something bogus */
-		  do_frame_printing = 0;
-		  break;
-		}
-
 	      /* FIXME: cagney/2002-12-01: Given that a frame ID does
 	         (or should) carry around the function and does (or
 	         should) use that when doing a frame comparison.  */

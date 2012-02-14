@@ -1,7 +1,5 @@
 /* Data structures associated with breakpoints in GDB.
-   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1992-2004, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -186,14 +184,6 @@ enum enable_state
 			    automatically enabled and reset when the
 			    call "lands" (either completes, or stops
 			    at another eventpoint).  */
-    bp_startup_disabled, /* The eventpoint has been disabled during
-			    inferior startup.  This is necessary on
-			    some targets where the main executable
-			    will get relocated during startup, making
-			    breakpoint addresses invalid.  The
-			    eventpoint will be automatically enabled
-			    and reset once inferior startup is
-			    complete.  */
     bp_permanent	 /* There is a breakpoint instruction
 			    hard-wired into the target's code.  Don't
 			    try to write another breakpoint
@@ -335,7 +325,11 @@ struct bp_location
   char inserted;
 
   /* Nonzero if this is not the first breakpoint in the list
-     for the given address.  */
+     for the given address.  location of tracepoint can _never_
+     be duplicated with other locations of tracepoints and other
+     kinds of breakpoints, because two locations at the same
+     address may have different actions, so both of these locations
+     should be downloaded and so that `tfind N' always works.  */
   char duplicate;
 
   /* If we someday support real thread-specific breakpoints, then
@@ -401,6 +395,14 @@ struct bp_location
      This variable keeps a number of events still to go, when
      it becomes 0 this location is retired.  */
   int events_till_retirement;
+
+  /* Line number of this address.  */
+
+  int line_number;
+
+  /* Source file name of this address.  */
+
+  char *source_file;
 };
 
 /* This structure is a collection of function pointers that, if available,
@@ -548,14 +550,6 @@ struct breakpoint
     /* Location(s) associated with this high-level breakpoint.  */
     struct bp_location *loc;
 
-    /* Line number of this address.  */
-
-    int line_number;
-
-    /* Source file name of this address.  */
-
-    char *source_file;
-
     /* Non-zero means a silent breakpoint (don't print frame info
        if we stop here).  */
     unsigned char silent;
@@ -571,11 +565,18 @@ struct breakpoint
        equals this.  */
     struct frame_id frame_id;
 
-    /* The program space used to set the breakpoint.  */
+    /* The program space used to set the breakpoint.  This is only set
+       for breakpoints which are specific to a program space; for
+       non-thread-specific ordinary breakpoints this is NULL.  */
     struct program_space *pspace;
 
     /* String we used to set the breakpoint (malloc'd).  */
     char *addr_string;
+
+    /* The filter that should be passed to decode_line_full when
+       re-setting this breakpoint.  This may be NULL, but otherwise is
+       allocated with xmalloc.  */
+    char *filter;
 
     /* For a ranged breakpoint, the string we used to find
        the end of the range (malloc'd).  */
@@ -705,6 +706,10 @@ struct tracepoint
 
   /* The number of the tracepoint on the target.  */
   int number_on_target;
+
+  /* The total space taken by all the trace frames for this
+     tracepoint.  */
+  ULONGEST traceframe_usage;
 
   /* The static tracepoint marker id, if known.  */
   char *static_trace_marker_id;
@@ -876,7 +881,7 @@ extern int bpstat_should_step (void);
 /* Print a message indicating what happened.  Returns nonzero to
    say that only the source line should be printed after this (zero
    return means print the frame as well as the source line).  */
-extern enum print_stop_action bpstat_print (bpstat);
+extern enum print_stop_action bpstat_print (bpstat, int);
 
 /* Put in *NUM the breakpoint number of the first breakpoint we are
    stopped at.  *BSP upon return is a bpstat which points to the
@@ -1094,9 +1099,11 @@ extern void
 /* Add breakpoint B on the breakpoint list, and notify the user, the
    target and breakpoint_created observers of its existence.  If
    INTERNAL is non-zero, the breakpoint number will be allocated from
-   the internal breakpoint count.  */
+   the internal breakpoint count.  If UPDATE_GLL is non-zero,
+   update_global_location_list will be called.  */
 
-extern void install_breakpoint (int internal, struct breakpoint *b);
+extern void install_breakpoint (int internal, struct breakpoint *b,
+				int update_gll);
 
 extern int create_breakpoint (struct gdbarch *gdbarch, char *arg,
 			      char *cond_string, int thread,
@@ -1287,10 +1294,17 @@ extern int deprecated_remove_raw_breakpoint (struct gdbarch *, void *);
    target.  */
 int watchpoints_triggered (struct target_waitstatus *);
 
-/* Update BUF, which is LEN bytes read from the target address MEMADDR,
-   by replacing any memory breakpoints with their shadowed contents.  */
-void breakpoint_restore_shadows (gdb_byte *buf, ULONGEST memaddr, 
-				 LONGEST len);
+/* Helper for transparent breakpoint hiding for memory read and write
+   routines.
+
+   Update one of READBUF or WRITEBUF with either the shadows
+   (READBUF), or the breakpoint instructions (WRITEBUF) of inserted
+   breakpoints at the memory range defined by MEMADDR and extending
+   for LEN bytes.  If writing, then WRITEBUF is a copy of WRITEBUF_ORG
+   on entry.*/
+extern void breakpoint_xfer_memory (gdb_byte *readbuf, gdb_byte *writebuf,
+				    const gdb_byte *writebuf_org,
+				    ULONGEST memaddr, LONGEST len);
 
 extern int breakpoints_always_inserted_mode (void);
 

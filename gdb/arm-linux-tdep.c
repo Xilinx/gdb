@@ -1,7 +1,6 @@
 /* GNU/Linux on ARM target support.
 
-   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1999-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -843,7 +842,12 @@ arm_linux_software_single_step (struct frame_info *frame)
 {
   struct gdbarch *gdbarch = get_frame_arch (frame);
   struct address_space *aspace = get_frame_address_space (frame);
-  CORE_ADDR next_pc = arm_get_next_pc (frame, get_frame_pc (frame));
+  CORE_ADDR next_pc;
+
+  if (arm_deal_with_atomic_sequence (frame))
+    return 1;
+
+  next_pc = arm_get_next_pc (frame, get_frame_pc (frame));
 
   /* The Linux kernel offers some user-mode helpers in a high page.  We can
      not read this page (as of 2.6.23), and even if we could then we couldn't

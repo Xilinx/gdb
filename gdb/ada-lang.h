@@ -1,7 +1,7 @@
 /* Ada language support definitions for GDB, the GNU debugger.
 
-   Copyright (C) 1992, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-   2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1997-2005, 2007-2012 Free Software Foundation,
+   Inc.
 
    This file is part of GDB.
 
@@ -364,6 +364,8 @@ extern void ada_find_printable_frame (struct frame_info *fi);
 extern char *ada_breakpoint_rewrite (char *, int *);
 
 extern char *ada_main_name (void);
+
+extern char *ada_name_for_lookup (const char *name);
 
 /* Tasking-related: ada-tasks.c */
 

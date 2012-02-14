@@ -1,4 +1,4 @@
-# Copyright (C) 2009, 2010, 2011 Free Software Foundation, Inc.
+# Copyright (C) 2009-2012 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -93,7 +93,7 @@ gdb_py_test_multiple "Test Normal Error" \
   "NormalError ()" "" \
   "end" ""
 
-gdb_test_no_output "set python print-stack on"
+gdb_test_no_output "set python print-stack full"
 gdb_test "print \$normalerror()" "Traceback.*File.*line 5.*in invoke.*RuntimeError.*This is a Normal Error.*" \
     "Test a Runtime error.  There should be a stack trace."
 

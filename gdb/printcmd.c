@@ -1,8 +1,6 @@
 /* Print values for GNU debugger GDB.
 
-   Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1986-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -32,6 +30,7 @@
 #include "target.h"
 #include "breakpoint.h"
 #include "demangle.h"
+#include "gdb-demangle.h"
 #include "valprint.h"
 #include "annotate.h"
 #include "symfile.h"		/* for overlay functions */
@@ -61,9 +60,6 @@
 #else
 # define USE_PRINTF_I64 0
 #endif
-
-extern int asm_demangle;	/* Whether to demangle syms in asm
-				   printouts.  */
 
 struct format_data
   {

@@ -1,3 +1,202 @@
+2012-01-06  Joel Brobecker  <brobecker@adacore.com>
+
+	* terminal.h: Reformat copyright header.
+
+2012-01-02  Joel Brobecker  <brobecker@adacore.com>
+
+	* server.c (gdbserver_version): Update copyright year.
+	* gdbreplay.c (gdbreplay_version): Likewise.
+
+2011-12-13  Yao Qi  <yao@codesourcery.com>
+
+	* tracepoint.c (trace_buffer_alloc): Replace magic numbers with
+	macros.
+	(upload_fast_traceframes, upload_fast_traceframes): Likewise.
+
+2011-12-08  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* linux-low.c (linux_kill): Skip PTRACE_KILL if LWP does not exist.
+	Print new debug message for such case.
+
+2011-12-06  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix overlapping memcpy.
+	* mem-break.c (set_raw_breakpoint_at): New variable buf.  Use it for
+	the read_inferior_memory transfer.
+	(delete_fast_tracepoint_jump): New variable buf.  Use it for the
+	write_inferior_memory transfer.
+	(set_fast_tracepoint_jump): New variable buf.  Use it for the
+	read_inferior_memory and write_inferior_memory transfers.
+	(uninsert_fast_tracepoint_jumps_at, reinsert_fast_tracepoint_jumps_at)
+	(delete_raw_breakpoint, uninsert_raw_breakpoint): New variable buf.
+	Use it for the write_inferior_memory transfer.
+	(check_mem_read, check_mem_write): New gdb_asserts for overlapping
+	buffers.
+
+2011-12-06  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* linux-low.c (fetch_register, store_register): Make code
+	consistent, fix formatting.
+
+2011-12-06  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* linux-low.c (usr_store_inferior_registers): Factor out code
+	to handle individual registers into...
+	(store_register): ... this new function.
+
+2011-12-06  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* Makefile.in (s390-linux32v1.o, s390-linux32v1.c): New rules.
+	(s390-linux32v2.o, s390-linux32v2.c): Likewise.
+	(s390-linux64v1.o, s390-linux64v1.c): Likewise.
+	(s390-linux64v2.o, s390-linux64v2.c): Likewise.
+	(s390x-linux64v1.o, s390x-linux64v1.c): Likewise.
+	(s390x-linux64v2.o, s390x-linux64v2.c): Likewise.
+	* configure.srv [s390*-*-linux*] (srv_regobj): Add new objects.
+	(srv_xmlfiles): Add new XML files.
+
+	* linux-s390-low.c: Include "elf/common.h", <sys/ptrace.h>,
+	and <sys/uio.h>.
+	(PTRACE_GETREGSET, PTRACE_SETREGSET): Define if undefined.
+	(init_registers_s390_linux32v1): Add prototype.
+	(init_registers_s390_linux32v2): Likewise.
+	(init_registers_s390_linux64v1): Likewise.
+	(init_registers_s390_linux64v2): Likewise.
+	(init_registers_s390x_linux64v1): Likewise.
+	(init_registers_s390x_linux64v2): Likewise.
+	(s390_num_regs): Increment to 52.
+	(s390_regmap): Add orig_r2 register.
+	(s390_num_regs_3264): Increment to 68.
+	(s390_regmap_3264): Add orig_r2 register.
+	(s390_collect_ptrace_register): Handle orig_r2 register.
+	(s390_supply_ptrace_register): Likewise.
+	(s390_fill_last_break): New function.
+	(s390_store_last_break): Likewise.
+	(s390_fill_system_call): New function.
+	(s390_store_system_call): Likewise.
+	(target_regsets): Handle NT_S390_LAST_BREAK and NT_S390_SYSTEM_CALL
+	register sets.
+	(s390_check_regset): New function.
+	(s390_arch_setup): Check for presence of NT_S390_LAST_BREAK and
+	NT_S390_SYSTEM_CALL regsets and use appropriate description.
+	Update target_regsets for available register sets.
+
+2011-12-02  Paul Pluzhnikov  <ppluzhnikov@google.com>
+	    Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* linux-low.c (get_phdr_phnum_from_proc_auxv, get_dynamic, get_r_debug)
+	(read_one_ptr, struct link_map_offsets, linux_qxfer_libraries_svr4):
+	New.
+	(struct linux_target_ops): Install linux_qxfer_libraries_svr4.
+	* linux-low.h (struct process_info_private): New member r_debug.
+	* server.c (handle_qxfer_libraries): Call
+	the_target->qxfer_libraries_svr4.
+	(handle_qxfer_libraries_svr4): New function.
+	(qxfer_packets): New entry "libraries-svr4".
+	(handle_query): Check QXFER_LIBRARIES_SVR4 and report libraries-svr4.
+	* target.h (struct target_ops): New member qxfer_libraries_svr4.
+	* remote.c (remote_xfer_partial): Call add_packet_config_cmd for
+	PACKET_qXfer_libraries_svr4.
+
+2011-11-30  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* linux-s390-low.c (s390_collect_ptrace_register): Fully convert
+	PSW address/mask between 8-byte and 16-byte formats.
+	(s390_supply_ptrace_register): Likewise.
+	(s390_get_pc, s390_set_pc): 4-byte PSW address always includes
+	basic addressing mode bit.
+
+2011-11-24  Stan Shebs  <stan@codesourcery.com>
+
+	* tracepoint.c (cmd_qtstatus): Use plongest instead of %llx.
+
+2011-11-17  Stan Shebs  <stan@codesourcery.com>
+
+	* tracepoint.c (struct tracepoint): New field traceframe_usage.
+	(tracing_start_time): New global.
+	(tracing_stop_time): New global.
+	(tracing_user_name): New global.
+	(tracing_notes): New global.
+	(tracing_stop_note): New global.
+	(cmd_qtstart): Set traceframe_usage, start_time.
+	(stop_tracing): Set stop_time.
+	(cmd_qtstatus): Report additional status.
+	(cmd_qtp): New function.
+	(handle_tracepoint_query): Call it.
+	(cmd_qtnotes): New function.
+	(handle_tracepoint_general_set): Call it.
+	(get_timestamp): Rename from tsv_get_timestamp.
+
+2011-11-14  Stan Shebs  <stan@codesourcery.com>
+	    Kwok Cheung Yeung  <kcy@codesourcery.com>
+
+	* linux-x86-low.c (small_jump_insn): New.
+	(i386_install_fast_tracepoint_jump_pad): Add arguments for
+	trampoline and error message, build a trampoline and issue a small
+	jump instruction to it.
+	(x86_install_fast_tracepoint_jump_pad): Add arguments for
+	trampoline and error message.
+	(x86_get_min_fast_tracepoint_insn_len): New.
+	(the_low_target): Add call to x86_get_min_fast_tracepoint_insn_len.
+	* linux-low.h (struct linux_target_ops): Add arguments to
+	install_fast_tracepoint_jump_pad operation, add new operation.
+	* linux-low.c (linux_install_fast_tracepoint_jump_pad): Add
+	arguments.
+	(linux_get_min_fast_tracepoint_insn_len): New function.
+	(linux_target_op): Add new operation.
+	* tracepoint.c (gdb_trampoline_buffer): New IPA variable.
+	(gdb_trampoline_buffer_end): Ditto.
+	(gdb_trampoline_buffer_error): Ditto.
+	(struct ipa_sym_addresses): Add fields for new IPA variables.
+	(symbol_list): Add entries for new IPA variables.
+	(struct tracepoint): Add fields to hold the address range of the
+	trampoline used by the tracepoint.
+	(trampoline_buffer_head): New static variable.
+	(trampoline_buffer_tail): Ditto.
+	(claim_trampoline_space): New function.
+	(have_fast_tracepoint_trampoline_buffer): New function.
+	(clone_fast_tracepoint): Fill in trampoline fields of tracepoint
+	structure.
+	(install_fast_tracepoint): Ditto, also add error buffer argument.
+	(cmd_qtminftpilen): New function.
+	(handle_tracepoint_query): Add response to qTMinFTPILen packet.
+	(fast_tracepoint_from_trampoline_address): New function.
+	(fast_tracepoint_collecting): Handle trampoline as part of jump
+	pad space.
+	(set_trampoline_buffer_space): New function.
+	(initialize_tracepoint): Initialize new IPA variables.
+	* target.h (struct target_ops): Add arguments to
+	install_fast_tracepoint_jump_pad operation, add new
+	get_min_fast_tracepoint_insn_len operation.
+	(target_get_min_fast_tracepoint_insn_len): New.
+	(install_fast_tracepoint_jump_pad): Add arguments.
+	* server.h (IPA_BUFSIZ): Define.
+	* linux-i386-ipa.c: Include extra header files.
+	(initialize_fast_tracepoint_trampoline_buffer): New function.
+	(initialize_low_tracepoint): Call it.
+	* server.h (set_trampoline_buffer_space): Declare.
+	(claim_trampoline_space): Ditto.
+	(have_fast_tracepoint_trampoline_buffer): Ditto.
+
+2011-11-14  Yao Qi  <yao@codesourcery.com>
+
+	* server.c (handle_query): Handle InstallInTrace for qSupported.
+	* tracepoint.c (add_tracepoint): Sort list.
+	(install_tracepoint, download_tracepoint): New.
+	(cmd_qtdp): Call them to install and download tracepoints.
+	(sort_tracepoints): Removed.
+	(cmd_qtstart): Update.
+
+2011-11-14  Yao Qi  <yao@codesourcery.com>
+
+	* mem-break.c (inc_ref_fast_tracepoint_jump): New.
+	* mem-break.h: Declare.
+	* tracepoint.c (cmd_qtstart): Move some code to ...
+	(clone_fast_tracepoint, install_fast_tracepoint): ... here.
+	New.
+	(download_tracepoints): Move some code to ...
+	(download_tracepoint_1): ... here.  New.
+
 2011-11-08  Yao Qi  <yao@codesourcery.com>
 
 	* remote-utils.c (relocate_instruction): A comment fix.

@@ -1,7 +1,5 @@
 dnl Autoconf configure script for GDB, the GNU debugger.
-dnl Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-dnl 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-dnl Free Software Foundation, Inc.
+dnl Copyright (C) 1995-2012 Free Software Foundation, Inc.
 dnl
 dnl This file is part of GDB.
 dnl 
@@ -605,6 +603,34 @@ AC_SUBST(READLINE_DEPS)
 AC_SUBST(READLINE_CFLAGS)
 AC_SUBST(READLINE_TEXI_INCFLAG)
 
+# Generate jit-reader.h
+
+# This is typedeffed to GDB_CORE_ADDR in jit-reader.h
+TARGET_PTR=
+
+AC_CHECK_SIZEOF(unsigned long long)
+AC_CHECK_SIZEOF(unsigned long)
+AC_CHECK_SIZEOF(unsigned __int128)
+
+if test "x${ac_cv_sizeof_unsigned_long}" = "x8"; then
+  TARGET_PTR="unsigned long"
+elif test "x${ac_cv_sizeof_unsigned_long_long}" = "x8"; then
+  TARGET_PTR="unsigned long long"
+elif test "x${ac_cv_sizeof_unsigned___int128}" = "x16"; then
+  TARGET_PTR="unsigned __int128"
+else
+  TARGET_PTR="unsigned long"
+fi
+
+AC_SUBST(TARGET_PTR)
+AC_CONFIG_FILES([jit-reader.h:jit-reader.in])
+
+AC_SEARCH_LIBS(dlopen, dl)
+
+GDB_AC_WITH_DIR([JIT_READER_DIR], [jit-reader-dir],
+                [directory to load the JIT readers from],
+                [${libdir}/gdb])
+
 AC_ARG_WITH(expat,
   AS_HELP_STRING([--with-expat], [include expat support (auto/yes/no)]),
   [], [with_expat=auto])
@@ -955,7 +981,8 @@ AC_CHECK_HEADERS([nlist.h machine/reg.h poll.h sys/poll.h proc_service.h \
 		  sys/resource.h sys/procfs.h sys/ptrace.h ptrace.h \
 		  sys/reg.h sys/debugreg.h sys/select.h sys/syscall.h \
 		  sys/types.h sys/wait.h wait.h termios.h termio.h \
-		  sgtty.h unistd.h elf_hp.h ctype.h time.h locale.h])
+		  sgtty.h unistd.h elf_hp.h ctype.h time.h locale.h \
+		  dlfcn.h])
 AC_CHECK_HEADERS(link.h, [], [],
 [#if HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -1778,11 +1805,6 @@ AC_ARG_ENABLE(werror,
      no | n)  ERROR_ON_WARNING="no" ;;
      *) AC_MSG_ERROR(bad value ${enableval} for --enable-werror) ;;
    esac])
-
-# Enable -Werror by default when using gcc
-if test "${GCC}" = yes -a -z "${ERROR_ON_WARNING}" ; then
-    ERROR_ON_WARNING=yes
-fi
 
 WERROR_CFLAGS=""
 if test "${ERROR_ON_WARNING}" = yes ; then

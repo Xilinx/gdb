@@ -1,9 +1,8 @@
 /* Variables that describe the inferior process running under GDB:
    Where it is, why it stopped, and how to step it.
 
-   Copyright (C) 1986, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
-   1998, 1999, 2000, 2001, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-   2011 Free Software Foundation, Inc.
+   Copyright (C) 1986, 1988-1996, 1998-2001, 2003-2012 Free Software
+   Foundation, Inc.
 
    This file is part of GDB.
 
@@ -268,6 +267,9 @@ extern void delete_longjmp_breakpoint_cleanup (void *arg);
 extern void detach_command (char *, int);
 
 extern void notice_new_inferior (ptid_t, int, int);
+
+extern struct value *get_return_value (struct type *func_type,
+                                       struct type *value_type);
 
 /* Address at which inferior stopped.  */
 

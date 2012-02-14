@@ -1,8 +1,6 @@
 /* GDB routines for manipulating objfiles.
 
-   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1992-2004, 2007-2012 Free Software Foundation, Inc.
 
    Contributed by Cygnus Support, using pieces from other GDB modules.
 
@@ -162,12 +160,6 @@ add_to_objfile_sections (struct bfd *abfd, struct bfd_section *asect,
 int
 build_objfile_section_table (struct objfile *objfile)
 {
-  /* objfile->sections can be already set when reading a mapped symbol
-     file.  I believe that we do need to rebuild the section table in
-     this case (we rebuild other things derived from the bfd), but we
-     can't free the old one (it's in the objfile_obstack).  So we just
-     waste some memory.  */
-
   objfile->sections_end = 0;
   bfd_map_over_sections (objfile->obfd,
 			 add_to_objfile_sections, (void *) objfile);

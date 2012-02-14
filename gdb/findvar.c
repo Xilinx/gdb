@@ -1,8 +1,7 @@
 /* Find a variable's value in memory, for GDB, the GNU debugger.
 
-   Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2001, 2003, 2004, 2005, 2007, 2008, 2009,
-   2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1986-2001, 2003-2005, 2007-2012 Free Software
+   Foundation, Inc.
 
    This file is part of GDB.
 
@@ -631,31 +630,37 @@ default_value_from_register (struct type *type, int regnum,
 void
 read_frame_register_value (struct value *value, struct frame_info *frame)
 {
+  struct gdbarch *gdbarch = get_frame_arch (frame);
   int offset = 0;
+  int reg_offset = value_offset (value);
   int regnum = VALUE_REGNUM (value);
-  const int len = TYPE_LENGTH (check_typedef (value_type (value)));
+  int len = TYPE_LENGTH (check_typedef (value_type (value)));
 
   gdb_assert (VALUE_LVAL (value) == lval_register);
 
-  while (offset < len)
+  /* Skip registers wholly inside of REG_OFFSET.  */
+  while (reg_offset >= register_size (gdbarch, regnum))
+    {
+      reg_offset -= register_size (gdbarch, regnum);
+      regnum++;
+    }
+
+  /* Copy the data.  */
+  while (len > 0)
     {
       struct value *regval = get_frame_register_value (frame, regnum);
-      int reg_len = TYPE_LENGTH (value_type (regval));
-      int reg_offset = 0;
+      int reg_len = TYPE_LENGTH (value_type (regval)) - reg_offset;
 
       /* If the register length is larger than the number of bytes
          remaining to copy, then only copy the appropriate bytes.  */
-      if (offset + reg_len > len)
-	{
-	  reg_len = len - offset;
-	  if (gdbarch_byte_order (get_frame_arch (frame)) == BFD_ENDIAN_BIG)
-	    reg_offset = TYPE_LENGTH (value_type (regval)) - reg_len;
-	}
+      if (reg_len > len)
+	reg_len = len;
 
-      value_contents_copy (value, offset, regval,
-                           value_offset (regval) + reg_offset, reg_len);
+      value_contents_copy (value, offset, regval, reg_offset, reg_len);
 
       offset += reg_len;
+      len -= reg_len;
+      reg_offset = 0;
       regnum++;
     }
 }

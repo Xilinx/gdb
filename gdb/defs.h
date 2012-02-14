@@ -1,9 +1,8 @@
 /* *INDENT-OFF* */ /* ATTRIBUTE_PRINTF confuses indent, avoid running it
 		      for now.  */
 /* Basic, host-specific, and target-specific definitions for GDB.
-   Copyright (C) 1986, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
-   1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009,
-   2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1986, 1988-2005, 2007-2012 Free Software Foundation,
+   Inc.
 
    This file is part of GDB.
 
@@ -148,9 +147,6 @@ typedef bfd_vma CORE_ADDR;
 #endif
 
 #include "ptid.h"
-
-/* Check if a character is one of the commonly used C++ marker characters.  */
-extern int is_cplus_marker (int);
 
 /* Enable xdb commands if set.  */
 extern int xdb_commands;
@@ -428,6 +424,7 @@ char *ldirname (const char *filename);
 char **gdb_buildargv (const char *);
 
 int compare_positive_ints (const void *ap, const void *bp);
+int compare_strings (const void *ap, const void *bp);
 
 /* A wrapper for bfd_errmsg to produce a more helpful error message
    in the case of bfd_error_file_ambiguously recognized.
@@ -441,10 +438,6 @@ extern int parse_pid_to_attach (char *args);
 extern struct cleanup *make_bpstat_clear_actions_cleanup (void);
 
 extern int producer_is_gcc_ge_4 (const char *producer);
-
-/* From demangle.c */
-
-extern void set_demangling_style (char *);
 
 
 /* Annotation stuff.  */
