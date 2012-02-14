@@ -1,3 +1,8 @@
+2012-02-13  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* linux-low.c (linux_qxfer_libraries_svr4): Update call to
+	elf_64_file_p.
+
 2011-03-03  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* Makefile.in: Replace intel32 with x32.

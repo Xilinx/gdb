@@ -5205,6 +5205,7 @@ linux_qxfer_libraries_svr4 (const char *annex, unsigned char *readbuf,
   struct process_info_private *const priv = current_process ()->private;
   char filename[PATH_MAX];
   int pid, is_elf64;
+  unsigned int machine;
 
   static const struct link_map_offsets lmo_32bit_offsets =
     {
@@ -5236,7 +5237,7 @@ linux_qxfer_libraries_svr4 (const char *annex, unsigned char *readbuf,
 
   pid = lwpid_of (get_thread_lwp (current_inferior));
   xsnprintf (filename, sizeof filename, "/proc/%d/exe", pid);
-  is_elf64 = elf_64_file_p (filename);
+  is_elf64 = elf_64_file_p (filename, &machine);
   lmo = is_elf64 ? &lmo_64bit_offsets : &lmo_32bit_offsets;
 
   if (priv->r_debug == 0)
