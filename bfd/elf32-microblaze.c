@@ -177,6 +177,20 @@ static reloc_howto_type microblaze_elf_howto_raw[] =
           FALSE), 		/* PC relative offset?  */
 
    /* This reloc does nothing.  Used for relaxation.  */
+   HOWTO (R_MICROBLAZE_32_NONE,	/* Type.  */
+          0,			/* Rightshift.  */
+          2,			/* Size (0 = byte, 1 = short, 2 = long).  */
+          32,			/* Bitsize.  */
+          TRUE,			/* PC_relative.  */
+          0,			/* Bitpos.  */
+          complain_overflow_bitfield,  /* Complain on overflow.  */
+          NULL,                  /* Special Function.  */
+          "R_MICROBLAZE_32_NONE",/* Name.  */
+          FALSE,		/* Partial Inplace.  */
+          0,			/* Source Mask.  */
+          0,			/* Dest Mask.  */
+          FALSE),		/* PC relative offset?  */
+
    HOWTO (R_MICROBLAZE_64_NONE,	/* Type.  */
           0,			/* Rightshift.  */
           2,			/* Size (0 = byte, 1 = short, 2 = long).  */
@@ -532,7 +546,10 @@ microblaze_elf_reloc_type_lookup (bfd * abfd ATTRIBUTE_UNUSED,
     case BFD_RELOC_NONE:
       microblaze_reloc = R_MICROBLAZE_NONE;
       break;
-    case BFD_RELOC_MICROBLAZE_64_NONE:
+    case BFD_RELOC_MICROBLAZE_32_NONE:
+      microblaze_reloc = R_MICROBLAZE_32_NONE;
+      break;
+     case BFD_RELOC_MICROBLAZE_64_NONE:
       microblaze_reloc = R_MICROBLAZE_64_NONE;
       break;
     case BFD_RELOC_32:
@@ -1912,14 +1929,22 @@ microblaze_elf_relax_section (bfd *abfd,
 	        }
 	      break;
 	    case R_MICROBLAZE_NONE:
+	    case R_MICROBLAZE_32_NONE:
 	      {
 	        /* This was a PC-relative instruction that was
  		   completely resolved.  */
 	        int sfix, efix;
+		unsigned int val;
 	        bfd_vma target_address;
 	        target_address = irel->r_addend + irel->r_offset;
 	        sfix = calc_fixup (irel->r_offset, 0, sec);
 	        efix = calc_fixup (target_address, 0, sec);
+
+                /* Validate the in-band val.  */
+                val = bfd_get_32 (abfd, contents + irel->r_offset);
+                if (val != irel->r_addend && ELF32_R_TYPE (irel->r_info) == R_MICROBLAZE_32_NONE) {
+                    fprintf(stderr, "%d: CORRUPT relax reloc %x %lx\n", __LINE__, val, irel->r_addend);
+                }
 	        irel->r_addend -= (efix - sfix);
 	        /* Should use HOWTO.  */
 	        microblaze_bfd_write_imm_value_32 (abfd, contents + irel->r_offset,
@@ -1967,11 +1992,15 @@ microblaze_elf_relax_section (bfd *abfd,
           irelscanend = irelocs + o->reloc_count;
           for (irelscan = irelocs; irelscan < irelscanend; irelscan++)
             {
-              if (ELF32_R_TYPE (irelscan->r_info) == (int) R_MICROBLAZE_NONE)
+              if (1 && ELF32_R_TYPE (irelscan->r_info) == (int) R_MICROBLAZE_32_NONE)
                 {
                   unsigned int val;
 
                   isym = isymbuf + ELF32_R_SYM (irelscan->r_info);
+
+                  /* hax: We only do the following fixup for debug location lists.  */
+                  if (strcmp(".debug_loc", o->name))
+                    continue;
 
                   /* This was a PC-relative instruction that was completely resolved.  */
                   if (ocontents == NULL)
@@ -1997,14 +2026,14 @@ microblaze_elf_relax_section (bfd *abfd,
 		        }
 		    }
 
-                  irelscan->r_addend -= calc_fixup (irelscan->r_addend
-                                                    + isym->st_value, sec);
                   val = bfd_get_32 (abfd, ocontents + irelscan->r_offset);
+                  if (val != irelscan->r_addend) {
+			fprintf(stderr, "%d: CORRUPT relax reloc! %x %lx\n", __LINE__, val, irelscan->r_addend);
+                  }
+
+                  irelscan->r_addend -= calc_fixup (irelscan->r_addend, 0, sec);
                   microblaze_bfd_write_imm_value_32 (abfd, ocontents + irelscan->r_offset,
                                                      irelscan->r_addend);
-              }
-              if (ELF32_R_TYPE (irelscan->r_info) == (int) R_MICROBLAZE_64_NONE) {
-                  fprintf(stderr, "Unhandled NONE 64\n");
               }
               if (ELF32_R_TYPE (irelscan->r_info) == (int) R_MICROBLAZE_32)
                 {
@@ -2065,7 +2094,7 @@ microblaze_elf_relax_section (bfd *abfd,
 			      elf_section_data (o)->this_hdr.contents = ocontents;
 			    }
 			}
-		      irelscan->r_addend -= calc_fixup (irel->r_addend
+		      irelscan->r_addend -= calc_fixup (irelscan->r_addend
 							+ isym->st_value,
 							0,
 							sec);
