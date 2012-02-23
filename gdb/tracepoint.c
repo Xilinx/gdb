@@ -52,6 +52,7 @@
 #include "ax-gdb.h"
 #include "memrange.h"
 #include "exceptions.h"
+#include "cli/cli-utils.h"
 
 /* readline include files */
 #include "readline/readline.h"
@@ -574,6 +575,46 @@ teval_pseudocommand (char *args, int from_tty)
   error (_("This command can only be used in a tracepoint actions list."));
 }
 
+/* Parse any collection options, such as /s for strings.  */
+
+char *
+decode_agent_options (char *exp)
+{
+  struct value_print_options opts;
+
+  if (*exp != '/')
+    return exp;
+
+  /* Call this to borrow the print elements default for collection
+     size.  */
+  get_user_print_options (&opts);
+
+  exp++;
+  if (*exp == 's')
+    {
+      if (target_supports_string_tracing ())
+	{
+	  /* Allow an optional decimal number giving an explicit maximum
+	     string length, defaulting it to the "print elements" value;
+	     so "collect/s80 mystr" gets at most 80 bytes of string.  */
+	  trace_string_kludge = opts.print_max;
+	  exp++;
+	  if (*exp >= '0' && *exp <= '9')
+	    trace_string_kludge = atoi (exp);
+	  while (*exp >= '0' && *exp <= '9')
+	    exp++;
+	}
+      else
+	error (_("Target does not support \"/s\" option for string tracing."));
+    }
+  else
+    error (_("Undefined collection format \"%c\"."), *exp);
+
+  exp = skip_spaces (exp);
+
+  return exp;
+}
+
 /* Enter a list of actions for a tracepoint.  */
 static void
 trace_actions_command (char *args, int from_tty)
@@ -656,6 +697,10 @@ validate_actionline (char **line, struct breakpoint *b)
 
   if (cmd_cfunc_eq (c, collect_pseudocommand))
     {
+      trace_string_kludge = 0;
+      if (*p == '/')
+	p = decode_agent_options (p);
+
       do
 	{			/* Repeat over a comma-separated list.  */
 	  QUIT;			/* Allow user to bail out with ^C.  */
@@ -667,6 +712,7 @@ validate_actionline (char **line, struct breakpoint *b)
 	      if (0 == strncasecmp ("reg", p + 1, 3)
 		  || 0 == strncasecmp ("arg", p + 1, 3)
 		  || 0 == strncasecmp ("loc", p + 1, 3)
+		  || 0 == strncasecmp ("_ret", p + 1, 4)
 		  || 0 == strncasecmp ("_sdata", p + 1, 6))
 		{
 		  p = strchr (p, ',');
@@ -1312,6 +1358,10 @@ encode_actions_1 (struct command_line *action,
 
       if (cmd_cfunc_eq (cmd, collect_pseudocommand))
 	{
+	  trace_string_kludge = 0;
+	  if (*action_exp == '/')
+	    action_exp = decode_agent_options (action_exp);
+
 	  do
 	    {			/* Repeat over a comma-separated list.  */
 	      QUIT;		/* Allow user to bail out with ^C.  */
@@ -1342,6 +1392,43 @@ encode_actions_1 (struct command_line *action,
 				     frame_reg,
 				     frame_offset,
 				     'L');
+		  action_exp = strchr (action_exp, ',');	/* more? */
+		}
+	      else if (0 == strncasecmp ("$_ret", action_exp, 5))
+		{
+		  struct cleanup *old_chain1 = NULL;
+
+		  aexpr = gen_trace_for_return_address (tloc->address,
+							t->gdbarch);
+
+		  old_chain1 = make_cleanup_free_agent_expr (aexpr);
+
+		  ax_reqs (aexpr);
+		  report_agent_reqs_errors (aexpr);
+
+		  discard_cleanups (old_chain1);
+		  add_aexpr (collect, aexpr);
+
+		  /* take care of the registers */
+		  if (aexpr->reg_mask_len > 0)
+		    {
+		      int ndx1, ndx2;
+
+		      for (ndx1 = 0; ndx1 < aexpr->reg_mask_len; ndx1++)
+			{
+			  QUIT;	/* allow user to bail out with ^C */
+			  if (aexpr->reg_mask[ndx1] != 0)
+			    {
+			      /* assume chars have 8 bits */
+			      for (ndx2 = 0; ndx2 < 8; ndx2++)
+				if (aexpr->reg_mask[ndx1] & (1 << ndx2))
+				  /* it's used -- record it */
+				  add_register (collect, 
+						ndx1 * 8 + ndx2);
+			    }
+			}
+		    }
+
 		  action_exp = strchr (action_exp, ',');	/* more? */
 		}
 	      else if (0 == strncasecmp ("$_sdata", action_exp, 7))
@@ -2543,6 +2630,9 @@ trace_dump_actions (struct command_line *action,
 	     STEPPING_ACTIONS should be equal.  */
 	  if (stepping_frame == stepping_actions)
 	    {
+	      if (*action_exp == '/')
+		action_exp = decode_agent_options (action_exp);
+
 	      do
 		{		/* Repeat over a comma-separated list.  */
 		  QUIT;		/* Allow user to bail out with ^C.  */
@@ -2555,6 +2645,8 @@ trace_dump_actions (struct command_line *action,
 
 		  if (0 == strncasecmp (action_exp, "$reg", 4))
 		    registers_info (NULL, from_tty);
+		  else if (0 == strncasecmp (action_exp, "$_ret", 5))
+		    ;
 		  else if (0 == strncasecmp (action_exp, "$loc", 4))
 		    locals_info (NULL, from_tty);
 		  else if (0 == strncasecmp (action_exp, "$arg", 4))
@@ -2885,7 +2977,7 @@ trace_save_command (char *args, int from_tty)
   trace_save (filename, target_does_save);
 
   if (from_tty)
-    printf_filtered (_("Trace data saved to file '%s'.\n"), args);
+    printf_filtered (_("Trace data saved to file '%s'.\n"), filename);
 
   do_cleanups (back_to);
 }

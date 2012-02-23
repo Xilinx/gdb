@@ -588,6 +588,80 @@ proc gdb_collect_global_in_pieces_test { } {
 	"collect global in pieces: cease trace debugging"
 }
 
+proc gdb_collect_return_test { } {
+
+    prepare_for_trace_test
+
+    # We'll simply re-use the args_test_function for this test
+    gdb_test "trace args_test_func" \
+	    "Tracepoint \[0-9\]+ at .*" \
+	    "collect \$_ret: set tracepoint"
+    gdb_trace_setactions "collect \$_ret: define actions" \
+	    "" \
+	    "collect \$_ret" "^$"
+
+    # Begin the test.
+    run_trace_experiment \$_ret args_test_func
+
+    # Since we can't guarantee that $_ret will give us the caller,
+    # pass either way, but giving different messages.
+    gdb_test_multiple "backtrace" "" {
+	-re ".*#1 .* in main .*" {
+	    pass "collect \$_ret: backtrace lists main"
+	}
+	-re ".*#1 .* in ?? .*" {
+	    pass "collect \$_ret: backtrace not listing main"
+	}
+    }
+
+    gdb_test "tfind none" \
+	    "#0  end .*" \
+	    "collect \$_ret: cease trace debugging"
+}
+
+proc gdb_collect_strings_test { func mystr myrslt mylim msg } {
+    global hex
+    global cr
+    global gdb_prompt
+
+    prepare_for_trace_test
+
+    # Find the comment-identified line for setting this tracepoint.
+    set testline 0
+    gdb_test_multiple "list $func, +30" "collect $msg: find tracepoint line" {
+	-re "\[\r\n\](\[0-9\]+)\[^\r\n\]+ Set_Tracepoint_Here .*$gdb_prompt" {
+	    set testline $expect_out(1,string)
+	    pass "collect $msg: find tracepoint line"
+	}
+	-re ".*$gdb_prompt " {
+	    fail "collect $msg: find tracepoint line (skipping strings test)"
+	    return
+	}
+	timeout {
+	    fail "collect $msg: find tracepoint line (skipping strings test)"
+	    return
+	}
+    }
+
+    gdb_test "trace $testline" \
+	    "Tracepoint \[0-9\]+ at .*" \
+	    "collect $msg: set tracepoint"
+    gdb_trace_setactions "collect $msg: define actions" \
+	    "" \
+	    "collect/s$mylim $mystr" "^$"
+
+    # Begin the test.
+    run_trace_experiment $msg $func
+
+    gdb_test "print $mystr" \
+	"\\$\[0-9\]+ = $hex \"$myrslt\".*$cr" \
+	    "collect $msg: collected local string"
+
+    gdb_test "tfind none" \
+	    "#0  end .*" \
+	    "collect $msg: cease trace debugging"
+}
+
 proc gdb_trace_collection_test {} {
     global fpreg
     global spreg
@@ -695,6 +769,14 @@ proc gdb_trace_collection_test {} {
 	    "globalarr\[-lminus\]"  "2"      "a\[-b\]"
     gdb_collect_expression_test globals_test_func \
 	    "globalarr\[\(l6, l7\)\]" "7"    "a\[\(b, c\)\]"
+
+    gdb_collect_return_test
+
+    gdb_collect_strings_test strings_test_func "locstr" "abcdef" "" \
+	    "local string"
+
+    gdb_collect_strings_test strings_test_func "longloc" "how now brown c" 15 \
+	    "long local string"
 
 }
 

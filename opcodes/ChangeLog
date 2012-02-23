@@ -1,3 +1,109 @@
+2011-11-02  Nick Clifton  <nickc@redhat.com>
+
+	* po/it.po: New Italian translation.
+	* configure.in (ALL_LINGUAS): Add it.
+	* configure: Regenerate.
+	* po/opcodes.pot: Regenerate.
+
+2011-11-01  DJ Delorie  <dj@redhat.com>
+
+	* Makefile.am (TARGET_LIBOPCODES_CFILES): Add rl78-decode.c and
+	rl78-dis.c.
+	(MAINTAINERCLEANFILES): Add rl78-decode.c.
+	(rl78-decode.c): New rule, built from rl78-decode.opc and opc2c.
+	* Makefile.in: Regenerate.
+	* configure.in: Add bfd_rl78_arch case.
+	* configure: Regenerate.
+	* disassemble.c: Define ARCH_rl78.
+	(disassembler): Add ARCH_rl78 case.
+	* rl78-decode.c: New file.
+	* rl78-decode.opc: New file.
+	* rl78-dis.c: New file.
+
+2011-10-27  Peter Bergner  <bergner@vnet.ibm.com>
+
+        * ppc-opc.c (powerpc_opcodes) <drrndq, drrndq., dtstexq, dctqpq,
+	dctqpq., dctfixq, dctfixq., dxexq, dxexq., dtstsfq, dcffixq, dcffixq.,
+	diexq, diexq.>: Use FRT, FRA, FRB and FRBp repsectively on DFP quad
+	instructions.
+
+2011-10-26  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/13348
+	* i386-dis.c (print_insn): Fix testing of array subscript.
+
+2011-10-26  Joern Rennecke  <joern.rennecke@embecosm.com>
+
+	* disassemble.c (ARCH_epiphany): Move into alphasorted spot.
+	* epiphany-asm.c, epiphany-opc.h: Regenerate.
+
+2011-10-25  Joern Rennecke  <joern.rennecke@embecosm.com>
+
+	* Makefile.am (HFILES): Add epiphany-desc.h and epiphany-opc.h .
+	(TARGET_LIBOPCODES_CFILES): Add  epiphany-asm.c, epiphany-desc.c,
+	epiphany-dis.c, epiphany-ibld.c and epiphany-opc.c .
+	(CLEANFILES): Add stamp-epiphany.
+	(EPIPHANY_DEPS): Set.  Make CGEN-generated Epiphany files depend on it.
+	(stamp-epiphany): New rule.
+	* configure.in: Handle bfd_epiphany_arch.
+	* disassemble.c (ARCH_epiphany): Define.
+	(disassembler): Handle bfd_arch_epiphany.
+	* epiphany-asm.c: New file.
+	* epiphany-desc.c: New file.
+	* epiphany-desc.h: New file.
+	* epiphany-dis.c: New file.
+	* epiphany-ibld.c: New file.
+	* epiphany-opc.c: New file.
+	* epiphany-opc.h: New file.
+	* Makefile.in: Regenerate.
+	* configure: Regenerate.
+	* po/POTFILES.in: Regenerate.
+	* po/opcodes.pot: Regenerate.
+
+2011-10-24  Julian Brown  <julian@codesourcery.com>
+
+	* m68k-opc.c (m68k_opcodes): Fix entries for ColdFire moveml.
+
+2011-10-21  Jan Glauber  <jang@linux.vnet.ibm.com>
+
+	* s390-opc.txt: Add CPUMF instructions.
+
+2011-10-18  Jie Zhang  <jie@codesourcery.com>
+	    Julian Brown  <julian@codesourcery.com>
+
+	* arm-dis.c (print_insn_arm): Explicitly specify rotation if needed.
+
+2011-10-10  Nick Clifton  <nickc@redhat.com>
+
+	* po/es.po: Updated Spanish translation.
+	* po/fi.po: Updated Finnish translation.
+
+2011-09-28  Jan Beulich  <jbeulich@suse.com>
+
+	* ppc-opc.c (insert_nbi, insert_rbx, FRAp, FRBp, FRSp, FRTp, NBI, RAX,
+	RBX): New.
+	(insert_bo, insert_boe): Reject bcctr with bit 2 in bo unset.
+	(powerpc_opcodes): Use RAX for second and RBXC for third operand of
+	lswx. Use NBI for third operand of lswi. Use FRTp for first operand of
+	lfdp and lfdpx. Use FRSp for first operand of stfdp and stfdpx, and
+	mark them as invalid on POWER7. Use FRTp, FRAp, and FRBp repsectively
+	on DFP quad instructions.
+
+2011-09-27  David S. Miller  <davem@davemloft.net>
+
+	* sparc-opc.c (sparc_opcodes): Fix random instruction to write
+	to a float instead of an integer register.
+
+2011-09-26  David S. Miller  <davem@davemloft.net>
+
+	* sparc-opc.c (sparc_opcodes): Add integer multiply-add
+	instructions.
+
+2011-09-21  David S. Miller  <davem@davemloft.net>
+
+	* sparc-opc.c (sparc_opcodes): Annotate table with HWCAP flag
+	bits.  Fix "fchksm16" mnemonic.
+
 2011-09-08  Mark Fortescue <mark@mtfhpc.demon.co.uk>
 
 	The changes below bring 'mov' and 'ticc' instructions into line

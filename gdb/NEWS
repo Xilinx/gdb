@@ -3,6 +3,9 @@
 
 *** Changes since GDB 7.3.1
 
+* GDB now allows you to skip uninteresting functions and files when
+  stepping with the "skip function" and "skip file" commands.
+
 * GDB has two new commands: "set remote hardware-watchpoint-length-limit"
   and "show remote hardware-watchpoint-length-limit".  These allows to
   set or show the maximum length limit (in bytes) of a remote
@@ -15,19 +18,21 @@
 
 * Python scripting
 
+  ** The register_pretty_printer function in module gdb.printing now takes
+     an optional `replace' argument.  If True, the new printer replaces any
+     existing one.
+
   ** The "maint set python print-stack on|off" command has been
      deprecated, and a new command: "set python print-stack on|off" has
      replaced it.  Additionally, the default for "print-stack" is now
      "off".
    
-  ** A prompt subsitution hook (prompt_hook) is now available to the
+  ** A prompt substitution hook (prompt_hook) is now available to the
      Python API.
-
-  ** A new command set/show extended-prompt has been added.
 
   ** A new Python module, gdb.prompt has been added to the GDB Python
      modules library.  This module provides functionality for
-     escape sequentions in prompts (used by set/show
+     escape sequences in prompts (used by set/show
      extended-prompt).  These escape sequences are replaced by their
      corresponding value.
 
@@ -36,10 +41,29 @@
     'data-directory'/python/gdb/function are now automatically loaded
      on GDB start-up.
 
+  ** Blocks now provide four new attributes.  global_block and
+     static_block will return the global and static blocks
+     respectively.  is_static and is_global are boolean attributes
+     that indicate if the block is one of those two types.
+
   ** Symbols now provide the "type" attribute, the type of the symbol.
 
   ** The "gdb.breakpoint" function has been deprecated in favor of
      "gdb.breakpoints".
+
+  ** Type objects for struct and union types now allow access to
+     the fields using standard Python dictionary (mapping) methods.
+     For example, "some_type['myfield']" now works, as does
+     "some_type.items()".
+
+  ** A new event "gdb.new_objfile" has been added, triggered by loading a
+     new object file.
+
+  ** A new function, "deep_items" has been added to the gdb.types
+     module in the GDB Python modules library.  This function returns
+     an iterator over the fields of a struct or union type.  Unlike
+     the standard Python "iteritems" method, it will recursively traverse
+     any anonymous fields.
 
 * libthread-db-search-path now supports two special values: $sdir and $pdir.
   $sdir specifies the default system locations of shared libraries.
@@ -73,7 +97,12 @@
   the first connection is made.  The listening port used by GDBserver will
   become available after that.
 
-* New commands "info macros", and "info definitions" have been added.
+* New commands "info macros", "info definitions",
+  and "alias" have been added.
+
+* New function parameters suffix @entry specifies value of function parameter
+  at the time the function got called.  Entry values are available only since
+  gcc version 4.7.
 
 * Changed commands
 
@@ -85,12 +114,41 @@ info auto-load-scripts [REGEXP]
   This command was formerly named "maintenance print section-scripts".
   It is now generally useful and is no longer a maintenance-only command.
 
+collect[/s] EXPRESSIONS
+  The tracepoint collect command now takes an optional modifier "/s"
+  that directs it to dereference pointer-to-character types and
+  collect the bytes of memory up to a zero byte.  The behavior is
+  similar to what you see when you use the regular print command on a
+  string.  An optional integer following the "/s" sets a bound on the
+  number of bytes that will be collected.
+
 * Tracepoints can now be enabled and disabled at any time after a trace
   experiment has been started using the standard "enable" and "disable"
   commands.  It is now possible to start a trace experiment with no enabled
   tracepoints; GDB will display a warning, but will allow the experiment to
   begin, assuming that tracepoints will be enabled as needed while the trace
   is running.
+
+* New options
+
+set extended-prompt
+show extended-prompt
+  Set the GDB prompt, and allow escape sequences to be inserted to
+  display miscellaneous information (see 'help set extended-prompt'
+  for the list of sequences).  This prompt (and any information
+  accessed through the escape sequences) is updated every time the
+  prompt is displayed.
+
+set print entry-values (both|compact|default|if-needed|no|only|preferred)
+show print entry-values
+  Set printing of frame argument values at function entry.  In some cases
+  GDB can determine the value of function argument which was passed by the
+  function caller, even if the value was modified inside the called function.
+
+set debug entry-values
+show debug entry-values
+  Control display of debugging info for determining frame argument values at
+  function entry and virtual tail call frames.
 
 * New remote packets
 

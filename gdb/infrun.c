@@ -56,6 +56,7 @@
 #include "tracepoint.h"
 #include "continuations.h"
 #include "interps.h"
+#include "skip.h"
 
 /* Prototypes for local functions */
 
@@ -146,6 +147,37 @@ show_debug_infrun (struct ui_file *file, int from_tty,
 {
   fprintf_filtered (file, _("Inferior debugging is %s.\n"), value);
 }
+
+
+/* Support for disabling address space randomization.  */
+
+int disable_randomization = 1;
+
+static void
+show_disable_randomization (struct ui_file *file, int from_tty,
+			    struct cmd_list_element *c, const char *value)
+{
+  if (target_supports_disable_randomization ())
+    fprintf_filtered (file,
+		      _("Disabling randomization of debuggee's "
+			"virtual address space is %s.\n"),
+		      value);
+  else
+    fputs_filtered (_("Disabling randomization of debuggee's "
+		      "virtual address space is unsupported on\n"
+		      "this platform.\n"), file);
+}
+
+static void
+set_disable_randomization (char *args, int from_tty,
+			   struct cmd_list_element *c)
+{
+  if (!target_supports_disable_randomization ())
+    error (_("Disabling randomization of debuggee's "
+	     "virtual address space is unsupported on\n"
+	     "this platform."));
+}
+
 
 /* If the program uses ELF-style shared libraries, then calls to
    functions in shared libraries go through stubs, which live in a
@@ -2742,6 +2774,7 @@ fetch_inferior_event (void *client_data)
 
   if (non_stop
       && ecs->ws.kind != TARGET_WAITKIND_IGNORE
+      && ecs->ws.kind != TARGET_WAITKIND_NO_RESUMED
       && ecs->ws.kind != TARGET_WAITKIND_EXITED
       && ecs->ws.kind != TARGET_WAITKIND_SIGNALLED)
     /* In non-stop mode, each thread is handled individually.  Switch
@@ -2775,6 +2808,7 @@ fetch_inferior_event (void *client_data)
 	normal_stop ();
 
       if (target_has_execution
+	  && ecs->ws.kind != TARGET_WAITKIND_NO_RESUMED
 	  && ecs->ws.kind != TARGET_WAITKIND_EXITED
 	  && ecs->ws.kind != TARGET_WAITKIND_SIGNALLED
 	  && ecs->event_thread->step_multi
@@ -2852,7 +2886,7 @@ nullify_last_target_wait_ptid (void)
 static void
 context_switch (ptid_t ptid)
 {
-  if (debug_infrun)
+  if (debug_infrun && !ptid_equal (ptid, inferior_ptid))
     {
       fprintf_unfiltered (gdb_stdlog, "infrun: Switching context from %s ",
 			  target_pid_to_str (inferior_ptid));
@@ -3133,8 +3167,24 @@ handle_inferior_event (struct execution_control_state *ecs)
       return;
     }
 
+  if (ecs->ws.kind == TARGET_WAITKIND_NO_RESUMED
+      && target_can_async_p () && !sync_execution)
+    {
+      /* There were no unwaited-for children left in the target, but,
+	 we're not synchronously waiting for events either.  Just
+	 ignore.  Otherwise, if we were running a synchronous
+	 execution command, we need to cancel it and give the user
+	 back the terminal.  */
+      if (debug_infrun)
+	fprintf_unfiltered (gdb_stdlog,
+			    "infrun: TARGET_WAITKIND_NO_RESUMED (ignoring)\n");
+      prepare_to_wait (ecs);
+      return;
+    }
+
   if (ecs->ws.kind != TARGET_WAITKIND_EXITED
-      && ecs->ws.kind != TARGET_WAITKIND_SIGNALLED)
+      && ecs->ws.kind != TARGET_WAITKIND_SIGNALLED
+      && ecs->ws.kind != TARGET_WAITKIND_NO_RESUMED)
     {
       struct inferior *inf = find_inferior_pid (ptid_get_pid (ecs->ptid));
 
@@ -3150,6 +3200,18 @@ handle_inferior_event (struct execution_control_state *ecs)
 
   /* Always clear state belonging to the previous time we stopped.  */
   stop_stack_dummy = STOP_NONE;
+
+  if (ecs->ws.kind == TARGET_WAITKIND_NO_RESUMED)
+    {
+      /* No unwaited-for children left.  IOW, all resumed children
+	 have exited.  */
+      if (debug_infrun)
+	fprintf_unfiltered (gdb_stdlog, "infrun: TARGET_WAITKIND_NO_RESUMED\n");
+
+      stop_print_frame = 0;
+      stop_stepping (ecs);
+      return;
+    }
 
   /* If it's a new process, add it to the thread database.  */
 
@@ -3208,7 +3270,7 @@ handle_inferior_event (struct execution_control_state *ecs)
     set_executing (minus_one_ptid, 0);
   else if (ecs->ws.kind != TARGET_WAITKIND_SIGNALLED
 	   && ecs->ws.kind != TARGET_WAITKIND_EXITED)
-    set_executing (inferior_ptid, 0);
+    set_executing (ecs->ptid, 0);
 
   switch (infwait_state)
     {
@@ -3625,6 +3687,8 @@ handle_inferior_event (struct execution_control_state *ecs)
       break;
 
     case TARGET_WAITKIND_NO_HISTORY:
+      if (debug_infrun)
+        fprintf_unfiltered (gdb_stdlog, "infrun: TARGET_WAITKIND_NO_HISTORY\n");
       /* Reverse execution: target ran out of history info.  */
       stop_pc = regcache_read_pc (get_thread_regcache (ecs->ptid));
       print_no_history_reason ();
@@ -4013,7 +4077,32 @@ handle_inferior_event (struct execution_control_state *ecs)
      nexti.  After stepi and nexti, always show the innermost frame (not any
      inline function call sites).  */
   if (ecs->event_thread->control.step_range_end != 1)
-    skip_inline_frames (ecs->ptid);
+    {
+      struct address_space *aspace = 
+	get_regcache_aspace (get_thread_regcache (ecs->ptid));
+
+      /* skip_inline_frames is expensive, so we avoid it if we can
+	 determine that the address is one where functions cannot have
+	 been inlined.  This improves performance with inferiors that
+	 load a lot of shared libraries, because the solib event
+	 breakpoint is defined as the address of a function (i.e. not
+	 inline).  Note that we have to check the previous PC as well
+	 as the current one to catch cases when we have just
+	 single-stepped off a breakpoint prior to reinstating it.
+	 Note that we're assuming that the code we single-step to is
+	 not inline, but that's not definitive: there's nothing
+	 preventing the event breakpoint function from containing
+	 inlined code, and the single-step ending up there.  If the
+	 user had set a breakpoint on that inlined code, the missing
+	 skip_inline_frames call would break things.  Fortunately
+	 that's an extremely unlikely scenario.  */
+      if (!pc_at_non_inline_function (aspace, stop_pc)
+          && !(ecs->event_thread->suspend.stop_signal == TARGET_SIGNAL_TRAP
+               && ecs->event_thread->control.trap_expected
+               && pc_at_non_inline_function (aspace,
+                                             ecs->event_thread->prev_pc)))
+	skip_inline_frames (ecs->ptid);
+    }
 
   if (ecs->event_thread->suspend.stop_signal == TARGET_SIGNAL_TRAP
       && ecs->event_thread->control.trap_expected
@@ -4829,7 +4918,8 @@ process_event_stop_test:
 	}
 
       /* If we have line number information for the function we are
-         thinking of stepping into, step into it.
+	 thinking of stepping into and the function isn't on the skip
+	 list, step into it.
 
          If there are several symtabs at that PC (e.g. with include
          files), just want to know whether *any* of them have line
@@ -4838,7 +4928,8 @@ process_event_stop_test:
 	struct symtab_and_line tmp_sal;
 
 	tmp_sal = find_pc_line (ecs->stop_func_start, 0);
-	if (tmp_sal.line != 0)
+	if (tmp_sal.line != 0 &&
+	    !function_pc_is_marked_for_skip (ecs->stop_func_start))
 	  {
 	    if (execution_direction == EXEC_REVERSE)
 	      handle_step_into_function_backward (gdbarch, ecs);
@@ -5766,7 +5857,8 @@ normal_stop (void)
   if (!non_stop)
     make_cleanup (finish_thread_state_cleanup, &minus_one_ptid);
   else if (last.kind != TARGET_WAITKIND_SIGNALLED
-	   && last.kind != TARGET_WAITKIND_EXITED)
+	   && last.kind != TARGET_WAITKIND_EXITED
+	   && last.kind != TARGET_WAITKIND_NO_RESUMED)
     make_cleanup (finish_thread_state_cleanup, &inferior_ptid);
 
   /* In non-stop mode, we don't want GDB to switch threads behind the
@@ -5785,13 +5877,22 @@ normal_stop (void)
       && !ptid_equal (previous_inferior_ptid, inferior_ptid)
       && target_has_execution
       && last.kind != TARGET_WAITKIND_SIGNALLED
-      && last.kind != TARGET_WAITKIND_EXITED)
+      && last.kind != TARGET_WAITKIND_EXITED
+      && last.kind != TARGET_WAITKIND_NO_RESUMED)
     {
       target_terminal_ours_for_output ();
       printf_filtered (_("[Switching to %s]\n"),
 		       target_pid_to_str (inferior_ptid));
       annotate_thread_changed ();
       previous_inferior_ptid = inferior_ptid;
+    }
+
+  if (last.kind == TARGET_WAITKIND_NO_RESUMED)
+    {
+      gdb_assert (sync_execution || !target_can_async_p ());
+
+      target_terminal_ours_for_output ();
+      printf_filtered (_("No unwaited-for children left.\n"));
     }
 
   if (!breakpoints_always_inserted_mode () && target_has_execution)
@@ -5980,6 +6081,7 @@ done:
   if (!target_has_execution
       || last.kind == TARGET_WAITKIND_SIGNALLED
       || last.kind == TARGET_WAITKIND_EXITED
+      || last.kind == TARGET_WAITKIND_NO_RESUMED
       || (!inferior_thread ()->step_multi
 	  && !(inferior_thread ()->control.stop_bpstat
 	       && inferior_thread ()->control.proceed_to_finish)
@@ -7231,6 +7333,19 @@ Set whether gdb will detach the child of a fork."), _("\
 Show whether gdb will detach the child of a fork."), _("\
 Tells gdb whether to detach the child of a fork."),
 			   NULL, NULL, &setlist, &showlist);
+
+  /* Set/show disable address space randomization mode.  */
+
+  add_setshow_boolean_cmd ("disable-randomization", class_support,
+			   &disable_randomization, _("\
+Set disabling of debuggee's virtual address space randomization."), _("\
+Show disabling of debuggee's virtual address space randomization."), _("\
+When this mode is on (which is the default), randomization of the virtual\n\
+address space is disabled.  Standalone programs run with the randomization\n\
+enabled by default on some platforms."),
+			   &set_disable_randomization,
+			   &show_disable_randomization,
+			   &setlist, &showlist);
 
   /* ptid initializations */
   inferior_ptid = null_ptid;

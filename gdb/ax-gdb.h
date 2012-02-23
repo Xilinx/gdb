@@ -106,8 +106,12 @@ extern struct agent_expr *gen_trace_for_expr (CORE_ADDR, struct expression *);
 extern struct agent_expr *gen_trace_for_var (CORE_ADDR, struct gdbarch *,
 					     struct symbol *);
 
+extern struct agent_expr *gen_trace_for_return_address (CORE_ADDR,
+							struct gdbarch *);
+
 extern struct agent_expr *gen_eval_for_expr (CORE_ADDR, struct expression *);
 
 extern int trace_kludge;
+extern int trace_string_kludge;
 
 #endif /* AX_GDB_H */

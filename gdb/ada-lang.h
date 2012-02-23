@@ -22,6 +22,7 @@
 #define ADA_LANG_H 1
 
 struct frame_info;
+struct inferior;
 
 #include "value.h"
 #include "gdbtypes.h"
@@ -237,15 +238,6 @@ extern int user_select_syms (struct ada_symbol_info *, int, int);
 
 extern int get_selections (int *, int, int, int, char *);
 
-extern char *ada_start_decode_line_1 (char *);
-
-extern struct symtabs_and_lines ada_finish_decode_line_1 (char **,
-                                                          struct symtab *,
-                                                          int, char ***);
-
-extern struct symtabs_and_lines ada_sals_for_line (const char*, int,
-						   int, char***, int);
-
 extern int ada_scan_number (const char *, int, LONGEST *, int *);
 
 extern struct type *ada_parent_type (struct type *);
@@ -384,5 +376,9 @@ extern void iterate_over_live_ada_tasks
   (ada_task_list_iterator_ftype *iterator);
 
 extern int ada_build_task_list (void);
+
+extern void print_ada_task_info (struct ui_out *uiout,
+				 char *taskno_str,
+				 struct inferior *inf);
 
 #endif

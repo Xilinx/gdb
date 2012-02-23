@@ -591,7 +591,7 @@ read_atcb (CORE_ADDR task_id, struct ada_task_info *task_info)
   struct value *entry_calls_value;
   struct value *entry_calls_value_element;
   int called_task_fieldno = -1;
-  const char ravenscar_task_name[] = "Ravenscar task";
+  static const char ravenscar_task_name[] = "Ravenscar task";
   const struct ada_tasks_pspace_data *pspace_data
     = get_ada_tasks_pspace_data (current_program_space);
 
@@ -629,7 +629,31 @@ read_atcb (CORE_ADDR task_id, struct ada_task_info *task_info)
 					    pspace_data->atcb_fieldno.image),
                                sizeof (task_info->name) - 1);
       else
-        strcpy (task_info->name, ravenscar_task_name);
+	{
+	  struct minimal_symbol *msym;
+
+	  msym = lookup_minimal_symbol_by_pc (task_id);
+	  if (msym)
+	    {
+	      const char *full_name = SYMBOL_LINKAGE_NAME (msym);
+	      const char *task_name = full_name;
+	      const char *p;
+
+	      /* Strip the prefix.  */
+	      for (p = full_name; *p; p++)
+		if (p[0] == '_' && p[1] == '_')
+		  task_name = p + 2;
+
+	      /* Copy the task name.  */
+	      strncpy (task_info->name, task_name, sizeof (task_info->name));
+	      task_info->name[sizeof (task_info->name) - 1] = 0;
+	    }
+	  else
+	    {
+	      /* No symbol found.  Use a default name.  */
+	      strcpy (task_info->name, ravenscar_task_name);
+	    }
+	}
     }
   else
     {
@@ -929,7 +953,7 @@ ada_build_task_list (void)
    interpreted as a task number, and the table will be limited to
    that task only.  */
 
-static void
+void
 print_ada_task_info (struct ui_out *uiout,
 		     char *arg_str,
 		     struct inferior *inf)
@@ -938,6 +962,7 @@ print_ada_task_info (struct ui_out *uiout,
   int taskno, nb_tasks;
   int taskno_arg = 0;
   struct cleanup *old_chain;
+  int nb_columns;
 
   if (ada_build_task_list () == 0)
     {
@@ -949,14 +974,43 @@ print_ada_task_info (struct ui_out *uiout,
   if (arg_str != NULL && arg_str[0] != '\0')
     taskno_arg = value_as_long (parse_and_eval (arg_str));
 
-  data = get_ada_tasks_inferior_data (inf);
-  nb_tasks = VEC_length (ada_task_info_s, data->task_list);
+  if (ui_out_is_mi_like_p (uiout))
+    /* In GDB/MI mode, we want to provide the thread ID corresponding
+       to each task.  This allows clients to quickly find the thread
+       associated to any task, which is helpful for commands that
+       take a --thread argument.  However, in order to be able to
+       provide that thread ID, the thread list must be up to date
+       first.  */
+    target_find_new_threads ();
 
-  old_chain = make_cleanup_ui_out_table_begin_end (uiout, 7, nb_tasks,
-                                                   "tasks");
+  data = get_ada_tasks_inferior_data (inf);
+
+  /* Compute the number of tasks that are going to be displayed
+     in the output.  If an argument was given, there will be
+     at most 1 entry.  Otherwise, there will be as many entries
+     as we have tasks.  */
+  if (taskno_arg)
+    {
+      if (taskno_arg > 0
+	  && taskno_arg <= VEC_length (ada_task_info_s, data->task_list))
+	nb_tasks = 1;
+      else
+	nb_tasks = 0;
+    }
+  else
+    nb_tasks = VEC_length (ada_task_info_s, data->task_list);
+
+  nb_columns = ui_out_is_mi_like_p (uiout) ? 8 : 7;
+  old_chain = make_cleanup_ui_out_table_begin_end (uiout, nb_columns,
+						   nb_tasks, "tasks");
   ui_out_table_header (uiout, 1, ui_left, "current", "");
   ui_out_table_header (uiout, 3, ui_right, "id", "ID");
   ui_out_table_header (uiout, 9, ui_right, "task-id", "TID");
+  /* The following column is provided in GDB/MI mode only because
+     it is only really useful in that mode, and also because it
+     allows us to keep the CLI output shorter and more compact.  */
+  if (ui_out_is_mi_like_p (uiout))
+    ui_out_table_header (uiout, 4, ui_right, "thread-id", "");
   ui_out_table_header (uiout, 4, ui_right, "parent-id", "P-ID");
   ui_out_table_header (uiout, 3, ui_right, "priority", "Pri");
   ui_out_table_header (uiout, 22, ui_left, "state", "State");
@@ -966,7 +1020,9 @@ print_ada_task_info (struct ui_out *uiout,
   ui_out_table_header (uiout, 1, ui_noalign, "name", "Name");
   ui_out_table_body (uiout);
 
-  for (taskno = 1; taskno <= nb_tasks; taskno++)
+  for (taskno = 1;
+       taskno <= VEC_length (ada_task_info_s, data->task_list);
+       taskno++)
     {
       const struct ada_task_info *const task_info =
 	VEC_index (ada_task_info_s, data->task_list, taskno - 1);
@@ -995,6 +1051,19 @@ print_ada_task_info (struct ui_out *uiout,
 
       /* Print the Task ID.  */
       ui_out_field_fmt (uiout, "task-id", "%9lx", (long) task_info->task_id);
+
+      /* Print the associated Thread ID.  */
+      if (ui_out_is_mi_like_p (uiout))
+        {
+	  const int thread_id = pid_to_thread_id (task_info->ptid);
+
+	  if (thread_id != 0)
+	    ui_out_field_int (uiout, "thread-id", thread_id);
+	  else
+	    /* This should never happen unless there is a bug somewhere,
+	       but be resilient when that happens.  */
+	    ui_out_field_skip (uiout, "thread-id");
+	}
 
       /* Print the ID of the parent task.  */
       parent_id = get_task_number_from_id (task_info->parent, inf);

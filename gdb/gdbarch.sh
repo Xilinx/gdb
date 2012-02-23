@@ -362,6 +362,9 @@ v:int:long_bit:::8 * sizeof (long):4*TARGET_CHAR_BIT::0
 # Number of bits in a long long or unsigned long long for the target
 # machine.
 v:int:long_long_bit:::8 * sizeof (LONGEST):2*gdbarch->long_bit::0
+# Alignment of a long long or unsigned long long for the target
+# machine.
+v:int:long_long_align_bit:::8 * sizeof (LONGEST):2*gdbarch->long_bit::0
 
 # The ABI default bit-size and format for "half", "float", "double", and
 # "long double".  These bit/format pairs should eventually be combined
@@ -637,7 +640,7 @@ M:LONGEST:core_xfer_shared_libraries:gdb_byte *readbuf, ULONGEST offset, LONGEST
 M:char *:core_pid_to_str:ptid_t ptid:ptid
 
 # BFD target to use when generating a core file.
-V:const char *:gcore_bfd_target:::0:0:::gdbarch->gcore_bfd_target
+V:const char *:gcore_bfd_target:::0:0:::pstring (gdbarch->gcore_bfd_target)
 
 # If the elements of C++ vtables are in-place function descriptors rather
 # than normal function pointers (which may point to code or a descriptor),
@@ -820,6 +823,14 @@ v:const char *:solib_symbols_extension:::::::pstring (gdbarch->solib_symbols_ext
 # is, absolute paths include a drive name, and the backslash is
 # considered a directory separator.
 v:int:has_dos_based_file_system:::0:0::0
+
+# Generate bytecodes to collect the return address in a frame.
+# Since the bytecodes run on the target, possibly with GDB not even
+# connected, the full unwinding machinery is not available, and
+# typically this function will issue bytecodes for one or more likely
+# places that the return address may be found.
+m:void:gen_return_address:struct agent_expr *ax, struct axs_value *value, CORE_ADDR scope:ax, value, scope::default_gen_return_address::0
+
 EOF
 }
 
@@ -934,6 +945,7 @@ struct displaced_step_closure;
 struct core_regset_section;
 struct syscall;
 struct agent_expr;
+struct axs_value;
 
 /* The architecture associated with the connection to the target.
  

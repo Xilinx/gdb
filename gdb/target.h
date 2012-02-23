@@ -151,7 +151,10 @@ enum target_waitkind
 
     /* The target has run out of history information,
        and cannot run backward any further.  */
-    TARGET_WAITKIND_NO_HISTORY
+    TARGET_WAITKIND_NO_HISTORY,
+
+    /* There are no resumed children left in the program.  */
+    TARGET_WAITKIND_NO_RESUMED
   };
 
 struct target_waitstatus
@@ -276,6 +279,8 @@ enum target_object
   TARGET_OBJECT_TRACEFRAME_INFO,
   /* Load maps for FDPIC systems.  */
   TARGET_OBJECT_FDPIC,
+  /* Darwin dynamic linker info data.  */
+  TARGET_OBJECT_DARWIN_DYLD_INFO
   /* Possible future objects: TARGET_OBJECT_FILE, ...  */
 };
 
@@ -651,6 +656,12 @@ struct target_ops
        experiment is running?  */
     int (*to_supports_enable_disable_tracepoint) (void);
 
+    /* Does this target support disabling address space randomization?  */
+    int (*to_supports_disable_randomization) (void);
+
+    /* Does this target support the tracenz bytecode for string collection?  */
+    int (*to_supports_string_tracing) (void);
+
     /* Determine current architecture of thread PTID.
 
        The target is supposed to determine the architecture of the code where
@@ -886,11 +897,18 @@ struct address_space *target_thread_address_space (ptid_t);
 #define	target_supports_multi_process()	\
      (*current_target.to_supports_multi_process) ()
 
+/* Returns true if this target can disable address space randomization.  */
+
+int target_supports_disable_randomization (void);
+
 /* Returns true if this target can enable and disable tracepoints
    while a trace experiment is running.  */
 
 #define target_supports_enable_disable_tracepoint() \
   (*current_target.to_supports_enable_disable_tracepoint) ()
+
+#define target_supports_string_tracing() \
+  (*current_target.to_supports_string_tracing) ()
 
 /* Invalidate all target dcaches.  */
 extern void target_dcache_invalidate (void);

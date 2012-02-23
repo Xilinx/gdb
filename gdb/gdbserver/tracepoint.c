@@ -1209,6 +1209,9 @@ static enum eval_result_type eval_agent_expr (struct tracepoint_hit_ctx *ctx,
 
 static int agent_mem_read (struct traceframe *tframe,
 			   unsigned char *to, CORE_ADDR from, ULONGEST len);
+static int agent_mem_read_string (struct traceframe *tframe,
+				  unsigned char *to, CORE_ADDR from,
+				  ULONGEST len);
 static int agent_tsv_read (struct traceframe *tframe, int n);
 
 #ifndef IN_PROCESS_AGENT
@@ -2740,7 +2743,6 @@ static void
 cmd_qtstart (char *packet)
 {
   struct tracepoint *tpoint, *prev_ftpoint, *prev_stpoint;
-  int slow_tracepoint_count, fast_count;
   CORE_ADDR jump_entry;
 
   /* The jump to the jump pad of the last fast tracepoint
@@ -2749,8 +2751,6 @@ cmd_qtstart (char *packet)
   ULONGEST fjump_size;
 
   trace_debug ("Starting the trace");
-
-  slow_tracepoint_count = fast_count = 0;
 
   /* Sort tracepoints by ascending address.  This makes installing
      fast tracepoints at the same address easier to handle. */
@@ -2791,8 +2791,6 @@ cmd_qtstart (char *packet)
 
       if (tpoint->type == trap_tracepoint)
 	{
-	  ++slow_tracepoint_count;
-
 	  /* Tracepoints are installed as memory breakpoints.  Just go
 	     ahead and install the trap.  The breakpoints module
 	     handles duplicated breakpoints, and the memory read
@@ -2802,8 +2800,6 @@ cmd_qtstart (char *packet)
 	}
       else if (tpoint->type == fast_tracepoint)
 	{
-	  ++fast_count;
-
 	  if (maybe_write_ipa_not_loaded (packet))
 	    {
 	      trace_debug ("Requested a fast tracepoint, but fast "
@@ -4651,6 +4647,13 @@ eval_agent_expr (struct tracepoint_hit_ctx *ctx,
 	  agent_tsv_read (tframe, arg);
 	  break;
 
+	case gdb_agent_op_tracenz:
+	  agent_mem_read_string (tframe, NULL, (CORE_ADDR) stack[--sp],
+				 (ULONGEST) top);
+	  if (--sp >= 0)
+	    top = stack[sp];
+	  break;
+
 	  /* GDB never (currently) generates any of these ops.  */
 	case gdb_agent_op_float:
 	case gdb_agent_op_ref_float:
@@ -4730,6 +4733,66 @@ agent_mem_read (struct traceframe *tframe,
       trace_debug ("%d bytes recorded", blocklen);
       remaining -= blocklen;
       from += blocklen;
+    }
+  return 0;
+}
+
+static int
+agent_mem_read_string (struct traceframe *tframe,
+		       unsigned char *to, CORE_ADDR from, ULONGEST len)
+{
+  unsigned char *buf, *mspace;
+  ULONGEST remaining = len;
+  unsigned short blocklen, i;
+
+  /* To save a bit of space, block lengths are 16-bit, so break large
+     requests into multiple blocks.  Bordering on overkill for strings,
+     but it could happen that someone specifies a large max length.  */
+  while (remaining > 0)
+    {
+      size_t sp;
+
+      blocklen = (remaining > 65535 ? 65535 : remaining);
+      /* We want working space to accumulate nonzero bytes, since
+	 traceframes must have a predecided size (otherwise it gets
+	 harder to wrap correctly for the circular case, etc).  */
+      buf = (unsigned char *) xmalloc (blocklen + 1);
+      for (i = 0; i < blocklen; ++i)
+	{
+	  /* Read the string one byte at a time, in case the string is
+	     at the end of a valid memory area - we don't want a
+	     correctly-terminated string to engender segvio
+	     complaints.  */
+	  read_inferior_memory (from + i, buf + i, 1);
+
+	  if (buf[i] == '\0')
+	    {
+	      blocklen = i + 1;
+	      /* Make sure outer loop stops now too.  */
+	      remaining = blocklen;
+	      break;
+	    }
+	}
+      sp = 1 + sizeof (from) + sizeof (blocklen) + blocklen;
+      mspace = add_traceframe_block (tframe, sp);
+      if (mspace == NULL)
+	{
+	  xfree (buf);
+	  return 1;
+	}
+      /* Identify block as a memory block.  */
+      *mspace = 'M';
+      ++mspace;
+      /* Record address and size.  */
+      memcpy ((void *) mspace, (void *) &from, sizeof (from));
+      mspace += sizeof (from);
+      memcpy ((void *) mspace, (void *) &blocklen, sizeof (blocklen));
+      mspace += sizeof (blocklen);
+      /* Copy the string contents.  */
+      memcpy ((void *) mspace, (void *) buf, blocklen);
+      remaining -= blocklen;
+      from += blocklen;
+      xfree (buf);
     }
   return 0;
 }
@@ -5417,14 +5480,9 @@ gdb_collect (struct tracepoint *tpoint, unsigned char *regs)
   if (!tracing)
     return;
 
-  if (!tpoint->enabled)
-    return;
-
   ctx.base.type = fast_tracepoint;
   ctx.regs = regs;
   ctx.regcache_initted = 0;
-  ctx.tpoint = tpoint;
-
   /* Wrap the regblock in a register cache (in the stack, we don't
      want to malloc here).  */
   ctx.regspace = alloca (register_cache_size ());
@@ -5434,30 +5492,49 @@ gdb_collect (struct tracepoint *tpoint, unsigned char *regs)
       return;
     }
 
-  /* Test the condition if present, and collect if true.  */
-  if (tpoint->cond == NULL
-      || condition_true_at_tracepoint ((struct tracepoint_hit_ctx *) &ctx,
-				       tpoint))
+  for (ctx.tpoint = tpoint;
+       ctx.tpoint != NULL && ctx.tpoint->address == tpoint->address;
+       ctx.tpoint = ctx.tpoint->next)
     {
-      collect_data_at_tracepoint ((struct tracepoint_hit_ctx *) &ctx,
-				  tpoint->address, tpoint);
+      if (!ctx.tpoint->enabled)
+	continue;
 
-      /* Note that this will cause original insns to be written back
-	 to where we jumped from, but that's OK because we're jumping
-	 back to the next whole instruction.  This will go badly if
-	 instruction restoration is not atomic though.  */
-      if (stopping_tracepoint
-	  || trace_buffer_is_full
-	  || expr_eval_result != expr_eval_no_error)
-	stop_tracing ();
-    }
-  else
-    {
-      /* If there was a condition and it evaluated to false, the only
-	 way we would stop tracing is if there was an error during
-	 condition expression evaluation.  */
-      if (expr_eval_result != expr_eval_no_error)
-	stop_tracing ();
+      /* Multiple tracepoints of different types, such as fast tracepoint and
+	 static tracepoint, can be set at the same address.  */
+      if (ctx.tpoint->type != tpoint->type)
+	continue;
+
+      /* Test the condition if present, and collect if true.  */
+      if (ctx.tpoint->cond == NULL
+	  || condition_true_at_tracepoint ((struct tracepoint_hit_ctx *) &ctx,
+					   ctx.tpoint))
+	{
+	  collect_data_at_tracepoint ((struct tracepoint_hit_ctx *) &ctx,
+				      ctx.tpoint->address, ctx.tpoint);
+
+	  /* Note that this will cause original insns to be written back
+	     to where we jumped from, but that's OK because we're jumping
+	     back to the next whole instruction.  This will go badly if
+	     instruction restoration is not atomic though.  */
+	  if (stopping_tracepoint
+	      || trace_buffer_is_full
+	      || expr_eval_result != expr_eval_no_error)
+	    {
+	      stop_tracing ();
+	      break;
+	    }
+	}
+      else
+	{
+	  /* If there was a condition and it evaluated to false, the only
+	     way we would stop tracing is if there was an error during
+	     condition expression evaluation.  */
+	  if (expr_eval_result != expr_eval_no_error)
+	    {
+	      stop_tracing ();
+	      break;
+	    }
+	}
     }
 }
 

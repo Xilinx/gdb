@@ -672,6 +672,7 @@ update_current_target (void)
       /* Do not inherit to_search_memory.  */
       INHERIT (to_supports_multi_process, t);
       INHERIT (to_supports_enable_disable_tracepoint, t);
+      INHERIT (to_supports_string_tracing, t);
       INHERIT (to_trace_init, t);
       INHERIT (to_download_tracepoint, t);
       INHERIT (to_download_trace_state_variable, t);
@@ -838,6 +839,9 @@ update_current_target (void)
 	    (int (*) (void))
 	    return_zero);
   de_fault (to_supports_enable_disable_tracepoint,
+	    (int (*) (void))
+	    return_zero);
+  de_fault (to_supports_string_tracing,
 	    (int (*) (void))
 	    return_zero);
   de_fault (to_trace_init,
@@ -3013,6 +3017,28 @@ target_supports_non_stop (void)
   return 0;
 }
 
+static int
+find_default_supports_disable_randomization (void)
+{
+  struct target_ops *t;
+
+  t = find_default_run_target (NULL);
+  if (t && t->to_supports_disable_randomization)
+    return (t->to_supports_disable_randomization) ();
+  return 0;
+}
+
+int
+target_supports_disable_randomization (void)
+{
+  struct target_ops *t;
+
+  for (t = &current_target; t != NULL; t = t->beneath)
+    if (t->to_supports_disable_randomization)
+      return t->to_supports_disable_randomization ();
+
+  return 0;
+}
 
 char *
 target_get_osdata (const char *type)
@@ -3257,6 +3283,8 @@ init_dummy_target (void)
   dummy_target.to_can_async_p = find_default_can_async_p;
   dummy_target.to_is_async_p = find_default_is_async_p;
   dummy_target.to_supports_non_stop = find_default_supports_non_stop;
+  dummy_target.to_supports_disable_randomization
+    = find_default_supports_disable_randomization;
   dummy_target.to_pid_to_str = dummy_pid_to_str;
   dummy_target.to_stratum = dummy_stratum;
   dummy_target.to_find_memory_regions = dummy_find_memory_regions;

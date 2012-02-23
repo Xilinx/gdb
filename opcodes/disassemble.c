@@ -34,6 +34,7 @@
 #define ARCH_d10v
 #define ARCH_d30v
 #define ARCH_dlx
+#define ARCH_epiphany
 #define ARCH_fr30
 #define ARCH_frv
 #define ARCH_h8300
@@ -70,6 +71,7 @@
 #define ARCH_pj
 #define ARCH_powerpc
 #define ARCH_rs6000
+#define ARCH_rl78
 #define ARCH_rx
 #define ARCH_s390
 #define ARCH_score
@@ -224,6 +226,11 @@ disassembler (abfd)
       disassemble = print_insn_ip2k;
       break;
 #endif
+#ifdef ARCH_epiphany
+    case bfd_arch_epiphany:
+      disassemble = print_insn_epiphany;
+      break;
+#endif
 #ifdef ARCH_fr30
     case bfd_arch_fr30:
       disassemble = print_insn_fr30;
@@ -347,6 +354,11 @@ disassembler (abfd)
 	disassemble = print_insn_big_powerpc;
       else
 	disassemble = print_insn_rs6000;
+      break;
+#endif
+#ifdef ARCH_rl78
+    case bfd_arch_rl78:
+      disassemble = print_insn_rl78;
       break;
 #endif
 #ifdef ARCH_rx

@@ -109,9 +109,12 @@ FLEX = flex
 YLWRAP = $(srcdir)/../ylwrap
 
 # where to find makeinfo, preferably one designed for texinfo-2
-MAKEINFO=makeinfo
+MAKEINFO = @MAKEINFO@
+MAKEINFOFLAGS = @MAKEINFOFLAGS@
+MAKEINFO_EXTRA_FLAGS = @MAKEINFO_EXTRA_FLAGS@
+MAKEINFO_CMD = $(MAKEINFO) $(MAKEINFOFLAGS) $(MAKEINFO_EXTRA_FLAGS)
 
-MAKEHTML = $(MAKEINFO) --html
+MAKEHTML = $(MAKEINFO_CMD) --html
 MAKEHTMLFLAGS =
 
 # Set this up with gcc if you have gnu ld and the loader will print out
@@ -289,6 +292,7 @@ SUBDIR_PYTHON_OBS = \
 	py-inferior.o \
 	py-infthread.o \
 	py-lazy-string.o \
+	py-newobjfileevent.o \
 	py-objfile.o \
 	py-param.o \
 	py-prettyprint.o \
@@ -319,6 +323,7 @@ SUBDIR_PYTHON_SRCS = \
 	python/py-inferior.c \
 	python/py-infthread.c \
 	python/py-lazy-string.c \
+	python/py-newobjfileevent.c \
 	python/py-objfile.c \
 	python/py-param.c \
 	python/py-prettyprint.c \
@@ -612,6 +617,8 @@ FLAGS_TO_PASS = \
 	"LDFLAGS=$(LDFLAGS)" \
 	"RANLIB=$(RANLIB)" \
 	"MAKEINFO=$(MAKEINFO)" \
+	"MAKEINFOFLAGS=$(MAKEINFOFLAGS)" \
+	"MAKEINFO_EXTRA_FLAGS=$(MAKEINFO_EXTRA_FLAGS)" \
 	"MAKEHTML=$(MAKEHTML)" \
 	"MAKEHTMLFLAGS=$(MAKEHTMLFLAGS)" \
 	"INSTALL=$(INSTALL)" \
@@ -695,6 +702,7 @@ SFILES = ada-exp.y ada-lang.c ada-typeprint.c ada-valprint.c ada-tasks.c \
 	cp-name-parser.y \
 	dbxread.c demangle.c dictionary.c disasm.c doublest.c dummy-frame.c \
 	dwarf2expr.c dwarf2loc.c dwarf2read.c dwarf2-frame.c \
+	dwarf2-frame-tailcall.c \
 	elfread.c environ.c eval.c event-loop.c event-top.c \
 	exceptions.c expprint.c \
 	f-exp.y f-lang.c f-typeprint.c f-valprint.c filesystem.c \
@@ -719,7 +727,7 @@ SFILES = ada-exp.y ada-lang.c ada-typeprint.c ada-valprint.c ada-tasks.c \
 	prologue-value.c psymtab.c \
 	regcache.c reggroups.c remote.c remote-fileio.c reverse.c \
 	sentinel-frame.c \
-	serial.c ser-base.c ser-unix.c \
+	serial.c ser-base.c ser-unix.c skip.c \
 	solib.c solib-target.c source.c \
 	stabsread.c stack.c std-regs.c symfile.c symfile-mem.c symmisc.c \
 	symtab.c \
@@ -771,7 +779,7 @@ cli/cli-decode.h cli/cli-cmds.h cli/cli-dump.h cli/cli-utils.h \
 cli/cli-script.h macrotab.h symtab.h version.h gnulib/wchar.in.h \
 gnulib/string.in.h gnulib/str-two-way.h \
 gnulib/stdint.in.h remote.h gdb.h sparc-nat.h \
-gdbthread.h dwarf2-frame.h nbsd-nat.h dcache.h \
+gdbthread.h dwarf2-frame.h dwarf2-frame-tailcall.h nbsd-nat.h dcache.h \
 amd64-nat.h s390-tdep.h arm-linux-tdep.h exceptions.h macroscope.h \
 gdbarch.h bsd-uthread.h gdb_stat.h memory-map.h	memrange.h \
 mdebugread.h m88k-tdep.h stabsread.h hppa-linux-offsets.h linux-fork.h \
@@ -819,7 +827,7 @@ osdata.h procfs.h python/py-event.h python/py-events.h python/py-stopevent.h \
 python/python-internal.h python/python.h ravenscar-thread.h record.h \
 solib-darwin.h solib-ia64-hpux.h solib-spu.h windows-nat.h xcoffread.h \
 gnulib/extra/arg-nonnull.h gnulib/extra/c++defs.h gnulib/extra/warn-on-use.h \
-gnulib/stddef.in.h inline-frame.h \
+gnulib/stddef.in.h inline-frame.h skip.h \
 common/common-utils.h common/xml-utils.h common/buffer.h common/ptid.h \
 common/linux-osdata.h
 
@@ -879,7 +887,7 @@ COMMON_OBS = $(DEPFILES) $(CONFIG_OBS) $(YYOBJ) \
 	bcache.o objfiles.o observer.o minsyms.o maint.o demangle.o \
 	dbxread.o coffread.o coff-pe-read.o \
 	dwarf2read.o mipsread.o stabsread.o corefile.o \
-	dwarf2expr.o dwarf2loc.o dwarf2-frame.o \
+	dwarf2expr.o dwarf2loc.o dwarf2-frame.o dwarf2-frame-tailcall.o \
 	ada-lang.o c-lang.o d-lang.o f-lang.o objc-lang.o \
 	ada-tasks.o \
 	ui-out.o cli-out.o \
@@ -907,7 +915,7 @@ COMMON_OBS = $(DEPFILES) $(CONFIG_OBS) $(YYOBJ) \
 	xml-support.o xml-syscall.o xml-utils.o \
 	target-descriptions.o target-memory.o xml-tdesc.o xml-builtin.o \
 	inferior.o osdata.o gdb_usleep.o record.o gcore.o \
-	jit.o progspace.o \
+	jit.o progspace.o skip.o \
 	common-utils.o buffer.o ptid.o
 
 TSOBS = inflow.o
@@ -2113,6 +2121,10 @@ py-infthread.o: $(srcdir)/python/py-infthread.c
 
 py-lazy-string.o: $(srcdir)/python/py-lazy-string.c
 	$(COMPILE) $(PYTHON_CFLAGS) $(srcdir)/python/py-lazy-string.c
+	$(POSTCOMPILE)
+
+py-newobjfileevent.o: $(srcdir)/python/py-newobjfileevent.c
+	$(COMPILE) $(PYTHON_CFLAGS) $(srcdir)/python/py-newobjfileevent.c
 	$(POSTCOMPILE)
 
 py-objfile.o: $(srcdir)/python/py-objfile.c

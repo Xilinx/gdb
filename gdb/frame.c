@@ -2035,8 +2035,10 @@ get_frame_address_in_block (struct frame_info *this_frame)
   while (get_frame_type (next_frame) == INLINE_FRAME)
     next_frame = next_frame->next;
 
-  if (get_frame_type (next_frame) == NORMAL_FRAME
+  if ((get_frame_type (next_frame) == NORMAL_FRAME
+       || get_frame_type (next_frame) == TAILCALL_FRAME)
       && (get_frame_type (this_frame) == NORMAL_FRAME
+	  || get_frame_type (this_frame) == TAILCALL_FRAME
 	  || get_frame_type (this_frame) == INLINE_FRAME))
     return pc - 1;
 
@@ -2349,23 +2351,11 @@ frame_stop_reason_string (enum unwind_stop_reason reason)
 {
   switch (reason)
     {
-    case UNWIND_NULL_ID:
-      return _("unwinder did not report frame ID");
+#define SET(name, description) \
+    case name: return _(description);
+#include "unwind_stop_reasons.def"
+#undef SET
 
-    case UNWIND_UNAVAILABLE:
-      return _("Not enough registers or memory available to unwind further");
-
-    case UNWIND_INNER_ID:
-      return _("previous frame inner to this frame (corrupt stack?)");
-
-    case UNWIND_SAME_ID:
-      return _("previous frame identical to this frame (corrupt stack?)");
-
-    case UNWIND_NO_SAVED_PC:
-      return _("frame did not save the PC");
-
-    case UNWIND_NO_REASON:
-    case UNWIND_FIRST_ERROR:
     default:
       internal_error (__FILE__, __LINE__,
 		      "Invalid frame stop reason");

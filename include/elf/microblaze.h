@@ -50,6 +50,7 @@ START_RELOC_NUMBERS (elf_microblaze_reloc_type)
   RELOC_NUMBER (R_MICROBLAZE_GOTOFF_64, 19) /* Offset relative to GOT.  */
   RELOC_NUMBER (R_MICROBLAZE_GOTOFF_32, 20) /* Offset relative to GOT.  */
   RELOC_NUMBER (R_MICROBLAZE_COPY, 21)      /* Runtime copy.  */
+  RELOC_NUMBER (R_MICROBLAZE_32_NONE, 22)
    
 END_RELOC_NUMBERS (R_MICROBLAZE_max)
 

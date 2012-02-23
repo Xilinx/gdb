@@ -1033,9 +1033,6 @@ extern struct breakpoint *clone_momentary_breakpoint (struct breakpoint *bpkt);
 
 extern void set_ignore_count (int, int, int);
 
-extern void set_default_breakpoint (int, struct program_space *,
-				    CORE_ADDR, struct symtab *, int);
-
 extern void breakpoint_init_inferior (enum inf_context);
 
 extern struct cleanup *make_cleanup_delete_breakpoint (struct breakpoint *);
@@ -1357,6 +1354,15 @@ extern void end_rbreak_breakpoints (void);
 extern struct breakpoint *iterate_over_breakpoints (int (*) (struct breakpoint *,
 							     void *), void *);
 
+/* Nonzero if the specified PC cannot be a location where functions
+   have been inlined.  */
+
+extern int pc_at_non_inline_function (struct address_space *aspace,
+				      CORE_ADDR pc);
+
 extern int user_breakpoint_p (struct breakpoint *);
+
+/* Attempt to determine architecture of location identified by SAL.  */
+extern struct gdbarch *get_sal_arch (struct symtab_and_line sal);
 
 #endif /* !defined (BREAKPOINT_H) */

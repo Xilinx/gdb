@@ -526,10 +526,21 @@ extern bfd_boolean _bfd_dwarf1_find_nearest_line
   (bfd *, asection *, asymbol **, bfd_vma, const char **,
    const char **, unsigned int *);
 
+struct dwarf_debug_section
+{
+  const char *uncompressed_name;
+  const char *compressed_name;
+};
+
+/* Map of uncompressed DWARF debug section name to compressed one.  It
+   is terminated by NULL uncompressed_name.  */
+
+extern const struct dwarf_debug_section dwarf_debug_sections[];
+
 /* Find the nearest line using DWARF 2 debugging information.  */
 extern bfd_boolean _bfd_dwarf2_find_nearest_line
-  (bfd *, asection *, asymbol **, bfd_vma, const char **, const char **,
-   unsigned int *, unsigned int, void **);
+  (bfd *, const struct dwarf_debug_section *, asection *, asymbol **, bfd_vma,
+   const char **, const char **, unsigned int *, unsigned int, void **);
 
 /* Find the line using DWARF 2 debugging information.  */
 extern bfd_boolean _bfd_dwarf2_find_line
@@ -816,17 +827,6 @@ extern void bfd_section_already_linked_table_traverse
 
 extern bfd_vma read_unsigned_leb128 (bfd *, bfd_byte *, unsigned int *);
 extern bfd_signed_vma read_signed_leb128 (bfd *, bfd_byte *, unsigned int *);
-
-struct dwarf_debug_section
-{
-  const char *uncompressed_name;
-  const char *compressed_name;
-};
-
-/* Map of uncompressed DWARF debug section name to compressed one.  It
-   is terminated by NULL uncompressed_name.  */
-
-extern const struct dwarf_debug_section dwarf_debug_sections[];
 /* Extracted from init.c.  */
 /* Extracted from libbfd.c.  */
 bfd_boolean bfd_write_bigendian_4byte_int (bfd *, unsigned int);
@@ -1834,6 +1834,38 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_AVR_LDI",
   "BFD_RELOC_AVR_6",
   "BFD_RELOC_AVR_6_ADIW",
+  "BFD_RELOC_RL78_NEG8",
+  "BFD_RELOC_RL78_NEG16",
+  "BFD_RELOC_RL78_NEG24",
+  "BFD_RELOC_RL78_NEG32",
+  "BFD_RELOC_RL78_16_OP",
+  "BFD_RELOC_RL78_24_OP",
+  "BFD_RELOC_RL78_32_OP",
+  "BFD_RELOC_RL78_8U",
+  "BFD_RELOC_RL78_16U",
+  "BFD_RELOC_RL78_24U",
+  "BFD_RELOC_RL78_DIR3U_PCREL",
+  "BFD_RELOC_RL78_DIFF",
+  "BFD_RELOC_RL78_GPRELB",
+  "BFD_RELOC_RL78_GPRELW",
+  "BFD_RELOC_RL78_GPRELL",
+  "BFD_RELOC_RL78_SYM",
+  "BFD_RELOC_RL78_OP_SUBTRACT",
+  "BFD_RELOC_RL78_OP_NEG",
+  "BFD_RELOC_RL78_OP_AND",
+  "BFD_RELOC_RL78_OP_SHRA",
+  "BFD_RELOC_RL78_ABS8",
+  "BFD_RELOC_RL78_ABS16",
+  "BFD_RELOC_RL78_ABS16_REV",
+  "BFD_RELOC_RL78_ABS32",
+  "BFD_RELOC_RL78_ABS32_REV",
+  "BFD_RELOC_RL78_ABS16U",
+  "BFD_RELOC_RL78_ABS16UW",
+  "BFD_RELOC_RL78_ABS16UL",
+  "BFD_RELOC_RL78_RELAX",
+  "BFD_RELOC_RL78_HI16",
+  "BFD_RELOC_RL78_HI8",
+  "BFD_RELOC_RL78_LO16",
   "BFD_RELOC_RX_NEG8",
   "BFD_RELOC_RX_NEG16",
   "BFD_RELOC_RX_NEG24",
@@ -2476,6 +2508,13 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_TILEGX_TLS_DTPMOD32",
   "BFD_RELOC_TILEGX_TLS_DTPOFF32",
   "BFD_RELOC_TILEGX_TLS_TPOFF32",
+  "BFD_RELOC_EPIPHANY_SIMM8",
+  "BFD_RELOC_EPIPHANY_SIMM24",
+  "BFD_RELOC_EPIPHANY_HIGH",
+  "BFD_RELOC_EPIPHANY_LOW",
+  "BFD_RELOC_EPIPHANY_SIMM11",
+  "BFD_RELOC_EPIPHANY_IMM11",
+  "BFD_RELOC_EPIPHANY_IMM8",
  "@@overflow: BFD_RELOC_UNUSED@@",
 };
 #endif

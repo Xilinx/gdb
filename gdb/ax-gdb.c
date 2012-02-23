@@ -40,6 +40,10 @@
 #include "breakpoint.h"
 #include "tracepoint.h"
 #include "cp-support.h"
+#include "arch-utils.h"
+
+#include "valprint.h"
+#include "c-lang.h"
 
 /* To make sense of this file, you should read doc/agentexpr.texi.
    Then look at the types and enums in ax-gdb.h.  For the code itself,
@@ -334,6 +338,11 @@ maybe_const_expr (union exp_element **pc)
    emits the trace bytecodes at the appropriate points.  */
 int trace_kludge;
 
+/* Inspired by trace_kludge, this indicates that pointers to chars
+   should get an added tracenz bytecode to record nonzero bytes, up to
+   a length that is the value of trace_string_kludge.  */
+int trace_string_kludge;
+
 /* Scan for all static fields in the given class, including any base
    classes, and generate tracing bytecodes for each.  */
 
@@ -392,18 +401,34 @@ static void
 gen_traced_pop (struct gdbarch *gdbarch,
 		struct agent_expr *ax, struct axs_value *value)
 {
+  int string_trace = 0;
+  if (trace_string_kludge
+      && TYPE_CODE (value->type) == TYPE_CODE_PTR
+      && c_textual_element_type (check_typedef (TYPE_TARGET_TYPE (value->type)),
+				 's'))
+    string_trace = 1;
+
   if (trace_kludge)
     switch (value->kind)
       {
       case axs_rvalue:
-	/* We don't trace rvalues, just the lvalues necessary to
-	   produce them.  So just dispose of this value.  */
-	ax_simple (ax, aop_pop);
+	if (string_trace)
+	  {
+	    ax_const_l (ax, trace_string_kludge);
+	    ax_simple (ax, aop_tracenz);
+	  }
+	else
+	  /* We don't trace rvalues, just the lvalues necessary to
+	     produce them.  So just dispose of this value.  */
+	  ax_simple (ax, aop_pop);
 	break;
 
       case axs_lvalue_memory:
 	{
 	  int length = TYPE_LENGTH (check_typedef (value->type));
+
+	  if (string_trace)
+	    ax_simple (ax, aop_dup);
 
 	  /* There's no point in trying to use a trace_quick bytecode
 	     here, since "trace_quick SIZE pop" is three bytes, whereas
@@ -412,6 +437,13 @@ gen_traced_pop (struct gdbarch *gdbarch,
 	     work correctly for objects with large sizes.  */
 	  ax_const_l (ax, length);
 	  ax_simple (ax, aop_trace);
+
+	  if (string_trace)
+	    {
+	      ax_simple (ax, aop_ref32);
+	      ax_const_l (ax, trace_string_kludge);
+	      ax_simple (ax, aop_tracenz);
+	    }
 	}
 	break;
 
@@ -421,6 +453,15 @@ gen_traced_pop (struct gdbarch *gdbarch,
 	   larger than will fit in a stack, so just mark it for
 	   collection and be done with it.  */
 	ax_reg_mask (ax, value->u.reg);
+       
+	/* But if the register points to a string, assume the value
+	   will fit on the stack and push it anyway.  */
+	if (string_trace)
+	  {
+	    ax_reg (ax, value->u.reg);
+	    ax_const_l (ax, trace_string_kludge);
+	    ax_simple (ax, aop_tracenz);
+	  }
 	break;
       }
   else
@@ -2444,6 +2485,32 @@ gen_eval_for_expr (CORE_ADDR scope, struct expression *expr)
   return ax;
 }
 
+struct agent_expr *
+gen_trace_for_return_address (CORE_ADDR scope, struct gdbarch *gdbarch)
+{
+  struct cleanup *old_chain = 0;
+  struct agent_expr *ax = new_agent_expr (gdbarch, scope);
+  struct axs_value value;
+
+  old_chain = make_cleanup_free_agent_expr (ax);
+
+  trace_kludge = 1;
+
+  gdbarch_gen_return_address (gdbarch, ax, &value, scope);
+
+  /* Make sure we record the final object, and get rid of it.  */
+  gen_traced_pop (gdbarch, ax, &value);
+
+  /* Oh, and terminate.  */
+  ax_simple (ax, aop_end);
+
+  /* We have successfully built the agent expr, so cancel the cleanup
+     request.  If we add more cleanups that we always want done, this
+     will have to get more complicated.  */
+  discard_cleanups (old_chain);
+  return ax;
+}
+
 static void
 agent_command (char *exp, int from_tty)
 {
@@ -2462,10 +2529,26 @@ agent_command (char *exp, int from_tty)
   if (exp == 0)
     error_no_arg (_("expression to translate"));
 
-  expr = parse_expression (exp);
-  old_chain = make_cleanup (free_current_contents, &expr);
-  agent = gen_trace_for_expr (get_frame_pc (fi), expr);
-  make_cleanup_free_agent_expr (agent);
+  trace_string_kludge = 0;
+  if (*exp == '/')
+    exp = decode_agent_options (exp);
+
+  /* Recognize the return address collection directive specially.  Note
+     that it is not really an expression of any sort.  */
+  if (strcmp (exp, "$_ret") == 0)
+    {
+      agent = gen_trace_for_return_address (get_frame_pc (fi),
+					    get_current_arch ());
+      old_chain = make_cleanup_free_agent_expr (agent);
+    }
+  else
+    {
+      expr = parse_expression (exp);
+      old_chain = make_cleanup (free_current_contents, &expr);
+      agent = gen_trace_for_expr (get_frame_pc (fi), expr);
+      make_cleanup_free_agent_expr (agent);
+    }
+
   ax_reqs (agent);
   ax_print (gdb_stdout, agent);
 

@@ -55,6 +55,13 @@
 #define SPUFS_MAGIC 0x23c9b64e
 #endif
 
+#ifdef HAVE_PERSONALITY
+# include <sys/personality.h>
+# if !HAVE_DECL_ADDR_NO_RANDOMIZE
+#  define ADDR_NO_RANDOMIZE 0x0040000
+# endif
+#endif
+
 #ifndef O_LARGEFILE
 #define O_LARGEFILE 0
 #endif
@@ -520,9 +527,29 @@ add_lwp (ptid_t ptid)
 static int
 linux_create_inferior (char *program, char **allargs)
 {
+#ifdef HAVE_PERSONALITY
+  int personality_orig = 0, personality_set = 0;
+#endif
   struct lwp_info *new_lwp;
   int pid;
   ptid_t ptid;
+
+#ifdef HAVE_PERSONALITY
+  if (disable_randomization)
+    {
+      errno = 0;
+      personality_orig = personality (0xffffffff);
+      if (errno == 0 && !(personality_orig & ADDR_NO_RANDOMIZE))
+	{
+	  personality_set = 1;
+	  personality (personality_orig | ADDR_NO_RANDOMIZE);
+	}
+      if (errno != 0 || (personality_set
+			 && !(personality (0xffffffff) & ADDR_NO_RANDOMIZE)))
+	warning ("Error disabling address space randomization: %s",
+		 strerror (errno));
+    }
+#endif
 
 #if defined(__UCLIBC__) && defined(HAS_NOMMU)
   pid = vfork ();
@@ -551,6 +578,17 @@ linux_create_inferior (char *program, char **allargs)
       fflush (stderr);
       _exit (0177);
     }
+
+#ifdef HAVE_PERSONALITY
+  if (personality_set)
+    {
+      errno = 0;
+      personality (personality_orig);
+      if (errno != 0)
+	warning ("Error restoring address space randomization: %s",
+		 strerror (errno));
+    }
+#endif
 
   linux_add_process (pid, 0);
 
@@ -4633,6 +4671,15 @@ linux_supports_multi_process (void)
   return 1;
 }
 
+static int
+linux_supports_disable_randomization (void)
+{
+#ifdef HAVE_PERSONALITY
+  return 1;
+#else
+  return 0;
+#endif
+}
 
 /* Enumerate spufs IDs for process PID.  */
 static int
@@ -4727,7 +4774,7 @@ linux_qxfer_spu (const char *annex, unsigned char *readbuf,
   return ret;
 }
 
-#if defined PT_GETDSBT
+#if defined PT_GETDSBT || defined PTRACE_GETFDPIC
 struct target_loadseg
 {
   /* Core address to which the segment is mapped.  */
@@ -4738,6 +4785,7 @@ struct target_loadseg
   Elf32_Word p_memsz;
 };
 
+# if defined PT_GETDSBT
 struct target_loadmap
 {
   /* Protocol version number, must be zero.  */
@@ -4750,9 +4798,24 @@ struct target_loadmap
   /* The actual memory map.  */
   struct target_loadseg segs[/*nsegs*/];
 };
-#endif
+#  define LINUX_LOADMAP		PT_GETDSBT
+#  define LINUX_LOADMAP_EXEC	PTRACE_GETDSBT_EXEC
+#  define LINUX_LOADMAP_INTERP	PTRACE_GETDSBT_INTERP
+# else
+struct target_loadmap
+{
+  /* Protocol version number, must be zero.  */
+  Elf32_Half version;
+  /* Number of segments in this map.  */
+  Elf32_Half nsegs;
+  /* The actual memory map.  */
+  struct target_loadseg segs[/*nsegs*/];
+};
+#  define LINUX_LOADMAP		PTRACE_GETFDPIC
+#  define LINUX_LOADMAP_EXEC	PTRACE_GETFDPIC_EXEC
+#  define LINUX_LOADMAP_INTERP	PTRACE_GETFDPIC_INTERP
+# endif
 
-#if defined PT_GETDSBT
 static int
 linux_read_loadmap (const char *annex, CORE_ADDR offset,
 		    unsigned char *myaddr, unsigned int len)
@@ -4763,13 +4826,13 @@ linux_read_loadmap (const char *annex, CORE_ADDR offset,
   unsigned int actual_length, copy_length;
 
   if (strcmp (annex, "exec") == 0)
-    addr= (int) PTRACE_GETDSBT_EXEC;
+    addr = (int) LINUX_LOADMAP_EXEC;
   else if (strcmp (annex, "interp") == 0)
-    addr = (int) PTRACE_GETDSBT_INTERP;
+    addr = (int) LINUX_LOADMAP_INTERP;
   else
     return -1;
 
-  if (ptrace (PT_GETDSBT, pid, addr, &data) != 0)
+  if (ptrace (LINUX_LOADMAP, pid, addr, &data) != 0)
     return -1;
 
   if (data == NULL)
@@ -4785,7 +4848,9 @@ linux_read_loadmap (const char *annex, CORE_ADDR offset,
   memcpy (myaddr, (char *) data + offset, copy_length);
   return copy_length;
 }
-#endif /* defined PT_GETDSBT */
+#else
+# define linux_read_loadmap NULL
+#endif /* defined PT_GETDSBT || defined PTRACE_GETFDPIC */
 
 static void
 linux_process_qsupported (const char *query)
@@ -4935,11 +5000,7 @@ static struct target_ops linux_target_ops = {
   NULL,
 #endif
   linux_common_core_of_thread,
-#if defined PT_GETDSBT
   linux_read_loadmap,
-#else
-  NULL,
-#endif
   linux_process_qsupported,
   linux_supports_tracepoints,
   linux_read_pc,
@@ -4951,7 +5012,8 @@ static struct target_ops linux_target_ops = {
   linux_cancel_breakpoints,
   linux_stabilize_threads,
   linux_install_fast_tracepoint_jump_pad,
-  linux_emit_ops
+  linux_emit_ops,
+  linux_supports_disable_randomization,
 };
 
 static void

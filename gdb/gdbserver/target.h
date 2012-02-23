@@ -334,7 +334,7 @@ struct target_ops
   /* Read Thread Information Block address.  */
   int (*get_tib_address) (ptid_t ptid, CORE_ADDR *address);
 
-  /* Pause all threads.  If FREEZE, arrange for any resume attempt be
+  /* Pause all threads.  If FREEZE, arrange for any resume attempt to
      be ignored until an unpause_all call unfreezes threads again.
      There can be nested calls to pause_all, so a freeze counter
      should be maintained.  */
@@ -377,6 +377,9 @@ struct target_ops
   /* Return the bytecode operations vector for the current inferior.
      Returns NULL if bytecode compilation is not supported.  */
   struct emit_ops *(*emit_ops) (void);
+
+  /* Returns true if the target supports disabling randomization.  */
+  int (*supports_disable_randomization) (void);
 };
 
 extern struct target_ops *the_target;
@@ -482,6 +485,10 @@ void set_target_ops (struct target_ops *);
 
 #define target_emit_ops() \
   (the_target->emit_ops ? (*the_target->emit_ops) () : NULL)
+
+#define target_supports_disable_randomization() \
+  (the_target->supports_disable_randomization ? \
+   (*the_target->supports_disable_randomization) () : 0)
 
 /* Start non-stop mode, returns 0 on success, -1 on failure.   */
 

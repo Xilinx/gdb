@@ -38,6 +38,8 @@ extern "C" {
 
 #include "ansidecl.h"
 #include "symcat.h"
+#include <sys/stat.h>
+
 #if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #ifndef SABER
 /* This hack is to avoid a problem with some strict ANSI C preprocessors.
@@ -307,9 +309,6 @@ typedef struct bfd_section *sec_ptr;
    && bfd_is_abs_section ((sec)->output_section)		\
    && (sec)->sec_info_type != ELF_INFO_TYPE_MERGE		\
    && (sec)->sec_info_type != ELF_INFO_TYPE_JUST_SYMS)
-
-/* Forward define.  */
-struct stat;
 
 typedef enum bfd_print_symbol
 {
@@ -2072,6 +2071,9 @@ enum bfd_architecture
  bfd_arch_iq2000,     /* Vitesse IQ2000.  */
 #define bfd_mach_iq2000        1
 #define bfd_mach_iq10          2
+  bfd_arch_epiphany,   /* Adapteva EPIPHANY */
+#define bfd_mach_epiphany16    1
+#define bfd_mach_epiphany32    2
   bfd_arch_mt,
 #define bfd_mach_ms1           1
 #define bfd_mach_mrisc2        2
@@ -2107,6 +2109,8 @@ enum bfd_architecture
 #define bfd_mach_cris_v0_v10   255
 #define bfd_mach_cris_v32      32
 #define bfd_mach_cris_v10_v32  1032
+  bfd_arch_rl78,
+#define bfd_mach_rl78  0x75
   bfd_arch_rx,        /* Renesas RX.  */
 #define bfd_mach_rx            0x75
   bfd_arch_s390,      /* IBM s390 */
@@ -4055,6 +4059,40 @@ instructions  */
 instructions  */
   BFD_RELOC_AVR_6_ADIW,
 
+/* Renesas RL78 Relocations.  */
+  BFD_RELOC_RL78_NEG8,
+  BFD_RELOC_RL78_NEG16,
+  BFD_RELOC_RL78_NEG24,
+  BFD_RELOC_RL78_NEG32,
+  BFD_RELOC_RL78_16_OP,
+  BFD_RELOC_RL78_24_OP,
+  BFD_RELOC_RL78_32_OP,
+  BFD_RELOC_RL78_8U,
+  BFD_RELOC_RL78_16U,
+  BFD_RELOC_RL78_24U,
+  BFD_RELOC_RL78_DIR3U_PCREL,
+  BFD_RELOC_RL78_DIFF,
+  BFD_RELOC_RL78_GPRELB,
+  BFD_RELOC_RL78_GPRELW,
+  BFD_RELOC_RL78_GPRELL,
+  BFD_RELOC_RL78_SYM,
+  BFD_RELOC_RL78_OP_SUBTRACT,
+  BFD_RELOC_RL78_OP_NEG,
+  BFD_RELOC_RL78_OP_AND,
+  BFD_RELOC_RL78_OP_SHRA,
+  BFD_RELOC_RL78_ABS8,
+  BFD_RELOC_RL78_ABS16,
+  BFD_RELOC_RL78_ABS16_REV,
+  BFD_RELOC_RL78_ABS32,
+  BFD_RELOC_RL78_ABS32_REV,
+  BFD_RELOC_RL78_ABS16U,
+  BFD_RELOC_RL78_ABS16UW,
+  BFD_RELOC_RL78_ABS16UL,
+  BFD_RELOC_RL78_RELAX,
+  BFD_RELOC_RL78_HI16,
+  BFD_RELOC_RL78_HI8,
+  BFD_RELOC_RL78_LO16,
+
 /* Renesas RX Relocations.  */
   BFD_RELOC_RX_NEG8,
   BFD_RELOC_RX_NEG16,
@@ -4823,6 +4861,7 @@ expressions of the form "Symbol Op Symbol"  */
 /* This is a 64 bit reloc that stores the 32 bit pc relative 
 value in two words (with an imm instruction).  No relocation is 
 done here - only used for relaxing  */
+  BFD_RELOC_MICROBLAZE_32_NONE,
   BFD_RELOC_MICROBLAZE_64_NONE,
 
 /* This is a 64 bit reloc that stores the 32 bit pc relative 
@@ -5024,6 +5063,27 @@ the dynamic object into the runtime process image.  */
   BFD_RELOC_TILEGX_TLS_DTPMOD32,
   BFD_RELOC_TILEGX_TLS_DTPOFF32,
   BFD_RELOC_TILEGX_TLS_TPOFF32,
+
+/* Adapteva EPIPHANY - 8 bit signed pc-relative displacement  */
+  BFD_RELOC_EPIPHANY_SIMM8,
+
+/* Adapteva EPIPHANY - 24 bit signed pc-relative displacement  */
+  BFD_RELOC_EPIPHANY_SIMM24,
+
+/* Adapteva EPIPHANY - 16 most-significant bits of absolute address  */
+  BFD_RELOC_EPIPHANY_HIGH,
+
+/* Adapteva EPIPHANY - 16 least-significant bits of absolute address  */
+  BFD_RELOC_EPIPHANY_LOW,
+
+/* Adapteva EPIPHANY - 11 bit signed number - add/sub immediate  */
+  BFD_RELOC_EPIPHANY_SIMM11,
+
+/* Adapteva EPIPHANY - 11 bit sign-magnitude number (ld/st displacement)  */
+  BFD_RELOC_EPIPHANY_IMM11,
+
+/* Adapteva EPIPHANY - 8 bit immediate for 16 bit mov instruction.  */
+  BFD_RELOC_EPIPHANY_IMM8,
   BFD_RELOC_UNUSED };
 typedef enum bfd_reloc_code_real bfd_reloc_code_real_type;
 reloc_howto_type *bfd_reloc_type_lookup

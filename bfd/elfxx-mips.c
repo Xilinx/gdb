@@ -6337,7 +6337,6 @@ _bfd_mips_elf_symbol_processing (bfd *abfd, asymbol *asym)
       {
 	asection *section = bfd_get_section_by_name (abfd, ".text");
 
-	BFD_ASSERT (SGI_COMPAT (abfd));
 	if (section != NULL)
 	  {
 	    asym->section = section;
@@ -6353,7 +6352,6 @@ _bfd_mips_elf_symbol_processing (bfd *abfd, asymbol *asym)
       {
 	asection *section = bfd_get_section_by_name (abfd, ".data");
 
-	BFD_ASSERT (SGI_COMPAT (abfd));
 	if (section != NULL)
 	  {
 	    asym->section = section;
@@ -11567,7 +11565,8 @@ _bfd_mips_elf_find_nearest_line (bfd *abfd, asection *section,
 				     line_ptr))
     return TRUE;
 
-  if (_bfd_dwarf2_find_nearest_line (abfd, section, symbols, offset,
+  if (_bfd_dwarf2_find_nearest_line (abfd, dwarf_debug_sections,
+                                     section, symbols, offset,
 				     filename_ptr, functionname_ptr,
 				     line_ptr, ABI_64_P (abfd) ? 8 : 0,
 				     &elf_tdata (abfd)->dwarf2_find_line_info))
