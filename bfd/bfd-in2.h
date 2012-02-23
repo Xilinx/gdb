@@ -4861,6 +4861,7 @@ expressions of the form "Symbol Op Symbol"  */
 /* This is a 64 bit reloc that stores the 32 bit pc relative 
 value in two words (with an imm instruction).  No relocation is 
 done here - only used for relaxing  */
+  BFD_RELOC_MICROBLAZE_32_NONE,
   BFD_RELOC_MICROBLAZE_64_NONE,
 
 /* This is a 64 bit reloc that stores the 32 bit pc relative 
