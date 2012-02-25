@@ -389,7 +389,7 @@ x86_get_pc (struct regcache *regcache)
 
   if (use_64bit)
     {
-      unsigned long pc;
+      unsigned long long pc;
       collect_register_by_name (regcache, "rip", &pc);
       return (CORE_ADDR) pc;
     }
@@ -408,7 +408,7 @@ x86_set_pc (struct regcache *regcache, CORE_ADDR pc)
 
   if (use_64bit)
     {
-      unsigned long newpc = pc;
+      unsigned long long newpc = pc;
       supply_register_by_name (regcache, "rip", &newpc);
     }
   else

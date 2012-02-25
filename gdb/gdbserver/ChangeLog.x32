@@ -1,3 +1,8 @@
+2012-02-24  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* linux-x86-low.c (x86_get_pc): Use long long for 64bit pc.
+	(x86_set_pc): Likewise.
+
 2012-02-13  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* linux-low.c (linux_qxfer_libraries_svr4): Update call to
