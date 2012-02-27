@@ -230,6 +230,9 @@ inline_frame_sniffer (const struct frame_unwind *self,
       cur_block = BLOCK_SUPERBLOCK (cur_block);
     }
 
+  if (depth == 0)
+    return 0;
+
   /* Check how many inlined functions already have frames.  */
   for (next_frame = get_next_frame (this_frame);
        next_frame && get_frame_type (next_frame) == INLINE_FRAME;

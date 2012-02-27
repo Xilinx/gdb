@@ -77,7 +77,8 @@ get_frame_block (struct frame_info *frame, CORE_ADDR *addr_in_block)
 	inline_count--;
 
       bl = BLOCK_SUPERBLOCK (bl);
-      gdb_assert (bl != NULL);
+      if (!bl)
+        return NULL;
     }
 
   return bl;
