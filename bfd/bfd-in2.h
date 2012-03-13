@@ -38,6 +38,8 @@ extern "C" {
 
 #include "ansidecl.h"
 #include "symcat.h"
+#include <sys/stat.h>
+
 #if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #ifndef SABER
 /* This hack is to avoid a problem with some strict ANSI C preprocessors.
@@ -307,9 +309,6 @@ typedef struct bfd_section *sec_ptr;
    && bfd_is_abs_section ((sec)->output_section)		\
    && (sec)->sec_info_type != ELF_INFO_TYPE_MERGE		\
    && (sec)->sec_info_type != ELF_INFO_TYPE_JUST_SYMS)
-
-/* Forward define.  */
-struct stat;
 
 typedef enum bfd_print_symbol
 {
@@ -559,11 +558,6 @@ void bfd_putl16 (bfd_vma, void *);
 bfd_uint64_t bfd_get_bits (const void *, int, bfd_boolean);
 void bfd_put_bits (bfd_uint64_t, void *, int, bfd_boolean);
 
-extern bfd_boolean bfd_section_already_linked_table_init (void);
-extern void bfd_section_already_linked_table_free (void);
-
-/* Externally visible ECOFF routines.  */
-
 #if defined(__STDC__) || defined(ALMOST_STDC)
 struct ecoff_debug_info;
 struct ecoff_debug_swap;
@@ -571,8 +565,18 @@ struct ecoff_extr;
 struct bfd_symbol;
 struct bfd_link_info;
 struct bfd_link_hash_entry;
+struct bfd_section_already_linked;
 struct bfd_elf_version_tree;
 #endif
+
+extern bfd_boolean bfd_section_already_linked_table_init (void);
+extern void bfd_section_already_linked_table_free (void);
+extern bfd_boolean _bfd_handle_already_linked
+  (struct bfd_section *, struct bfd_section_already_linked *,
+   struct bfd_link_info *);
+
+/* Externally visible ECOFF routines.  */
+
 extern bfd_vma bfd_ecoff_get_gp_value
   (bfd * abfd);
 extern bfd_boolean bfd_ecoff_set_gp_value
@@ -647,8 +651,7 @@ extern bfd_boolean bfd_elf_get_bfd_needed_list
   (bfd *, struct bfd_link_needed_list **);
 extern bfd_boolean bfd_elf_size_dynamic_sections
   (bfd *, const char *, const char *, const char *, const char *, const char *,
-   const char * const *, struct bfd_link_info *, struct bfd_section **,
-   struct bfd_elf_version_tree *);
+   const char * const *, struct bfd_link_info *, struct bfd_section **);
 extern bfd_boolean bfd_elf_size_dynsym_hash_dynstr
   (bfd *, struct bfd_link_info *);
 extern void bfd_elf_set_dt_needed_name
@@ -1392,21 +1395,6 @@ typedef struct bfd_section
   /* Bits used by various backends.  The generic code doesn't touch
      these fields.  */
 
-  /* Nonzero if this section has TLS related relocations.  */
-  unsigned int has_tls_reloc:1;
-
-  /* Nonzero if this section has a call to __tls_get_addr.  */
-  unsigned int has_tls_get_addr_call:1;
-
-  /* Nonzero if this section has a gp reloc.  */
-  unsigned int has_gp_reloc:1;
-
-  /* Nonzero if this section needs the relax finalize pass.  */
-  unsigned int need_finalize_relax:1;
-
-  /* Whether relocations have been processed.  */
-  unsigned int reloc_done : 1;
-
   unsigned int sec_flg0:1;
   unsigned int sec_flg1:1;
   unsigned int sec_flg2:1;
@@ -1686,17 +1674,14 @@ extern asection bfd_ind_section;
   /* linker_mark, linker_has_input, gc_mark, decompress_status,    */  \
      0,           0,                1,       0,                        \
                                                                        \
-  /* segment_mark, sec_info_type, use_rela_p, has_tls_reloc,       */  \
-     0,            0,             0,          0,                       \
-                                                                       \
-  /* has_tls_get_addr_call, has_gp_reloc, need_finalize_relax,     */  \
-     0,                     0,            0,                           \
+  /* segment_mark, sec_info_type, use_rela_p,                      */  \
+     0,            0,             0,                                   \
                                                                        \
   /* sec_flg0, sec_flg1, sec_flg2, sec_flg3, sec_flg4, sec_flg5,   */  \
      0,        0,        0,        0,        0,        0,              \
                                                                        \
-  /* reloc_done, vma, lma, size, rawsize, compressed_size, relax, relax_count, */  \
-     0,   0,   0,   0,    0,       0,               0,     0,               \
+  /* vma, lma, size, rawsize, compressed_size, relax, relax_count, */  \
+     0,   0,   0,    0,       0,               0,     0,               \
                                                                        \
   /* output_offset, output_section,              alignment_power,  */  \
      0,             (struct bfd_section *) &SEC, 0,                    \
@@ -2086,6 +2071,9 @@ enum bfd_architecture
  bfd_arch_iq2000,     /* Vitesse IQ2000.  */
 #define bfd_mach_iq2000        1
 #define bfd_mach_iq10          2
+  bfd_arch_epiphany,   /* Adapteva EPIPHANY */
+#define bfd_mach_epiphany16    1
+#define bfd_mach_epiphany32    2
   bfd_arch_mt,
 #define bfd_mach_ms1           1
 #define bfd_mach_mrisc2        2
@@ -2121,6 +2109,8 @@ enum bfd_architecture
 #define bfd_mach_cris_v0_v10   255
 #define bfd_mach_cris_v32      32
 #define bfd_mach_cris_v10_v32  1032
+  bfd_arch_rl78,
+#define bfd_mach_rl78  0x75
   bfd_arch_rx,        /* Renesas RX.  */
 #define bfd_mach_rx            0x75
   bfd_arch_s390,      /* IBM s390 */
@@ -4069,6 +4059,40 @@ instructions  */
 instructions  */
   BFD_RELOC_AVR_6_ADIW,
 
+/* Renesas RL78 Relocations.  */
+  BFD_RELOC_RL78_NEG8,
+  BFD_RELOC_RL78_NEG16,
+  BFD_RELOC_RL78_NEG24,
+  BFD_RELOC_RL78_NEG32,
+  BFD_RELOC_RL78_16_OP,
+  BFD_RELOC_RL78_24_OP,
+  BFD_RELOC_RL78_32_OP,
+  BFD_RELOC_RL78_8U,
+  BFD_RELOC_RL78_16U,
+  BFD_RELOC_RL78_24U,
+  BFD_RELOC_RL78_DIR3U_PCREL,
+  BFD_RELOC_RL78_DIFF,
+  BFD_RELOC_RL78_GPRELB,
+  BFD_RELOC_RL78_GPRELW,
+  BFD_RELOC_RL78_GPRELL,
+  BFD_RELOC_RL78_SYM,
+  BFD_RELOC_RL78_OP_SUBTRACT,
+  BFD_RELOC_RL78_OP_NEG,
+  BFD_RELOC_RL78_OP_AND,
+  BFD_RELOC_RL78_OP_SHRA,
+  BFD_RELOC_RL78_ABS8,
+  BFD_RELOC_RL78_ABS16,
+  BFD_RELOC_RL78_ABS16_REV,
+  BFD_RELOC_RL78_ABS32,
+  BFD_RELOC_RL78_ABS32_REV,
+  BFD_RELOC_RL78_ABS16U,
+  BFD_RELOC_RL78_ABS16UW,
+  BFD_RELOC_RL78_ABS16UL,
+  BFD_RELOC_RL78_RELAX,
+  BFD_RELOC_RL78_HI16,
+  BFD_RELOC_RL78_HI8,
+  BFD_RELOC_RL78_LO16,
+
 /* Renesas RX Relocations.  */
   BFD_RELOC_RX_NEG8,
   BFD_RELOC_RX_NEG16,
@@ -4868,37 +4892,6 @@ value in a word.  The relocation is relative offset from  */
 the dynamic object into the runtime process image.  */
   BFD_RELOC_MICROBLAZE_COPY,
 
-/* Unused Reloc  */
-  BFD_RELOC_MICROBLAZE_64_TLS,
-
-/* This is a 64 bit reloc that stores the 32 bit GOT relative value
-of the GOT TLS GD info entry in two words (with an imm instruction). The 
-relocation is GOT offset.  */
-  BFD_RELOC_MICROBLAZE_64_TLSGD,
-
-/* This is a 64 bit reloc that stores the 32 bit GOT relative value
-of the GOT TLS LD info entry in two words (with an imm instruction). The 
-relocation is GOT offset.  */
-  BFD_RELOC_MICROBLAZE_64_TLSLD,
-
-/* This is a 32 bit reloc that stores the Module ID to GOT(n).  */
-  BFD_RELOC_MICROBLAZE_32_TLSDTPMOD,
-
-/* This is a 32 bit reloc that stores TLS offset to GOT(n+1).  */
-  BFD_RELOC_MICROBLAZE_32_TLSDTPREL,
-
-/* This is a 32 bit reloc for storing TLS offset to two words (uses imm 
-instruction)  */
-  BFD_RELOC_MICROBLAZE_64_TLSDTPREL,
-
-/* This is a 64 bit reloc that stores 32-bit thread pointer relative offset
-to two words (uses imm instruction).  */
-  BFD_RELOC_MICROBLAZE_64_TLSGOTTPREL,
-
-/* This is a 64 bit reloc that stores 32-bit thread pointer relative offset
-to two words (uses imm instruction).  */
-  BFD_RELOC_MICROBLAZE_64_TLSTPREL,
-
 /* Tilera TILEPro Relocations.  */
   BFD_RELOC_TILEPRO_COPY,
   BFD_RELOC_TILEPRO_GLOB_DAT,
@@ -5070,6 +5063,27 @@ to two words (uses imm instruction).  */
   BFD_RELOC_TILEGX_TLS_DTPMOD32,
   BFD_RELOC_TILEGX_TLS_DTPOFF32,
   BFD_RELOC_TILEGX_TLS_TPOFF32,
+
+/* Adapteva EPIPHANY - 8 bit signed pc-relative displacement  */
+  BFD_RELOC_EPIPHANY_SIMM8,
+
+/* Adapteva EPIPHANY - 24 bit signed pc-relative displacement  */
+  BFD_RELOC_EPIPHANY_SIMM24,
+
+/* Adapteva EPIPHANY - 16 most-significant bits of absolute address  */
+  BFD_RELOC_EPIPHANY_HIGH,
+
+/* Adapteva EPIPHANY - 16 least-significant bits of absolute address  */
+  BFD_RELOC_EPIPHANY_LOW,
+
+/* Adapteva EPIPHANY - 11 bit signed number - add/sub immediate  */
+  BFD_RELOC_EPIPHANY_SIMM11,
+
+/* Adapteva EPIPHANY - 11 bit sign-magnitude number (ld/st displacement)  */
+  BFD_RELOC_EPIPHANY_IMM11,
+
+/* Adapteva EPIPHANY - 8 bit immediate for 16 bit mov instruction.  */
+  BFD_RELOC_EPIPHANY_IMM8,
   BFD_RELOC_UNUSED };
 typedef enum bfd_reloc_code_real bfd_reloc_code_real_type;
 reloc_howto_type *bfd_reloc_type_lookup
@@ -5823,7 +5837,6 @@ enum bfd_endian { BFD_ENDIAN_BIG, BFD_ENDIAN_LITTLE, BFD_ENDIAN_UNKNOWN };
 
 /* Forward declaration.  */
 typedef struct bfd_link_info _bfd_link_info;
-struct already_linked;
 
 /* Forward declaration.  */
 typedef struct flag_info flag_info;
@@ -6157,7 +6170,7 @@ typedef struct bfd_target
 
   /* Check if SEC has been already linked during a reloceatable or
      final link.  */
-  bfd_boolean (*_section_already_linked) (bfd *, struct already_linked *,
+  bfd_boolean (*_section_already_linked) (bfd *, asection *,
                                           struct bfd_link_info *);
 
   /* Define a common symbol.  */
@@ -6228,11 +6241,11 @@ bfd_boolean bfd_link_split_section (bfd *abfd, asection *sec);
        BFD_SEND (abfd, _bfd_link_split_section, (abfd, sec))
 
 bfd_boolean bfd_section_already_linked (bfd *abfd,
-    struct already_linked *data,
+    asection *sec,
     struct bfd_link_info *info);
 
-#define bfd_section_already_linked(abfd, data, info) \
-       BFD_SEND (abfd, _section_already_linked, (abfd, data, info))
+#define bfd_section_already_linked(abfd, sec, info) \
+       BFD_SEND (abfd, _section_already_linked, (abfd, sec, info))
 
 bfd_boolean bfd_generic_define_common_symbol
    (bfd *output_bfd, struct bfd_link_info *info,
@@ -6244,6 +6257,9 @@ bfd_boolean bfd_generic_define_common_symbol
 struct bfd_elf_version_tree * bfd_find_version_for_sym
    (struct bfd_elf_version_tree *verdefs,
     const char *sym_name, bfd_boolean *hide);
+
+bfd_boolean bfd_hide_sym_by_version
+   (struct bfd_elf_version_tree *verdefs, const char *sym_name);
 
 /* Extracted from simple.c.  */
 bfd_byte *bfd_simple_get_relocated_section_contents
