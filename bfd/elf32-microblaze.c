@@ -384,6 +384,132 @@ static reloc_howto_type microblaze_elf_howto_raw[] =
           0,			/* Source Mask.  */
           0x0000ffff,		/* Dest Mask.  */
           FALSE), 		/* PC relative offset?  */
+
+  /* Marker relocs for TLS.  */
+  HOWTO (R_MICROBLAZE_TLS,
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 bfd_elf_generic_reloc,	/* special_function */
+	 "R_MICROBLAZE_TLS",		/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 0x0000ffff,			/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  HOWTO (R_MICROBLAZE_TLSGD,
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 bfd_elf_generic_reloc, /* special_function */
+	 "R_MICROBLAZE_TLSGD",		/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 0x0000ffff,			/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  HOWTO (R_MICROBLAZE_TLSLD,
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 bfd_elf_generic_reloc, /* special_function */
+	 "R_MICROBLAZE_TLSLD",		/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 0x0000ffff,		/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* Computes the load module index of the load module that contains the
+     definition of its TLS sym.  */
+  HOWTO (R_MICROBLAZE_TLSDTPMOD32,
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 bfd_elf_generic_reloc, /* special_function */
+	 "R_MICROBLAZE_TLSDTPMOD32",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 0x0000ffff,		/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* Computes a dtv-relative displacement, the difference between the value
+     of sym+add and the base address of the thread-local storage block that
+     contains the definition of sym, minus 0x8000.  Used for initializing GOT */
+  HOWTO (R_MICROBLAZE_TLSDTPREL32,
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 bfd_elf_generic_reloc, /* special_function */
+	 "R_MICROBLAZE_TLSDTPREL32",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 0x0000ffff,		/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* Computes a dtv-relative displacement, the difference between the value
+     of sym+add and the base address of the thread-local storage block that
+     contains the definition of sym, minus 0x8000.  */
+  HOWTO (R_MICROBLAZE_TLSDTPREL64,
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 bfd_elf_generic_reloc, /* special_function */
+	 "R_MICROBLAZE_TLSDTPREL64",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 0x0000ffff,		/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* Computes a tp-relative displacement, the difference between the value of
+     sym+add and the value of the thread pointer (r13).  */
+  HOWTO (R_MICROBLAZE_TLSGOTTPREL32,
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 bfd_elf_generic_reloc, /* special_function */
+	 "R_MICROBLAZE_TLSGOTTPREL32",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 0x0000ffff,		/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* Computes a tp-relative displacement, the difference between the value of
+     sym+add and the value of the thread pointer (r13).  */
+  HOWTO (R_MICROBLAZE_TLSTPREL32,
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 bfd_elf_generic_reloc, /* special_function */
+	 "R_MICROBLAZE_TLSTPREL32",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 0x0000ffff,		/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
 };
 
 #ifndef NUM_ELEM
@@ -478,6 +604,27 @@ microblaze_elf_reloc_type_lookup (bfd * abfd ATTRIBUTE_UNUSED,
     case BFD_RELOC_MICROBLAZE_32_GOTOFF:
       microblaze_reloc = R_MICROBLAZE_GOTOFF_32;
       break;
+    case BFD_RELOC_MICROBLAZE_64_TLSGD:
+      microblaze_reloc = R_MICROBLAZE_TLSGD;
+      break;
+    case BFD_RELOC_MICROBLAZE_64_TLSLD:
+      microblaze_reloc = R_MICROBLAZE_TLSLD;
+      break;
+    case BFD_RELOC_MICROBLAZE_32_TLSDTPREL:
+      microblaze_reloc = R_MICROBLAZE_TLSDTPREL32;
+      break;
+    case BFD_RELOC_MICROBLAZE_64_TLSDTPREL:
+      microblaze_reloc = R_MICROBLAZE_TLSDTPREL64;
+      break;
+    case BFD_RELOC_MICROBLAZE_32_TLSDTPMOD:
+      microblaze_reloc = R_MICROBLAZE_TLSDTPMOD32;
+      break;
+    case BFD_RELOC_MICROBLAZE_64_TLSGOTTPREL:
+      microblaze_reloc = R_MICROBLAZE_TLSGOTTPREL32;
+      break;
+    case BFD_RELOC_MICROBLAZE_64_TLSTPREL:
+      microblaze_reloc = R_MICROBLAZE_TLSTPREL32;
+      break;
     case BFD_RELOC_MICROBLAZE_COPY:
       microblaze_reloc = R_MICROBLAZE_COPY;
       break;
@@ -567,7 +714,20 @@ struct elf32_mb_link_hash_entry
   /* Track dynamic relocs copied for this symbol.  */
   struct elf32_mb_dyn_relocs *dyn_relocs;
 
+  /* TLS Reference Types for the symbol; Updated by check_relocs */
+#define TLS_GD		 1	/* GD reloc. */
+#define TLS_LD		 2	/* LD reloc. */
+#define TLS_TPREL	 4	/* TPREL reloc, => IE. */
+#define TLS_DTPREL	 8	/* DTPREL reloc, => LD. */
+#define TLS_TLS		16	/* Any TLS reloc.  */
+  unsigned char tls_mask;
+
 };
+
+#define IS_TLS_GD(x)   (x == (TLS_TLS | TLS_GD))
+#define IS_TLS_LD(x)   (x == (TLS_TLS | TLS_LD))
+#define IS_TLS_DTPREL(x)   (x == (TLS_TLS | TLS_DTPREL))
+#define IS_TLS_NONE(x) (x == 0)
 
 #define elf32_mb_hash_entry(ent) ((struct elf32_mb_link_hash_entry *)(ent))
 
@@ -588,6 +748,12 @@ struct elf32_mb_link_hash_table
 
   /* Small local sym to section mapping cache.  */
   struct sym_cache sym_sec;
+
+  /* TLS Local Dynamic GOT Entry */
+  union {
+    bfd_signed_vma refcount;
+    bfd_vma offset;
+  } tlsld_got;
 };
 
 /* Get the ELF linker hash table from a link_info structure.  */
@@ -621,6 +787,7 @@ link_hash_newfunc (struct bfd_hash_entry *entry,
 
       eh = (struct elf32_mb_link_hash_entry *) entry;
       eh->dyn_relocs = NULL;
+      eh->tls_mask = 0;
     }
 
   return entry;
@@ -669,6 +836,79 @@ microblaze_elf_final_sdp (struct bfd_link_info *info)
     rw_small_data_pointer = (h->u.def.value
                              + h->u.def.section->output_section->vma
                              + h->u.def.section->output_offset);
+}
+
+static bfd_vma
+dtprel_base (struct bfd_link_info *info)
+{
+  /* If tls_sec is NULL, we should have signalled an error already.  */
+  if (elf_hash_table (info)->tls_sec == NULL)
+    return 0;
+  return elf_hash_table (info)->tls_sec->vma; 
+}
+
+/* The size of the thread control block.  */
+#define TCB_SIZE	8
+
+#if 0
+static bfd_vma
+tprel_base (struct bfd_link_info *info)
+{
+  bfd_vma base;
+
+  /* If tls_sec is NULL, we should have signalled an error already.  */
+  if (elf_hash_table (info)->tls_sec == NULL)
+    return 0;
+  base = align_power ((bfd_vma) TCB_SIZE, elf_hash_table(info)->tls_sec->alignment_power);
+
+  return elf_hash_table (info)->tls_sec->vma - base;
+}
+#endif
+
+static void
+check_unique_offset(bfd_vma offset, int tls_type, bfd_vma v)
+{
+  static bfd_vma offsets[1000];
+  static bfd_vma values[1000];
+
+  static int noffsets = 0;
+  int scan1;
+
+  return;
+
+  for (scan1 = 0; scan1 < noffsets; scan1++)
+  {
+	if (offsets[scan1] == offset)
+	  {
+		fprintf (stderr, "Duplicate Offset: %lx type: %x Old: %lx New: %lx \n", offset, tls_type, values[scan1], v);
+	  }
+  }
+  fprintf (stderr, "%d Registered Offset: %lx Value: %lx type: %x\n", noffsets, offset, v, tls_type);
+  offsets[noffsets] = offset;
+  values[noffsets++] = v;
+}
+
+/* Output a simple dynamic relocation into SRELOC.  */
+
+static void
+microblaze_elf_output_dynamic_relocation (bfd *output_bfd,
+				    asection *sreloc,
+				    unsigned long reloc_index,
+				    unsigned long indx,
+				    int r_type,
+				    bfd_vma offset,
+				    bfd_vma addend
+                                    )
+{
+
+  Elf_Internal_Rela rel;
+
+  rel.r_info = ELF32_R_INFO (indx, r_type);
+  rel.r_offset = offset;
+  rel.r_addend = addend;
+
+  bfd_elf32_swap_reloca_out (output_bfd, &rel, 
+              (sreloc->contents + reloc_index * sizeof (Elf32_External_Rela)));
 }
 
 /* This code is taken from elf32-m32r.c
@@ -724,6 +964,7 @@ microblaze_elf_relocate_section (bfd *output_bfd,
   bfd_boolean ret = TRUE;
   asection *sreloc;
   bfd_vma *local_got_offsets;
+  unsigned int tls_type;
 
   if (!microblaze_elf_howto_table[R_MICROBLAZE_max-1])
     microblaze_elf_howto_init ();
@@ -755,6 +996,8 @@ microblaze_elf_relocate_section (bfd *output_bfd,
 
       h = NULL;
       r_type = ELF32_R_TYPE (rel->r_info);
+      tls_type = 0;
+
       if (r_type < 0 || r_type >= (int) R_MICROBLAZE_max)
 	{
 	  (*_bfd_error_handler) (_("%s: unknown relocation type %d"),
@@ -988,70 +1231,208 @@ microblaze_elf_relocate_section (bfd *output_bfd,
 		break;
 	      }
 
+	    case (int) R_MICROBLAZE_TLSGD:
+		tls_type = (TLS_TLS | TLS_GD);
+		goto dogot;
+	    case (int) R_MICROBLAZE_TLSLD:
+		tls_type = (TLS_TLS | TLS_LD);
+		dogot:
 	    case (int) R_MICROBLAZE_GOT_64:
 	      {
+	        bfd_vma *offp;
+                bfd_vma off, off2;
+	        unsigned long indx;
+		bfd_vma static_value;
+
+		bfd_boolean need_relocs = FALSE;
+
 		if (htab->sgot == NULL)
 		  abort ();
-		if (h == NULL)
-		  {
-		    bfd_vma off;
+
+	        indx = 0;
+	        offp = NULL;
+
+                /* 1. Identify GOT Offset; 
+                   2. Compute Static Values 
+                   3. Process Module Id, Process Offset
+                   4. Fixup Relocation with GOT offset value 
+                 */
+                   
+                /* 1. Determine GOT Offset to use : TLS_LD, global, local */
+	        if ( IS_TLS_LD (tls_type) )
+	          offp = &htab->tlsld_got.offset;
+                else if (h != NULL)
+	          {
+		    if (htab->sgotplt != NULL && h->got.offset != (bfd_vma) -1)
+		       offp = &h->got.offset;
+                    else
+		      abort ();
+	          }
+	        else
+	          {
 		    if (local_got_offsets == NULL)
 		      abort ();
-		    off = local_got_offsets[r_symndx];
-		    /* The LSB indicates whether we've already
-		       created relocation.  */
-		    if (off & 1)
-		      off &= ~1;
-		    else
-		      {
-			bfd_put_32 (output_bfd, relocation + addend,
-				    htab->sgot->contents + off);
+		    offp = &local_got_offsets[r_symndx];
+	          }
 
-			if (info->shared)
-			  {
-			    Elf_Internal_Rela outrel;
-			    bfd_byte *loc;
-			    if (htab->srelgot == NULL)
-			      abort ();
-			    outrel.r_offset = (htab->sgot->output_section->vma
-					       + htab->sgot->output_offset
-					       + off);
-			    outrel.r_info = ELF32_R_INFO (0, R_MICROBLAZE_REL);
-			    outrel.r_addend = relocation + addend;
-			    loc = htab->srelgot->contents;
-			    loc += htab->srelgot->reloc_count++
-			      * sizeof (Elf32_External_Rela);
-			    bfd_elf32_swap_reloca_out (output_bfd, &outrel, loc);
-			  }
-			local_got_offsets[r_symndx] |= 1;
-		      }
-		    relocation = htab->sgot->output_section->vma
-		      + htab->sgot->output_offset + off
-		      - htab->sgotplt->output_section->vma
-		      - htab->sgotplt->output_offset;
-		    unresolved_reloc = FALSE;
-		  }
-		else
-		  {
-		    if (htab->sgotplt != NULL && h != NULL
-			&& h->got.offset != (bfd_vma) -1)
-		      {
-			bfd_put_32 (output_bfd, relocation + addend,
-				    htab->sgot->contents + h->got.offset);
-			relocation = htab->sgot->output_section->vma
-			  + htab->sgot->output_offset
-			  + h->got.offset
-			  - htab->sgotplt->output_section->vma
-			  - htab->sgotplt->output_offset;
-			unresolved_reloc = FALSE;
-		      }
-		    else
-		      abort (); /* ??? */
-		  }
+                if ( !offp ) abort();
+
+                off = (*offp) & ~1;
+                off2 = off;
+
+                if (IS_TLS_LD(tls_type) || IS_TLS_GD(tls_type))
+                  off2 = off + 4;
+
+                /* Symbol index to use for relocs */
+                if (h != NULL)
+                  {
+                    bfd_boolean dyn = 
+                      elf_hash_table (info)->dynamic_sections_created;
+
+                    if (WILL_CALL_FINISH_DYNAMIC_SYMBOL (dyn, info->shared, h)
+	                && (!info->shared || 
+                            !SYMBOL_REFERENCES_LOCAL (info, h)))
+	              indx = h->dynindx;
+                  }
+
+                /* Need to generate relocs ? */ 
+                if ((info->shared || indx != 0)
+                    && (h == NULL
+	                || ELF_ST_VISIBILITY (h->other) == STV_DEFAULT
+	                || h->root.type != bfd_link_hash_undefweak))
+                  need_relocs = TRUE;
+
+		/* 2. Compute/Emit Static value of r-expression */
+		static_value = relocation + addend;
+
+		/* 3. Process module-id and offset */
+                if (! ((*offp) & 1) )
+                  {
+		     bfd_vma got_offset;
+
+ 		     got_offset = (htab->sgot->output_section->vma
+    				       + htab->sgot->output_offset
+    				       + off);
+
+                    /* Process module-id */
+                    if (IS_TLS_LD(tls_type))
+                      {
+
+                        if ( ! info->shared )
+                          {
+                            check_unique_offset( off, tls_type, 1);
+
+    		            bfd_put_32 (output_bfd, 1,
+    			         htab->sgot->contents + off);
+                          }
+                        else
+                          {
+                            check_unique_offset( off, tls_type, 0xDDDDDDDD);
+
+                            microblaze_elf_output_dynamic_relocation (
+                                  output_bfd, htab->srelgot,
+    			      htab->srelgot->reloc_count++,
+    			      /* symindex= */ 0,
+    			      R_MICROBLAZE_TLSDTPMOD32,
+    			      got_offset, 0);
+                          }
+                      }
+                    else if (IS_TLS_GD(tls_type))
+                      {
+                        if ( ! need_relocs )
+                          {
+                            check_unique_offset( off, tls_type, 1);
+
+    		            bfd_put_32 (output_bfd, 1,
+    			         htab->sgot->contents + off);
+                          }
+                        else
+                          {
+                            check_unique_offset( off, tls_type, 0);
+
+                            microblaze_elf_output_dynamic_relocation (
+                                  output_bfd, htab->srelgot,
+    			      htab->srelgot->reloc_count++,
+    			      /* symindex= */ indx,
+    			      R_MICROBLAZE_TLSDTPMOD32,
+    			      got_offset, indx ? 0 : static_value);
+                          }
+                      }
+    
+                    /* Process Offset */
+    		    if (htab->srelgot == NULL)
+    		      abort ();
+    
+    		    got_offset = (htab->sgot->output_section->vma
+    					       + htab->sgot->output_offset
+    					       + off2);
+                    if (IS_TLS_LD(tls_type))
+                      {
+                        /* For LD, offset should be 0 */
+                        *offp |= 1;
+    		        bfd_put_32 (output_bfd, 0, htab->sgot->contents + off2);
+                      }
+                    else if (IS_TLS_GD(tls_type))
+                      {
+     		        *offp |= 1;
+                        static_value -= dtprel_base(info);
+                        if (need_relocs)
+                          {
+                            check_unique_offset(off2, tls_type, indx ? 0 : static_value + 1);
+                            microblaze_elf_output_dynamic_relocation (
+                                  output_bfd, htab->srelgot,
+    			      htab->srelgot->reloc_count++,
+    			      /* symindex= */ indx,
+    			      R_MICROBLAZE_TLSDTPREL32,
+    			      got_offset, indx ? 0 : static_value);
+                          }
+                        else
+                          {
+                            check_unique_offset(off2, tls_type, static_value);
+
+    		            bfd_put_32 (output_bfd, static_value,
+    				    htab->sgot->contents + off2);
+                          }
+                      }
+                    else
+                      {
+    		         bfd_put_32 (output_bfd, static_value,
+    			    htab->sgot->contents + off2);
+    
+                         /* Relocs for dyn symbols generated by
+                            finish_dynamic_symbols */
+                         if (info->shared && h == NULL)
+                           {
+     		              *offp |= 1;
+
+                              check_unique_offset(off2, tls_type, static_value);
+
+                              microblaze_elf_output_dynamic_relocation (
+                                output_bfd, htab->srelgot,
+    			        htab->srelgot->reloc_count++,
+    			        /* symindex= */ indx,
+    			        R_MICROBLAZE_REL,
+    			        got_offset, static_value);
+                           }
+                      }
+                  }
+
+                /* 4. Fixup Relocation with GOT offset value */
+                /* Compute relative address of GOT entry for applying
+                         the current relocation */
+		relocation = htab->sgot->output_section->vma
+		    + htab->sgot->output_offset
+		    + off
+		    - htab->sgotplt->output_section->vma
+		    - htab->sgotplt->output_offset;
+
+                /* Apply Current Relocation */
 		bfd_put_16 (input_bfd, (relocation >> 16) & 0xffff,
 			    contents + offset + endian);
 		bfd_put_16 (input_bfd, relocation & 0xffff,
 			    contents + offset + endian + INST_WORD_SIZE);
+
+		unresolved_reloc = FALSE;
 		break;
 	      }
 
@@ -1081,6 +1462,14 @@ microblaze_elf_relocate_section (bfd *output_bfd,
 		break;
 	      }
 
+	    case (int) R_MICROBLAZE_TLSDTPREL64:
+		 relocation += addend;
+                 relocation -= dtprel_base(info);
+		 bfd_put_16 (input_bfd, (relocation >> 16) & 0xffff,
+				    contents + offset + 2);
+		 bfd_put_16 (input_bfd, relocation & 0xffff,
+				    contents + offset + 2 + INST_WORD_SIZE);
+		break;
 	    case (int) R_MICROBLAZE_64_PCREL :
 	    case (int) R_MICROBLAZE_64:
 	    case (int) R_MICROBLAZE_32:
@@ -1099,6 +1488,7 @@ microblaze_elf_relocate_section (bfd *output_bfd,
 			  relocation -= (input_section->output_section->vma
 					 + input_section->output_offset
 					 + offset + INST_WORD_SIZE);
+
 			bfd_put_16 (input_bfd, (relocation >> 16) & 0xffff,
 				    contents + offset + endian);
 			bfd_put_16 (input_bfd, relocation & 0xffff,
@@ -2031,7 +2421,7 @@ create_got_section (bfd *dynobj, struct bfd_link_info *info)
   if (!htab->sgot || !htab->sgotplt)
     return FALSE;
 
-  htab->srelgot = bfd_make_section (dynobj, ".rela.got");
+  htab->srelgot = bfd_get_section_by_name (dynobj, ".rela.got");
   if (htab->srelgot == NULL
       || ! bfd_set_section_flags (dynobj, htab->srelgot, SEC_ALLOC
                                   | SEC_LOAD
@@ -2044,6 +2434,34 @@ create_got_section (bfd *dynobj, struct bfd_link_info *info)
   return TRUE;
 }
 
+static bfd_boolean
+update_local_sym_info (bfd *abfd,
+		       Elf_Internal_Shdr *symtab_hdr,
+		       unsigned long r_symndx,
+		       unsigned int tls_type)
+{
+  bfd_signed_vma *local_got_refcounts = elf_local_got_refcounts (abfd);
+  unsigned char *local_got_tls_masks;
+
+  if (local_got_refcounts == NULL)
+    {
+      bfd_size_type size = symtab_hdr->sh_info;
+
+      size *= (sizeof (*local_got_refcounts)
+	       + sizeof (*local_got_tls_masks));
+      local_got_refcounts = bfd_zalloc (abfd, size);
+      if (local_got_refcounts == NULL)
+	return FALSE;
+      elf_local_got_refcounts (abfd) = local_got_refcounts;
+    }
+
+  local_got_tls_masks = 
+         (unsigned char *) (local_got_refcounts + symtab_hdr->sh_info);
+  local_got_tls_masks[r_symndx] |= tls_type;
+  local_got_refcounts[r_symndx] += 1;
+
+  return TRUE;
+}
 /* Look through the relocs for a section during the first phase.  */
 
 static bfd_boolean
@@ -2080,6 +2498,7 @@ microblaze_elf_check_relocs (bfd * abfd,
       unsigned int r_type;
       struct elf_link_hash_entry * h;
       unsigned long r_symndx;
+      unsigned char tls_type = 0;
 
       r_symndx = ELF32_R_SYM (rel->r_info);
       r_type = ELF32_R_TYPE (rel->r_info);
@@ -2115,6 +2534,13 @@ microblaze_elf_check_relocs (bfd * abfd,
           break;
 
 	  /* This relocation requires .got entry.  */
+        case R_MICROBLAZE_TLSGD:
+		tls_type |= (TLS_TLS | TLS_GD);	
+		goto dogottls;
+        case R_MICROBLAZE_TLSLD:
+		tls_type |= (TLS_TLS | TLS_LD);	
+	dogottls:
+	  sec->has_tls_reloc = 1;
         case R_MICROBLAZE_GOT_64:
           if (htab->sgot == NULL)
             {
@@ -2126,25 +2552,12 @@ microblaze_elf_check_relocs (bfd * abfd,
           if (h != NULL)
 	    {
 	      h->got.refcount += 1;
+	      elf32_mb_hash_entry (h)->tls_mask |= tls_type;
 	    }
           else
 	    {
-	      bfd_signed_vma *local_got_refcounts;
-
-	      /* This is a global offset table entry for a local symbol.  */
-	      local_got_refcounts = elf_local_got_refcounts (abfd);
-	      if (local_got_refcounts == NULL)
-		{
-		  bfd_size_type size;
-
-		  size = symtab_hdr->sh_info;
-		  size *= sizeof (bfd_signed_vma);
-		  local_got_refcounts = bfd_zalloc (abfd, size);
-		  if (local_got_refcounts == NULL)
-		    return FALSE;
-		  elf_local_got_refcounts (abfd) = local_got_refcounts;
-		}
-	      local_got_refcounts[r_symndx] += 1;
+              if (! update_local_sym_info(abfd, symtab_hdr, r_symndx, tls_type) )
+		return FALSE;
 	    }
           break;
 
@@ -2157,7 +2570,7 @@ microblaze_elf_check_relocs (bfd * abfd,
 		/* we may need a copy reloc.  */
 		h->non_got_ref = 1;
 
-		/* we may also need a .plt entry.  */
+	        /* we may also need a .plt entry.  */
 		h->plt.refcount += 1;
 		if (ELF32_R_TYPE (rel->r_info) != R_MICROBLAZE_64_PCREL)
 		  h->pointer_equality_needed = 1;
@@ -2208,44 +2621,17 @@ microblaze_elf_check_relocs (bfd * abfd,
 
 		if (sreloc == NULL)
 		  {
-		    const char *name;
 		    bfd *dynobj;
-		    unsigned int strndx = elf_elfheader (abfd)->e_shstrndx;
-		    unsigned int shnam = _bfd_elf_single_rel_hdr (sec)->sh_name;
-
-		    name = bfd_elf_string_from_elf_section (abfd, strndx, shnam);
-		    if (name == NULL)
-		      return FALSE;
-
-		    if (strncmp (name, ".rela", 5) != 0
-			|| strcmp (bfd_get_section_name (abfd, sec),
-				   name + 5) != 0)
-		      {
-			(*_bfd_error_handler)
-			  (_("%B: bad relocation section name `%s\'"),
-			   abfd, name);
-		      }
 
 		    if (htab->elf.dynobj == NULL)
 		      htab->elf.dynobj = abfd;
+
 		    dynobj = htab->elf.dynobj;
 
-		    sreloc = bfd_get_section_by_name (dynobj, name);
+	            sreloc = _bfd_elf_make_dynamic_reloc_section
+		                     (sec, dynobj, 2, abfd, 1);
 		    if (sreloc == NULL)
-		      {
-			flagword flags;
-
-			sreloc = bfd_make_section (dynobj, name);
-			flags = (SEC_HAS_CONTENTS | SEC_READONLY
-				 | SEC_IN_MEMORY | SEC_LINKER_CREATED);
-			if ((sec->flags & SEC_ALLOC) != 0)
-			  flags |= SEC_ALLOC | SEC_LOAD;
-			if (sreloc == NULL
-			    || ! bfd_set_section_flags (dynobj, sreloc, flags)
-			    || ! bfd_set_section_alignment (dynobj, sreloc, 2))
-			  return FALSE;
-		      }
-		    elf_section_data (sec)->sreloc = sreloc;
+		      return FALSE;
 		  }
 
 		/* If this is a global symbol, we count the number of
@@ -2375,6 +2761,8 @@ microblaze_elf_copy_indirect_symbol (struct bfd_link_info *info,
       edir->dyn_relocs = eind->dyn_relocs;
       eind->dyn_relocs = NULL;
     }
+
+   edir->tls_mask |= eind->tls_mask;
 
   _bfd_elf_link_hash_copy_indirect (info, dir, ind);
 }
@@ -2594,8 +2982,10 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void * dat)
       h->needs_plt = 0;
     }
 
+  eh = (struct elf32_mb_link_hash_entry *) h;
   if (h->got.refcount > 0)
     {
+      unsigned int need;
       asection *s;
 
       /* Make sure this symbol is output as a dynamic symbol.
@@ -2606,16 +2996,43 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void * dat)
           if (! bfd_elf_link_record_dynamic_symbol (info, h))
             return FALSE;
         }
-
-      s = htab->sgot;
-      h->got.offset = s->size;
-      s->size += 4;
-      htab->srelgot->size += sizeof (Elf32_External_Rela);
+      need = 0;
+      if ((eh->tls_mask & TLS_TLS) != 0)
+	{
+          /* Handle TLS Symbol */ 
+	  if ((eh->tls_mask & TLS_LD) != 0)
+	    {
+	      if (!eh->elf.def_dynamic)
+		/* We'll just use htab->tlsld_got.offset.  This should
+		   always be the case.  It's a little odd if we have
+		   a local dynamic reloc against a non-local symbol.  */
+		htab->tlsld_got.refcount += 1;
+	      else
+		need += 8;
+	    }
+	  if ((eh->tls_mask & TLS_GD) != 0)
+	    need += 8;
+	}
+      else 
+	{
+          /* Regular (non-TLS) symbol */
+	  need += 4;
+	}
+      if (need == 0)
+        {
+          h->got.offset = (bfd_vma) -1;
+        }
+      else 
+        {
+          s = htab->sgot;
+          h->got.offset = s->size;
+          s->size += need;
+          htab->srelgot->size += need * (sizeof (Elf32_External_Rela) / 4);
+        }
     }
   else
     h->got.offset = (bfd_vma) -1;
 
-  eh = (struct elf32_mb_link_hash_entry *) h;
   if (eh->dyn_relocs == NULL)
     return TRUE;
 
@@ -2713,6 +3130,7 @@ microblaze_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
       bfd_signed_vma *end_local_got;
       bfd_size_type locsymcount;
       Elf_Internal_Shdr *symtab_hdr;
+      unsigned char *lgot_masks;
       asection *srel;
 
       if (bfd_get_flavour (ibfd) != bfd_target_elf_flavour)
@@ -2752,17 +3170,36 @@ microblaze_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
       symtab_hdr = &elf_tdata (ibfd)->symtab_hdr;
       locsymcount = symtab_hdr->sh_info;
       end_local_got = local_got + locsymcount;
+      lgot_masks = (unsigned char *) end_local_got;
       s = htab->sgot;
       srel = htab->srelgot;
 
-      for (; local_got < end_local_got; ++local_got)
+      for (; local_got < end_local_got; ++local_got, ++lgot_masks)
         {
           if (*local_got > 0)
             {
-              *local_got = s->size;
-              s->size += 4;
-              if (info->shared)
-                srel->size += sizeof (Elf32_External_Rela);
+	      unsigned int need = 0;
+	      if ((*lgot_masks & TLS_TLS) != 0)
+	        {
+		  if ((*lgot_masks & TLS_GD) != 0)
+		    need += 8;
+		  if ((*lgot_masks & TLS_LD) != 0)
+		    htab->tlsld_got.refcount += 1;
+	        }
+	      else
+	        need += 4;
+
+              if (need == 0)
+                {
+                  *local_got = (bfd_vma) -1;
+                }
+              else
+                {
+                  *local_got = s->size;
+                  s->size += need;
+                  if (info->shared)
+                    srel->size += need * ( sizeof (Elf32_External_Rela) / 4 );
+                }
             }
           else
             *local_got = (bfd_vma) -1;
@@ -2772,6 +3209,16 @@ microblaze_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
   /* Allocate global sym .plt and .got entries, and space for global
      sym dynamic relocs.  */
   elf_link_hash_traverse (elf_hash_table (info), allocate_dynrelocs, info);
+
+  if (htab->tlsld_got.refcount > 0)
+    {
+      htab->tlsld_got.offset = htab->sgot->size;
+      htab->sgot->size += 8;
+      if (info->shared)
+	htab->srelgot->size += sizeof (Elf32_External_Rela);
+    }
+  else
+    htab->tlsld_got.offset = (bfd_vma) -1;
 
   if (elf_hash_table (info)->dynamic_sections_created)
     {
@@ -2891,6 +3338,7 @@ microblaze_elf_finish_dynamic_symbol (bfd *output_bfd,
 				      Elf_Internal_Sym *sym)
 {
   struct elf32_mb_link_hash_table *htab;
+  struct elf32_mb_link_hash_entry *eh = elf32_mb_hash_entry(h);
 
   htab = elf32_mb_hash_table (info);
   if (htab == NULL)
@@ -2962,12 +3410,14 @@ microblaze_elf_finish_dynamic_symbol (bfd *output_bfd,
         }
     }
 
-  if (h->got.offset != (bfd_vma) -1)
+  /* h->got.refcount to be checked ? */
+  if (h->got.offset != (bfd_vma) -1 && 
+      ! ((h->got.offset & 1) || 
+        IS_TLS_LD(eh->tls_mask) || IS_TLS_GD(eh->tls_mask)))
     {
       asection *sgot;
       asection *srela;
-      Elf_Internal_Rela rela;
-      bfd_byte *loc;
+      bfd_vma offset;
 
       /* This symbol has an entry in the global offset table.  Set it
          up.  */
@@ -2976,36 +3426,36 @@ microblaze_elf_finish_dynamic_symbol (bfd *output_bfd,
       srela = htab->srelgot;
       BFD_ASSERT (sgot != NULL && srela != NULL);
 
-      rela.r_offset = (sgot->output_section->vma
-                       + sgot->output_offset
+      offset = (sgot->output_section->vma + sgot->output_offset
                        + (h->got.offset &~ (bfd_vma) 1));
 
-      /* If this is a -Bsymbolic link, and the symbol is defined
-         locally, we just want to emit a RELATIVE reloc.  Likewise if
-         the symbol was forced to be local because of a version file.
-         The entry in the global offset table will already have been
-         initialized in the relocate_section function.  */
-      if (info->shared
-          && (info->symbolic || h->dynindx == -1)
-          && h->def_regular)
-        {
-          asection *sec = h->root.u.def.section;
-          rela.r_info = ELF32_R_INFO (0, R_MICROBLAZE_REL);
-          rela.r_addend = (h->root.u.def.value
-                           + sec->output_section->vma
-                           + sec->output_offset);
-        }
-      else
-        {
-          rela.r_info = ELF32_R_INFO (h->dynindx, R_MICROBLAZE_GLOB_DAT);
-          rela.r_addend = 0;
-        }
+       {
+         /* If this is a -Bsymbolic link, and the symbol is defined
+            locally, we just want to emit a RELATIVE reloc.  Likewise if
+            the symbol was forced to be local because of a version file.
+            The entry in the global offset table will already have been
+            initialized in the relocate_section function.  */
+          if (info->shared && (info->symbolic || h->dynindx == -1)
+            && h->def_regular)
+          {
+            asection *sec = h->root.u.def.section;
+            microblaze_elf_output_dynamic_relocation ( output_bfd, 
+              srela, srela->reloc_count++, /* symindex= */ 0,
+   	      R_MICROBLAZE_REL, offset, 
+              h->root.u.def.value + sec->output_section->vma 
+              + sec->output_offset);
+          }
+        else
+          {
+            microblaze_elf_output_dynamic_relocation ( output_bfd, 
+              srela, srela->reloc_count++,
+	      h->dynindx, R_MICROBLAZE_GLOB_DAT, offset, 0);
+          }
+       }
 
-      bfd_put_32 (output_bfd, (bfd_vma) 0,
+        bfd_put_32 (output_bfd, (bfd_vma) 0,
                   sgot->contents + (h->got.offset &~ (bfd_vma) 1));
-      loc = srela->contents;
-      loc += srela->reloc_count++ * sizeof (Elf32_External_Rela);
-      bfd_elf32_swap_reloca_out (output_bfd, &rela, loc);
+
     }
 
   if (h->needs_copy)
@@ -3166,8 +3616,8 @@ microblaze_elf_add_symbol_hook (bfd *abfd,
   return TRUE;
 }
 
-#define TARGET_LITTLE_SYM       bfd_elf32_microblazeel_vec
-#define TARGET_LITTLE_NAME      "elf32-microblazeel"
+#define TARGET_LITTLE_SYM      bfd_elf32_microblazeel_vec
+#define TARGET_LITTLE_NAME     "elf32-microblazeel"
 
 #define TARGET_BIG_SYM          bfd_elf32_microblaze_vec
 #define TARGET_BIG_NAME		"elf32-microblaze"
@@ -3176,7 +3626,7 @@ microblaze_elf_add_symbol_hook (bfd *abfd,
 #define ELF_TARGET_ID		MICROBLAZE_ELF_DATA
 #define ELF_MACHINE_CODE	EM_MICROBLAZE
 #define ELF_MACHINE_ALT1	EM_MICROBLAZE_OLD
-#define ELF_MAXPAGESIZE		0x4   		/* 4k, if we ever have 'em.  */
+#define ELF_MAXPAGESIZE		0x1000   		/* 4k, if we ever have 'em.  */
 #define elf_info_to_howto	microblaze_elf_info_to_howto
 #define elf_info_to_howto_rel	NULL
 
