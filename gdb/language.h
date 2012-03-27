@@ -240,17 +240,26 @@ struct language_defn
        OPTIONS are the formatting options to be used when
        printing.  */
 
-    int (*la_val_print) (struct type *type,
-			 const gdb_byte *contents,
-			 int embedded_offset, CORE_ADDR address,
-			 struct ui_file *stream, int recurse,
-			 const struct value *val,
-			 const struct value_print_options *options);
+    void (*la_val_print) (struct type *type,
+			  const gdb_byte *contents,
+			  int embedded_offset, CORE_ADDR address,
+			  struct ui_file *stream, int recurse,
+			  const struct value *val,
+			  const struct value_print_options *options);
 
     /* Print a top-level value using syntax appropriate for this language.  */
 
-    int (*la_value_print) (struct value *, struct ui_file *,
-			   const struct value_print_options *);
+    void (*la_value_print) (struct value *, struct ui_file *,
+			    const struct value_print_options *);
+
+    /* Given a symbol VAR, and a stack frame id FRAME, read the value
+       of the variable an return (pointer to a) struct value containing
+       the value.
+
+       Throw an error if the variable cannot be found.  */
+
+    struct value *(*la_read_var_value) (struct symbol *var,
+					struct frame_info *frame);
 
     /* PC is possibly an unknown languages trampoline.
        If that PC falls in a trampoline belonging to this language,

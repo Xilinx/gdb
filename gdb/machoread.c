@@ -180,7 +180,7 @@ macho_symtab_read (struct objfile *objfile,
   const asymbol *dir_so = NULL;
   const asymbol *file_so = NULL;
   asymbol **oso_file = NULL;
-  unsigned int nbr_syms;
+  unsigned int nbr_syms = 0;
 
   /* Current state while reading stabs.  */
   enum
@@ -1034,6 +1034,9 @@ static const struct sym_fns macho_sym_fns = {
   macho_symfile_relocate,	/* Relocate a debug section.  */
   &psym_functions
 };
+
+/* -Wmissing-prototypes */
+extern initialize_file_ftype _initialize_machoread;
 
 void
 _initialize_machoread ()

@@ -1,3 +1,100 @@
+2012-03-22  Siva Chandra Reddy  <sivachandra@google.com>
+
+	* gdb.texinfo (Python API/Values From Inferior): Add description
+	about the new method Value.referenced_value.  Add description on
+	how Value.dereference is different (and similar) to
+	Value.referenced_value.
+
+2012-03-19  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.texinfo (File Options): Describe --init-command=FILE, -ix and
+	--init-eval-command=COMMAND, -iex.
+	(Startup): Describe -iex and -ix.  Simplify the example
+	for "set auto-load-scripts off".
+
+2012-03-16  Gary Benson  <gbenson@redhat.com>
+
+	PR breakpoints/10738
+	* gdb.texinfo (Inline Functions): Remove the now-unnecessary @item
+	stating that GDB cannot set breakpoints on inlined functions.
+	(Mode Options): Document --use-deprecated-index-sections.
+	(Index Section Format): Document new index section version format.
+
+2012-03-15  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.texinfo (Debugging C Plus Plus): Document "info vtbl".
+
+2012-03-13  Doug Evans  <dje@google.com>
+
+	* gdb.texinfo (Help): Change apropos example to use "alias" instead
+	of "reload".
+	(Symbols): Delete docs for set/show symbol-reloading.
+	* gdbint.texinfo (Defining Other Architecture Features): Delete
+	SYMBOL_RELOADING_DEFAULT.
+	* refcard.tex: Delete reference to symbol-reloading.
+
+2012-03-07  Pedro Alves  <palves@redhat.com>
+
+	* gdb.texinfo (General Query Packets): Document new
+	QProgramSignals packet.
+	* gdb.texinfo (Remote configuration): Mention
+	"program-signals-packet".
+
+2012-03-05  Tristan Gingold  <gingold@adacore.com>
+
+	* gdb.texinfo (General Query Packets): Document xfer:uib:read.
+
+2012-03-03  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.texinfo (In-Process Agent): New node.
+	Document new commands.
+	(General Query Packets): Add packet `QAgent'.
+
+2012-03-01  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* gdb.texinfo (MIPS Features): Add org.gnu.gdb.mips.dsp.
+
+2012-03-01  Scott J. Goldman <scottjg@vmware.com>
+
+	* gdb.texinfo (Commands In Python): Put example python macro in
+	COMMAND_USER category rather than COMMAND_OBSCURE.
+	Document gdb.COMMAND_USER.
+	(User-defined Commands): Update documentation to clarify
+	"set/show max-user-call-depth" and "show user" don't apply to python
+	commands.  Update documentation to clarify "help user-defined" may
+	also include python commands defined as COMMAND_USER.
+
+2012-02-25  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.texinfo (Startup): Add option -ex description to the option -x
+	description.
+
+2012-02-24  Luis Machado  <lgustavo@codesourcery.com>
+
+	* gdb.texinfo (Setting Breakpoints): Mention and explain the
+	condition-evaluation breakpoint parameter.
+	Mention condition-evaluation mode being shown in "info break".
+	(Break Conditions): Add description for target-side
+	conditional breakpoints.
+	(Remote Configuration): Mention conditional-breakpoints-packet. 
+	(Packets): Add cond-expr parameter to Z0/Z1 packets and explain
+	cond-expr.
+	(General Query Packets): Mention new ConditionalBreakpoint feature.
+
+2012-02-22  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.texinfo (Blocks In Python): Clarify block iteration.
+
+2012-02-17  Tom Tromey  <tromey@redhat.com>
+
+	PR python/10753:
+	* gdb.texinfo (objfile-gdb.py file): Fix location of auto-load
+	directory.
+
+2012-02-14  Stan Shebs  <stan@codesourcery.com>
+
+	* gdb.texinfo (Disabling Breakpoints): Document enable count.
+
 2012-02-13  Pedro Alves  <palves@redhat.com>
 
 	* gdb.texinfo (MIPS boards): Refer to mips-elf instead of

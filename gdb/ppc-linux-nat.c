@@ -1351,7 +1351,8 @@ store_ppc_registers (const struct regcache *regcache, int tid)
 }
 
 /* Fetch the AT_HWCAP entry from the aux vector.  */
-unsigned long ppc_linux_get_hwcap (void)
+static unsigned long
+ppc_linux_get_hwcap (void)
 {
   CORE_ADDR field;
 
@@ -2217,7 +2218,7 @@ ppc_linux_thread_exit (struct thread_info *tp, int silent)
 static int
 ppc_linux_stopped_data_address (struct target_ops *target, CORE_ADDR *addr_p)
 {
-  struct siginfo *siginfo_p;
+  siginfo_t *siginfo_p;
 
   siginfo_p = linux_nat_get_siginfo (inferior_ptid);
 

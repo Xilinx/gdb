@@ -209,6 +209,7 @@ extern void parse_static_tracepoint_marker_definition
   (char *line, char **pp,
    struct static_tracepoint_marker *marker);
 extern void release_static_tracepoint_marker (struct static_tracepoint_marker *);
+extern void free_current_marker (void *arg);
 
 /* A hook used to notify the UI of tracepoint operations.  */
 
@@ -237,6 +238,9 @@ struct cleanup *make_cleanup_restore_traceframe_number (void);
 void free_actions (struct breakpoint *);
 
 extern char *decode_agent_options (char *exp);
+
+extern void encode_actions (struct breakpoint *t, struct bp_location *tloc,
+			    char ***tdp_actions, char ***stepping_actions);
 
 extern void validate_actionline (char **, struct breakpoint *);
 

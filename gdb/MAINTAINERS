@@ -293,6 +293,7 @@ the native maintainer when resolving ABI issues.
 			Michael Eager		eager@eagercon.com
 
 	mips		--target=mips-elf ,-Werror
+			Maciej W. Rozycki	macro@codesourcery.com
 
 	mn10300		--target=mn10300-elf broken
 			(sim/ dies with make -j)
@@ -308,6 +309,10 @@ the native maintainer when resolving ABI issues.
 	pa		--target=hppa-elf ,-Werror
 
 	powerpc		--target=powerpc-eabi ,-Werror
+
+	rl78		--target=rl78-elf ,-Werror
+
+	rx		--target=rx-elf ,-Werror
 
 	s390		--target=s390-linux-gnu ,-Werror
 
@@ -512,6 +517,7 @@ Nathan Froyd					froydnj@codesourcery.com
 Gary Funck					gary@intrepid.com
 Paul Gilliam					pgilliam@us.ibm.com
 Tristan Gingold					gingold@adacore.com
+Anton Gorenkov					xgsa@yandex.ru
 Raoul Gough					RaoulGough@yahoo.co.uk
 Anthony Green			 		green@redhat.com
 Matthew Green					mrg@eterna.com.au
@@ -584,6 +590,7 @@ Marek Polacek					mpolacek@redhat.com
 Vladimir Prus                                   vladimir@codesourcery.com
 Yao Qi						yao@codesourcery.com
 Qinwei						qinwei@sunnorth.com.cn
+Siva Chandra Reddy				sivachandra@google.com
 Matt Rice					ratmice@gmail.com
 Frederic Riss					frederic.riss@st.com
 Aleksandar Ristovski				aristovski@qnx.com
@@ -642,7 +649,7 @@ Jie Zhang					jzhang918@gmail.com
 Wu Zhou						woodzltc@cn.ibm.com
 Yoshinori Sato					ysato@users.sourceforge.jp
 Hui Zhu						teawater@gmail.com
-
+Oza Pawandeep					oza.pawandeep@gmail.com
 
 			Past Maintainers
 

@@ -147,23 +147,6 @@ DEF_VEC_P (sym_fns_ptr);
 
 static VEC (sym_fns_ptr) *symtab_fns = NULL;
 
-/* Flag for whether user will be reloading symbols multiple times.
-   Defaults to ON for VxWorks, otherwise OFF.  */
-
-#ifdef SYMBOL_RELOADING_DEFAULT
-int symbol_reloading = SYMBOL_RELOADING_DEFAULT;
-#else
-int symbol_reloading = 0;
-#endif
-static void
-show_symbol_reloading (struct ui_file *file, int from_tty,
-		       struct cmd_list_element *c, const char *value)
-{
-  fprintf_filtered (file, _("Dynamic symbol table reloading "
-			    "multiple times in one run is %s.\n"),
-		    value);
-}
-
 /* If non-zero, shared library symbols will be added automatically
    when the inferior is created, new libraries are loaded, or when
    attaching to the inferior.  This is almost always what users will
@@ -1246,14 +1229,17 @@ symbol_file_add_main (char *args, int from_tty)
 static void
 symbol_file_add_main_1 (char *args, int from_tty, int flags)
 {
-  const int add_flags = SYMFILE_MAINLINE | (from_tty ? SYMFILE_VERBOSE : 0);
+  const int add_flags = (current_inferior ()->symfile_flags
+			 | SYMFILE_MAINLINE | (from_tty ? SYMFILE_VERBOSE : 0));
+
   symbol_file_add (args, add_flags, NULL, flags);
 
   /* Getting new symbols may change our opinion about
      what is frameless.  */
   reinit_frame_cache ();
 
-  set_initial_language ();
+  if ((flags & SYMFILE_NO_READ) == 0)
+    set_initial_language ();
 }
 
 void
@@ -2602,14 +2588,9 @@ reread_symbols (void)
 
 	  /* obstack_init also initializes the obstack so it is
 	     empty.  We could use obstack_specify_allocation but
-	     gdb_obstack.h specifies the alloc/dealloc
-	     functions.  */
+	     gdb_obstack.h specifies the alloc/dealloc functions.  */
 	  obstack_init (&objfile->objfile_obstack);
-	  if (build_objfile_section_table (objfile))
-	    {
-	      error (_("Can't find the file sections in `%s': %s"),
-		     objfile->name, bfd_errmsg (bfd_get_error ()));
-	    }
+	  build_objfile_section_table (objfile);
 	  terminate_minimal_symbol_table (objfile);
 
 	  /* We use the same section offsets as from last time.  I'm not
@@ -3834,14 +3815,6 @@ Dynamically load FILE into the running program, and record its symbols\n\
 for access from GDB.\n\
 A load OFFSET may also be given."), &cmdlist);
   set_cmd_completer (c, filename_completer);
-
-  add_setshow_boolean_cmd ("symbol-reloading", class_support,
-			   &symbol_reloading, _("\
-Set dynamic symbol table reloading multiple times in one run."), _("\
-Show dynamic symbol table reloading multiple times in one run."), NULL,
-			   NULL,
-			   show_symbol_reloading,
-			   &setlist, &showlist);
 
   add_prefix_cmd ("overlay", class_support, overlay_command,
 		  _("Commands for debugging overlays."), &overlaylist,

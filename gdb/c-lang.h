@@ -71,14 +71,14 @@ extern void c_print_typedef (struct type *,
 			     struct symbol *,
 			     struct ui_file *);
 
-extern int c_val_print (struct type *, const gdb_byte *,
-			int, CORE_ADDR,
-			struct ui_file *, int,
-			const struct value *,
-			const struct value_print_options *);
+extern void c_val_print (struct type *, const gdb_byte *,
+			 int, CORE_ADDR,
+			 struct ui_file *, int,
+			 const struct value *,
+			 const struct value_print_options *);
 
-extern int c_value_print (struct value *, struct ui_file *,
-			  const struct value_print_options *);
+extern void c_value_print (struct value *, struct ui_file *,
+			   const struct value_print_options *);
 
 /* These are in c-lang.c: */
 

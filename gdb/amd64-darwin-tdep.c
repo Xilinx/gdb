@@ -115,10 +115,13 @@ x86_darwin_init_abi_64 (struct gdbarch_info info, struct gdbarch *gdbarch)
   tdep->sc_reg_offset = amd64_darwin_thread_state_reg_offset;
   tdep->sc_num_regs = amd64_darwin_thread_state_num_regs;
 
-  tdep->jb_pc_offset = 148;
+  tdep->jb_pc_offset = 56;
 
   set_solib_ops (gdbarch, &darwin_so_ops);
 }
+
+/* -Wmissing-prototypes */
+extern initialize_file_ftype _initialize_amd64_darwin_tdep;
 
 void
 _initialize_amd64_darwin_tdep (void)

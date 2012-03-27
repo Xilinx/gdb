@@ -52,10 +52,13 @@ if ![info exists GDBFLAGS] {
 }
 verbose "using GDBFLAGS = $GDBFLAGS" 2
 
+# Make the build data directory available to tests.
+set BUILD_DATA_DIRECTORY "[pwd]/../data-directory"
+
 # INTERNAL_GDBFLAGS contains flags that the testsuite requires.
 global INTERNAL_GDBFLAGS
 if ![info exists INTERNAL_GDBFLAGS] {
-    set INTERNAL_GDBFLAGS "-nw -nx -data-directory [pwd]/../data-directory"
+    set INTERNAL_GDBFLAGS "-nw -nx -data-directory $BUILD_DATA_DIRECTORY"
 }
 
 # The variable gdb_prompt is a regexp which matches the gdb prompt.
@@ -1479,6 +1482,93 @@ proc skip_shlib_tests {} {
     }
 
     return 1
+}
+
+# Test files shall make sure all the test result lines in gdb.sum are
+# unique in a test run, so that comparing the gdb.sum files of two
+# test runs gives correct results.  Test files that exercise
+# variations of the same tests more than once, shall prefix the
+# different test invocations with different identifying strings in
+# order to make them unique.
+#
+# About test prefixes:
+#
+# $pf_prefix is the string that dejagnu prints after the result (FAIL,
+# PASS, etc.), and before the test message/name in gdb.sum.  E.g., the
+# underlined substring in
+#
+#  PASS: gdb.base/mytest.exp: some test
+#        ^^^^^^^^^^^^^^^^^^^^
+#
+# is $pf_prefix.
+#
+# The easiest way to adjust the test prefix is to append a test
+# variation prefix to the $pf_prefix, using the with_test_prefix
+# procedure.  E.g.,
+#
+# proc do_tests {} {
+#   gdb_test ... ... "test foo"
+#   gdb_test ... ... "test bar"
+#
+#   with_test_prefix "subvariation a" {
+#     gdb_test ... ... "test x"
+#   }
+#
+#   with_test_prefix "subvariation b" {
+#     gdb_test ... ... "test x"
+#   }
+# }
+#
+# with_test_prefix "variation1" {
+#   ...do setup for variation 1...
+#   do_tests
+# }
+#
+# with_test_prefix "variation2" {
+#   ...do setup for variation 2...
+#   do_tests
+# }
+#
+# Results in:
+#
+#  PASS: gdb.base/mytest.exp: variation1: test foo
+#  PASS: gdb.base/mytest.exp: variation1: test bar
+#  PASS: gdb.base/mytest.exp: variation1: subvariation a: test x
+#  PASS: gdb.base/mytest.exp: variation1: subvariation b: test x
+#  PASS: gdb.base/mytest.exp: variation2: test foo
+#  PASS: gdb.base/mytest.exp: variation2: test bar
+#  PASS: gdb.base/mytest.exp: variation2: subvariation a: test x
+#  PASS: gdb.base/mytest.exp: variation2: subvariation b: test x
+#
+# If for some reason more flexibility is necessary, one can also
+# manipulate the pf_prefix global directly, treating it as a string.
+# E.g.,
+#
+#   global pf_prefix
+#   set saved_pf_prefix
+#   append pf_prefix "${foo}: bar"
+#   ... actual tests ...
+#   set pf_prefix $saved_pf_prefix
+#
+
+# Run BODY in the context of the caller, with the current test prefix
+# (pf_prefix) appended with one space, then PREFIX, and then a colon.
+# Returns the result of BODY.
+#
+proc with_test_prefix { prefix body } {
+  global pf_prefix
+
+  set saved $pf_prefix
+  append pf_prefix " " $prefix ":"
+  set code [catch {uplevel 1 $body} result]
+  set pf_prefix $saved
+
+  if {$code == 1} {
+      global errorInfo errorCode
+      return -code $code -errorinfo $errorInfo -errorcode $errorCode $result
+  } else {
+      return -code $code $result
+  }
 }
 
 # Return 1 if _Complex types are supported, otherwise, return 0.
@@ -3156,7 +3246,7 @@ proc setup_kfail_for_target { PR target } {
 # gdb_get_line_number TEXT [FILE]
 #
 # Search the source file FILE, and return the line number of the
-# first line containing TEXT.  If no match is found, return -1.
+# first line containing TEXT.  If no match is found, an error is thrown.
 # 
 # TEXT is a string literal, not a regular expression.
 #
@@ -3229,15 +3319,13 @@ proc gdb_get_line_number { text { file "" } } {
     }
 
     if { [ catch { set fd [open "$file"] } message ] } then {
-	perror "$message"
-	return -1
+	error "$message"
     }
 
     set found -1
     for { set line 1 } { 1 } { incr line } {
 	if { [ catch { set nchar [gets "$fd" body] } message ] } then {
-	    perror "$message"
-	    return -1
+	    error "$message"
 	}
 	if { $nchar < 0 } then {
 	    break
@@ -3249,8 +3337,11 @@ proc gdb_get_line_number { text { file "" } } {
     }
 
     if { [ catch { close "$fd" } message ] } then {
-	perror "$message"
-	return -1
+	error "$message"
+    }
+
+    if {$found == -1} {
+        error "undefined tag \"$text\""
     }
 
     return $found

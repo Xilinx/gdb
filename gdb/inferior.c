@@ -178,25 +178,6 @@ delete_thread_of_inferior (struct thread_info *tp, void *data)
   return 0;
 }
 
-void
-delete_threads_of_inferior (int pid)
-{
-  struct inferior *inf;
-  struct delete_thread_of_inferior_arg arg;
-
-  for (inf = inferior_list; inf; inf = inf->next)
-    if (inf->pid == pid)
-      break;
-
-  if (!inf)
-    return;
-
-  arg.pid = pid;
-  arg.silent = 1;
-
-  iterate_over_threads (delete_thread_of_inferior, &arg);
-}
-
 /* If SILENT then be quiet -- don't announce a inferior death, or the
    exit of its threads.  */
 
@@ -760,7 +741,7 @@ info_inferiors_command (char *args, int from_tty)
 
 /* remove-inferior ID */
 
-void
+static void
 remove_inferior_command (char *args, int from_tty)
 {
   int num;
@@ -819,7 +800,7 @@ add_inferior_with_spaces (void)
 
 /* add-inferior [-copies N] [-exec FILENAME]  */
 
-void
+static void
 add_inferior_command (char *args, int from_tty)
 {
   int i, copies = 1;
@@ -882,7 +863,7 @@ add_inferior_command (char *args, int from_tty)
 
 /* clone-inferior [-copies N] [ID] */
 
-void
+static void
 clone_inferior_command (char *args, int from_tty)
 {
   int i, copies = 1;

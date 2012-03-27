@@ -14,7 +14,23 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+/* Need to be before general includes, to pick up e.g. _GNU_SOURCE.  */
+#ifdef HAVE_CONFIG_H
+#include "cconfig.h"
+#include "tconfig.h"
+#endif
+
 #include <signal.h>
+
+/* For strsignal.  */
+#ifdef HAVE_STRING_H
+#include <string.h>
+#else
+#ifdef HAVE_STRINGS_H
+#include <strings.h>
+#endif
+#endif
+
 #include "sim-main.h"
 
 #include "bfd.h"
@@ -202,7 +218,8 @@ main (int argc, char **argv)
     case sim_signalled:
     case sim_stopped:
       if (sigrc != 0)
-        fprintf (stderr, "program stopped with signal %d.\n", sigrc);
+	fprintf (stderr, "program stopped with signal %d (%s).\n", sigrc,
+		 strsignal (sigrc));
       break;
 
     case sim_exited:

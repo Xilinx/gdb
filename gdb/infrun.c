@@ -335,6 +335,15 @@ static unsigned char *signal_pass;
 	(flags)[signum] = 0; \
   } while (0)
 
+/* Update the target's copy of SIGNAL_PROGRAM.  The sole purpose of
+   this function is to avoid exporting `signal_program'.  */
+
+void
+update_signals_program_target (void)
+{
+  target_program_signals ((int) TARGET_SIGNAL_LAST, signal_program);
+}
+
 /* Value to pass to target_resume() to cause all threads to resume.  */
 
 #define RESUME_ALL minus_one_ptid
@@ -739,6 +748,7 @@ handle_vfork_child_exec_or_exit (int exec)
 	  pspace = add_program_space (maybe_new_address_space ());
 	  set_current_program_space (pspace);
 	  inf->removable = 1;
+	  inf->symfile_flags = SYMFILE_NO_READ;
 	  clone_program_space (pspace, inf->vfork_parent->pspace);
 	  inf->pspace = pspace;
 	  inf->aspace = pspace->aspace;
@@ -900,10 +910,13 @@ follow_exec (ptid_t pid, char *execd_pathname)
      solib_create_inferior_hook below.  breakpoint_re_set would fail to insert
      the breakpoints with the zero displacement.  */
 
-  symbol_file_add (execd_pathname, SYMFILE_MAINLINE | SYMFILE_DEFER_BP_RESET,
+  symbol_file_add (execd_pathname,
+		   (inf->symfile_flags
+		    | SYMFILE_MAINLINE | SYMFILE_DEFER_BP_RESET),
 		   NULL, 0);
 
-  set_initial_language ();
+  if ((inf->symfile_flags & SYMFILE_NO_READ) == 0)
+    set_initial_language ();
 
 #ifdef SOLIB_CREATE_INFERIOR_HOOK
   SOLIB_CREATE_INFERIOR_HOOK (PIDGET (inferior_ptid));
@@ -5004,7 +5017,8 @@ process_event_stop_test:
   /* If we're in the return path from a shared library trampoline,
      we want to proceed through the trampoline when stepping.  */
   if (gdbarch_in_solib_return_trampoline (gdbarch,
-					  stop_pc, ecs->stop_func_name))
+					  stop_pc, ecs->stop_func_name)
+      && ecs->event_thread->control.step_over_calls != STEP_OVER_NONE)
     {
       /* Determine where this trampoline returns.  */
       CORE_ADDR real_stop_pc;
@@ -5515,6 +5529,10 @@ insert_exception_resume_breakpoint (struct thread_info *tp,
 
 	  bp = set_momentary_breakpoint_at_pc (get_frame_arch (frame),
 					       handler, bp_exception_resume);
+
+	  /* set_momentary_breakpoint_at_pc invalidates FRAME.  */
+	  frame = NULL;
+
 	  bp->thread = tp->num;
 	  inferior_thread ()->control.exception_resume_breakpoint = bp;
 	}
@@ -6354,6 +6372,7 @@ Are you sure you want to change it? "),
       {
 	signal_cache_update (-1);
 	target_pass_signals ((int) TARGET_SIGNAL_LAST, signal_pass);
+	target_program_signals ((int) TARGET_SIGNAL_LAST, signal_program);
 
 	if (from_tty)
 	  {
@@ -6434,6 +6453,15 @@ xdb_handle_command (char *args, int from_tty)
 	}
     }
   do_cleanups (old_chain);
+}
+
+enum target_signal
+target_signal_from_command (int num)
+{
+  if (num >= 1 && num <= 15)
+    return (enum target_signal) num;
+  error (_("Only signals 1-15 are valid as numeric signals.\n\
+Use \"info signals\" for a list of symbolic signals."));
 }
 
 /* Print current contents of the tables set by the handle command.

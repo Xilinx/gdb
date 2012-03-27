@@ -21,6 +21,7 @@
 #include "value.h"
 #include "exceptions.h"
 #include "python-internal.h"
+#include "python.h"
 #include "charset.h"
 #include "breakpoint.h"
 #include "gdbcmd.h"
@@ -627,7 +628,7 @@ bppy_init (PyObject *self, PyObject *args, PyObject *kwargs)
 			       0,
 			       AUTO_BOOLEAN_TRUE,
 			       &bkpt_breakpoint_ops,
-			       0, 1, internal_bp);
+			       0, 1, internal_bp, 0);
 	    break;
 	  }
         case bp_watchpoint:

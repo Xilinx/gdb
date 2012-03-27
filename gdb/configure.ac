@@ -85,24 +85,12 @@ PACKAGE=gdb
 AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE", [Name of this package. ])
 AC_SUBST(PACKAGE)
 
-# Do we have a single-tree copy of texinfo?  Even if we do, we can't
-# rely on it - libiberty is built before texinfo.
-AC_CHECK_PROG(MAKEINFO, makeinfo, makeinfo, )
-if test "x$MAKEINFO" = "x"; then
-  AC_ERROR([makeinfo is required for compilation])
-else
-  case "$MAKEINFO" in
-    */missing\ makeinfo*)
-      AC_ERROR([makeinfo is required for compilation])
-      ;;
-  esac
-fi
-AC_SUBST(MAKEINFO)
-
-# --split-size=5000000 may be already in $MAKEINFO from parent configure.
-# Re-running configure in gdb/ would lose it so ensure it stays present.
-MAKEINFOFLAGS=${MAKEINFOFLAGS---split-size=5000000}
-AC_SUBST(MAKEINFOFLAGS)
+# We never need to detect it in this sub-configure.
+# But preserve it for config.status --recheck.
+AC_ARG_VAR(MAKEINFO,
+  [Parent configure detects if it is of sufficient version.])
+AC_ARG_VAR(MAKEINFOFLAGS,
+  [Parameters for MAKEINFO.])
 
 MAKEINFO_EXTRA_FLAGS=""
 AC_CACHE_CHECK([whether $MAKEINFO supports @click], gdb_cv_have_makeinfo_click,
@@ -340,26 +328,44 @@ case $host_os in
     enable_gdbtk=no ;;
 esac
 
-# Libunwind support.
-AC_ARG_WITH(libunwind,
-AS_HELP_STRING([--with-libunwind], [use libunwind frame unwinding support]),
-[case "${withval}" in
-  yes)  enable_libunwind=yes ;;
-  no)   enable_libunwind=no ;;
-  *)    AC_MSG_ERROR(bad value ${withval} for GDB with-libunwind option) ;;
-esac],[
-  AC_CHECK_HEADERS(libunwind.h libunwind-ia64.h)
-  if test x"$ac_cv_header_libunwind_h" = xyes -a x"$ac_cv_header_libunwind_ia64_h" = xyes; then
-    enable_libunwind=yes;
+# Libunwind support for ia64.
+
+AC_ARG_WITH(libunwind-ia64,
+AS_HELP_STRING([--with-libunwind-ia64],
+	       [use libunwind frame unwinding for ia64 targets]),,
+	    [with_libunwind_ia64=auto])
+
+# Backward compatibility option.
+if test "${with_libunwind+set}" = set; then
+  if test x"$with_libunwind_ia64" != xauto; then
+    AC_MSG_ERROR(
+      [option --with-libunwind is deprecated, use --with-libunwind-ia64])
   fi
-])
-   
-if test x"$enable_libunwind" = xyes; then
-  AC_CHECK_HEADERS(libunwind.h libunwind-ia64.h)
-  AC_DEFINE(HAVE_LIBUNWIND, 1, [Define if libunwind library is being used.])
-  CONFIG_OBS="$CONFIG_OBS libunwind-frame.o"
-  CONFIG_DEPS="$CONFIG_DEPS libunwind-frame.o"
-  CONFIG_SRCS="$CONFIG_SRCS libunwind-frame.c"
+  AC_MSG_WARN([option --with-libunwind is deprecated, use --with-libunwind-ia64])
+  with_libunwind_ia64="$with_libunwind"
+fi
+
+case "$with_libunwind_ia64" in
+  yes | no)
+    ;;
+  auto)
+    AC_CHECK_HEADERS(libunwind-ia64.h)
+    with_libunwind_ia64=$ac_cv_header_libunwind_ia64_h
+    ;;
+  *)
+    AC_MSG_ERROR(
+      [bad value $with_libunwind_ia64 for GDB --with-libunwind-ia64 option])
+    ;;
+esac
+
+if test x"$with_libunwind_ia64" = xyes; then
+  AC_CHECK_HEADERS(libunwind-ia64.h)
+  if test x"$ac_cv_header_libunwind_ia64_h" != xyes; then
+    AC_MSG_ERROR([GDB option --with-libunwind-ia64 requires libunwind-ia64.h])
+  fi
+  CONFIG_OBS="$CONFIG_OBS ia64-libunwind-tdep.o"
+  CONFIG_DEPS="$CONFIG_DEPS ia64-libunwind-tdep.o"
+  CONFIG_SRCS="$CONFIG_SRCS ia64-libunwind-tdep.c"
 fi
 
 opt_curses=no
@@ -986,7 +992,7 @@ AC_CHECK_HEADERS([nlist.h machine/reg.h poll.h sys/poll.h proc_service.h \
 		  sys/reg.h sys/debugreg.h sys/select.h sys/syscall.h \
 		  sys/types.h sys/wait.h wait.h termios.h termio.h \
 		  sgtty.h unistd.h elf_hp.h ctype.h time.h locale.h \
-		  dlfcn.h])
+		  dlfcn.h sys/socket.h sys/un.h])
 AC_CHECK_HEADERS(link.h, [], [],
 [#if HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -1807,7 +1813,7 @@ fi
 build_warnings="-Wall -Wdeclaration-after-statement -Wpointer-arith \
 -Wformat-nonliteral -Wno-pointer-sign \
 -Wno-unused -Wunused-value -Wunused-function \
--Wno-switch -Wno-char-subscripts"
+-Wno-switch -Wno-char-subscripts -Wmissing-prototypes"
 
 # Enable -Wno-format by default when using gcc on mingw since many
 # GCC versions complain about %I64.

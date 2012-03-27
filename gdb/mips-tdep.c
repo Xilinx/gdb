@@ -390,9 +390,7 @@ static const char *mips_generic_reg_names[NUM_MIPS_PROCESSOR_REGS] = {
   "f8", "f9", "f10", "f11", "f12", "f13", "f14", "f15",
   "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
   "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31",
-  "fsr", "fir", "" /*"fp" */ , "",
-  "", "", "", "", "", "", "", "",
-  "", "", "", "", "", "", "", "",
+  "fsr", "fir",
 };
 
 /* Names of IDT R3041 registers.  */
@@ -418,7 +416,7 @@ static const char *mips_tx39_reg_names[NUM_MIPS_PROCESSOR_REGS] = {
   "", "", "", "", "", "", "", "",
   "", "", "", "",
   "", "", "", "", "", "", "", "",
-  "", "", "config", "cache", "debug", "depc", "epc", ""
+  "", "", "config", "cache", "debug", "depc", "epc",
 };
 
 /* Names of IRIX registers.  */
@@ -428,6 +426,16 @@ static const char *mips_irix_reg_names[NUM_MIPS_PROCESSOR_REGS] = {
   "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
   "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31",
   "pc", "cause", "bad", "hi", "lo", "fsr", "fir"
+};
+
+/* Names of registers with Linux kernels.  */
+static const char *mips_linux_reg_names[NUM_MIPS_PROCESSOR_REGS] = {
+  "sr", "lo", "hi", "bad", "cause", "pc",
+  "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7",
+  "f8", "f9", "f10", "f11", "f12", "f13", "f14", "f15",
+  "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
+  "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31",
+  "fsr", "fir"
 };
 
 
@@ -484,7 +492,9 @@ mips_register_name (struct gdbarch *gdbarch, int regno)
   else if (32 <= rawnum && rawnum < gdbarch_num_regs (gdbarch))
     {
       gdb_assert (rawnum - 32 < NUM_MIPS_PROCESSOR_REGS);
-      return tdep->mips_processor_reg_names[rawnum - 32];
+      if (tdep->mips_processor_reg_names[rawnum - 32])
+	return tdep->mips_processor_reg_names[rawnum - 32];
+      return "";
     }
   else
     internal_error (__FILE__, __LINE__,
@@ -854,11 +864,17 @@ mips_register_type (struct gdbarch *gdbarch, int regnum)
     }
   else
     {
+      int rawnum = regnum - gdbarch_num_regs (gdbarch);
+
       /* The cooked or ABI registers.  These are sized according to
 	 the ABI (with a few complications).  */
-      if (regnum >= (gdbarch_num_regs (gdbarch)
-		     + mips_regnum (gdbarch)->fp_control_status)
-	  && regnum <= gdbarch_num_regs (gdbarch) + MIPS_LAST_EMBED_REGNUM)
+      if (rawnum == mips_regnum (gdbarch)->fp_control_status
+	  || rawnum == mips_regnum (gdbarch)->fp_implementation_revision)
+	return builtin_type (gdbarch)->builtin_int32;
+      else if (gdbarch_osabi (gdbarch) != GDB_OSABI_IRIX
+	       && gdbarch_osabi (gdbarch) != GDB_OSABI_LINUX
+	       && rawnum >= MIPS_FIRST_EMBED_REGNUM
+	       && rawnum <= MIPS_LAST_EMBED_REGNUM)
 	/* The pseudo/cooked view of the embedded registers is always
 	   32-bit.  The raw view is handled below.  */
 	return builtin_type (gdbarch)->builtin_int32;
@@ -897,12 +913,40 @@ mips_pseudo_register_type (struct gdbarch *gdbarch, int regnum)
   if (TYPE_LENGTH (rawtype) == 0)
     return rawtype;
 
-  if (rawnum >= MIPS_EMBED_FP0_REGNUM && rawnum < MIPS_EMBED_FP0_REGNUM + 32)
+  if (rawnum >= mips_regnum (gdbarch)->fp0
+      && rawnum < mips_regnum (gdbarch)->fp0 + 32)
     /* Present the floating point registers however the hardware did;
        do not try to convert between FPU layouts.  */
     return rawtype;
 
-  if (rawnum >= MIPS_EMBED_FP0_REGNUM + 32 && rawnum <= MIPS_LAST_EMBED_REGNUM)
+  /* Use pointer types for registers if we can.  For n32 we can not,
+     since we do not have a 64-bit pointer type.  */
+  if (mips_abi_regsize (gdbarch)
+      == TYPE_LENGTH (builtin_type (gdbarch)->builtin_data_ptr))
+    {
+      if (rawnum == MIPS_SP_REGNUM
+	  || rawnum == mips_regnum (gdbarch)->badvaddr)
+	return builtin_type (gdbarch)->builtin_data_ptr;
+      else if (rawnum == mips_regnum (gdbarch)->pc)
+	return builtin_type (gdbarch)->builtin_func_ptr;
+    }
+
+  if (mips_abi_regsize (gdbarch) == 4 && TYPE_LENGTH (rawtype) == 8
+      && ((rawnum >= MIPS_ZERO_REGNUM && rawnum <= MIPS_PS_REGNUM)
+	  || rawnum == mips_regnum (gdbarch)->lo
+	  || rawnum == mips_regnum (gdbarch)->hi
+	  || rawnum == mips_regnum (gdbarch)->badvaddr
+	  || rawnum == mips_regnum (gdbarch)->cause
+	  || rawnum == mips_regnum (gdbarch)->pc
+	  || (mips_regnum (gdbarch)->dspacc != -1
+	      && rawnum >= mips_regnum (gdbarch)->dspacc
+	      && rawnum < mips_regnum (gdbarch)->dspacc + 6)))
+    return builtin_type (gdbarch)->builtin_int32;
+
+  if (gdbarch_osabi (gdbarch) != GDB_OSABI_IRIX
+      && gdbarch_osabi (gdbarch) != GDB_OSABI_LINUX
+      && rawnum >= MIPS_EMBED_FP0_REGNUM + 32
+      && rawnum <= MIPS_LAST_EMBED_REGNUM)
     {
       /* The pseudo/cooked view of embedded registers is always
 	 32-bit, even if the target transfers 64-bit values for them.
@@ -912,21 +956,6 @@ mips_pseudo_register_type (struct gdbarch *gdbarch, int regnum)
 	 with the displayed type.  */
       return builtin_type (gdbarch)->builtin_int32;
     }
-
-  /* Use pointer types for registers if we can.  For n32 we can not,
-     since we do not have a 64-bit pointer type.  */
-  if (mips_abi_regsize (gdbarch)
-      == TYPE_LENGTH (builtin_type (gdbarch)->builtin_data_ptr))
-    {
-      if (rawnum == MIPS_SP_REGNUM || rawnum == MIPS_EMBED_BADVADDR_REGNUM)
-	return builtin_type (gdbarch)->builtin_data_ptr;
-      else if (rawnum == MIPS_EMBED_PC_REGNUM)
-	return builtin_type (gdbarch)->builtin_func_ptr;
-    }
-
-  if (mips_abi_regsize (gdbarch) == 4 && TYPE_LENGTH (rawtype) == 8
-      && rawnum >= MIPS_ZERO_REGNUM && rawnum <= MIPS_EMBED_PC_REGNUM)
-    return builtin_type (gdbarch)->builtin_int32;
 
   /* For all other registers, pass through the hardware type.  */
   return rawtype;
@@ -1103,6 +1132,36 @@ mips32_relative_offset (ULONGEST inst)
   return ((itype_immediate (inst) ^ 0x8000) - 0x8000) << 2;
 }
 
+/* Determine the address of the next instruction executed after the INST
+   floating condition branch instruction at PC.  COUNT specifies the
+   number of the floating condition bits tested by the branch.  */
+
+static CORE_ADDR
+mips32_bc1_pc (struct gdbarch *gdbarch, struct frame_info *frame,
+	       ULONGEST inst, CORE_ADDR pc, int count)
+{
+  int fcsr = mips_regnum (gdbarch)->fp_control_status;
+  int cnum = (itype_rt (inst) >> 2) & (count - 1);
+  int tf = itype_rt (inst) & 1;
+  int mask = (1 << count) - 1;
+  ULONGEST fcs;
+  int cond;
+
+  if (fcsr == -1)
+    /* No way to handle; it'll most likely trap anyway.  */
+    return pc;
+
+  fcs = get_frame_register_unsigned (frame, fcsr);
+  cond = ((fcs >> 24) & 0xfe) | ((fcs >> 23) & 0x01);
+
+  if (((cond >> cnum) & mask) != mask * !tf)
+    pc += mips32_relative_offset (inst);
+  else
+    pc += 4;
+
+  return pc;
+}
+
 /* Determine where to set a single step breakpoint while considering
    branch prediction.  */
 static CORE_ADDR
@@ -1135,20 +1194,15 @@ mips32_next_pc (struct frame_info *frame, CORE_ADDR pc)
 	}
       else if (itype_op (inst) == 17 && itype_rs (inst) == 8)
 	/* BC1F, BC1FL, BC1T, BC1TL: 010001 01000 */
-	{
-	  int tf = itype_rt (inst) & 0x01;
-	  int cnum = itype_rt (inst) >> 2;
-	  int fcrcs =
-	    get_frame_register_signed (frame,
-				       mips_regnum (get_frame_arch (frame))->
-						fp_control_status);
-	  int cond = ((fcrcs >> 24) & 0xfe) | ((fcrcs >> 23) & 0x01);
-
-	  if (((cond >> cnum) & 0x01) == tf)
-	    pc += mips32_relative_offset (inst) + 4;
-	  else
-	    pc += 8;
-	}
+	pc = mips32_bc1_pc (gdbarch, frame, inst, pc + 4, 1);
+      else if (itype_op (inst) == 17 && itype_rs (inst) == 9
+	       && (itype_rt (inst) & 2) == 0)
+	/* BC1ANY2F, BC1ANY2T: 010001 01001 xxx0x */
+	pc = mips32_bc1_pc (gdbarch, frame, inst, pc + 4, 2);
+      else if (itype_op (inst) == 17 && itype_rs (inst) == 10
+	       && (itype_rt (inst) & 2) == 0)
+	/* BC1ANY4F, BC1ANY4T: 010001 01010 xxx0x */
+	pc = mips32_bc1_pc (gdbarch, frame, inst, pc + 4, 4);
       else
 	pc += 4;		/* Not a branch, next instruction is easy.  */
     }
@@ -1206,6 +1260,25 @@ mips32_next_pc (struct frame_info *frame, CORE_ADDR pc)
 		  pc += mips32_relative_offset (inst) + 4;
 		else
 		  pc += 8;	/* after the delay slot */
+		break;
+	      case 0x1c:	/* BPOSGE32 */
+	      case 0x1e:	/* BPOSGE64 */
+		pc += 4;
+		if (itype_rs (inst) == 0)
+		  {
+		    unsigned int pos = (op & 2) ? 64 : 32;
+		    int dspctl = mips_regnum (gdbarch)->dspctl;
+
+		    if (dspctl == -1)
+		      /* No way to handle; it'll most likely trap anyway.  */
+		      break;
+
+		    if ((get_frame_register_unsigned (frame,
+						      dspctl) & 0x7f) >= pos)
+		      pc += mips32_relative_offset (inst);
+		    else
+		      pc += 4;
+		  }
 		break;
 		/* All of the other instructions in the REGIMM category */
 	      default:
@@ -2196,43 +2269,43 @@ restart:
                || inst == 0x0399e021 /* addu $gp,$gp,$t9 */
                || inst == 0x033ce021 /* addu $gp,$t9,$gp */
               )
-       {
-         /* These instructions are part of the prologue, but we don't
-            need to do anything special to handle them.  */
-       }
+	{
+	  /* These instructions are part of the prologue, but we don't
+	     need to do anything special to handle them.  */
+	}
       /* The instructions below load $at or $t0 with an immediate
          value in preparation for a stack adjustment via
          subu $sp,$sp,[$at,$t0].  These instructions could also
          initialize a local variable, so we accept them only before
          a stack adjustment instruction was seen.  */
       else if (!seen_sp_adjust
-               && (high_word == 0x3c01 /* lui $at,n */
-                   || high_word == 0x3c08 /* lui $t0,n */
-                   || high_word == 0x3421 /* ori $at,$at,n */
-                   || high_word == 0x3508 /* ori $t0,$t0,n */
-                   || high_word == 0x3401 /* ori $at,$zero,n */
-                   || high_word == 0x3408 /* ori $t0,$zero,n */
-                  ))
-       {
-	 if (end_prologue_addr == 0)
-	   load_immediate_bytes += MIPS_INSN32_SIZE;		/* FIXME!  */
-       }
+	       && (high_word == 0x3c01 /* lui $at,n */
+		   || high_word == 0x3c08 /* lui $t0,n */
+		   || high_word == 0x3421 /* ori $at,$at,n */
+		   || high_word == 0x3508 /* ori $t0,$t0,n */
+		   || high_word == 0x3401 /* ori $at,$zero,n */
+		   || high_word == 0x3408 /* ori $t0,$zero,n */
+		  ))
+	{
+	  if (end_prologue_addr == 0)
+	    load_immediate_bytes += MIPS_INSN32_SIZE;		/* FIXME!  */
+	}
       else
-       {
-         /* This instruction is not an instruction typically found
-            in a prologue, so we must have reached the end of the
-            prologue.  */
-         /* FIXME: brobecker/2004-10-10: Can't we just break out of this
-            loop now?  Why would we need to continue scanning the function
-            instructions?  */
-         if (end_prologue_addr == 0)
-           end_prologue_addr = cur_pc;
+	{
+	  /* This instruction is not an instruction typically found
+	     in a prologue, so we must have reached the end of the
+	     prologue.  */
+	  /* FIXME: brobecker/2004-10-10: Can't we just break out of this
+	     loop now?  Why would we need to continue scanning the function
+	     instructions?  */
+	  if (end_prologue_addr == 0)
+	    end_prologue_addr = cur_pc;
 
-	 /* Check for branches and jumps.  For now, only jump to
-	    register are caught (i.e. returns).  */
-	 if ((itype_op (inst) & 0x07) == 0 && rtype_funct (inst) == 8)
-	   in_delay_slot = 1;
-       }
+	  /* Check for branches and jumps.  For now, only jump to
+	     register are caught (i.e. returns).  */
+	  if ((itype_op (inst) & 0x07) == 0 && rtype_funct (inst) == 8)
+	    in_delay_slot = 1;
+	}
 
       /* If the previous instruction was a jump, we must have reached
 	 the end of the prologue by now.  Stop scanning so that we do
@@ -2589,7 +2662,9 @@ deal_with_atomic_sequence (struct gdbarch *gdbarch,
 	    return 0; /* fallback to the standard single-step code.  */
 	  break;
 	case 1: /* REGIMM */
-	  is_branch = ((itype_rt (insn) & 0xc) == 0); /* B{LT,GE}Z* */
+	  is_branch = ((itype_rt (insn) & 0xc) == 0 /* B{LT,GE}Z* */
+		       || ((itype_rt (insn) & 0x1e) == 0
+			   && itype_rs (insn) == 0)); /* BPOSGE* */
 	  break;
 	case 2: /* J */
 	case 3: /* JAL */
@@ -2605,6 +2680,11 @@ deal_with_atomic_sequence (struct gdbarch *gdbarch,
 	  is_branch = 1;
 	  break;
 	case 17: /* COP1 */
+	  is_branch = ((itype_rs (insn) == 9 || itype_rs (insn) == 10)
+		       && (itype_rt (insn) & 0x2) == 0);
+	  if (is_branch) /* BC1ANY2F, BC1ANY2T, BC1ANY4F, BC1ANY4T */
+	    break;
+	/* Fall through.  */
 	case 18: /* COP2 */
 	case 19: /* COP3 */
 	  is_branch = (itype_rs (insn) == 8); /* BCzF, BCzFL, BCzT, BCzTL */
@@ -5293,6 +5373,250 @@ mips_breakpoint_from_pc (struct gdbarch *gdbarch,
     }
 }
 
+/* Return non-zero if the ADDR instruction has a branch delay slot
+   (i.e. it is a jump or branch instruction).  This function is based
+   on mips32_next_pc.  */
+
+static int
+mips32_instruction_has_delay_slot (struct gdbarch *gdbarch, CORE_ADDR addr)
+{
+  gdb_byte buf[MIPS_INSN32_SIZE];
+  unsigned long inst;
+  int status;
+  int op;
+  int rs;
+  int rt;
+
+  status = target_read_memory (addr, buf, MIPS_INSN32_SIZE);
+  if (status)
+    return 0;
+
+  inst = mips_fetch_instruction (gdbarch, addr);
+  op = itype_op (inst);
+  if ((inst & 0xe0000000) != 0)
+    {
+      rs = itype_rs (inst);
+      rt = itype_rt (inst);
+      return (op >> 2 == 5	/* BEQL, BNEL, BLEZL, BGTZL: bits 0101xx  */
+	      || op == 29	/* JALX: bits 011101  */
+	      || (op == 17
+		  && (rs == 8
+				/* BC1F, BC1FL, BC1T, BC1TL: 010001 01000  */
+		      || (rs == 9 && (rt & 0x2) == 0)
+				/* BC1ANY2F, BC1ANY2T: bits 010001 01001  */
+		      || (rs == 10 && (rt & 0x2) == 0))));
+				/* BC1ANY4F, BC1ANY4T: bits 010001 01010  */
+    }
+  else
+    switch (op & 0x07)		/* extract bits 28,27,26  */
+      {
+      case 0:			/* SPECIAL  */
+	op = rtype_funct (inst);
+	return (op == 8		/* JR  */
+		|| op == 9);	/* JALR  */
+	break;			/* end SPECIAL  */
+      case 1:			/* REGIMM  */
+	rs = itype_rs (inst);
+	rt = itype_rt (inst);	/* branch condition  */
+	return ((rt & 0xc) == 0
+				/* BLTZ, BLTZL, BGEZ, BGEZL: bits 000xx  */
+				/* BLTZAL, BLTZALL, BGEZAL, BGEZALL: 100xx  */
+		|| ((rt & 0x1e) == 0x1c && rs == 0));
+				/* BPOSGE32, BPOSGE64: bits 1110x  */
+	break;			/* end REGIMM  */
+      default:			/* J, JAL, BEQ, BNE, BLEZ, BGTZ  */
+	return 1;
+	break;
+      }
+}
+
+/* Return non-zero if the ADDR instruction, which must be a 32-bit
+   instruction if MUSTBE32 is set or can be any instruction otherwise,
+   has a branch delay slot (i.e. it is a non-compact jump instruction).  */
+
+static int
+mips16_instruction_has_delay_slot (struct gdbarch *gdbarch, CORE_ADDR addr,
+				   int mustbe32)
+{
+  gdb_byte buf[MIPS_INSN16_SIZE];
+  unsigned short inst;
+  int status;
+
+  status = target_read_memory (addr, buf, MIPS_INSN16_SIZE);
+  if (status)
+    return 0;
+
+  inst = mips_fetch_instruction (gdbarch, addr);
+  if (!mustbe32)
+    return (inst & 0xf89f) == 0xe800;	/* JR/JALR (16-bit instruction)  */
+  return (inst & 0xf800) == 0x1800;	/* JAL/JALX (32-bit instruction)  */
+}
+
+/* Calculate the starting address of the MIPS memory segment BPADDR is in.
+   This assumes KSSEG exists.  */
+
+static CORE_ADDR
+mips_segment_boundary (CORE_ADDR bpaddr)
+{
+  CORE_ADDR mask = CORE_ADDR_MAX;
+  int segsize;
+
+  if (sizeof (CORE_ADDR) == 8)
+    /* Get the topmost two bits of bpaddr in a 32-bit safe manner (avoid
+       a compiler warning produced where CORE_ADDR is a 32-bit type even
+       though in that case this is dead code).  */
+    switch (bpaddr >> ((sizeof (CORE_ADDR) << 3) - 2) & 3)
+      {
+      case 3:
+	if (bpaddr == (bfd_signed_vma) (int32_t) bpaddr)
+	  segsize = 29;			/* 32-bit compatibility segment  */
+	else
+	  segsize = 62;			/* xkseg  */
+	break;
+      case 2:				/* xkphys  */
+	segsize = 59;
+	break;
+      default:				/* xksseg (1), xkuseg/kuseg (0)  */
+	segsize = 62;
+	break;
+      }
+  else if (bpaddr & 0x80000000)		/* kernel segment  */
+    segsize = 29;
+  else
+    segsize = 31;			/* user segment  */
+  mask <<= segsize;
+  return bpaddr & mask;
+}
+
+/* Move the breakpoint at BPADDR out of any branch delay slot by shifting
+   it backwards if necessary.  Return the address of the new location.  */
+
+static CORE_ADDR
+mips_adjust_breakpoint_address (struct gdbarch *gdbarch, CORE_ADDR bpaddr)
+{
+  CORE_ADDR prev_addr, next_addr;
+  CORE_ADDR boundary;
+  CORE_ADDR func_addr;
+
+  /* If a breakpoint is set on the instruction in a branch delay slot,
+     GDB gets confused.  When the breakpoint is hit, the PC isn't on
+     the instruction in the branch delay slot, the PC will point to
+     the branch instruction.  Since the PC doesn't match any known
+     breakpoints, GDB reports a trap exception.
+
+     There are two possible fixes for this problem.
+
+     1) When the breakpoint gets hit, see if the BD bit is set in the
+     Cause register (which indicates the last exception occurred in a
+     branch delay slot).  If the BD bit is set, fix the PC to point to
+     the instruction in the branch delay slot.
+
+     2) When the user sets the breakpoint, don't allow him to set the
+     breakpoint on the instruction in the branch delay slot.  Instead
+     move the breakpoint to the branch instruction (which will have
+     the same result).
+
+     The problem with the first solution is that if the user then
+     single-steps the processor, the branch instruction will get
+     skipped (since GDB thinks the PC is on the instruction in the
+     branch delay slot).
+
+     So, we'll use the second solution.  To do this we need to know if
+     the instruction we're trying to set the breakpoint on is in the
+     branch delay slot.  */
+
+  boundary = mips_segment_boundary (bpaddr);
+
+  /* Make sure we don't scan back before the beginning of the current
+     function, since we may fetch constant data or insns that look like
+     a jump.  Of course we might do that anyway if the compiler has
+     moved constants inline. :-(  */
+  if (find_pc_partial_function (bpaddr, NULL, &func_addr, NULL)
+      && func_addr > boundary && func_addr <= bpaddr)
+    boundary = func_addr;
+
+  if (!mips_pc_is_mips16 (bpaddr))
+    {
+      if (bpaddr == boundary)
+	return bpaddr;
+
+      /* If the previous instruction has a branch delay slot, we have
+         to move the breakpoint to the branch instruction. */
+      prev_addr = bpaddr - 4;
+      if (mips32_instruction_has_delay_slot (gdbarch, prev_addr))
+	bpaddr = prev_addr;
+    }
+  else
+    {
+      struct minimal_symbol *sym;
+      CORE_ADDR addr, jmpaddr;
+      int i;
+
+      boundary = unmake_mips16_addr (boundary);
+
+      /* The only MIPS16 instructions with delay slots are JAL, JALX,
+         JALR and JR.  An absolute JAL/JALX is always 4 bytes long,
+         so try for that first, then try the 2 byte JALR/JR.
+         FIXME: We have to assume that bpaddr is not the second half
+         of an extended instruction.  */
+
+      jmpaddr = 0;
+      addr = bpaddr;
+      for (i = 1; i < 4; i++)
+	{
+	  if (unmake_mips16_addr (addr) == boundary)
+	    break;
+	  addr -= 2;
+	  if (i == 1 && mips16_instruction_has_delay_slot (gdbarch, addr, 0))
+	    /* Looks like a JR/JALR at [target-1], but it could be
+	       the second word of a previous JAL/JALX, so record it
+	       and check back one more.  */
+	    jmpaddr = addr;
+	  else if (i > 1
+		   && mips16_instruction_has_delay_slot (gdbarch, addr, 1))
+	    {
+	      if (i == 2)
+		/* Looks like a JAL/JALX at [target-2], but it could also
+		   be the second word of a previous JAL/JALX, record it,
+		   and check back one more.  */
+		jmpaddr = addr;
+	      else
+		/* Looks like a JAL/JALX at [target-3], so any previously
+		   recorded JAL/JALX or JR/JALR must be wrong, because:
+
+		   >-3: JAL
+		    -2: JAL-ext (can't be JAL/JALX)
+		    -1: bdslot (can't be JR/JALR)
+		     0: target insn
+
+		   Of course it could be another JAL-ext which looks
+		   like a JAL, but in that case we'd have broken out
+		   of this loop at [target-2]:
+
+		    -4: JAL
+		   >-3: JAL-ext
+		    -2: bdslot (can't be jmp)
+		    -1: JR/JALR
+		     0: target insn  */
+		jmpaddr = 0;
+	    }
+	  else
+	    {
+	      /* Not a jump instruction: if we're at [target-1] this
+	         could be the second word of a JAL/JALX, so continue;
+	         otherwise we're done.  */
+	      if (i > 1)
+		break;
+	    }
+	}
+
+      if (jmpaddr)
+	bpaddr = jmpaddr;
+    }
+
+  return bpaddr;
+}
+
 /* If PC is in a mips16 call or return stub, return the address of the target
    PC, which is either the callee or the caller.  There are several
    cases which must be handled:
@@ -5485,6 +5809,8 @@ mips_stab_reg_to_regnum (struct gdbarch *gdbarch, int num)
     regnum = mips_regnum (gdbarch)->hi;
   else if (num == 71)
     regnum = mips_regnum (gdbarch)->lo;
+  else if (mips_regnum (gdbarch)->dspacc != -1 && num >= 72 && num < 78)
+    regnum = num + mips_regnum (gdbarch)->dspacc - 72;
   else
     /* This will hopefully (eventually) provoke a warning.  Should
        we be calling complaint() here?  */
@@ -5508,6 +5834,8 @@ mips_dwarf_dwarf2_ecoff_reg_to_regnum (struct gdbarch *gdbarch, int num)
     regnum = mips_regnum (gdbarch)->hi;
   else if (num == 65)
     regnum = mips_regnum (gdbarch)->lo;
+  else if (mips_regnum (gdbarch)->dspacc != -1 && num >= 66 && num < 72)
+    regnum = num + mips_regnum (gdbarch)->dspacc - 66;
   else
     /* This will hopefully (eventually) provoke a warning.  Should we
        be calling complaint() here?  */
@@ -5647,6 +5975,63 @@ mips_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   enum mips_fpu_type fpu_type;
   struct tdesc_arch_data *tdesc_data = NULL;
   int elf_fpu_type = 0;
+  const char **reg_names;
+  struct mips_regnum mips_regnum, *regnum;
+  int dspacc;
+  int dspctl;
+
+  /* Fill in the OS dependent register numbers and names.  */
+  if (info.osabi == GDB_OSABI_IRIX)
+    {
+      mips_regnum.fp0 = 32;
+      mips_regnum.pc = 64;
+      mips_regnum.cause = 65;
+      mips_regnum.badvaddr = 66;
+      mips_regnum.hi = 67;
+      mips_regnum.lo = 68;
+      mips_regnum.fp_control_status = 69;
+      mips_regnum.fp_implementation_revision = 70;
+      mips_regnum.dspacc = dspacc = -1;
+      mips_regnum.dspctl = dspctl = -1;
+      num_regs = 71;
+      reg_names = mips_irix_reg_names;
+    }
+  else if (info.osabi == GDB_OSABI_LINUX)
+    {
+      mips_regnum.fp0 = 38;
+      mips_regnum.pc = 37;
+      mips_regnum.cause = 36;
+      mips_regnum.badvaddr = 35;
+      mips_regnum.hi = 34;
+      mips_regnum.lo = 33;
+      mips_regnum.fp_control_status = 70;
+      mips_regnum.fp_implementation_revision = 71;
+      mips_regnum.dspacc = -1;
+      mips_regnum.dspctl = -1;
+      dspacc = 72;
+      dspctl = 78;
+      num_regs = 79;
+      reg_names = mips_linux_reg_names;
+    }
+  else
+    {
+      mips_regnum.lo = MIPS_EMBED_LO_REGNUM;
+      mips_regnum.hi = MIPS_EMBED_HI_REGNUM;
+      mips_regnum.badvaddr = MIPS_EMBED_BADVADDR_REGNUM;
+      mips_regnum.cause = MIPS_EMBED_CAUSE_REGNUM;
+      mips_regnum.pc = MIPS_EMBED_PC_REGNUM;
+      mips_regnum.fp0 = MIPS_EMBED_FP0_REGNUM;
+      mips_regnum.fp_control_status = 70;
+      mips_regnum.fp_implementation_revision = 71;
+      mips_regnum.dspacc = dspacc = -1;
+      mips_regnum.dspctl = dspctl = -1;
+      num_regs = MIPS_LAST_EMBED_REGNUM + 1;
+      if (info.bfd_arch_info != NULL
+          && info.bfd_arch_info->mach == bfd_mach_mips3900)
+        reg_names = mips_tx39_reg_names;
+      else
+        reg_names = mips_generic_reg_names;
+    }
 
   /* Check any target description for validity.  */
   if (tdesc_has_registers (info.target_desc))
@@ -5681,11 +6066,11 @@ mips_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
 
       valid_p &= tdesc_numbered_register (feature, tdesc_data,
-					  MIPS_EMBED_LO_REGNUM, "lo");
+					  mips_regnum.lo, "lo");
       valid_p &= tdesc_numbered_register (feature, tdesc_data,
-					  MIPS_EMBED_HI_REGNUM, "hi");
+					  mips_regnum.hi, "hi");
       valid_p &= tdesc_numbered_register (feature, tdesc_data,
-					  MIPS_EMBED_PC_REGNUM, "pc");
+					  mips_regnum.pc, "pc");
 
       if (!valid_p)
 	{
@@ -5703,12 +6088,11 @@ mips_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
       valid_p = 1;
       valid_p &= tdesc_numbered_register (feature, tdesc_data,
-					  MIPS_EMBED_BADVADDR_REGNUM,
-					  "badvaddr");
+					  mips_regnum.badvaddr, "badvaddr");
       valid_p &= tdesc_numbered_register (feature, tdesc_data,
 					  MIPS_PS_REGNUM, "status");
       valid_p &= tdesc_numbered_register (feature, tdesc_data,
-					  MIPS_EMBED_CAUSE_REGNUM, "cause");
+					  mips_regnum.cause, "cause");
 
       if (!valid_p)
 	{
@@ -5729,13 +6113,15 @@ mips_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
       valid_p = 1;
       for (i = 0; i < 32; i++)
 	valid_p &= tdesc_numbered_register (feature, tdesc_data,
-					    i + MIPS_EMBED_FP0_REGNUM,
-					    mips_fprs[i]);
+					    i + mips_regnum.fp0, mips_fprs[i]);
 
       valid_p &= tdesc_numbered_register (feature, tdesc_data,
-					  MIPS_EMBED_FP0_REGNUM + 32, "fcsr");
-      valid_p &= tdesc_numbered_register (feature, tdesc_data,
-					  MIPS_EMBED_FP0_REGNUM + 33, "fir");
+					  mips_regnum.fp_control_status,
+					  "fcsr");
+      valid_p
+	&= tdesc_numbered_register (feature, tdesc_data,
+				    mips_regnum.fp_implementation_revision,
+				    "fir");
 
       if (!valid_p)
 	{
@@ -5743,8 +6129,45 @@ mips_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 	  return NULL;
 	}
 
+      if (dspacc >= 0)
+	{
+	  feature = tdesc_find_feature (info.target_desc,
+					"org.gnu.gdb.mips.dsp");
+	  /* The DSP registers are optional; it's OK if they are absent.  */
+	  if (feature != NULL)
+	    {
+	      i = 0;
+	      valid_p = 1;
+	      valid_p &= tdesc_numbered_register (feature, tdesc_data,
+						  dspacc + i++, "hi1");
+	      valid_p &= tdesc_numbered_register (feature, tdesc_data,
+						  dspacc + i++, "lo1");
+	      valid_p &= tdesc_numbered_register (feature, tdesc_data,
+						  dspacc + i++, "hi2");
+	      valid_p &= tdesc_numbered_register (feature, tdesc_data,
+						  dspacc + i++, "lo2");
+	      valid_p &= tdesc_numbered_register (feature, tdesc_data,
+						  dspacc + i++, "hi3");
+	      valid_p &= tdesc_numbered_register (feature, tdesc_data,
+						  dspacc + i++, "lo3");
+
+	      valid_p &= tdesc_numbered_register (feature, tdesc_data,
+						  dspctl, "dspctl");
+
+	      if (!valid_p)
+		{
+		  tdesc_data_cleanup (tdesc_data);
+		  return NULL;
+		}
+
+	      mips_regnum.dspacc = dspacc;
+	      mips_regnum.dspctl = dspctl;
+	    }
+	}
+
       /* It would be nice to detect an attempt to use a 64-bit ABI
 	 when only 32-bit registers are provided.  */
+      reg_names = NULL;
     }
 
   /* First of all, extract the elf_flags, if available.  */
@@ -5993,66 +6416,15 @@ mips_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_elf_make_msymbol_special (gdbarch,
 					mips_elf_make_msymbol_special);
 
-  /* Fill in the OS dependant register numbers and names.  */
-  {
-    const char **reg_names;
-    struct mips_regnum *regnum = GDBARCH_OBSTACK_ZALLOC (gdbarch,
-							 struct mips_regnum);
-    if (tdesc_has_registers (info.target_desc))
-      {
-	regnum->lo = MIPS_EMBED_LO_REGNUM;
-	regnum->hi = MIPS_EMBED_HI_REGNUM;
-	regnum->badvaddr = MIPS_EMBED_BADVADDR_REGNUM;
-	regnum->cause = MIPS_EMBED_CAUSE_REGNUM;
-	regnum->pc = MIPS_EMBED_PC_REGNUM;
-	regnum->fp0 = MIPS_EMBED_FP0_REGNUM;
-	regnum->fp_control_status = 70;
-	regnum->fp_implementation_revision = 71;
-	num_regs = MIPS_LAST_EMBED_REGNUM + 1;
-	reg_names = NULL;
-      }
-    else if (info.osabi == GDB_OSABI_IRIX)
-      {
-	regnum->fp0 = 32;
-	regnum->pc = 64;
-	regnum->cause = 65;
-	regnum->badvaddr = 66;
-	regnum->hi = 67;
-	regnum->lo = 68;
-	regnum->fp_control_status = 69;
-	regnum->fp_implementation_revision = 70;
-	num_regs = 71;
-	reg_names = mips_irix_reg_names;
-      }
-    else
-      {
-	regnum->lo = MIPS_EMBED_LO_REGNUM;
-	regnum->hi = MIPS_EMBED_HI_REGNUM;
-	regnum->badvaddr = MIPS_EMBED_BADVADDR_REGNUM;
-	regnum->cause = MIPS_EMBED_CAUSE_REGNUM;
-	regnum->pc = MIPS_EMBED_PC_REGNUM;
-	regnum->fp0 = MIPS_EMBED_FP0_REGNUM;
-	regnum->fp_control_status = 70;
-	regnum->fp_implementation_revision = 71;
-	num_regs = 90;
-	if (info.bfd_arch_info != NULL
-	    && info.bfd_arch_info->mach == bfd_mach_mips3900)
-	  reg_names = mips_tx39_reg_names;
-	else
-	  reg_names = mips_generic_reg_names;
-      }
-    /* FIXME: cagney/2003-11-15: For MIPS, hasn't gdbarch_pc_regnum been
-       replaced by gdbarch_read_pc?  */
-    set_gdbarch_pc_regnum (gdbarch, regnum->pc + num_regs);
-    set_gdbarch_sp_regnum (gdbarch, MIPS_SP_REGNUM + num_regs);
-    set_gdbarch_fp0_regnum (gdbarch, regnum->fp0);
-    set_gdbarch_num_regs (gdbarch, num_regs);
-    set_gdbarch_num_pseudo_regs (gdbarch, num_regs);
-    set_gdbarch_register_name (gdbarch, mips_register_name);
-    set_gdbarch_virtual_frame_pointer (gdbarch, mips_virtual_frame_pointer);
-    tdep->mips_processor_reg_names = reg_names;
-    tdep->regnum = regnum;
-  }
+  regnum = GDBARCH_OBSTACK_ZALLOC (gdbarch, struct mips_regnum);
+  *regnum = mips_regnum;
+  set_gdbarch_fp0_regnum (gdbarch, regnum->fp0);
+  set_gdbarch_num_regs (gdbarch, num_regs);
+  set_gdbarch_num_pseudo_regs (gdbarch, num_regs);
+  set_gdbarch_register_name (gdbarch, mips_register_name);
+  set_gdbarch_virtual_frame_pointer (gdbarch, mips_virtual_frame_pointer);
+  tdep->mips_processor_reg_names = reg_names;
+  tdep->regnum = regnum;
 
   switch (mips_abi)
     {
@@ -6230,6 +6602,8 @@ mips_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   set_gdbarch_inner_than (gdbarch, core_addr_lessthan);
   set_gdbarch_breakpoint_from_pc (gdbarch, mips_breakpoint_from_pc);
+  set_gdbarch_adjust_breakpoint_address (gdbarch,
+					 mips_adjust_breakpoint_address);
 
   set_gdbarch_skip_prologue (gdbarch, mips_skip_prologue);
 
@@ -6271,6 +6645,14 @@ mips_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   /* Hook in OS ABI-specific overrides, if they have been registered.  */
   info.tdep_info = (void *) tdesc_data;
   gdbarch_init_osabi (info, gdbarch);
+
+  /* The hook may have adjusted num_regs, fetch the final value and
+     set pc_regnum and sp_regnum now that it has been fixed.  */
+  /* FIXME: cagney/2003-11-15: For MIPS, hasn't gdbarch_pc_regnum been
+     replaced by gdbarch_read_pc?  */
+  num_regs = gdbarch_num_regs (gdbarch);
+  set_gdbarch_pc_regnum (gdbarch, regnum->pc + num_regs);
+  set_gdbarch_sp_regnum (gdbarch, MIPS_SP_REGNUM + num_regs);
 
   /* Unwind the frame.  */
   dwarf2_append_unwinders (gdbarch);

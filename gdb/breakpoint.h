@@ -22,6 +22,7 @@
 #include "frame.h"
 #include "value.h"
 #include "vec.h"
+#include "ax.h"
 
 struct value;
 struct block;
@@ -215,6 +216,16 @@ enum target_hw_bp_type
   };
 
 
+/* Status of breakpoint conditions used when synchronizing
+   conditions with the target.  */
+
+enum condition_status
+  {
+    condition_unchanged = 0,
+    condition_modified,
+    condition_updated
+  };
+
 /* Information used by targets to insert and remove breakpoints.  */
 
 struct bp_target_info
@@ -249,6 +260,10 @@ struct bp_target_info
      (e.g. if a remote stub handled the details).  We may still need
      the size to remove the breakpoint safely.  */
   int placed_size;
+
+  /* Vector of conditions the target should evaluate if it supports target-side
+     breakpoint conditions.  */
+  VEC(agent_expr_p) *conditions;
 };
 
 /* GDB maintains two types of information about each breakpoint (or
@@ -314,6 +329,30 @@ struct bp_location
      breakpoints; a watchpoint's conditional expression is stored in
      the owner breakpoint object.  */
   struct expression *cond;
+
+  /* Conditional expression in agent expression
+     bytecode form.  This is used for stub-side breakpoint
+     condition evaluation.  */
+  struct agent_expr *cond_bytecode;
+
+  /* Signals that the condition has changed since the last time
+     we updated the global location list.  This means the condition
+     needs to be sent to the target again.  This is used together
+     with target-side breakpoint conditions.
+
+     condition_unchanged: It means there has been no condition changes.
+
+     condition_modified: It means this location had its condition modified.
+
+     condition_updated: It means we already marked all the locations that are
+     duplicates of this location and thus we don't need to call
+     force_breakpoint_reinsertion (...) for this location.  */
+
+  enum condition_status condition_changed;
+
+  /* Signals that breakpoint conditions need to be re-synched with the
+     target.  This has no use other than target-side breakpoints.  */
+  char needs_update;
 
   /* This location's address is in an unloaded solib, and so this
      location should not be inserted.  It will be automatically
@@ -511,7 +550,7 @@ struct breakpoint_ops
 				  struct linespec_sals *, char *,
 				  enum bptype, enum bpdisp, int, int,
 				  int, const struct breakpoint_ops *,
-				  int, int, int);
+				  int, int, int, unsigned);
 
   /* Given the address string (second parameter), this method decodes it
      and provides the SAL locations related to it.  For ordinary breakpoints,
@@ -543,9 +582,6 @@ enum watchpoint_triggered
   /* This hardware watchpoint definitely did trigger.  */
   watch_triggered_yes  
 };
-
-/* This is used to declare the VEC syscalls_to_be_caught.  */
-DEF_VEC_I(int);
 
 typedef struct bp_location *bp_location_p;
 DEF_VEC_P(bp_location_p);
@@ -596,6 +632,11 @@ struct breakpoint
     /* Number of stops at this breakpoint that should
        be continued automatically before really stopping.  */
     int ignore_count;
+
+    /* Number of stops at this breakpoint before it will be
+       disabled.  */
+    int enable_count;
+
     /* Chain of command lines to execute when this breakpoint is
        hit.  */
     struct counted_command_line *commands;
@@ -720,6 +761,11 @@ struct watchpoint
   /* The mask address for a masked hardware watchpoint.  */
   CORE_ADDR hw_wp_mask;
 };
+
+/* Return true if BPT is either a software breakpoint or a hardware
+   breakpoint.  */
+
+extern int is_breakpoint (const struct breakpoint *bpt);
 
 /* Returns true if BPT is really a watchpoint.  */
 
@@ -1144,6 +1190,16 @@ extern void
 extern void install_breakpoint (int internal, struct breakpoint *b,
 				int update_gll);
 
+/* Flags that can be passed down to create_breakpoint, etc., to affect
+   breakpoint creation in several ways.  */
+
+enum breakpoint_create_flags
+  {
+    /* We're adding a breakpoint to our tables that is already
+       inserted in the target.  */
+    CREATE_BREAKPOINT_FLAGS_INSERTED = 1 << 0
+  };
+
 extern int create_breakpoint (struct gdbarch *gdbarch, char *arg,
 			      char *cond_string, int thread,
 			      int parse_condition_and_thread,
@@ -1153,7 +1209,7 @@ extern int create_breakpoint (struct gdbarch *gdbarch, char *arg,
 			      const struct breakpoint_ops *ops,
 			      int from_tty,
 			      int enabled,
-			      int internal);
+			      int internal, unsigned flags);
 
 extern void insert_breakpoints (void);
 
@@ -1204,6 +1260,9 @@ extern void breakpoint_program_space_exit (struct program_space *pspace);
 extern void set_longjmp_breakpoint (struct thread_info *tp,
 				    struct frame_id frame);
 extern void delete_longjmp_breakpoint (int thread);
+
+/* Mark all longjmp breakpoints from THREAD for later deletion.  */
+extern void delete_longjmp_breakpoint_at_next_stop (int thread);
 
 extern void enable_overlay_breakpoints (void);
 extern void disable_overlay_breakpoints (void);

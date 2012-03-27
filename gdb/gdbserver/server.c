@@ -18,6 +18,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "server.h"
+#include "agent.h"
 
 #if HAVE_UNISTD_H
 #include <unistd.h>
@@ -29,7 +30,19 @@
 #include <sys/wait.h>
 #endif
 
+/* The thread set with an `Hc' packet.  `Hc' is deprecated in favor of
+   `vCont'.  Note the multi-process extensions made `vCont' a
+   requirement, so `Hc pPID.TID' is pretty much undefined.  So
+   CONT_THREAD can be null_ptid for no `Hc' thread, minus_one_ptid for
+   resuming all threads of the process (again, `Hc' isn't used for
+   multi-process), or a specific thread ptid_t.
+
+   We also set this when handling a single-thread `vCont' resume, as
+   some places in the backends check it to know when (and for which
+   thread) single-thread scheduler-locking is in effect.  */
 ptid_t cont_thread;
+
+/* The thread set with an `Hg' packet.  */
 ptid_t general_thread;
 
 int server_waiting;
@@ -58,6 +71,8 @@ int debug_threads;
 int debug_hw_points;
 
 int pass_signals[TARGET_SIGNAL_LAST];
+int program_signals[TARGET_SIGNAL_LAST];
+int program_signals_p;
 
 jmp_buf toplevel;
 
@@ -259,6 +274,10 @@ start_inferior (char **argv)
   signal (SIGTTIN, SIG_DFL);
 #endif
 
+  /* Clear this so the backend doesn't get confused, thinking
+     CONT_THREAD died, and it needs to resume all threads.  */
+  cont_thread = null_ptid;
+
   signal_pid = create_inferior (new_argv[0], new_argv);
 
   /* FIXME: we don't actually know at this point that the create
@@ -454,6 +473,33 @@ handle_general_set (char *own_buf)
       return;
     }
 
+  if (strncmp ("QProgramSignals:", own_buf, strlen ("QProgramSignals:")) == 0)
+    {
+      int numsigs = (int) TARGET_SIGNAL_LAST, i;
+      const char *p = own_buf + strlen ("QProgramSignals:");
+      CORE_ADDR cursig;
+
+      program_signals_p = 1;
+
+      p = decode_address_to_semicolon (&cursig, p);
+      for (i = 0; i < numsigs; i++)
+	{
+	  if (i == cursig)
+	    {
+	      program_signals[i] = 1;
+	      if (*p == '\0')
+		/* Keep looping, to clear the remaining signals.  */
+		cursig = -1;
+	      else
+		p = decode_address_to_semicolon (&cursig, p);
+	    }
+	  else
+	    program_signals[i] = 0;
+	}
+      strcpy (own_buf, "OK");
+      return;
+    }
+
   if (strcmp (own_buf, "QStartNoAckMode") == 0)
     {
       if (remote_debug)
@@ -528,6 +574,30 @@ handle_general_set (char *own_buf)
   if (target_supports_tracepoints ()
       && handle_tracepoint_general_set (own_buf))
     return;
+
+  if (strncmp ("QAgent:", own_buf, strlen ("QAgent:")) == 0)
+    {
+      char *mode = own_buf + strlen ("QAgent:");
+      int req = 0;
+
+      if (strcmp (mode, "0") == 0)
+	req = 0;
+      else if (strcmp (mode, "1") == 0)
+	req = 1;
+      else
+	{
+	  /* We don't know what this value is, so complain to GDB.  */
+	  sprintf (own_buf, "E.Unknown QAgent value");
+	  return;
+	}
+
+      /* Update the flag.  */
+      use_agent = req;
+      if (remote_debug)
+	fprintf (stderr, "[%s agent]\n", req ? "Enable" : "Disable");
+      write_ok (own_buf);
+      return;
+    }
 
   /* Otherwise we didn't know what packet it was.  Say we didn't
      understand it.  */
@@ -944,10 +1014,6 @@ handle_qxfer_libraries (const char *annex,
 
   if (annex[0] != '\0' || !target_running ())
     return -1;
-
-  /* Do not confuse this packet with qXfer:libraries-svr4:read.  */
-  if (the_target->qxfer_libraries_svr4 != NULL)
-    return 0;
 
   /* Over-estimate the necessary memory.  Assume that every character
      in the library name must be escaped.  */
@@ -1559,7 +1625,9 @@ handle_query (char *own_buf, int packet_len, int *new_packet_len_p)
 	  free (qsupported);
 	}
 
-      sprintf (own_buf, "PacketSize=%x;QPassSignals+", PBUFSIZ - 1);
+      sprintf (own_buf,
+	       "PacketSize=%x;QPassSignals+;QProgramSignals+",
+	       PBUFSIZ - 1);
 
       if (the_target->qxfer_libraries_svr4 != NULL)
 	strcat (own_buf, ";qXfer:libraries-svr4:read+");
@@ -1620,6 +1688,12 @@ handle_query (char *own_buf, int packet_len, int *new_packet_len_p)
 	  strcat (own_buf, ";EnableDisableTracepoints+");
 	  strcat (own_buf, ";tracenz+");
 	}
+
+      /* Support target-side breakpoint conditions.  */
+      strcat (own_buf, ";ConditionalBreakpoints+");
+
+      if (target_supports_agent ())
+	strcat (own_buf, ";QAgent+");
 
       return;
     }
@@ -1900,9 +1974,13 @@ handle_v_cont (char *own_buf)
   if (i < n)
     resume_info[i] = default_action;
 
-  /* Still used in occasional places in the backend.  */
+  /* `cont_thread' is still used in occasional places in the backend,
+     to implement single-thread scheduler-locking.  Doesn't make sense
+     to set it if we see a stop request, or any form of wildcard
+     vCont.  */
   if (n == 1
-      && !ptid_equal (resume_info[0].thread, minus_one_ptid)
+      && !(ptid_equal (resume_info[0].thread, minus_one_ptid)
+	   || ptid_get_lwp (resume_info[0].thread) == -1)
       && resume_info[0].kind != resume_stop)
     cont_thread = resume_info[0].thread;
   else
@@ -2825,6 +2903,44 @@ main (int argc, char *argv[])
     }
 }
 
+/* Process options coming from Z packets for *point at address
+   POINT_ADDR.  PACKET is the packet buffer.  *PACKET is updated
+   to point to the first char after the last processed option.  */
+
+static void
+process_point_options (CORE_ADDR point_addr, char **packet)
+{
+  char *dataptr = *packet;
+
+  /* Check if data has the correct format.  */
+  if (*dataptr != ';')
+    return;
+
+  dataptr++;
+
+  while (*dataptr)
+    {
+      switch (*dataptr)
+	{
+	  case 'X':
+	    /* Conditional expression.  */
+	    if (remote_debug)
+	      fprintf (stderr, "Found breakpoint condition.\n");
+	    add_breakpoint_condition (point_addr, &dataptr);
+	    break;
+	  default:
+	    /* Unrecognized token, just skip it.  */
+	    fprintf (stderr, "Unknown token %c, ignoring.\n",
+		     *dataptr);
+	}
+
+      /* Skip tokens until we find one that we recognize.  */
+      while (*dataptr && *dataptr != 'X' && *dataptr != ';')
+	dataptr++;
+    }
+  *packet = dataptr;
+}
+
 /* Event loop callback that handles a serial event.  The first byte in
    the serial buffer gets us here.  We expect characters to arrive at
    a brisk pace, so we read the rest of the packet with a blocking
@@ -3147,7 +3263,22 @@ process_serial_event (void)
 	  case '4': /* access watchpoint */
 	    require_running (own_buf);
 	    if (insert && the_target->insert_point != NULL)
-	      res = (*the_target->insert_point) (type, addr, len);
+	      {
+		/* Insert the breakpoint.  If it is already inserted, nothing
+		   will take place.  */
+		res = (*the_target->insert_point) (type, addr, len);
+
+		/* GDB may have sent us a list of *point parameters to be
+		   evaluated on the target's side.  Read such list here.  If we
+		   already have a list of parameters, GDB is telling us to drop
+		   that list and use this one instead.  */
+		if (!res && (type == '0' || type == '1'))
+		  {
+		    /* Remove previous conditions.  */
+		    clear_gdb_breakpoint_conditions (addr);
+		    process_point_options (addr, &dataptr);
+		  }
+	      }
 	    else if (!insert && the_target->remove_point != NULL)
 	      res = (*the_target->remove_point) (type, addr, len);
 	    break;

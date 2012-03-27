@@ -142,7 +142,7 @@ elf_symfile_segments (bfd *abfd)
 	 binaries are not relocatable.  */
       if (bfd_get_section_size (sect) > 0 && j == num_segments
 	  && (bfd_get_section_flags (abfd, sect) & SEC_LOAD) != 0)
-	warning (_("Loadable segment \"%s\" outside of ELF segments"),
+	warning (_("Loadable section \"%s\" outside of ELF segments"),
 		 bfd_section_name (abfd, sect));
     }
 
@@ -994,6 +994,9 @@ elf_gnu_ifunc_resolver_stop (struct breakpoint *b)
       b_return = set_momentary_breakpoint (get_frame_arch (prev_frame), sal,
 					   prev_frame_id,
 					   bp_gnu_ifunc_resolver_return);
+
+      /* set_momentary_breakpoint invalidates PREV_FRAME.  */
+      prev_frame = NULL;
 
       /* Add new b_return to the ring list b->related_breakpoint.  */
       gdb_assert (b_return->related_breakpoint == b_return);

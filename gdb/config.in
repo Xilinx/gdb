@@ -239,12 +239,6 @@
 /* Define if Python 2.7 is being used. */
 #undef HAVE_LIBPYTHON2_7
 
-/* Define if libunwind library is being used. */
-#undef HAVE_LIBUNWIND
-
-/* Define to 1 if you have the <libunwind.h> header file. */
-#undef HAVE_LIBUNWIND_H
-
 /* Define to 1 if you have the <libunwind-ia64.h> header file. */
 #undef HAVE_LIBUNWIND_IA64_H
 
@@ -644,6 +638,9 @@
 /* Define to 1 if you have the <sys/select.h> header file. */
 #undef HAVE_SYS_SELECT_H
 
+/* Define to 1 if you have the <sys/socket.h> header file. */
+#undef HAVE_SYS_SOCKET_H
+
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
 
@@ -652,6 +649,9 @@
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the <sys/un.h> header file. */
+#undef HAVE_SYS_UN_H
 
 /* Define to 1 if you have the <sys/user.h> header file. */
 #undef HAVE_SYS_USER_H

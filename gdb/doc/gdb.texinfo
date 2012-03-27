@@ -154,6 +154,7 @@ software in general.  We will miss him.
 * GDB/MI::                      @value{GDBN}'s Machine Interface.
 * Annotations::                 @value{GDBN}'s annotation interface.
 * JIT Interface::               Using the JIT debugging interface.
+* In-Process Agent::            In-Process Agent
 
 * GDB Bugs::                    Reporting bugs in @value{GDBN}
 
@@ -989,6 +990,22 @@ also be interleaved with @samp{-command} as required.
    -x setbreakpoints -ex 'run' a.out
 @end smallexample
 
+@item -init-command @var{file}
+@itemx -ix @var{file}
+@cindex @code{--init-command}
+@cindex @code{-ix}
+Execute commands from file @var{file} before loading gdbinit files or the
+inferior.
+@xref{Startup}.
+
+@item -init-eval-command @var{command}
+@itemx -iex @var{command}
+@cindex @code{--init-eval-command}
+@cindex @code{-iex}
+Execute a single @value{GDBN} command before loading gdbinit files or the
+inferior.
+@xref{Startup}.
+
 @item -directory @var{directory}
 @itemx -d @var{directory}
 @cindex @code{--directory}
@@ -1220,6 +1237,13 @@ memory usage after it completes each command and returns to the prompt.
 This option causes @value{GDBN} to print its version number and
 no-warranty blurb, and exit.
 
+@item -use-deprecated-index-sections
+@cindex @code{--use-deprecated-index-sections}
+This option causes @value{GDBN} to read and use deprecated
+@samp{.gdb_index} sections from symbol files.  This can speed up
+startup, but may result in some functionality being lost.
+@xref{Index Section Format}.
+
 @end table
 
 @node Startup
@@ -1232,6 +1256,13 @@ Here's the description of what @value{GDBN} does during session startup:
 @item
 Sets up the command interpreter as specified by the command line
 (@pxref{Mode Options, interpreter}).
+
+@item
+Executes commands and command files specified by the @samp{-iex} and
+@samp{-ix} options in their specified order.  Usually you should use the
+@samp{-ex} and @samp{-x} options instead, but this way you can apply
+settings before @value{GDBN} init files get executed and before inferior
+gets loaded.
 
 @item
 @cindex init file
@@ -1267,18 +1298,16 @@ If you wish to disable the auto-loading during startup,
 you must do something like the following:
 
 @smallexample
-$ gdb -ex "set auto-load-scripts off" -ex "file myprogram"
+$ gdb -iex "set auto-load-scripts off" myprogram
 @end smallexample
 
-The following does not work because the auto-loading is turned off too late:
-
-@smallexample
-$ gdb -ex "set auto-load-scripts off" myprogram
-@end smallexample
+Option @samp{-ex} does not work because the auto-loading is then turned
+off too late.
 
 @item
-Reads command files specified by the @samp{-x} option.  @xref{Command
-Files}, for more details about @value{GDBN} command files.
+Executes commands and command files specified by the @samp{-ex} and
+@samp{-x} options in their specified order.  @xref{Command Files}, for
+more details about @value{GDBN} command files.
 
 @item
 Reads the command history recorded in the @dfn{history file}.
@@ -1698,7 +1727,7 @@ commands, and their documentation, for the regular expression specified in
 @var{args}.  It prints out all matches found.  For example:
 
 @smallexample
-apropos reload
+apropos alias
 @end smallexample
 
 @noindent
@@ -1706,10 +1735,11 @@ results in:
 
 @smallexample
 @c @group
-set symbol-reloading -- Set dynamic symbol table reloading
-                        multiple times in one run
-show symbol-reloading -- Show dynamic symbol table reloading
-                        multiple times in one run
+alias -- Define a new command that is an alias of an existing command
+aliases -- Aliases of other commands
+d -- Delete some breakpoints or auto-display expressions
+del -- Delete some breakpoints or auto-display expressions
+delete -- Delete some breakpoints or auto-display expressions
 @c @end group
 @end smallexample
 
@@ -3484,12 +3514,17 @@ the appropriate shared library is loaded in the future.
 @end table
 
 @noindent
-If a breakpoint is conditional, @code{info break} shows the condition on
-the line following the affected breakpoint; breakpoint commands, if any,
-are listed after that.  A pending breakpoint is allowed to have a condition
-specified for it.  The condition is not parsed for validity until a shared
-library is loaded that allows the pending breakpoint to resolve to a
-valid location.
+If a breakpoint is conditional, there are two evaluation modes: ``host'' and
+``target''.  If mode is ``host'', breakpoint condition evaluation is done by
+@value{GDBN} on the host's side.  If it is ``target'', then the condition
+is evaluated by the target.  The @code{info break} command shows
+the condition on the line following the affected breakpoint, together with
+its condition evaluation mode in between parentheses.
+
+Breakpoint commands, if any, are listed after that.  A pending breakpoint is
+allowed to have a condition specified for it.  The condition is not parsed for
+validity until a shared library is loaded that allows the pending
+breakpoint to resolve to a valid location.
 
 @noindent
 @code{info break} with a breakpoint
@@ -3505,6 +3540,11 @@ has been hit.  This is especially useful in conjunction with the
 hits, look at the breakpoint info to see how many times the breakpoint
 was hit, and then run again, ignoring one less than that number.  This
 will get you quickly to the last hit of that breakpoint.
+
+@noindent
+For a breakpoints with an enable count (xref) greater than 1,
+@code{info break} also displays that count.
+
 @end table
 
 @value{GDBN} allows you to set any number of breakpoints at the same place in
@@ -3680,6 +3720,47 @@ in non-stop mode (@pxref{Non-Stop Mode}), gdb behaves as if
 controlling the inferior in all-stop mode, @value{GDBN} behaves as if
 @code{breakpoint always-inserted} mode is off.
 @end table
+
+@value{GDBN} handles conditional breakpoints by evaluating these conditions
+when a breakpoint breaks.  If the condition is true, then the process being
+debugged stops, otherwise the process is resumed.
+
+If the target supports evaluating conditions on its end, @value{GDBN} may
+download the breakpoint, together with its conditions, to it.
+
+This feature can be controlled via the following commands:
+
+@kindex set breakpoint condition-evaluation
+@kindex show breakpoint condition-evaluation
+@table @code
+@item set breakpoint condition-evaluation host
+This option commands @value{GDBN} to evaluate the breakpoint
+conditions on the host's side.  Unconditional breakpoints are sent to
+the target which in turn receives the triggers and reports them back to GDB
+for condition evaluation.  This is the standard evaluation mode.
+
+@item set breakpoint condition-evaluation target
+This option commands @value{GDBN} to download breakpoint conditions
+to the target at the moment of their insertion.  The target
+is responsible for evaluating the conditional expression and reporting
+breakpoint stop events back to @value{GDBN} whenever the condition
+is true.  Due to limitations of target-side evaluation, some conditions
+cannot be evaluated there, e.g., conditions that depend on local data
+that is only known to the host.  Examples include
+conditional expressions involving convenience variables, complex types
+that cannot be handled by the agent expression parser and expressions
+that are too long to be sent over to the target, specially when the
+target is a remote system.  In these cases, the conditions will be
+evaluated by @value{GDBN}.
+
+@item set breakpoint condition-evaluation auto
+This is the default mode.  If the target supports evaluating breakpoint
+conditions on its end, @value{GDBN} will download breakpoint conditions to
+the target (limitations mentioned previously apply).  If the target does
+not support breakpoint condition evaluation, then @value{GDBN} will fallback
+to evaluating all these conditions on the host's side.
+@end table
+
 
 @cindex negative breakpoint numbers
 @cindex internal @value{GDBN} breakpoints
@@ -4252,8 +4333,8 @@ do not know which numbers to use.
 Disabling and enabling a breakpoint that has multiple locations
 affects all of its locations.
 
-A breakpoint, watchpoint, or catchpoint can have any of four different
-states of enablement:
+A breakpoint, watchpoint, or catchpoint can have any of several
+different states of enablement:
 
 @itemize @bullet
 @item
@@ -4264,6 +4345,9 @@ Disabled.  The breakpoint has no effect on your program.
 @item
 Enabled once.  The breakpoint stops your program, but then becomes
 disabled.
+@item
+Enabled for a count.  The breakpoint stops your program for the next
+N times, then becomes disabled.
 @item
 Enabled for deletion.  The breakpoint stops your program, but
 immediately after it does so it is deleted permanently.  A breakpoint
@@ -4291,6 +4375,14 @@ become effective once again in stopping your program.
 @item enable @r{[}breakpoints@r{]} once @var{range}@dots{}
 Enable the specified breakpoints temporarily.  @value{GDBN} disables any
 of these breakpoints immediately after stopping your program.
+
+@item enable @r{[}breakpoints@r{]} count @var{count} @var{range}@dots{}
+Enable the specified breakpoints temporarily.  @value{GDBN} records
+@var{count} with each of the specified breakpoints, and decrements a
+breakpoint's count when it is hit.  When any count reaches 0,
+@value{GDBN} disables that breakpoint.  If a breakpoint has an ignore
+count (@pxref{Conditions, ,Break Conditions}), that will be
+decremented to 0 before @var{count} is affected.
 
 @item enable @r{[}breakpoints@r{]} delete @var{range}@dots{}
 Enable the specified breakpoints to work once, then die.  @value{GDBN}
@@ -4345,6 +4437,19 @@ breakpoint commands are usually more convenient and flexible than break
 conditions for the
 purpose of performing side effects when a breakpoint is reached
 (@pxref{Break Commands, ,Breakpoint Command Lists}).
+
+Breakpoint conditions can also be evaluated on the target's side if
+the target supports it.  Instead of evaluating the conditions locally,
+@value{GDBN} encodes the expression into an agent expression
+(@pxref{Agent Expressions}) suitable for execution on the target,
+independently of @value{GDBN}.  Global variables become raw memory
+locations, locals become stack accesses, and so forth.
+
+In this case, @value{GDBN} will only be notified of a breakpoint trigger
+when its condition evaluates to true.  This mechanism may provide faster
+response times depending on the performance characteristics of the target
+since it does not need to keep @value{GDBN} informed about
+every breakpoint trigger, even those with false conditions.
 
 Break conditions can be specified when a breakpoint is set, by using
 @samp{if} in the arguments to the @code{break} command.  @xref{Set
@@ -9812,14 +9917,6 @@ function calls are the same as normal calls:
 
 @itemize @bullet
 @item
-You cannot set breakpoints on inlined functions.  @value{GDBN}
-either reports that there is no symbol with that name, or else sets the
-breakpoint only on non-inlined copies of the function.  This limitation
-will be removed in a future version of @value{GDBN}; until then,
-set a breakpoint by line number on the first line of the inlined
-function instead.
-
-@item
 Setting breakpoints at the call site of an inlined function may not
 work, because the call site does not contain any code.  @value{GDBN}
 may incorrectly move the breakpoint to the next line of the enclosing
@@ -12710,6 +12807,12 @@ Print inheritance relationships as well as other information for type
 @var{typename}.
 @xref{Symbols, ,Examining the Symbol Table}.
 
+@item info vtbl @var{expression}.
+The @code{info vtbl} command can be used to display the virtual
+method tables of the object computed by @var{expression}.  This shows
+one entry per virtual table; there may be multiple virtual tables when
+multiple inheritance is in use.
+
 @cindex C@t{++} symbol display
 @item set print demangle
 @itemx show print demangle
@@ -14643,33 +14746,6 @@ from the @code{ptype} command can be overwhelming and hard to use.  The
 @code{info-methods} command filters the methods, printing only those
 which match the regular-expression @var{regexp}.
 @end ignore
-
-@cindex reloading symbols
-Some systems allow individual object files that make up your program to
-be replaced without stopping and restarting your program.  For example,
-in VxWorks you can simply recompile a defective object file and keep on
-running.  If you are running on one of these systems, you can allow
-@value{GDBN} to reload the symbols for automatically relinked modules:
-
-@table @code
-@kindex set symbol-reloading
-@item set symbol-reloading on
-Replace symbol definitions for the corresponding source file when an
-object file with a particular name is seen again.
-
-@item set symbol-reloading off
-Do not replace symbol definitions when encountering object files of the
-same name more than once.  This is the default state; if you are not
-running on a system that permits automatic relinking of modules, you
-should leave @code{symbol-reloading} off, since otherwise @value{GDBN}
-may discard symbols when linking large programs, that may contain
-several modules (from different directories or libraries) with the same
-name.
-
-@kindex show symbol-reloading
-@item show symbol-reloading
-Show the current @code{on} or @code{off} setting.
-@end table
 
 @cindex opaque data types
 @kindex set opaque-type-resolution
@@ -17437,6 +17513,10 @@ are:
 @tab @code{QPassSignals}
 @tab @code{handle @var{signal}}
 
+@item @code{program-signals}
+@tab @code{QProgramSignals}
+@tab @code{handle @var{signal}}
+
 @item @code{hostio-close-packet}
 @tab @code{vFile:close}
 @tab @code{remote get}, @code{remote put}
@@ -17484,6 +17564,10 @@ are:
 @item @code{disable-randomization}
 @tab @code{QDisableRandomization}
 @tab @code{set disable-randomization}
+
+@item @code{conditional-breakpoints-packet}
+@tab @code{Z0 and Z1}
+@tab @code{Support for target-side breakpoint condition evaluation}
 @end multitable
 
 @node Remote Stub
@@ -21053,8 +21137,9 @@ command should not be repeated when the user hits @key{RET}
 
 @kindex help user-defined
 @item help user-defined
-List all user-defined commands, with the first line of the documentation
-(if any) for each.
+List all user-defined commands and all python commands defined in class
+COMAND_USER.  The first line of the documentation or docstring is
+included (if any).
 
 @kindex show user
 @item show user
@@ -21062,6 +21147,7 @@ List all user-defined commands, with the first line of the documentation
 Display the @value{GDBN} commands used to define @var{commandname} (but
 not its documentation).  If no @var{commandname} is given, display the
 definitions for all user-defined commands.
+This does not work for user-defined python commands.
 
 @cindex infinite recursion in user-defined commands
 @kindex show max-user-call-depth
@@ -21071,6 +21157,7 @@ definitions for all user-defined commands.
 The value of @code{max-user-call-depth} controls how many recursion
 levels are allowed in user-defined commands before @value{GDBN} suspects an
 infinite recursion and aborts the command.
+This does not apply to user-defined python commands.
 @end table
 
 In addition to the above commands, user-defined commands frequently
@@ -21871,7 +21958,7 @@ to handle this case.  Example:
 >class HelloWorld (gdb.Command):
 >  """Greet the whole world."""
 >  def __init__ (self):
->    super (HelloWorld, self).__init__ ("hello-world", gdb.COMMAND_OBSCURE)
+>    super (HelloWorld, self).__init__ ("hello-world", gdb.COMMAND_USER)
 >  def invoke (self, args, from_tty):
 >    argv = gdb.string_to_argv (args)
 >    if len (argv) != 0:
@@ -22049,6 +22136,79 @@ bar = foo.dereference ()
 
 The result @code{bar} will be a @code{gdb.Value} object holding the
 value pointed to by @code{foo}.
+
+A similar function @code{Value.referenced_value} exists which also
+returns @code{gdb.Value} objects corresonding to the values pointed to
+by pointer values (and additionally, values referenced by reference
+values).  However, the behavior of @code{Value.dereference}
+differs from @code{Value.referenced_value} by the fact that the
+behavior of @code{Value.dereference} is identical to applying the C
+unary operator @code{*} on a given value.  For example, consider a
+reference to a pointer @code{ptrref}, declared in your C@t{++} program
+as
+
+@smallexample
+typedef int *intptr;
+...
+int val = 10;
+intptr ptr = &val;
+intptr &ptrref = ptr;
+@end smallexample
+
+Though @code{ptrref} is a reference value, one can apply the method
+@code{Value.dereference} to the @code{gdb.Value} object corresponding
+to it and obtain a @code{gdb.Value} which is identical to that
+corresponding to @code{val}.  However, if you apply the method
+@code{Value.referenced_value}, the result would be a @code{gdb.Value}
+object identical to that corresponding to @code{ptr}.
+
+@smallexample
+py_ptrref = gdb.parse_and_eval ("ptrref")
+py_val = py_ptrref.dereference ()
+py_ptr = py_ptrref.referenced_value ()
+@end smallexample
+
+The @code{gdb.Value} object @code{py_val} is identical to that
+corresponding to @code{val}, and @code{py_ptr} is identical to that
+corresponding to @code{ptr}.  In general, @code{Value.dereference} can
+be applied whenever the C unary operator @code{*} can be applied
+to the corresponding C value.  For those cases where applying both
+@code{Value.dereference} and @code{Value.referenced_value} is allowed,
+the results obtained need not be identical (as we have seen in the above
+example).  The results are however identical when applied on
+@code{gdb.Value} objects corresponding to pointers (@code{gdb.Value}
+objects with type code @code{TYPE_CODE_PTR}) in a C/C@t{++} program.
+@end defun
+
+@defun Value.referenced_value ()
+For pointer or reference data types, this method returns a new
+@code{gdb.Value} object corresponding to the value referenced by the
+pointer/reference value.  For pointer data types,
+@code{Value.dereference} and @code{Value.referenced_value} produce
+identical results.  The difference between these methods is that
+@code{Value.dereference} cannot get the values referenced by reference
+values.  For example, consider a reference to an @code{int}, declared
+in your C@t{++} program as
+
+@smallexample
+int val = 10;
+int &ref = val;
+@end smallexample
+
+@noindent
+then applying @code{Value.dereference} to the @code{gdb.Value} object
+corresponding to @code{ref} will result in an error, while applying
+@code{Value.referenced_value} will result in a @code{gdb.Value} object
+identical to that corresponding to @code{val}.
+
+@smallexample
+py_ref = gdb.parse_and_eval ("ref")
+er_ref = py_ref.dereference ()       # Results in error
+py_val = py_ref.referenced_value ()  # Returns the referenced value
+@end smallexample
+
+The @code{gdb.Value} object @code{py_val} is identical to that
+corresponding to @code{val}.
 @end defun
 
 @defun Value.dynamic_cast (type)
@@ -23250,6 +23410,15 @@ The command has to do with tracepoints.  For example, @code{trace},
 @kbd{help tracepoints} at the @value{GDBN} prompt to see a list of
 commands in this category.
 
+@findex COMMAND_USER
+@findex gdb.COMMAND_USER
+@item gdb.COMMAND_USER
+The command is a general purpose command for the user, and typically
+does not fit in one of the other categories.
+Type @kbd{help user-defined} at the @value{GDBN} prompt to see
+a list of commands in this category, as well as the list of gdb macros
+(@pxref{Sequences}).
+
 @findex COMMAND_OBSCURE
 @findex gdb.COMMAND_OBSCURE
 @item gdb.COMMAND_OBSCURE
@@ -23311,7 +23480,7 @@ class HelloWorld (gdb.Command):
   """Greet the whole world."""
 
   def __init__ (self):
-    super (HelloWorld, self).__init__ ("hello-world", gdb.COMMAND_OBSCURE)
+    super (HelloWorld, self).__init__ ("hello-world", gdb.COMMAND_USER)
 
   def invoke (self, arg, from_tty):
     print "Hello, World!"
@@ -23832,6 +24001,9 @@ frames.  Furthermore, see @ref{Stack, ,Examining the Stack}, for more
 detailed technical information on @value{GDBN}'s book-keeping of the
 stack.
 
+A @code{gdb.Block} is iterable.  The iterator returns the symbols
+(@pxref{Symbols In Python}) local to the block.
+
 The following block-related functions are available in the @code{gdb}
 module:
 
@@ -23850,9 +24022,8 @@ Returns @code{True} if the @code{gdb.Block} object is valid,
 @code{False} if not.  A block object can become invalid if the block it
 refers to doesn't exist anymore in the inferior.  All other
 @code{gdb.Block} methods will throw an exception if it is invalid at
-the time the method is called.  This method is also made available to
-the Python iterator object that @code{gdb.Block} provides in an iteration
-context and via the Python @code{iter} built-in function.
+the time the method is called.  The block's validity is also checked
+during iteration over symbols of the block.
 @end defun
 @end table
 
@@ -24613,7 +24784,7 @@ then @value{GDBN} will look for @var{real-name} in all of the
 directories mentioned in the value of @code{debug-file-directory}.
 
 Finally, if this file does not exist, then @value{GDBN} will look for
-a file named @file{@var{data-directory}/python/auto-load/@var{real-name}}, where
+a file named @file{@var{data-directory}/auto-load/@var{real-name}}, where
 @var{data-directory} is @value{GDBN}'s data directory (available via
 @code{show data-directory}, @pxref{Data Files}), and @var{real-name}
 is the object file's real name, as described above.
@@ -32192,6 +32363,63 @@ frame and to write out the values of the registers in the previous
 frame.  Both have a callback (@code{target_read}) to read bytes off the
 target's address space.
 
+@node In-Process Agent
+@chapter In-Process Agent
+@cindex debugging agent
+The traditional debugging model is conceptually low-speed, but works fine,
+because most bugs can be reproduced in debugging-mode execution.  However,
+as multi-core or many-core processors are becoming mainstream, and
+multi-threaded programs become more and more popular, there should be more
+and more bugs that only manifest themselves at normal-mode execution, for
+example, thread races, because debugger's interference with the program's
+timing may conceal the bugs.  On the other hand, in some applications,
+it is not feasible for the debugger to interrupt the program's execution
+long enough for the developer to learn anything helpful about its behavior.
+If the program's correctness depends on its real-time behavior, delays
+introduced by a debugger might cause the program to fail, even when the
+code itself is correct.  It is useful to be able to observe the program's
+behavior without interrupting it.
+
+Therefore, traditional debugging model is too intrusive to reproduce
+some bugs.  In order to reduce the interference with the program, we can
+reduce the number of operations performed by debugger.  The
+@dfn{In-Process Agent}, a shared library, is running within the same
+process with inferior, and is able to perform some debugging operations
+itself.  As a result, debugger is only involved when necessary, and
+performance of debugging can be improved accordingly.  Note that
+interference with program can be reduced but can't be removed completely,
+because the in-process agent will still stop or slow down the program.
+
+The in-process agent can interpret and execute Agent Expressions
+(@pxref{Agent Expressions}) during performing debugging operations.  The
+agent expressions can be used for different purposes, such as collecting
+data in tracepoints, and condition evaluation in breakpoints.
+
+@anchor{Control Agent}
+You can control whether the in-process agent is used as an aid for
+debugging with the following commands:
+
+@table @code
+@kindex set agent on
+@item set agent on
+Causes the in-process agent to perform some operations on behalf of the
+debugger.  Just which operations requested by the user will be done
+by the in-process agent depends on the its capabilities.  For example,
+if you request to evaluate breakpoint conditions in the in-process agent,
+and the in-process agent has such capability as well, then breakpoint
+conditions will be evaluated in the in-process agent.
+
+@kindex set agent off
+@item set agent off
+Disables execution of debugging operations by the in-process agent.  All
+of the operations will be performed by @value{GDBN}.
+
+@kindex show agent
+@item show agent
+Display the current setting of execution of debugging operations by
+the in-process agent.
+@end table
+
 @node GDB Bugs
 @chapter Reporting Bugs in @value{GDBN}
 @cindex bugs in @value{GDBN}
@@ -34229,7 +34457,7 @@ avoid potential problems with duplicate packets, the operations should
 be implemented in an idempotent way.}
 
 @item z0,@var{addr},@var{kind}
-@itemx Z0,@var{addr},@var{kind}
+@itemx Z0,@var{addr},@var{kind}@r{[};@var{cond_list}@dots{}@r{]}
 @cindex @samp{z0} packet
 @cindex @samp{Z0} packet
 Insert (@samp{Z0}) or remove (@samp{z0}) a memory breakpoint at address
@@ -34241,6 +34469,22 @@ A memory breakpoint is implemented by replacing the instruction at
 the breakpoint in bytes that should be inserted.  E.g., the @sc{arm}
 and @sc{mips} can insert either a 2 or 4 byte breakpoint.  Some
 architectures have additional meanings for @var{kind};
+@var{cond_list} is an optional list of conditional expressions in bytecode
+form that should be evaluated on the target's side.  These are the
+conditions that should be taken into consideration when deciding if
+the breakpoint trigger should be reported back to @var{GDBN}.
+
+The @var{cond_list} parameter is comprised of a series of expressions,
+concatenated without separators. Each expression has the following form:
+
+@table @samp
+
+@item X @var{len},@var{expr}
+@var{len} is the length of the bytecode expression and @var{expr} is the
+actual conditional expression in bytecode form.
+
+@end table
+
 see @ref{Architecture-Specific Protocol Details}.
 
 @emph{Implementation note: It is possible for a target to copy or move
@@ -34259,7 +34503,7 @@ for an error
 @end table
 
 @item z1,@var{addr},@var{kind}
-@itemx Z1,@var{addr},@var{kind}
+@itemx Z1,@var{addr},@var{kind}@r{[};@var{cond_list}@dots{}@r{]}
 @cindex @samp{z1} packet
 @cindex @samp{Z1} packet
 Insert (@samp{Z1}) or remove (@samp{z1}) a hardware breakpoint at
@@ -34267,7 +34511,7 @@ address @var{addr}.
 
 A hardware breakpoint is implemented using a mechanism that is not
 dependant on being able to modify the target's memory.  @var{kind}
-has the same meaning as in @samp{Z0} packets.
+and @var{cond_list} have the same meaning as in @samp{Z0} packets.
 
 @emph{Implementation note: A hardware breakpoint is not affected by code
 movement.}
@@ -34512,6 +34756,11 @@ templates for clarity; these are not part of the packet's syntax.  No
 Here are the currently defined query and set packets:
 
 @table @samp
+
+@item QAgent:1
+@item QAgent:0
+Turn on or off the agent as a helper to perform some debugging operations
+delegated from @value{GDBN} (@pxref{Control Agent}).
 
 @item QAllow:@var{op}:@var{val}@dots{}
 @cindex @samp{QAllow} packet
@@ -34801,6 +35050,48 @@ command (@pxref{Remote Configuration, set remote pass-signals}).
 This packet is not probed by default; the remote stub must request it,
 by supplying an appropriate @samp{qSupported} response (@pxref{qSupported}).
 
+@item QProgramSignals: @var{signal} @r{[};@var{signal}@r{]}@dots{}
+@cindex signals the inferior may see, remote request
+@cindex @samp{QProgramSignals} packet
+@anchor{QProgramSignals}
+Each listed @var{signal} may be delivered to the inferior process.
+Others should be silently discarded.
+
+In some cases, the remote stub may need to decide whether to deliver a
+signal to the program or not without @value{GDBN} involvement.  One
+example of that is while detaching --- the program's threads may have
+stopped for signals that haven't yet had a chance of being reported to
+@value{GDBN}, and so the remote stub can use the signal list specified
+by this packet to know whether to deliver or ignore those pending
+signals.
+
+This does not influence whether to deliver a signal as requested by a
+resumption packet (@pxref{vCont packet}).
+
+Signals are numbered identically to continue packets and stop replies
+(@pxref{Stop Reply Packets}).  Each @var{signal} list item should be
+strictly greater than the previous item.  Multiple
+@samp{QProgramSignals} packets do not combine; any earlier
+@samp{QProgramSignals} list is completely replaced by the new list.
+
+Reply:
+@table @samp
+@item OK
+The request succeeded.
+
+@item E @var{nn}
+An error occurred.  @var{nn} are hex digits.
+
+@item
+An empty reply indicates that @samp{QProgramSignals} is not supported
+by the stub.
+@end table
+
+Use of this packet is controlled by the @code{set remote program-signals}
+command (@pxref{Remote Configuration, set remote program-signals}).
+This packet is not probed by default; the remote stub must request it,
+by supplying an appropriate @samp{qSupported} response (@pxref{qSupported}).
+
 @item qRcmd,@var{command}
 @cindex execute remote command, remote request
 @cindex @samp{qRcmd} packet
@@ -35047,6 +35338,11 @@ These are the currently defined stub features and their properties:
 @tab @samp{-}
 @tab Yes
 
+@item @samp{qXfer:uib:read}
+@tab No
+@tab @samp{-}
+@tab Yes
+
 @item @samp{qXfer:fdpic:read}
 @tab No
 @tab @samp{-}
@@ -35072,6 +35368,11 @@ These are the currently defined stub features and their properties:
 @tab @samp{-}
 @tab No
 
+@item @samp{ConditionalBreakpoints}
+@tab No
+@tab @samp{-}
+@tab No
+
 @item @samp{ConditionalTracepoints}
 @tab No
 @tab @samp{-}
@@ -35088,6 +35389,11 @@ These are the currently defined stub features and their properties:
 @tab No
 
 @item @samp{TracepointSource}
+@tab No
+@tab @samp{-}
+@tab No
+
+@item @samp{QAgent}
 @tab No
 @tab @samp{-}
 @tab No
@@ -35176,6 +35482,10 @@ The remote stub understands the @samp{qXfer:threads:read} packet
 The remote stub understands the @samp{qXfer:traceframe-info:read}
 packet (@pxref{qXfer traceframe info read}).
 
+@item qXfer:uib:read
+The remote stub understands the @samp{qXfer:uib:read}
+packet (@pxref{qXfer unwind info block}).
+
 @item qXfer:fdpic:read
 The remote stub understands the @samp{qXfer:fdpic:read}
 packet (@pxref{qXfer fdpic loadmap read}).
@@ -35209,6 +35519,11 @@ indicated it supports them in its @samp{qSupported} request.
 The remote stub understands the @samp{qXfer:osdata:read} packet
 ((@pxref{qXfer osdata read}).
 
+@item ConditionalBreakpoints
+The target accepts and implements evaluation of conditional expressions
+defined for breakpoints.  The target will only report breakpoint triggers
+when such conditions are true (@pxref{Conditions, ,Break Conditions}).
+
 @item ConditionalTracepoints
 The remote stub accepts and implements conditional expressions defined
 for tracepoints (@pxref{Tracepoint Conditions}).
@@ -35224,6 +35539,9 @@ The remote stub accepts and implements the reverse step packet
 @item TracepointSource
 The remote stub understands the @samp{QTDPsrc} packet that supplies
 the source form of tracepoint definitions.
+
+@item QAgent
+The remote stub understands the @samp{QAgent} packet.
 
 @item QAllow
 The remote stub understands the @samp{QAllow} packet.
@@ -35462,6 +35780,14 @@ Return a description of the current traceframe's contents.
 
 This packet is not probed by default; the remote stub must request it,
 by supplying an appropriate @samp{qSupported} response (@pxref{qSupported}).
+
+@item qXfer:uib:read:@var{pc}:@var{offset},@var{length}
+@anchor{qXfer unwind info block}
+
+Return the unwind information block for @var{pc}.  This packet is used
+on OpenVMS/ia64 to ask the kernel unwind information.
+
+This packet is not probed by default.
 
 @item qXfer:fdpic:read:@var{annex}:@var{offset},@var{length}
 @anchor{qXfer fdpic loadmap read}
@@ -38516,6 +38842,11 @@ it may be optional in a future version of @value{GDBN}.  It should
 contain registers @samp{f0} through @samp{f31}, @samp{fcsr}, and
 @samp{fir}.  They may be 32-bit or 64-bit depending on the target.
 
+The @samp{org.gnu.gdb.mips.dsp} feature is optional.  It should
+contain registers @samp{hi1} through @samp{hi3}, @samp{lo1} through
+@samp{lo3}, and @samp{dspctl}.  The @samp{dspctl} register should
+be 32-bit and the rest may be 32-bit or 64-bit depending on the target.
+
 The @samp{org.gnu.gdb.mips.linux} feature is optional.  It should
 contain a single register, @samp{restart}, which is used by the
 Linux kernel to control restartable syscalls.
@@ -38717,8 +39048,11 @@ unless otherwise noted:
 
 @enumerate
 @item
-The version number, currently 5.  Versions 1, 2 and 3 are obsolete.
-Version 4 differs by its hashing function.
+The version number, currently 6.  Versions 1, 2 and 3 are obsolete.
+Version 4 uses a different hashing function from versions 5 and 6.
+Version 6 includes symbols for inlined functions, whereas versions
+4 and 5 do not.  @value{GDBN} will only read version 4 and 5 indices
+if the @code{--use-deprecated-index-sections} option is used.
 
 @item
 The offset, from the start of the file, of the CU list.
@@ -38793,7 +39127,7 @@ index version:
 @item Version 4
 The formula is @code{r = r * 67 + c - 113}.
 
-@item Version 5
+@item Versions 5 and 6
 The formula is @code{r = r * 67 + tolower (c) - 113}.
 @end table
 

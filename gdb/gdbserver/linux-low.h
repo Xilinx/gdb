@@ -20,6 +20,7 @@
 #ifdef HAVE_THREAD_DB_H
 #include <thread_db.h>
 #endif
+#include <signal.h>
 
 #include "gdb_proc_service.h"
 
@@ -46,8 +47,6 @@ struct regset_info
 extern struct regset_info target_regsets[];
 #endif
 
-struct siginfo;
-
 struct process_info_private
 {
   /* Arch-specific additions.  */
@@ -70,6 +69,12 @@ struct linux_target_ops
 
   int num_regs;
   int *regmap;
+
+  /* Regset support bitmap: 1 for registers that are transferred as a part
+     of a regset, 0 for ones that need to be handled individually.  This
+     can be NULL if all registers are transferred with regsets or regsets
+     are not supported.  */
+  unsigned char *regset_bitmap;
   int (*cannot_fetch_register) (int);
 
   /* Returns 0 if we can store the register, 1 if we can not
@@ -103,7 +108,7 @@ struct linux_target_ops
      Returns true if any conversion was done; false otherwise.
      If DIRECTION is 1, then copy from INF to NATIVE.
      If DIRECTION is 0, copy from NATIVE to INF.  */
-  int (*siginfo_fixup) (struct siginfo *native, void *inf, int direction);
+  int (*siginfo_fixup) (siginfo_t *native, void *inf, int direction);
 
   /* Hook to call when a new process is created or attached to.
      If extra per-process architecture-specific data is needed,

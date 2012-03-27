@@ -147,10 +147,9 @@ proc altivec_abi_tests { extra_flags force_abi } {
 }
 
 if [test_compiler_info gcc*] {
-    set saved_prefix $pf_prefix
-
-    set pf_prefix "${saved_prefix} default ABI, auto:"
-    altivec_abi_tests "additional_flags=-maltivec" "auto"
+    with_test_prefix "default ABI, auto" {
+	altivec_abi_tests  "additional_flags=-maltivec" "auto"
+    }
 
     # On GNU/Linux, we can mix -mabi=no-altivec and -mabi=altivec.
     # So test some combinations.
@@ -159,21 +158,25 @@ if [test_compiler_info gcc*] {
 	# was broken, so skip those tests there.
 	if { ![is_lp64_target] || ![test_compiler_info "gcc-4-\[12\]-*"] } {
 	    set binfile ${objdir}/${subdir}/${testfile}-ge-ge
-	    set pf_prefix "${saved_prefix} generic ABI, forced:"
-	    altivec_abi_tests "additional_flags=-maltivec additional_flags=-mabi=no-altivec" "generic"
+	    with_test_prefix "generic ABI, forced" {
+		altivec_abi_tests "additional_flags=-maltivec additional_flags=-mabi=no-altivec" "generic"
+	    }
 
 	    set binfile ${objdir}/${subdir}/${testfile}-ge-auto
-	    set pf_prefix "${saved_prefix} generic ABI, auto:"
-	    altivec_abi_tests "additional_flags=-maltivec additional_flags=-mabi=no-altivec" "auto"
+	    with_test_prefix "generic ABI, auto" {
+		altivec_abi_tests "additional_flags=-maltivec additional_flags=-mabi=no-altivec" "auto"
+	    }
 	}
 
 	set binfile ${objdir}/${subdir}/${testfile}-av-av
-	set pf_prefix "${saved_prefix} AltiVec ABI, forced:"
-	altivec_abi_tests "additional_flags=-maltivec additional_flags=-mabi=altivec" "altivec"
+	with_test_prefix "AltiVec ABI, forced" {
+	    altivec_abi_tests "additional_flags=-maltivec additional_flags=-mabi=altivec" "altivec"
+	}
 
 	set binfile ${objdir}/${subdir}/${testfile}-av-auto
-	set pf_prefix "${saved_prefix} AltiVec ABI, auto:"
-	altivec_abi_tests "additional_flags=-maltivec additional_flags=-mabi=altivec" "auto"
+	with_test_prefix "AltiVec ABI, auto" {
+	    altivec_abi_tests "additional_flags=-maltivec additional_flags=-mabi=altivec" "auto"
+	}
     }
 } elseif [test_compiler_info xlc*] {
     altivec_abi_tests "additional_flags=-qaltivec" "auto"

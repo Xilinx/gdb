@@ -3,7 +3,16 @@
 
 *** Changes since GDB 7.4
 
+* GDB now supports reversible debugging on ARM, it allows you to
+  debug basic ARM and THUMB instructions, and provides 
+  record/replay support.  
+
+* The option "symbol-reloading" has been deleted as it is no longer used.
+
 * Python scripting
+
+  ** GDB commands implemented in Python can now be put in command class
+     "gdb.COMMAND_USER".
 
   ** The "maint set python print-stack on|off" is now deleted.
 
@@ -19,6 +28,9 @@
      method 'value'.  The former indicates whether the symbol needs a
      frame in order to compute its value, and the latter computes the
      symbol's value.
+
+  ** A new method 'referenced_value' on gdb.Value objects which can
+     dereference pointer as well as C++ reference values.
 
 * GDBserver now supports stdio connections.
   E.g. (gdb) target remote | ssh myhost gdbserver - hello
@@ -44,10 +56,82 @@
 * The command "info catch" has been removed.  It has been disabled
   since December 2007.
 
+* The "catch exception" and "catch assert" commands now accept
+  a condition at the end of the command, much like the "break"
+  command does. For instance:
+
+        (gdb) catch exception Constraint_Error if Barrier = True
+
+  Previously, it was possible to add a condition to such catchpoints,
+  but it had to be done as a second step, after the catchpoint had been
+  created, using the "condition" command.
+
+* The "info static-tracepoint-marker" command will now also work on
+  native Linux targets with in-process agent.
+
+* GDB can now set breakpoints on inlined functions.
+
+* The .gdb_index section has been updated to include symbols for
+  inlined functions.  GDB will ignore older .gdb_index sections by
+  default, which could cause symbol files to be loaded more slowly
+  until their .gdb_index sections can be recreated.  The new option
+  --use-deprecated-index-sections will cause GDB to use any older
+  .gdb_index sections it finds.  This will restore performance, but
+  the ability to set breakpoints on inlined functions will be lost
+  in symbol files with older .gdb_index sections.
+
 * New commands
 
   ** "catch load" and "catch unload" can be used to stop when a shared
      library is loaded or unloaded, respectively.
+
+  ** "enable count" can be used to auto-disable a breakpoint after
+     several hits.
+
+  ** "info vtbl" can be used to show the virtual method tables for
+     C++ and Java objects.
+
+* New targets
+
+Renesas RL78			rl78-*-elf
+HP OpenVMS ia64			ia64-hp-openvms*
+
+* GDBserver supports evaluation of breakpoint conditions.  When
+  support is advertised by GDBserver, GDB may be told to send the
+  breakpoint conditions in bytecode form to GDBserver.  GDBserver
+  will only report the breakpoint trigger to GDB when its condition
+  evaluates to true.
+
+* New options
+
+set breakpoint condition-evaluation
+show breakpoint condition-evaluation
+  Controls whether breakpoint conditions are evaluated by GDB ("host") or by
+  GDBserver ("target").  Default option "auto" chooses the most efficient
+  available mode.
+  This option can improve debugger efficiency depending on the speed of the
+  target.
+
+* New remote packets
+
+z0/z1 conditional breakpoints extension
+
+  The z0/z1 breakpoint insertion packets have been extended to carry
+  a list of conditional expressions over to the remote stub depending on the
+  condition evaluation mode.  The use of this extension can be controlled
+  via the "set remote conditional-breakpoints-packet" command.
+
+QProgramSignals:
+
+  Specify the signals which the remote stub may pass to the debugged
+  program without GDB involvement.
+
+* New command line options
+
+--init-command=FILE, -ix          Like --command, -x but execute it
+                                  before loading inferior.
+--init-eval-command=COMMAND, -iex Like --eval-command=COMMAND, -ex but
+                                  execute it before loading inferior.
 
 *** Changes in GDB 7.4
 

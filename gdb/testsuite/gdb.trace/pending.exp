@@ -60,16 +60,12 @@ if ![gdb_target_supports_trace] {
 
 # Verify pending tracepoint is resolved to running to main.
 
-proc pending_tracepoint_resolved { trace_type } {
+proc pending_tracepoint_resolved { trace_type } { with_test_prefix "$trace_type resolved" {
     global srcdir
     global subdir
     global binfile
     global srcfile
     global lib_sl1
-    global pf_prefix
-
-    set old_pf_prefix $pf_prefix
-    lappend pf_prefix "$trace_type" "resolved:"
 
     # Start with a fresh gdb.
     gdb_exit
@@ -101,21 +97,15 @@ proc pending_tracepoint_resolved { trace_type } {
 	"Num     Type\[ \]+Disp Enb Address\[ \]+What.*
 \[0-9\]+\[\t \]+\(fast |\)tracepoint\[ \]+keep y.*pendfunc.*" \
 	"single tracepoint info"
-
-    set pf_prefix $old_pf_prefix
-}
+}}
 
 # Verify pending tracepoint is resolved and works as expected.
 
-proc pending_tracepoint_works { trace_type } {
+proc pending_tracepoint_works { trace_type } { with_test_prefix "$trace_type works" {
     global executable
     global srcfile
     global lib_sl1
-    global pf_prefix
     global gdb_prompt
-
-    set old_pf_prefix $pf_prefix
-    lappend pf_prefix "$trace_type" "works:"
 
     # Restart with a fresh gdb.
     clean_restart $executable
@@ -142,18 +132,27 @@ proc pending_tracepoint_works { trace_type } {
     gdb_test "break marker" "Breakpoint.*at.* file .*$srcfile, line.*" \
 	"breakpoint on marker"
 
-    gdb_test_no_output "tstart" "start trace experiment"
+    set test "start trace experiment"
+    gdb_test_multiple "tstart" $test {
+	-re "^tstart\r\n$gdb_prompt $" {
+	    pass $test
+	}
+	-re "Target returns error code .* too far .*$gdb_prompt $" {
+	    if [string equal $trace_type "ftrace"] {
+		# The target was unable to install the fast tracepoint
+		# (e.g., jump pad too far from tracepoint).
+		pass "$test (too far)"
+		# Skip the rest of the tests.
+		return
+	    } else {
+		fail $test
+	    }
+	}
 
-    gdb_test_multiple "continue" "continue to marker" {
-	-re "Continuing.\r\n\r\nBreakpoint.*marker.*at.*$srcfile.*$gdb_prompt $" {
-	    pass "continue to marker"
-	}
-	-re ".*$gdb_prompt $" {
-	    kfail "gdb/13392" "continue to marker"
-	    set pf_prefix $old_pf_prefix
-	    return
-	}
     }
+
+    gdb_test "continue" "Continuing.\r\n\r\nBreakpoint.*marker.*at.*$srcfile.*" \
+	"continue to marker"
 
     gdb_test "tstop" "\[\r\n\]+" "stop trace experiment"
 
@@ -161,27 +160,22 @@ proc pending_tracepoint_works { trace_type } {
     gdb_test "tfind" "Found trace frame 1, tracepoint 1.*" "tfind test frame 1"
     gdb_test "tfind" "Found trace frame 2, tracepoint 1.*" "tfind test frame 2"
     gdb_test "tfind" "Target failed to find requested trace frame..*" "tfind test frame"
-
-    set pf_prefix $old_pf_prefix
-}
+}}
 
 # Verify pending tracepoint is resolved during trace.
 
-proc pending_tracepoint_resolved_during_trace { trace_type } {
+proc pending_tracepoint_resolved_during_trace { trace_type } \
+{ with_test_prefix "$trace_type resolved_in_trace" \
+{
     global executable
     global srcfile
     global gdb_prompt
     global lib_sl1
-    global pf_prefix
-
-    set old_pf_prefix $pf_prefix
-    lappend pf_prefix "$trace_type" "resolved_in_trace:"
 
     # Start with a fresh gdb.
     clean_restart $executable
     if ![runto_main] {
 	fail "Can't run to main"
-	set pf_prefix $old_pf_prefix
 	return -1
     }
 
@@ -205,14 +199,22 @@ proc pending_tracepoint_resolved_during_trace { trace_type } {
     gdb_test "continue" "Continuing.\r\n\r\nBreakpoint.*marker.*at.*pending.c.*" \
 	"continue to marker 1"
 
-    gdb_test_multiple "continue" "continue to marker 2" {
-	-re "Continuing.\r\n\r\nBreakpoint.*marker.*at.*$srcfile.*$gdb_prompt $" {
-	    pass "continue to marker 2"
+    set test "continue to marker 2"
+    gdb_test_multiple "continue" $test {
+	-re "Target returns error code .* too far .*$gdb_prompt $" {
+	    if [string equal $trace_type "ftrace"] {
+		# Expected if the target was unable to install the
+		# fast tracepoint (e.g., jump pad too far from
+		# tracepoint).
+		pass "$test (too far)"
+		# Skip the rest of the tests.
+		return
+	    } else {
+		fail $test
+	    }
 	}
-	-re ".*$gdb_prompt $" {
-	    kfail "gdb/13392" "continue to marker 2"
-	    set pf_prefix $old_pf_prefix
-	    return
+	-re "Continuing.\r\n\r\nBreakpoint.*marker.*at.*$srcfile.*$gdb_prompt $" {
+	    pass $test
 	}
     }
 
@@ -226,28 +228,23 @@ proc pending_tracepoint_resolved_during_trace { trace_type } {
 
     gdb_test "tfind start" "#0 .*" "tfind test frame 0"
     gdb_test "tfind" "Target failed to find requested trace frame..*" "tfind test frame"
-
-    set pf_prefix $old_pf_prefix
-}
+}}
 
 # Verify pending tracepoint is resolved and installed during trace.
 
-proc pending_tracepoint_installed_during_trace { trace_type } {
+proc pending_tracepoint_installed_during_trace { trace_type } \
+{ with_test_prefix "$trace_type installed_in_trace" \
+{
     global executable
     global srcfile
     global lib_sl1
     global gdb_prompt
-    global pf_prefix
     global hex
-
-    set old_pf_prefix $pf_prefix
-    lappend pf_prefix "$trace_type" "installed_in_trace:"
 
     # Start with a fresh gdb.
     clean_restart $executable
     if ![runto_main] {
 	fail "Can't run to main"
-	set pf_prefix $old_pf_prefix
 	return -1
     }
 
@@ -275,15 +272,23 @@ proc pending_tracepoint_installed_during_trace { trace_type } {
 \[0-9\]+\[\t \]+\(fast |\)tracepoint\[ \t\]+keep y.*PENDING.*set_point2.*" \
 	"single pending tracepoint on set_point2"
 
-    gdb_test_multiple "continue" "continue to marker 2" {
+    set test "continue to marker 2"
+    gdb_test_multiple "continue" $test {
+	-re "Target returns error code .* too far .*$gdb_prompt $" {
+	    if [string equal $trace_type "ftrace"] {
+		# Expected if the target was unable to install the
+		# fast tracepoint (e.g., jump pad too far from
+		# tracepoint).
+		pass "$test (too far)"
+		# Skip the rest of the tests.
+		return
+	    } else {
+		fail $test
+	    }
+	}
 	-re "Continuing.\r\n\r\nBreakpoint.*marker.*at.*$srcfile.*$gdb_prompt $" {
-	    pass "continue to marker 2"
-	}
-	-re ".*$gdb_prompt $" {
-	    kfail "gdb/13392" "continue to marker 2"
-	    set pf_prefix $old_pf_prefix
-	    return
-	}
+           pass $test
+       }
     }
 
     gdb_test "tstop" "\[\r\n\]+" "stop trace experiment"
@@ -296,28 +301,23 @@ proc pending_tracepoint_installed_during_trace { trace_type } {
 
     gdb_test "tfind start" "#0  $hex in pendfunc2 .*" "tfind test frame 0"
     gdb_test "tfind" "Target failed to find requested trace frame..*" "tfind test frame"
-
-    set pf_prefix $old_pf_prefix
-}
+}}
 
 
 # Verify pending tracepoint will no longer work if we disconnect during tracing.
 
-proc pending_tracepoint_disconnect_during_trace { trace_type } {
+proc pending_tracepoint_disconnect_during_trace { trace_type } \
+{ with_test_prefix "$trace_type disconn" \
+{
     global executable
     global srcfile
     global lib_sl1
-    global pf_prefix
     global gdb_prompt
-
-    set old_pf_prefix $pf_prefix
-    lappend pf_prefix "$trace_type" "disconn:"
 
     # Start with a fresh gdb.
     clean_restart $executable
     if ![runto_main] {
 	fail "Can't run to main"
-	set pf_prefix $old_pf_prefix
 	return -1
     }
 
@@ -349,28 +349,23 @@ proc pending_tracepoint_disconnect_during_trace { trace_type } {
 	   }
        }
     }
-
-    set pf_prefix $old_pf_prefix
-}
+}}
 
 
 # Verify disconnect after pending tracepoint has been resolved.
 
-proc pending_tracepoint_disconnect_after_resolved { trace_type } {
+proc pending_tracepoint_disconnect_after_resolved { trace_type } \
+{ with_test_prefix "$trace_type disconn_resolved" \
+{
     global executable
     global srcfile
     global lib_sl1
     global gdb_prompt
-    global pf_prefix
-
-    set old_pf_prefix $pf_prefix
-    lappend pf_prefix "$trace_type" "disconn_resolved:"
 
     # Start with a fresh gdb.
     clean_restart $executable
     if ![runto_main] {
 	fail "Can't run to main"
-	set pf_prefix $old_pf_prefix
 	return -1
     }
 
@@ -407,27 +402,22 @@ proc pending_tracepoint_disconnect_after_resolved { trace_type } {
 	    pass "$test"
 	}
     }
-
-    set pf_prefix $old_pf_prefix
-}
+}}
 
 # Verify action works properly in resolved tracepoint.
 
-proc pending_tracepoint_with_action_resolved { trace_type } {
+proc pending_tracepoint_with_action_resolved { trace_type } \
+{ with_test_prefix "$trace_type action_resolved" \
+{
     global executable
     global srcfile
     global lib_sl1
     global gdb_prompt
-    global pf_prefix
-
-    set old_pf_prefix $pf_prefix
-    lappend pf_prefix "$trace_type" "action_resolved:"
 
     # Start with a fresh gdb.
     clean_restart $executable
     if ![runto_main] {
 	fail "Can't run to main"
-	set pf_prefix $old_pf_prefix
 	return -1
     }
 
@@ -461,15 +451,24 @@ proc pending_tracepoint_with_action_resolved { trace_type } {
     gdb_test "continue" "Continuing.\r\n\r\nBreakpoint.*marker.*at.*pending.c.*" \
 	"continue to marker 1"
 
-    gdb_test_multiple "continue" "continue to marker 2" {
+    set test "continue to marker 2"
+    gdb_test_multiple "continue" $test {
+	    -re "Target returns error code .* too far .*$gdb_prompt $" {
+            if [string equal $trace_type "ftrace"] {
+		# Expected if the target was unable to install the
+		# fast tracepoint (e.g., jump pad too far from
+		# tracepoint).
+		pass "$test (too far)"
+		# Skip the rest of the tests.
+		return
+            } else {
+		fail $test
+            }
+	}
 	-re "Continuing.\r\n\r\nBreakpoint.*marker.*at.*$srcfile.*$gdb_prompt $" {
 	    pass "continue to marker 2"
 	}
-	-re ".*$gdb_prompt $" {
-	    kfail "gdb/13392" "continue to marker 2"
-	    set pf_prefix $old_pf_prefix
-	    return
-	}
+
     }
 
     gdb_test "tstop" "\[\r\n\]+" "stop trace experiment"
@@ -483,9 +482,7 @@ proc pending_tracepoint_with_action_resolved { trace_type } {
     gdb_test "tfind start" "#0 .*" "tfind test frame 0"
     gdb_test "tdump" "Data collected at tracepoint .*, trace frame \[0-9\]:.*\\$${pcreg} = .*"
     gdb_test "tfind" "Target failed to find requested trace frame..*" "tfind test frame"
-
-    set pf_prefix $old_pf_prefix
-}
+}}
 
 pending_tracepoint_resolved "trace"
 

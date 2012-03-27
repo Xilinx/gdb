@@ -43,6 +43,7 @@
 #include "inline-frame.h"
 #include "tracepoint.h"
 #include "gdb/fileio.h"
+#include "agent.h"
 
 static void target_info (char *, int);
 
@@ -638,6 +639,7 @@ update_current_target (void)
       /* Do not inherit to_mourn_inferior.  */
       INHERIT (to_can_run, t);
       /* Do not inherit to_pass_signals.  */
+      /* Do not inherit to_program_signals.  */
       /* Do not inherit to_thread_alive.  */
       /* Do not inherit to_find_new_threads.  */
       /* Do not inherit to_pid_to_str.  */
@@ -698,7 +700,10 @@ update_current_target (void)
       INHERIT (to_static_tracepoint_marker_at, t);
       INHERIT (to_static_tracepoint_markers_by_strid, t);
       INHERIT (to_traceframe_info, t);
+      INHERIT (to_use_agent, t);
+      INHERIT (to_can_use_agent, t);
       INHERIT (to_magic, t);
+      INHERIT (to_supports_evaluation_of_breakpoint_conditions, t);
       /* Do not inherit to_memory_map.  */
       /* Do not inherit to_flash_erase.  */
       /* Do not inherit to_flash_done.  */
@@ -925,6 +930,15 @@ update_current_target (void)
   de_fault (to_traceframe_info,
 	    (struct traceframe_info * (*) (void))
 	    tcomplain);
+  de_fault (to_supports_evaluation_of_breakpoint_conditions,
+	    (int (*) (void))
+	    return_zero);
+  de_fault (to_use_agent,
+	    (int (*) (int))
+	    tcomplain);
+  de_fault (to_can_use_agent,
+	    (int (*) (void))
+	    return_zero);
   de_fault (to_execution_direction, default_execution_direction);
 
 #undef de_fault
@@ -2488,6 +2502,8 @@ target_pre_inferior (int from_tty)
 
       target_clear_description ();
     }
+
+  agent_capability_invalidate ();
 }
 
 /* Callback for iterate_over_inferiors.  Gets rid of the given
@@ -2708,6 +2724,36 @@ target_pass_signals (int numsigs, unsigned char *pass_signals)
 	    }
 
 	  (*t->to_pass_signals) (numsigs, pass_signals);
+	  return;
+	}
+    }
+}
+
+void
+target_program_signals (int numsigs, unsigned char *program_signals)
+{
+  struct target_ops *t;
+
+  for (t = current_target.beneath; t != NULL; t = t->beneath)
+    {
+      if (t->to_program_signals != NULL)
+	{
+	  if (targetdebug)
+	    {
+	      int i;
+
+	      fprintf_unfiltered (gdb_stdlog, "target_program_signals (%d, {",
+				  numsigs);
+
+	      for (i = 0; i < numsigs; i++)
+		if (program_signals[i])
+		  fprintf_unfiltered (gdb_stdlog, " %s",
+				      target_signal_to_name (i));
+
+	      fprintf_unfiltered (gdb_stdlog, " })\n");
+	    }
+
+	  (*t->to_program_signals) (numsigs, program_signals);
 	  return;
 	}
     }
@@ -3579,13 +3625,22 @@ generic_mourn_inferior (void)
   ptid = inferior_ptid;
   inferior_ptid = null_ptid;
 
+  /* Mark breakpoints uninserted in case something tries to delete a
+     breakpoint while we delete the inferior's threads (which would
+     fail, since the inferior is long gone).  */
+  mark_breakpoints_out ();
+
   if (!ptid_equal (ptid, null_ptid))
     {
       int pid = ptid_get_pid (ptid);
       exit_inferior (pid);
     }
 
+  /* Note this wipes step-resume breakpoints, so needs to be done
+     after exit_inferior, which ends up referencing the step-resume
+     breakpoints through clear_thread_inferior_resources.  */
   breakpoint_init_inferior (inf_exited);
+
   registers_changed ();
 
   reopen_exec_file ();

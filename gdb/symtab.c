@@ -2600,7 +2600,7 @@ find_pc_line_pc_range (CORE_ADDR pc, CORE_ADDR *startptr, CORE_ADDR *endptr)
    table.  If such an entry cannot be found, return FUNC_ADDR
    unaltered.  */
 
-CORE_ADDR
+static CORE_ADDR
 skip_prologue_using_lineinfo (CORE_ADDR func_addr, struct symtab *symtab)
 {
   CORE_ADDR func_start, func_end;
@@ -2776,7 +2776,7 @@ skip_prologue_sal (struct symtab_and_line *sal)
 	 to `__main' in `main' between the prologue and before user
 	 code.  */
       if (gdbarch_skip_main_prologue_p (gdbarch)
-	  && name && strcmp (name, "main") == 0)
+	  && name && strcmp_iw (name, "main") == 0)
 	{
 	  pc = gdbarch_skip_main_prologue (gdbarch, pc);
 	  /* Recalculate the line number (might not be N+1).  */

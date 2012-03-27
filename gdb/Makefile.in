@@ -516,7 +516,7 @@ ALL_64_TARGET_OBS = \
 	amd64fbsd-tdep.o amd64-darwin-tdep.o amd64-dicos-tdep.o \
 	amd64-linux-tdep.o amd64nbsd-tdep.o \
 	amd64obsd-tdep.o amd64-sol2-tdep.o amd64-tdep.o amd64-windows-tdep.o \
-	ia64-hpux-tdep.o ia64-linux-tdep.o ia64-tdep.o \
+	ia64-hpux-tdep.o ia64-linux-tdep.o ia64-vms-tdep.o ia64-tdep.o \
 	mips64obsd-tdep.o \
 	sparc64fbsd-tdep.o sparc64-linux-tdep.o sparc64nbsd-tdep.o \
 	sparc64obsd-tdep.o sparc64-sol2-tdep.o sparc64-tdep.o
@@ -555,7 +555,9 @@ ALL_TARGET_OBS = \
 	mt-tdep.o \
 	nto-tdep.o \
 	ppc-linux-tdep.o ppcnbsd-tdep.o ppcobsd-tdep.o ppc-sysv-tdep.o \
+	rl78-tdep.o \
 	rs6000-aix-tdep.o rs6000-tdep.o \
+	rx-tdep.o \
 	s390-tdep.o \
 	score-tdep.o \
 	sh64-tdep.o sh-linux-tdep.o shnbsd-tdep.o sh-tdep.o \
@@ -682,6 +684,7 @@ TARGET_FLAGS_TO_PASS = \
 SFILES = ada-exp.y ada-lang.c ada-typeprint.c ada-valprint.c ada-tasks.c \
 	addrmap.c \
 	auxv.c ax-general.c ax-gdb.c \
+	agent.c \
 	bcache.c \
 	bfd-target.c \
 	block.c blockframe.c breakpoint.c buildsym.c \
@@ -738,7 +741,7 @@ SFILES = ada-exp.y ada-lang.c ada-typeprint.c ada-valprint.c ada-tasks.c \
 	annotate.c common/signals.c copying.c dfp.c gdb.c inf-child.c \
 	regset.c sol-thread.c windows-termcap.c \
 	common/common-utils.c common/xml-utils.c \
-	common/ptid.c common/buffer.c gdb-dlfcn.c
+	common/ptid.c common/buffer.c gdb-dlfcn.c common/agent.c
 
 LINTFILES = $(SFILES) $(YYFILES) $(CONFIG_SRCS) init.c
 
@@ -777,14 +780,14 @@ ser-unix.h inf-ptrace.h terminal.h ui-out.h frame-base.h \
 f-lang.h dwarf2loc.h value.h sparc-tdep.h defs.h target-descriptions.h \
 objfiles.h vec.h disasm.h mips-tdep.h ser-base.h \
 gdb_curses.h bfd-target.h memattr.h inferior.h ax.h dummy-frame.h \
-inflow.h fbsd-nat.h libunwind-frame.h completer.h inf-ttrace.h \
+inflow.h fbsd-nat.h ia64-libunwind-tdep.h completer.h inf-ttrace.h \
 solib-target.h gdb_vfork.h alpha-tdep.h dwarf2expr.h \
 m2-lang.h stack.h charset.h addrmap.h command.h solist.h source.h \
 target.h prologue-value.h cp-abi.h tui/tui-hooks.h tui/tui.h \
 tui/tui-file.h tui/tui-command.h tui/tui-disasm.h tui/tui-wingeneral.h \
 tui/tui-windata.h tui/tui-data.h tui/tui-win.h tui/tui-stack.h \
 tui/tui-winsource.h tui/tui-regs.h tui/tui-io.h tui/tui-layout.h \
-tui/tui-source.h xcoffsolib.h sol2-tdep.h gregset.h sh-tdep.h \
+tui/tui-source.h xcoffsolib.h sol2-tdep.h gregset.h sh-tdep.h sh64-tdep.h \
 expression.h score-tdep.h gdb_select.h ser-tcp.h buildsym.h valprint.h \
 call-cmds.h typeprint.h mi/mi-getopt.h mi/mi-parse.h mi/mi-console.h \
 mi/mi-out.h mi/mi-main.h mi/mi-common.h mi/mi-cmds.h linux-nat.h \
@@ -852,6 +855,7 @@ COMMON_OBS = $(DEPFILES) $(CONFIG_OBS) $(YYOBJ) \
 	annotate.o \
 	addrmap.o \
 	auxv.o \
+	agent.o \
 	bfd-target.o \
 	blockframe.o breakpoint.o findvar.o regcache.o \
 	charset.o continuations.o corelow.o disasm.o dummy-frame.o dfp.o \
@@ -906,7 +910,7 @@ COMMON_OBS = $(DEPFILES) $(CONFIG_OBS) $(YYOBJ) \
 	target-descriptions.o target-memory.o xml-tdesc.o xml-builtin.o \
 	inferior.o osdata.o gdb_usleep.o record.o gcore.o \
 	jit.o progspace.o skip.o \
-	common-utils.o buffer.o ptid.o gdb-dlfcn.o
+	common-utils.o buffer.o ptid.o gdb-dlfcn.o common-agent.o
 
 TSOBS = inflow.o
 
@@ -1456,10 +1460,10 @@ ALLDEPFILES = \
 	i386-sol2-nat.c i386-sol2-tdep.c \
 	i386gnu-nat.c i386gnu-tdep.c \
 	ia64-hpux-nat.c ia64-hpux-tdep.c \
-	ia64-linux-nat.c ia64-linux-tdep.c ia64-tdep.c \
+	ia64-linux-nat.c ia64-linux-tdep.c ia64-tdep.c ia64-vms-tdep.c \
 	inf-ptrace.c inf-ttrace.c \
 	irix5-nat.c \
-	libunwind-frame.c \
+	ia64-libunwind-tdep.c \
 	linux-fork.c \
 	linux-tdep.c \
 	linux-record.c \
@@ -1489,7 +1493,9 @@ ALLDEPFILES = \
 	remote-m32r-sdi.c remote-mips.c \
 	remote-sim.c \
 	dcache.c \
+	rl78-tdep.c \
 	rs6000-nat.c rs6000-tdep.c \
+	rx-tdep.c \
 	s390-tdep.c s390-nat.c \
 	score-tdep.c \
 	ser-go32.c ser-pipe.c ser-tcp.c ser-mingw.c \
@@ -1921,6 +1927,14 @@ linux-osdata.o: ${srcdir}/common/linux-osdata.c
 
 linux-procfs.o: $(srcdir)/common/linux-procfs.c
 	$(COMPILE) $(srcdir)/common/linux-procfs.c
+	$(POSTCOMPILE)
+
+linux-ptrace.o: $(srcdir)/common/linux-ptrace.c
+	$(COMPILE) $(srcdir)/common/linux-ptrace.c
+	$(POSTCOMPILE)
+
+common-agent.o: $(srcdir)/common/agent.c
+	$(COMPILE) $(srcdir)/common/agent.c
 	$(POSTCOMPILE)
 
 #

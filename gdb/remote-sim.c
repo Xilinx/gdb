@@ -641,7 +641,10 @@ gdbsim_create_inferior (struct target_ops *target, char *exec_file, char *args,
     }
   else
     argv = NULL;
-  sim_create_inferior (sim_data->gdbsim_desc, exec_bfd, argv, env);
+
+  if (sim_create_inferior (sim_data->gdbsim_desc, exec_bfd, argv, env)
+      != SIM_RC_OK)
+    error (_("Unable to create sim inferior."));
 
   inferior_ptid = sim_data->remote_sim_ptid;
   inferior_appeared (current_inferior (), ptid_get_pid (inferior_ptid));
@@ -1236,7 +1239,7 @@ gdbsim_pid_to_str (struct target_ops *ops, ptid_t ptid)
 
 /* Simulator memory may be accessed after the program has been loaded.  */
 
-int
+static int
 gdbsim_has_all_memory (struct target_ops *ops)
 {
   struct sim_inferior_data *sim_data
@@ -1248,7 +1251,7 @@ gdbsim_has_all_memory (struct target_ops *ops)
   return 1;
 }
 
-int
+static int
 gdbsim_has_memory (struct target_ops *ops)
 {
   struct sim_inferior_data *sim_data

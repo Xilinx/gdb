@@ -35,14 +35,6 @@ import os
 import os.path
 import subprocess
 
-# A list of prefixes that start a multi-line comment.  These prefixes
-# should not be repeatead when wraping long lines.
-MULTILINE_COMMENT_PREFIXES = (
-    '/*',    # C/C++
-    '<!--',  # XML
-    '{',     # Pascal
-)
-
 
 def get_update_list():
     """Return the list of files to update.
@@ -80,12 +72,11 @@ def update_files(update_list):
 
     We use gnulib's update-copyright script for that.
     """
-    # Tell the update-copyright script that we do not want it to
-    # repeat the prefixes in MULTILINE_COMMENT_PREFIXES.
-    os.environ['MULTILINE_COMMENT_PREFIXES'] = \
-        '\n'.join(MULTILINE_COMMENT_PREFIXES)
-    # We want to use year intervals in the copyright notices.
-    os.environ['UPDATE_COPYRIGHT_USE_INTERVALS'] = '1'
+    # We want to use year intervals in the copyright notices, and
+    # all years should be collapsed to one single year interval,
+    # even if there are "holes" in the list of years found in the
+    # original copyright notice (OK'ed by the FSF, case [gnu.org #719834]).
+    os.environ['UPDATE_COPYRIGHT_USE_INTERVALS'] = '2'
 
     # Perform the update, and save the output in a string.
     update_cmd = ['bash', 'gdb/gnulib/extra/update-copyright'] + update_list

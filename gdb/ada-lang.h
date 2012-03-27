@@ -164,13 +164,13 @@ extern void ada_print_type (struct type *, const char *, struct ui_file *, int,
 extern void ada_print_typedef (struct type *type, struct symbol *new_symbol,
 			       struct ui_file *stream);
 
-extern int ada_val_print (struct type *, const gdb_byte *, int, CORE_ADDR,
-                          struct ui_file *, int,
-			  const struct value *,
-			  const struct value_print_options *);
+extern void ada_val_print (struct type *, const gdb_byte *, int, CORE_ADDR,
+			   struct ui_file *, int,
+			   const struct value *,
+			   const struct value_print_options *);
 
-extern int ada_value_print (struct value *, struct ui_file *,
-			    const struct value_print_options *);
+extern void ada_value_print (struct value *, struct ui_file *,
+			     const struct value_print_options *);
 
                                 /* Defined in ada-lang.c */
 
@@ -209,6 +209,10 @@ extern int ada_is_bogus_array_descriptor (struct type *);
 extern LONGEST ada_discrete_type_low_bound (struct type *);
 
 extern LONGEST ada_discrete_type_high_bound (struct type *);
+
+extern struct value *ada_get_decoded_value (struct value *value);
+
+extern struct type *ada_get_decoded_type (struct type *type);
 
 extern char *ada_decode_symbol (const struct general_symbol_info*);
 
@@ -329,11 +333,7 @@ extern struct type *ada_find_parallel_type (struct type *,
 
 extern LONGEST get_int_var_value (char *, int *);
 
-extern struct symbol *ada_find_any_symbol (const char *name);
-
-extern struct type *ada_find_any_type (const char *name);
-
-extern struct symbol *ada_find_renaming_symbol (const char *name,
+extern struct symbol *ada_find_renaming_symbol (struct symbol *name_sym,
                                                 struct block *block);
 
 extern int ada_prefer_type (struct type *, struct type *);

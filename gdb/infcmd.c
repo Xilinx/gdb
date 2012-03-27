@@ -664,7 +664,7 @@ proceed_thread_callback (struct thread_info *thread, void *arg)
   return 0;
 }
 
-void
+static void
 ensure_valid_thread (void)
 {
   if (ptid_equal (inferior_ptid, null_ptid)
@@ -676,7 +676,7 @@ ensure_valid_thread (void)
    is likely to mix up recorded and live target data.  So simply
    disallow those commands.  */
 
-void
+static void
 ensure_not_tfind_mode (void)
 {
   if (get_traceframe_number () >= 0)
@@ -1636,6 +1636,7 @@ finish_backward (struct symbol *function)
 static void
 finish_forward (struct symbol *function, struct frame_info *frame)
 {
+  struct frame_id frame_id = get_frame_id (frame);
   struct gdbarch *gdbarch = get_frame_arch (frame);
   struct symtab_and_line sal;
   struct thread_info *tp = inferior_thread ();
@@ -1651,9 +1652,12 @@ finish_forward (struct symbol *function, struct frame_info *frame)
 					 get_stack_frame_id (frame),
                                          bp_finish);
 
+  /* set_momentary_breakpoint invalidates FRAME.  */
+  frame = NULL;
+
   old_chain = make_cleanup_delete_breakpoint (breakpoint);
 
-  set_longjmp_breakpoint (tp, get_frame_id (frame));
+  set_longjmp_breakpoint (tp, frame_id);
   make_cleanup (delete_longjmp_breakpoint_cleanup, &thread);
 
   /* We want stop_registers, please...  */
@@ -2170,7 +2174,7 @@ registers_info (char *addr_exp, int fpregs)
 		struct value_print_options opts;
 		struct value *val = value_of_user_reg (regnum, frame);
 
-		printf_filtered ("%s: ", start);
+		printf_filtered ("%.*s: ", (int) (end - start), start);
 		get_formatted_print_options (&opts, 'x');
 		val_print_scalar_formatted (check_typedef (value_type (val)),
 					    value_contents_for_printing (val),

@@ -256,6 +256,7 @@ static const struct language_defn d_language_defn =
 				   syntax.  */
   d_val_print,			/* Print a value using appropriate syntax.  */
   c_value_print,		/* Print a top-level value.  */
+  default_read_var_value,	/* la_read_var_value */
   NULL,				/* Language specific skip_trampoline.  */
   "this",
   basic_lookup_symbol_nonlocal, 
@@ -273,9 +274,12 @@ static const struct language_defn d_language_defn =
   default_pass_by_reference,
   c_get_string,
   NULL,				/* la_get_symbol_name_cmp */
-  NULL,
+  iterate_over_symbols,
   LANG_MAGIC
 };
+
+/* Provide a prototype to silence -Wmissing-prototypes.  */
+extern initialize_file_ftype _initialize_d_language;
 
 void
 _initialize_d_language (void)

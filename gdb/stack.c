@@ -909,6 +909,12 @@ set_last_displayed_sal (int valid, struct program_space *pspace,
   last_displayed_addr = addr;
   last_displayed_symtab = symtab;
   last_displayed_line = line;
+  if (valid && pspace == NULL)
+    {
+      clear_last_displayed_sal ();
+      internal_error (__FILE__, __LINE__,
+		      _("Trying to set NULL pspace."));
+    }
 }
 
 /* Forget the last sal we displayed.  */

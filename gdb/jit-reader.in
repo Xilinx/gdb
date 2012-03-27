@@ -36,6 +36,7 @@ extern "C" {
 #ifdef __cplusplus
 #define GDB_DECLARE_GPL_COMPATIBLE_READER       \
   extern "C" {                                  \
+  extern int plugin_is_GPL_compatible (void);   \
   extern int plugin_is_GPL_compatible (void)    \
   {                                             \
     return 0;                                   \
@@ -44,7 +45,8 @@ extern "C" {
 
 #else
 
-#define GDB_DECLARE_GPL_COMPATIBLE_READER
+#define GDB_DECLARE_GPL_COMPATIBLE_READER       \
+  extern int plugin_is_GPL_compatible (void);   \
   extern int plugin_is_GPL_compatible (void)    \
   {                                             \
     return 0;                                   \

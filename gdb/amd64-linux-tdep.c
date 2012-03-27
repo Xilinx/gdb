@@ -1242,7 +1242,7 @@ amd64_linux_syscall_record (struct regcache *regcache)
 #define AMD64_LINUX_xstate     512
 #define AMD64_LINUX_frame_size 560
 
-int
+static int
 amd64_linux_record_signal (struct gdbarch *gdbarch,
                            struct regcache *regcache,
                            enum target_signal signal)

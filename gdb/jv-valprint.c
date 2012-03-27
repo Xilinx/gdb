@@ -33,7 +33,7 @@
 
 /* Local functions */
 
-int
+void
 java_value_print (struct value *val, struct ui_file *stream, 
 		  const struct value_print_options *options)
 {
@@ -51,10 +51,13 @@ java_value_print (struct value *val, struct ui_file *stream,
   if (is_object_type (type))
     {
       CORE_ADDR obj_addr;
+      struct value *tem = val;
 
       /* Get the run-time type, and cast the object into that.  */
+      while (TYPE_CODE (value_type (tem)) == TYPE_CODE_PTR)
+	tem = value_ind (tem);
 
-      obj_addr = unpack_pointer (type, value_contents (val));
+      obj_addr = value_address (tem);
 
       if (obj_addr != 0)
 	{
@@ -205,7 +208,7 @@ java_value_print (struct value *val, struct ui_file *stream,
 
       fprintf_filtered (stream, "}");
 
-      return 0;
+      return;
     }
 
   /* If it's type String, print it.  */
@@ -245,12 +248,12 @@ java_value_print (struct value *val, struct ui_file *stream,
       val_print_string (char_type, NULL, data + boffset, count, stream,
 			options);
 
-      return 0;
+      return;
     }
 
   opts = *options;
   opts.deref_ref = 1;
-  return common_val_print (val, stream, 0, &opts, current_language);
+  common_val_print (val, stream, 0, &opts, current_language);
 }
 
 /* TYPE, VALADDR, ADDRESS, STREAM, RECURSE, and OPTIONS have the
@@ -475,10 +478,9 @@ java_print_value_fields (struct type *type, const gdb_byte *valaddr,
 }
 
 /* See val_print for a description of the various parameters of this
-   function; they are identical.  The semantics of the return value is
-   also identical to val_print.  */
+   function; they are identical.  */
 
-int
+void
 java_val_print (struct type *type, const gdb_byte *valaddr,
 		int embedded_offset, CORE_ADDR address,
 		struct ui_file *stream, int recurse,
@@ -500,26 +502,11 @@ java_val_print (struct type *type, const gdb_byte *valaddr,
 				      val, options, 0, stream);
 	  break;
 	}
-#if 0
-      if (options->vtblprint && cp_is_vtbl_ptr_type (type))
-	{
-	  /* Print the unmangled name if desired.  */
-	  /* Print vtable entry - we only get here if we ARE using
-	     -fvtable_thunks.  (Otherwise, look under TYPE_CODE_STRUCT.)  */
-	  /* Extract an address, assume that it is unsigned.  */
-	  print_address_demangle
-	    (gdbarch,
-	     extract_unsigned_integer (valaddr + embedded_offset,
-				       TYPE_LENGTH (type)),
-	     stream, demangle);
-	  break;
-	}
-#endif
       addr = unpack_pointer (type, valaddr + embedded_offset);
       if (addr == 0)
 	{
 	  fputs_filtered ("null", stream);
-	  return i;
+	  return;
 	}
       target_type = check_typedef (TYPE_TARGET_TYPE (type));
 
@@ -527,8 +514,7 @@ java_val_print (struct type *type, const gdb_byte *valaddr,
 	{
 	  /* Try to print what function it points to.  */
 	  print_address_demangle (gdbarch, addr, stream, demangle);
-	  /* Return value is irrelevant except for string pointers.  */
-	  return (0);
+	  return;
 	}
 
       if (options->addressprint && options->format != 's')
@@ -537,7 +523,7 @@ java_val_print (struct type *type, const gdb_byte *valaddr,
 	  print_longest (stream, 'x', 0, (ULONGEST) addr);
 	}
 
-      return i;
+      return;
 
     case TYPE_CODE_CHAR:
     case TYPE_CODE_INT:
@@ -568,9 +554,8 @@ java_val_print (struct type *type, const gdb_byte *valaddr,
       break;
 
     default:
-      return c_val_print (type, valaddr, embedded_offset, address, stream,
-			  recurse, val, options);
+      c_val_print (type, valaddr, embedded_offset, address, stream,
+		   recurse, val, options);
+      break;
     }
-
-  return 0;
 }
