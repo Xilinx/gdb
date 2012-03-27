@@ -1,7 +1,7 @@
 2011-08-16  H.J. Lu  <hongjiu.lu@intel.com>
 
-	(amd64_supply_xsave): Check bits_per_word instead of
-	gdbarch_ptr_bit.
+	* amd64-tdep.c (amd64_supply_xsave): Check bits_per_word instead
+	of gdbarch_ptr_bit.
 	(amd64_collect_xsave): Likewise.
 
 2011-08-02  H.J. Lu  <hongjiu.lu@intel.com>
