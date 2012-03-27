@@ -1,5 +1,10 @@
 2012-03-27  H.J. Lu  <hongjiu.lu@intel.com>
 
+	* amd64-linux-tdep.c (x32_linux_sigtramp_code): Update x32
+	system call number.
+
+2012-03-27  H.J. Lu  <hongjiu.lu@intel.com>
+
 	* amd64-tdep.c (amd64_analyze_prologue): Also check for
 	`movl %rsp, %rbp' if it is an x32 target.
 

@@ -117,7 +117,7 @@ static const gdb_byte amd64_linux_sigtramp_code[] =
 static const gdb_byte x32_linux_sigtramp_code[] =
 {
   /* mov $__NR_rt_sigreturn, %rax.  */
-  LINUX_SIGTRAMP_INSN0, 0xc7, 0xc0, 0x06, 0x02, 0x00, 0x40,
+  LINUX_SIGTRAMP_INSN0, 0xc7, 0xc0, 0x01, 0x02, 0x00, 0x40,
   /* syscall */
   LINUX_SIGTRAMP_INSN1, 0x05
 };
