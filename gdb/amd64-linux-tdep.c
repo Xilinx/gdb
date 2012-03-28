@@ -156,7 +156,7 @@ amd64_linux_sigtramp_start (struct frame_info *this_frame)
     }
 
   gdbarch = get_frame_arch (this_frame);
-  if (gdbarch_bfd_arch_info (gdbarch)->mach & bfd_mach_x64_32)
+  if (gdbarch_ptr_bit (gdbarch) == 32)
     sigtramp_code = x32_linux_sigtramp_code;
   else
     sigtramp_code = amd64_linux_sigtramp_code;
@@ -1289,12 +1289,12 @@ amd64_linux_core_read_description (struct gdbarch *gdbarch,
   switch ((xcr0 & I386_XSTATE_AVX_MASK))
     {
     case I386_XSTATE_AVX_MASK:
-      if (gdbarch_bfd_arch_info (gdbarch)->mach & bfd_mach_x64_32)
+      if (gdbarch_ptr_bit (gdbarch) == 32)
 	return tdesc_x32_avx_linux;
       else
 	return tdesc_amd64_avx_linux;
     default:
-      if (gdbarch_bfd_arch_info (gdbarch)->mach & bfd_mach_x64_32)
+      if (gdbarch_ptr_bit (gdbarch) == 32)
 	return tdesc_x32_linux;
       else
 	return tdesc_amd64_linux;

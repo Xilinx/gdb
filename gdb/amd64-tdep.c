@@ -1905,7 +1905,7 @@ amd64_analyze_prologue (struct gdbarch *gdbarch,
 	 if it is an x32 target.  */
       read_memory (pc + 1, buf, 3);
       if (memcmp (buf, proto, 3) != 0
-	  && ((gdbarch_bfd_arch_info (gdbarch)->mach & bfd_mach_x64_32) == 0
+	  && (gdbarch_ptr_bit (gdbarch) == 64
 	      || memcmp (buf, protox32, 2) != 0))
 	return pc + 1;
 

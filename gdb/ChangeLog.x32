@@ -1,3 +1,10 @@
+2012-03-28  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-linux-tdep.c (amd64_linux_sigtramp_start): Check
+	gdbarch_ptr_bit instead of bfd_mach_x64_32 for x32.
+	(amd64_linux_core_read_description): Likewise.
+	* amd64-tdep.c (amd64_analyze_prologue): Likewise.
+
 2012-03-27  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* amd64-linux-tdep.c (x32_linux_sigtramp_code): Update x32
