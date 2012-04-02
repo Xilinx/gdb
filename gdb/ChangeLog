@@ -1,45 +1,282 @@
-2012-03-27 Oza Pawandeep   <oza.pawandeep@gmail.com>
+2012-04-02  Tristan Gingold  <gingold@adacore.com>
 
-       * arm-linux-tdep.c (arm_linux_init_abi): Call
-       set_gdbarch_process_record.
-       Initialize `arm_swi_record' field.
+	* i386-darwin-nat.c (i386_darwin_fetch_inferior_registers): Use
+	the STATE32 api for i386 state.
+	(i386_darwin_store_inferior_registers): Likewise.
 
-       * arm-tdep.c (arm_process_record): New function.
-       (deallocate_reg_mem): New function.
-       (decode_insn): New function.
-       (thumb_record_branch): New function.
-       (thumb_record_ldm_stm_swi(): New function.
-       (thumb_record_misc): New function.
-       (thumb_record_ld_st_stack): New function.
-       (thumb_record_ld_st_imm_offset): New function.
-       (thumb_record_ld_st_reg_offset(): New function.
-       (thumb_record_add_sub_cmp_mov): New function.
-       (thumb_record_shift_add_sub): New function.
-       (arm_record_coproc_data_proc): New function.
-       (arm_record_coproc): New function.
-       (arm_record_b_bl): New function.
-       (arm_record_ld_st_multiple): New function.
-       (arm_record_ld_st_reg_offset): New function.
-       (arm_record_ld_st_imm_offset): New function.
-       (arm_record_data_proc_imm): New function.
-       (arm_record_data_proc_misc_ld_str): New function.
-       (arm_record_extension_space): New function.
-       (arm_record_strx): New function.
-       (sbo_sbz): New function.
-       (struct insn_decode_record): New structure for arm insn record.
-       (REG_ALLOC): New macro for reg allocations.
-       (MEM_ALLOC): New macro for memory allocations.
+2012-04-02  Tristan Gingold  <gingold@adacore.com>
 
-       * arm-tdep.h (struct gdbarch_tdep): New field 'arm_swi_record'
+	* i386-darwin-tdep.c (i386_darwin_thread_state_reg_offset): Fix
+	SS offset.
+	* i386-darwin-nat.c (i386_darwin_fetch_inferior_registers): Fix
+	format_string.
+
+2012-04-02  Tristan Gingold  <gingold@adacore.com>
+
+	PR gdb/13901
+	* darwin-nat.c (darwin_execvp): Sey binary preference.
+
+2012-04-02  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* NEWS (set breakpoint condition-evaluation): Use imperative mood.
+
+2012-03-30  Tom Tromey  <tromey@redhat.com>
+
+	* python/python.c (gdbpy_decode_line): Move cleanup creation out
+	of TRY_CATCH.  Fix error handling.
+	* python/py-value.c (convert_value_from_python): Move 'old'
+	declaration to innermost scope.
+
+2012-03-29  Joel Brobecker  <brobecker@adacore.com>
+	    Andrey Smirnov  <andrew.smirnov@gmail.com>
+
+	-Wshadow warning fix.
+	* ada-lang.c (ada_make_symbol_completion_list): Rename parameters
+	"wild_match" and "encoded" into "wild_match_p" and "encoded_p".
+	Adjust code accordingly.
+
+2012-03-29  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-lang.c (symbol_completion_add): Rename parameter
+	"encoded" into "encoded_p".  Ajust code and documentation
+	accordingly.
+
+2012-03-29  Joel Brobecker  <brobecker@adacore.com>
+	    Andrey Smirnov  <andrew.smirnov@gmail.com>
+
+	-Wshadow warning fix.
+	* ada-lang.c (symbol_completion_add): Rename parameter
+	"wild_match" into wild_match_p.  Update code and documentation
+	accordingly.
+
+2012-03-29  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-lang.c (symbol_completion_match): Rename parameter
+	"encoded" into "encoded_p".  Ajust code and documentation
+	accordingly.
+
+2012-03-29  Joel Brobecker  <brobecker@adacore.com>
+	    Andrey Smirnov  <andrew.smirnov@gmail.com>
+
+	-Wshadow warning fix.
+	* ada-lang.c (symbol_completion_match): Rename parameter
+	"wild_match" into "wild_match_p".  Adjust code and function
+	documentation accordingly.
+
+2012-03-29  Joel Brobecker  <brobecker@adacore.com>
+	    Andrey Smirnov  <andrew.smirnov@gmail.com>
+
+	-Wshadow warning fix.
+	* ada-lang.c (ada_lookup_encoded_symbol): Rename parameter
+	"symbol_info" into "info".  Adjust code accordingly.
+	(ada_lookup_symbol): Likewise.
+
+2012-03-29  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-lang.c (ada_lookup_symbol_list): Minor reformatting
+	of this function's documentation.
+
+2012-03-29  Joel Brobecker  <brobecker@adacore.com>
+	    Andrey Smirnov  <andrew.smirnov@gmail.com>
+
+	-Wshadow warning fix.
+	* ada-lang.c (ada_lookup_symbol_list): Rename "wild_match"
+	variable into "wild_match_p".  Adjust code accordingly.
+
+2012-03-29  Joel Brobecker  <brobecker@adacore.com>
+	    Andrey Smirnov  <andrew.smirnov@gmail.com>
+
+	-Wshadow warning fix.
+	* ada-lang.c (ada_add_local_symbols): Rename "wild_match"
+	parameter into "wild_match_p".  Adjust code accordingly.
+	Document this parameter in the function description.
+
+2012-03-29  Joel Brobecker  <brobecker@adacore.com>
+	    Andrey Smirnov  <andrew.smirnov@gmail.com>
+
+	-Wshadow warning fix.
+	* ada-lang.c (add_symbols_from_enclosing_procs): Rename
+	"wild_match" parameter to "wild_match_p" (-Wshadow).
+
+2012-03-29  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-lang.c (ada_lookup_simple_minsym): Remove trailing spaces
+	in function documentation.
+
+2012-03-29  Joel Brobecker  <brobecker@adacore.com>
+	    Andrey Smirnov  <andrew.smirnov@gmail.com>
+
+	-Wshadow warning fix.
+	* ada-lang.c (ada_lookup_simple_minsym): Rename wild_match local
+	variable into wild_match_p.  Adjust code accordingly.
+
+2012-03-29  Joel Brobecker  <brobecker@adacore.com>
+	    Andrey Smirnov  <andrew.smirnov@gmail.com>
+
+	* ada-valprint.c (ada_val_print_1): Move the code handling
+	TYPE_CODE_ENUM inside its own lexical block.  Declare
+	variables len and val there, instead of in the function's
+	top level block.  Avoid declaring deref_val again in a way
+	that shadows another variable of the same name declared
+	in one of the up-level blocks.  Just re-use the up-level
+	variable instead.
+
+2012-03-29  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-lang.c (ada_lookup_encoded_symbol): Now returns void.
+	Replace block_found argument by symbol_info.  Adjust
+	implementation accordingly.  Add function documentation.
+	(ada_lookup_symbol): Adjust to new ada_lookup_encoded_symbol.
+	Fix documentation.
+	* ada-lang.h (ada_lookup_encoded_symbol): Update declaration.
+	* ada-exp.y (write_object_renaming): Adjust to new
+	ada_lookup_encoded_symbol API.
+
+2012-03-29  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-lang.h (struct ada_symbol_info): Reformat.  Improve
+	documentation.
+
+2012-03-28  Rathish C  <rathish.c@kpitcummins.com>
+
+	* v850-tdep.c: Add the enum values for mpu and fpu registers.
+	(v850_register_name): Add the mpu and fpu register names.
+	(v850e_register_name): Add the mpu and fpu register names.
+	(v850e2_register_name): New function.
+	(v850_gdbarch_init): Add case for bfd_mach_v850e2 and 
+	bfd_mach_v850e2v3.
+
+2012-03-28  Joel Brobecker  <brobecker@adacore.com>
+
+	* NEWS: Add entry for Ada varobj support.
+
+2012-03-28  Joel Brobecker  <brobecker@adacore.com>
+
+	* varobj.c (default_value_is_changeable_p): New function,
+	extracted from varobj_value_is_changeable_p.  Add declaration.
+	(ada_value_is_changeable_p): New function, extracted from
+	varobj_value_is_changeable_p.  Add declaration.
+	(struct language_specific): New field "value_is_changeable_p".
+	(languages): Add entries for new field.
+	(varobj_create): Set language before calling install_new_value.
+	(varobj_value_is_changeable_p): Reimplement to call the varobj's
+	"value_is_changeable_p" language callback.
+
+2012-03-28  Joel Brobecker  <brobecker@adacore.com>
+
+	* ada-varobj.h, ada-varobj.c: New files.
+	* Makefile.in (SFILES): Add ada-varobj.c.
+	(HFILES_NO_SRCDIR): Add ada-varobj.h.
+	(COMMON_OBS): Add ada-varobj.o.
+
+2012-03-28  Joel Brobecker  <brobecker@adacore.com>
+
+	* varobj.c (ada_value_has_mutated): Add declaration.  New function.
+	(struct language_specific): New field "value_has_mutated".
+	(languages): Set field "value_has_mutated" in each entry of array.
+	(varobj_value_has_mutated): New function.
+	(varobj_udpdate): Add handling of type mutation.
+	(value_of_root): Add handling of type mutation.
+	(ada_value_has_mutated): New function.
+
+2012-03-28  Pedro Alves  <palves@redhat.com>
+
+	* ia64-linux-nat.c (supply_fpregset, ia64_linux_fetch_register):
+	Always supply $fr0 as 0.0 and $fr1 as 1.0.
+
+2012-03-28  Tom Tromey  <tromey@redhat.com>
+
+	* python/py-inferior.c (infpy_read_memory): Remove cleanups and
+	explicitly free 'buffer' on exit paths.  Decref 'membuf_object'
+	before returning.
+
+2012-03-28  Tom Tromey  <tromey@redhat.com>
+
+	* .dir-locals.el: New file.
+
+2012-03-28  Pedro Alves  <palves@redhat.com>
+
+	* ia64-linux-nat.c (u_offsets): Map IA64_EC_REGNUM to PT_AR_EC.
+
+2012-03-28  Joel Brobecker  <brobecker@adacore.com>
+
+	* ia64-linux-nat.c (ia64_linux_fetch_register): Add special
+	handling for r0.
+
+2012-03-27  Pedro Alves  <palves@redhat.com>
+
+	Eliminate struct ui_stream.
+
+	* ui-out.h (struct ui_stream): Delete.
+	(ui_out_field_stream): Adjust prototype.
+	(ui_out_stream_new, ui_out_stream_delete)
+	(make_cleanup_ui_out_stream_delete): Delete declarations.
+	* ui-out.c (ui_out_field_stream): Change prototype to take a
+	ui_file instead of a ui_stream.  Adjust.
+	(ui_out_stream_new, ui_out_stream_delete, do_stream_delete)
+	(make_cleanup_ui_out_stream_delete): Delete.
+	* breakpoint.c (print_breakpoint_location)
+	(print_one_detail_ranged_breakpoint, print_it_watchpoint): Use
+	ui_file/mem_fileopen instead of ui_stream/ui_out_stream_new.
+	* disasm.c (dump_insns): Ditto.
+	(do_mixed_source_and_assembly, do_assembly_only): Adjust
+	prototype.
+	(gdb_disassembly): Use ui_file/mem_fileopen instead of
+	ui_stream/ui_out_stream_new.
+	* infcmd.c (print_return_value): Ditto.
+	* osdata.c (info_osdata_command): Don't allocate a local
+	ui_stream.
+	* stack.c (print_frame_arg, print_frame_args, print_frame): Use
+	ui_file/mem_fileopen instead of ui_stream/ui_out_stream_new.
+	* tracepoint.c (print_one_static_tracepoint_marker): Don't
+	allocate a local ui_stream.
+	* mi/mi-cmd-stack.c (list_arg_or_local): Use ui_file/mem_fileopen
+	instead of ui_stream/ui_out_stream_new.
+	(list_args_or_locals): Don't allocate a local ui_stream.
+	* mi/mi-main.c (get_register, mi_cmd_data_evaluate_expression)
+	(mi_cmd_data_read_memory): Use ui_file/mem_fileopen instead of
+	ui_stream/ui_out_stream_new.
+	* cli/cli-setshow.c (do_setshow_command): Ditto.
+
+2012-03-27  Oza Pawandeep  <oza.pawandeep@gmail.com>
+
+	* arm-linux-tdep.c (arm_linux_init_abi): Call
+	set_gdbarch_process_record.  Initialize `arm_swi_record' field.
+	* arm-tdep.c (arm_process_record): New function.
+	(deallocate_reg_mem): New function.
+	(decode_insn): New function.
+	(thumb_record_branch): New function.
+	(thumb_record_ldm_stm_swi(): New function.
+	(thumb_record_misc): New function.
+	(thumb_record_ld_st_stack): New function.
+	(thumb_record_ld_st_imm_offset): New function.
+	(thumb_record_ld_st_reg_offset(): New function.
+	(thumb_record_add_sub_cmp_mov): New function.
+	(thumb_record_shift_add_sub): New function.
+	(arm_record_coproc_data_proc): New function.
+	(arm_record_coproc): New function.
+	(arm_record_b_bl): New function.
+	(arm_record_ld_st_multiple): New function.
+	(arm_record_ld_st_reg_offset): New function.
+	(arm_record_ld_st_imm_offset): New function.
+	(arm_record_data_proc_imm): New function.
+	(arm_record_data_proc_misc_ld_str): New function.
+	(arm_record_extension_space): New function.
+	(arm_record_strx): New function.
+	(sbo_sbz): New function.
+	(struct insn_decode_record): New structure for arm insn record.
+	(REG_ALLOC): New macro for reg allocations.
+	(MEM_ALLOC): New macro for memory allocations.
+	* arm-tdep.h (struct gdbarch_tdep): New field 'arm_swi_record'.
 
 2012-03-27  Andreas Schwab  <schwab@linux-m68k.org>
 
 	* m68klinux-nat.c (fetch_register): Fix strict-aliasing violation.
 	(store_register): Likewise.
 
-2012-03-26 Oza Pawandeep  <oza.pawandeep@gmail.com>
+2012-03-26  Oza Pawandeep  <oza.pawandeep@gmail.com>
 
-        * MAINTAINERS (Write After Approval): Add myself to the list.
+	* MAINTAINERS (Write After Approval): Add myself to the list.
 
 2012-03-25  Jan Kratochvil  <jan.kratochvil@redhat.com>
 

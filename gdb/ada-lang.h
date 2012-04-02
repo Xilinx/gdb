@@ -80,11 +80,15 @@ struct ada_opname_map
 /* Defined in ada-lang.c */
 extern const struct ada_opname_map ada_opname_table[];
 
-/* A tuple, (symbol, block), representing one instance of a 
- * symbol-lookup operation.  */
-struct ada_symbol_info {
-  struct symbol* sym;
-  struct block* block;
+/* A tuple representing one instance of a symbol-lookup operation.  */
+
+struct ada_symbol_info
+{
+  /* The symbol that was found.  */
+  struct symbol *sym;
+
+  /* The block where the symbol was found.  */
+  struct block *block;
 };
 
 /* Denotes a type of renaming symbol (see ada_parse_renaming).  */
@@ -231,9 +235,9 @@ extern char *ada_fold_name (const char *);
 extern struct symbol *ada_lookup_symbol (const char *, const struct block *,
                                          domain_enum, int *);
 
-extern struct symbol *
-ada_lookup_encoded_symbol (const char *, const struct block *,
-			   domain_enum namespace, struct block **);
+extern void ada_lookup_encoded_symbol
+  (const char *name, const struct block *block, domain_enum namespace,
+   struct ada_symbol_info *symbol_info);
 
 extern struct minimal_symbol *ada_lookup_simple_minsym (const char *);
 

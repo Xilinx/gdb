@@ -24714,13 +24714,9 @@ writable.
 When a new object file is read (for example, due to the @code{file}
 command, or because the inferior has loaded a shared library),
 @value{GDBN} will look for Python support scripts in several ways:
-@file{@var{objfile}-gdb.py} and @code{.debug_gdb_scripts} section.
-
-@menu
-* objfile-gdb.py file::         The @file{@var{objfile}-gdb.py} file
-* .debug_gdb_scripts section::  The @code{.debug_gdb_scripts} section
-* Which flavor to choose?::
-@end menu
+@file{@var{objfile}-gdb.py} (@pxref{objfile-gdb.py file})
+and @code{.debug_gdb_scripts} section
+(@pxref{dotdebug_gdb_scripts section}).
 
 The auto-loading feature is useful for supplying application-specific
 debugging commands and scripts.
@@ -24744,7 +24740,7 @@ Print the list of all scripts that @value{GDBN} auto-loaded.
 
 Also printed is the list of scripts that were mentioned in
 the @code{.debug_gdb_scripts} section and were not found
-(@pxref{.debug_gdb_scripts section}).
+(@pxref{dotdebug_gdb_scripts section}).
 This is useful because their names are not printed when @value{GDBN}
 tries to load them and fails.  There may be many of them, and printing
 an error message for each one is problematic.
@@ -24766,6 +24762,12 @@ When reading an auto-loaded file, @value{GDBN} sets the
 @dfn{current objfile}.  This is available via the @code{gdb.current_objfile}
 function (@pxref{Objfiles In Python}).  This can be useful for
 registering objfile-specific pretty-printers.
+
+@menu
+* objfile-gdb.py file::          The @file{@var{objfile}-gdb.py} file
+* dotdebug_gdb_scripts section:: The @code{.debug_gdb_scripts} section
+* Which flavor to choose?::
+@end menu
 
 @node objfile-gdb.py file
 @subsubsection The @file{@var{objfile}-gdb.py} file
@@ -24795,7 +24797,7 @@ is the object file's real name, as described above.
 So your @file{-gdb.py} file should be careful to avoid errors if it
 is evaluated more than once.
 
-@node .debug_gdb_scripts section
+@node dotdebug_gdb_scripts section
 @subsubsection The @code{.debug_gdb_scripts} section
 @cindex @code{.debug_gdb_scripts} section
 
@@ -29380,6 +29382,12 @@ This is only present if the varobj is still valid.  If the type
 changed, then this will be the string @samp{true}; otherwise it will
 be @samp{false}.
 
+When a varobj's type changes, its children are also likely to have
+become incorrect.  Therefore, the varobj's children are automatically
+deleted when this attribute is @samp{true}.  Also, the varobj's update
+range, when set using the @code{-var-set-update-range} command, is
+unset.
+
 @item new_type
 If the varobj's type changed, then this field will be present and will
 hold the new type.
@@ -33475,7 +33483,7 @@ If @var{regexp} is specified, only print scripts loaded by object files
 matching @var{regexp}.
 For each script, this command prints its name as specified in the objfile,
 and the full path if known.
-@xref{.debug_gdb_scripts section}.
+@xref{dotdebug_gdb_scripts section}.
 
 @kindex maint print statistics
 @cindex bcache statistics
