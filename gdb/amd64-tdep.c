@@ -258,8 +258,38 @@ static const char *amd64_word_names[] =
 static const char *amd64_dword_names[] =
 {
   "eax", "ebx", "ecx", "edx", "esi", "edi", "ebp", "esp", 
-  "r8d", "r9d", "r10d", "r11d", "r12d", "r13d", "r14d", "r15d"
+  "r8d", "r9d", "r10d", "r11d", "r12d", "r13d", "r14d", "r15d", "eip"
 };
+
+/* Return the GDB type object for the "standard" data type of data in
+   register REGNUM.  */
+
+static struct type *
+amd64_pseudo_register_type (struct gdbarch *gdbarch, int regnum)
+{
+  /* Use pointer types for ebp, esp and eip registers in x32.  */
+  if (gdbarch_ptr_bit (gdbarch) == 32)
+    {
+      struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+      int eax_regnum = tdep->eax_regnum;
+
+      if (eax_regnum < 0)
+	return 0;
+
+      switch (regnum - eax_regnum)
+	{
+	default:
+	  break;
+	case 6:		/* ebp  */
+	case 7:		/* esp	*/
+	  return builtin_type (gdbarch)->builtin_data_ptr;
+	case 16:	/* eip */
+	  return builtin_type (gdbarch)->builtin_func_ptr;
+	}
+    }
+
+  return i386_pseudo_register_type (gdbarch, regnum);
+}
 
 /* Return the name of register REGNUM.  */
 
@@ -2614,7 +2644,7 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 
   tdep->num_byte_regs = 20;
   tdep->num_word_regs = 16;
-  tdep->num_dword_regs = 16;
+  tdep->num_dword_regs = 17;
   /* Avoid wiring in the MMX registers for now.  */
   tdep->num_mmx_regs = 0;
 
@@ -2623,6 +2653,7 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   set_gdbarch_pseudo_register_write (gdbarch,
 				     amd64_pseudo_register_write);
 
+  set_tdesc_pseudo_register_type (gdbarch, amd64_pseudo_register_type);
   set_tdesc_pseudo_register_name (gdbarch, amd64_pseudo_register_name);
 
   /* AMD64 has an FPU and 16 SSE registers.  */

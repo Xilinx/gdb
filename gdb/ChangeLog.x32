@@ -1,3 +1,13 @@
+2012-04-03  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-tdep.c (amd64_word_names): Add "eip".
+	(amd64_pseudo_register_type): New function.
+	(amd64_init_abi): Set num_dword_regs to 17.  Call
+	set_tdesc_pseudo_register_type with amd64_pseudo_register_type.
+
+	* i386-tdep.c (i386_pseudo_register_type): Make it global.
+	* i386-tdep.h (i386_pseudo_register_type): New prototype.
+
 2012-04-02  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* features/i386/x32-avx-linux.xml: Update copyright year.
