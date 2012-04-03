@@ -1,8 +1,6 @@
 /* GDB routines for manipulating objfiles.
 
-   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1992-2004, 2007-2012 Free Software Foundation, Inc.
 
    Contributed by Cygnus Support, using pieces from other GDB modules.
 
@@ -107,13 +105,6 @@ get_objfile_pspace_data (struct program_space *pspace)
   return info;
 }
 
-/* Records whether any objfiles appeared or disappeared since we last updated
-   address to obj section map.  */
-
-/* Locate all mappable sections of a BFD file.
-   objfile_p_char is a char * to get it through
-   bfd_map_over_sections; we cast it back to its proper type.  */
-
 /* Called via bfd_map_over_sections to build up the section table that
    the objfile references.  The objfile contains pointers to the start
    of the table (objfile->sections) and to the first location after
@@ -121,19 +112,18 @@ get_objfile_pspace_data (struct program_space *pspace)
 
 static void
 add_to_objfile_sections (struct bfd *abfd, struct bfd_section *asect,
-			 void *objfile_p_char)
+			 void *objfilep)
 {
-  struct objfile *objfile = (struct objfile *) objfile_p_char;
+  struct objfile *objfile = (struct objfile *) objfilep;
   struct obj_section section;
   flagword aflag;
 
   aflag = bfd_get_section_flags (abfd, asect);
-
   if (!(aflag & SEC_ALLOC))
     return;
-
-  if (0 == bfd_section_size (abfd, asect))
+  if (bfd_section_size (abfd, asect) == 0)
     return;
+
   section.objfile = objfile;
   section.the_bfd_section = asect;
   section.ovly_mapped = 0;
@@ -144,11 +134,9 @@ add_to_objfile_sections (struct bfd *abfd, struct bfd_section *asect,
 }
 
 /* Builds a section table for OBJFILE.
-   Returns 0 if OK, 1 on error (in which case bfd_error contains the
-   error).
 
    Note that while we are building the table, which goes into the
-   psymbol obstack, we hijack the sections_end pointer to instead hold
+   objfile obstack, we hijack the sections_end pointer to instead hold
    a count of the number of sections.  When bfd_map_over_sections
    returns, this count is used to compute the pointer to the end of
    the sections table, which then overwrites the count.
@@ -156,24 +144,17 @@ add_to_objfile_sections (struct bfd *abfd, struct bfd_section *asect,
    Also note that the OFFSET and OVLY_MAPPED in each table entry
    are initialized to zero.
 
-   Also note that if anything else writes to the psymbol obstack while
+   Also note that if anything else writes to the objfile obstack while
    we are building the table, we're pretty much hosed.  */
 
-int
+void
 build_objfile_section_table (struct objfile *objfile)
 {
-  /* objfile->sections can be already set when reading a mapped symbol
-     file.  I believe that we do need to rebuild the section table in
-     this case (we rebuild other things derived from the bfd), but we
-     can't free the old one (it's in the objfile_obstack).  So we just
-     waste some memory.  */
-
   objfile->sections_end = 0;
   bfd_map_over_sections (objfile->obfd,
 			 add_to_objfile_sections, (void *) objfile);
   objfile->sections = obstack_finish (&objfile->objfile_obstack);
   objfile->sections_end = objfile->sections + (size_t) objfile->sections_end;
-  return (0);
 }
 
 /* Given a pointer to an initialized bfd (ABFD) and some flag bits
@@ -224,12 +205,7 @@ allocate_objfile (bfd *abfd, int flags)
       objfile->mtime = bfd_get_mtime (abfd);
 
       /* Build section table.  */
-
-      if (build_objfile_section_table (objfile))
-	{
-	  error (_("Can't find the file sections in `%s': %s"),
-		 objfile->name, bfd_errmsg (bfd_get_error ()));
-	}
+      build_objfile_section_table (objfile);
     }
   else
     {
@@ -348,29 +324,6 @@ entry_point_address (void)
     error (_("Entry point address is not known."));
 
   return retval;
-}
-
-/* Create the terminating entry of OBJFILE's minimal symbol table.
-   If OBJFILE->msymbols is zero, allocate a single entry from
-   OBJFILE->objfile_obstack; otherwise, just initialize
-   OBJFILE->msymbols[OBJFILE->minimal_symbol_count].  */
-void
-terminate_minimal_symbol_table (struct objfile *objfile)
-{
-  if (! objfile->msymbols)
-    objfile->msymbols = ((struct minimal_symbol *)
-                         obstack_alloc (&objfile->objfile_obstack,
-                                        sizeof (objfile->msymbols[0])));
-
-  {
-    struct minimal_symbol *m
-      = &objfile->msymbols[objfile->minimal_symbol_count];
-
-    memset (m, 0, sizeof (*m));
-    /* Don't rely on these enumeration values being 0's.  */
-    MSYMBOL_TYPE (m) = mst_unknown;
-    SYMBOL_SET_LANGUAGE (m, language_unknown);
-  }
 }
 
 /* Iterator on PARENT and every separate debug objfile of PARENT.
@@ -1123,7 +1076,7 @@ insert_section_p (const struct bfd *abfd,
 {
   const bfd_vma lma = bfd_section_lma (abfd, section);
 
-  if (lma != 0 && lma != bfd_section_vma (abfd, section)
+  if (overlay_debugging && lma != 0 && lma != bfd_section_vma (abfd, section)
       && (bfd_get_file_flags (abfd) & BFD_IN_MEMORY) == 0)
     /* This is an overlay section.  IN_MEMORY check is needed to avoid
        discarding sections from the "system supplied DSO" (aka vdso)

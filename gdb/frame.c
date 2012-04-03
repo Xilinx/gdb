@@ -1,8 +1,7 @@
 /* Cache and manage frames for GDB, the GNU debugger.
 
-   Copyright (C) 1986, 1987, 1989, 1991, 1994, 1995, 1996, 1998, 2000, 2001,
-   2002, 2003, 2004, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1986-1987, 1989, 1991, 1994-1996, 1998, 2000-2004,
+   2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -1030,6 +1029,26 @@ ULONGEST
 get_frame_register_unsigned (struct frame_info *frame, int regnum)
 {
   return frame_unwind_register_unsigned (frame->next, regnum);
+}
+
+int
+read_frame_register_unsigned (struct frame_info *frame, int regnum,
+			      ULONGEST *val)
+{
+  struct value *regval = get_frame_register_value (frame, regnum);
+
+  if (!value_optimized_out (regval)
+      && value_entirely_available (regval))
+    {
+      struct gdbarch *gdbarch = get_frame_arch (frame);
+      enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
+      int size = register_size (gdbarch, VALUE_REGNUM (regval));
+
+      *val = extract_unsigned_integer (value_contents (regval), size, byte_order);
+      return 1;
+    }
+
+  return 0;
 }
 
 void
@@ -2096,6 +2115,8 @@ find_frame_sal (struct frame_info *frame, struct symtab_and_line *sal)
 	   the call site is.  Do not pretend to.  This is jarring, but
 	   we can't do much better.  */
 	sal->pc = get_frame_pc (frame);
+
+      sal->pspace = get_frame_program_space (frame);
 
       return;
     }

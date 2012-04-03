@@ -32,6 +32,7 @@
    endian-swap we would otherwise get.  We check for this in
    rx_elf_object_p().  */
 const bfd_target bfd_elf32_rx_be_ns_vec;
+const bfd_target bfd_elf32_rx_be_vec;
 
 #ifdef DEBUG
 char * rx_get_reloc (long);
@@ -2114,7 +2115,7 @@ elf32_rx_relax_section (bfd *                  abfd,
 		   /* Decodable bits.  */
 		   && (insn[0] & 0xcc) == 0xcc
 		   /* Width.  */
-		   && (insn[0] & 0x30) != 3
+		   && (insn[0] & 0x30) != 0x30
 		   /* Register MSBs.  */
 		   && (insn[1] & 0x88)  == 0x00)
 	    {
@@ -2218,7 +2219,7 @@ elf32_rx_relax_section (bfd *                  abfd,
 		   /* Decodable bits.  */
 		   && (insn[0] & 0xc3) == 0xc3
 		   /* Width.  */
-		   && (insn[0] & 0x30) != 3
+		   && (insn[0] & 0x30) != 0x30
 		   /* Register MSBs.  */
 		   && (insn[1] & 0x88)  == 0x00)
 	    {
@@ -3028,6 +3029,7 @@ rx_elf_object_p (bfd * abfd)
   Elf_Internal_Phdr *phdr = elf_tdata (abfd)->phdr;
   int nphdrs = elf_elfheader (abfd)->e_phnum;
   sec_ptr bsec;
+  static int saw_be = FALSE;
 
   /* We never want to automatically choose the non-swapping big-endian
      target.  The user can only get that explicitly, such as with -I
@@ -3035,6 +3037,15 @@ rx_elf_object_p (bfd * abfd)
   if (abfd->xvec == &bfd_elf32_rx_be_ns_vec
       && abfd->target_defaulted)
     return FALSE;
+
+  /* BFD->target_defaulted is not set to TRUE when a target is chosen
+     as a fallback, so we check for "scanning" to know when to stop
+     using the non-swapping target.  */
+  if (abfd->xvec == &bfd_elf32_rx_be_ns_vec
+      && saw_be)
+    return FALSE;
+  if (abfd->xvec == &bfd_elf32_rx_be_vec)
+    saw_be = TRUE;
 
   bfd_default_set_arch_mach (abfd, bfd_arch_rx,
 			     elf32_rx_machine (abfd));
@@ -3073,7 +3084,7 @@ rx_elf_object_p (bfd * abfd)
       bsec = abfd->sections;
       while (bsec)
 	{
-	  if (phdr[i].p_vaddr <= bsec->lma
+	  if (phdr[i].p_vaddr <= bsec->vma
 	      && bsec->vma <= phdr[i].p_vaddr + (phdr[i].p_filesz - 1))
 	    {
 	      bsec->lma = phdr[i].p_paddr + (bsec->vma - phdr[i].p_vaddr);

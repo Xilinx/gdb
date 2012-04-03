@@ -1,4 +1,4 @@
-/* Copyright (C) 2009, 2010, 2011 Free Software Foundation, Inc.
+/* Copyright (C) 2009-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -176,6 +176,9 @@ amd64_windows_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 
   set_solib_ops (gdbarch, &solib_target_so_ops);
 }
+
+/* -Wmissing-prototypes */
+extern initialize_file_ftype _initialize_amd64_windows_tdep;
 
 void
 _initialize_amd64_windows_tdep (void)

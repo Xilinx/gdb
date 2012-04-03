@@ -1,4 +1,4 @@
-/* Copyright (C) 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+/* Copyright (C) 2008-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -84,6 +84,9 @@ static const int mappings[] =
   context_offset (FloatSave.MxCsr)
 };
 #undef context_offset
+
+/* -Wmissing-prototypes */
+extern initialize_file_ftype _initialize_amd64_windows_nat;
 
 void
 _initialize_amd64_windows_nat (void)

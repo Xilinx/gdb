@@ -1,7 +1,6 @@
 /* DWARF 2 location expression support for GDB.
 
-   Copyright (C) 2003, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003, 2005, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -20,6 +19,8 @@
 
 #if !defined (DWARF2LOC_H)
 #define DWARF2LOC_H
+
+#include "dwarf2expr.h"
 
 struct symbol_computed_ops;
 struct objfile;
@@ -40,7 +41,7 @@ extern int entry_values_debug;
 struct objfile *dwarf2_per_cu_objfile (struct dwarf2_per_cu_data *cu);
 
 /* Return the address size given in the compilation unit header for CU.  */
-CORE_ADDR dwarf2_per_cu_addr_size (struct dwarf2_per_cu_data *cu);
+int dwarf2_per_cu_addr_size (struct dwarf2_per_cu_data *cu);
 
 /* Return the DW_FORM_ref_addr size given in the compilation unit header for
    CU.  */
@@ -62,11 +63,11 @@ const gdb_byte *dwarf2_find_location_expression
    CORE_ADDR pc);
 
 struct dwarf2_locexpr_baton dwarf2_fetch_die_location_block
-  (unsigned int offset, struct dwarf2_per_cu_data *per_cu,
+  (cu_offset offset_in_cu, struct dwarf2_per_cu_data *per_cu,
    CORE_ADDR (*get_frame_pc) (void *baton),
    void *baton);
 
-struct type *dwarf2_get_die_type (unsigned int die_offset,
+struct type *dwarf2_get_die_type (cu_offset die_offset,
 				  struct dwarf2_per_cu_data *per_cu);
 
 /* Evaluate a location description, starting at DATA and with length

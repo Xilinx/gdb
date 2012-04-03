@@ -1,8 +1,6 @@
 /* Read ELF (Executable and Linking Format) object files for GDB.
 
-   Copyright (C) 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1991-2012 Free Software Foundation, Inc.
 
    Written by Fred Fish at Cygnus Support.
 
@@ -43,6 +41,7 @@
 #include "infcall.h"
 #include "gdbthread.h"
 #include "regcache.h"
+#include "bcache.h"
 
 extern void _initialize_elfread (void);
 
@@ -143,7 +142,7 @@ elf_symfile_segments (bfd *abfd)
 	 binaries are not relocatable.  */
       if (bfd_get_section_size (sect) > 0 && j == num_segments
 	  && (bfd_get_section_flags (abfd, sect) & SEC_LOAD) != 0)
-	warning (_("Loadable segment \"%s\" outside of ELF segments"),
+	warning (_("Loadable section \"%s\" outside of ELF segments"),
 		 bfd_section_name (abfd, sect));
     }
 
@@ -240,8 +239,8 @@ elf_symtab_read (struct objfile *objfile, int type,
      seen any section info for it yet.  */
   asymbol *filesym = 0;
   /* Name of filesym.  This is either a constant string or is saved on
-     the objfile's obstack.  */
-  char *filesymname = "";
+     the objfile's filename cache.  */
+  const char *filesymname = "";
   struct dbx_symfile_info *dbx = objfile->deprecated_sym_stab_info;
   int stripped = (bfd_get_symcount (objfile->obfd) == 0);
 
@@ -303,6 +302,23 @@ elf_symtab_read (struct objfile *objfile, int type,
 	  if (!sect)
 	    continue;
 
+	  /* On ia64-hpux, we have discovered that the system linker
+	     adds undefined symbols with nonzero addresses that cannot
+	     be right (their address points inside the code of another
+	     function in the .text section).  This creates problems
+	     when trying to determine which symbol corresponds to
+	     a given address.
+
+	     We try to detect those buggy symbols by checking which
+	     section we think they correspond to.  Normally, PLT symbols
+	     are stored inside their own section, and the typical name
+	     for that section is ".plt".  So, if there is a ".plt"
+	     section, and yet the section name of our symbol does not
+	     start with ".plt", we ignore that symbol.  */
+	  if (strncmp (sect->name, ".plt", 4) != 0
+	      && bfd_get_section_by_name (abfd, ".plt") != NULL)
+	    continue;
+
 	  symaddr += ANOFFSET (objfile->section_offsets, sect->index);
 
 	  msym = record_minimal_symbol
@@ -329,9 +345,8 @@ elf_symtab_read (struct objfile *objfile, int type,
 	      sectinfo = NULL;
 	    }
 	  filesym = sym;
-	  filesymname =
-	    obsavestring ((char *) filesym->name, strlen (filesym->name),
-			  &objfile->objfile_obstack);
+	  filesymname = bcache (filesym->name, strlen (filesym->name) + 1,
+				objfile->filename_cache);
 	}
       else if (sym->flags & BSF_SECTION_SYM)
 	continue;
@@ -905,7 +920,7 @@ elf_gnu_ifunc_resolve_name (const char *name, CORE_ADDR *addr_p)
 static CORE_ADDR
 elf_gnu_ifunc_resolve_addr (struct gdbarch *gdbarch, CORE_ADDR pc)
 {
-  char *name_at_pc;
+  const char *name_at_pc;
   CORE_ADDR start_at_pc, address;
   struct type *func_func_type = builtin_type (gdbarch)->builtin_func_func;
   struct value *function, *address_val;
@@ -980,6 +995,9 @@ elf_gnu_ifunc_resolver_stop (struct breakpoint *b)
 					   prev_frame_id,
 					   bp_gnu_ifunc_resolver_return);
 
+      /* set_momentary_breakpoint invalidates PREV_FRAME.  */
+      prev_frame = NULL;
+
       /* Add new b_return to the ring list b->related_breakpoint.  */
       gdb_assert (b_return->related_breakpoint == b_return);
       b_return->related_breakpoint = b->related_breakpoint;
@@ -1032,7 +1050,7 @@ elf_gnu_ifunc_resolver_return_stop (struct breakpoint *b)
     }
   gdb_assert (b->type == bp_gnu_ifunc_resolver);
 
-  gdb_assert (current_program_space == b->pspace);
+  gdb_assert (current_program_space == b->pspace || b->pspace == NULL);
   elf_gnu_ifunc_record_cache (b->addr_string, resolved_pc);
 
   sal = find_pc_line (resolved_pc, 0);

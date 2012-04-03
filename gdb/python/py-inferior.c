@@ -1,6 +1,6 @@
 /* Python interface to inferiors.
 
-   Copyright (C) 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2009-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -157,15 +157,9 @@ inferior_to_inferior_object (struct inferior *inferior)
   inf_obj = inferior_data (inferior, infpy_inf_data_key);
   if (!inf_obj)
     {
-      struct cleanup *cleanup;
-      cleanup = ensure_python_env (python_gdbarch, python_language);
-
       inf_obj = PyObject_New (inferior_object, &inferior_object_type);
       if (!inf_obj)
-	{
-	  do_cleanups (cleanup);
 	  return NULL;
-	}
 
       inf_obj->inferior = inferior;
       inf_obj->threads = NULL;
@@ -173,7 +167,6 @@ inferior_to_inferior_object (struct inferior *inferior)
 
       set_inferior_data (inferior, infpy_inf_data_key, inf_obj);
 
-      do_cleanups (cleanup);
     }
   else
     Py_INCREF ((PyObject *)inf_obj);
@@ -266,10 +259,15 @@ delete_thread_object (struct thread_info *tp, int ignore)
   inferior_object *inf_obj;
   thread_object *thread_obj;
   struct threadlist_entry **entry, *tmp;
+  
+  cleanup = ensure_python_env (python_gdbarch, python_language);
 
   inf_obj = (inferior_object *) find_inferior_object (PIDGET(tp->ptid));
   if (!inf_obj)
-    return;
+    {
+      do_cleanups (cleanup);
+      return;
+    }
 
   /* Find thread entry in its inferior's thread_list.  */
   for (entry = &inf_obj->threads; *entry != NULL; entry =
@@ -280,10 +278,9 @@ delete_thread_object (struct thread_info *tp, int ignore)
   if (!*entry)
     {
       Py_DECREF (inf_obj);
+      do_cleanups (cleanup);
       return;
     }
-
-  cleanup = ensure_python_env (python_gdbarch, python_language);
 
   tmp = *entry;
   tmp->thread_obj->thread = NULL;
@@ -408,16 +405,13 @@ infpy_read_memory (PyObject *self, PyObject *args, PyObject *kw)
   CORE_ADDR addr, length;
   void *buffer = NULL;
   membuf_object *membuf_obj;
-  PyObject *addr_obj, *length_obj;
-  struct cleanup *cleanups;
+  PyObject *addr_obj, *length_obj, *result;
   volatile struct gdb_exception except;
   static char *keywords[] = { "address", "length", NULL };
 
   if (! PyArg_ParseTupleAndKeywords (args, kw, "OO", keywords,
 				     &addr_obj, &length_obj))
     return NULL;
-
-  cleanups = make_cleanup (null_cleanup, NULL);
 
   TRY_CATCH (except, RETURN_MASK_ALL)
     {
@@ -429,39 +423,38 @@ infpy_read_memory (PyObject *self, PyObject *args, PyObject *kw)
 	}
 
       buffer = xmalloc (length);
-      make_cleanup (xfree, buffer);
 
       read_memory (addr, buffer, length);
     }
   if (except.reason < 0)
     {
-      do_cleanups (cleanups);
+      xfree (buffer);
       GDB_PY_HANDLE_EXCEPTION (except);
     }
 
   if (error)
     {
-      do_cleanups (cleanups);
+      xfree (buffer);
       return NULL;
     }
 
   membuf_obj = PyObject_New (membuf_object, &membuf_object_type);
   if (membuf_obj == NULL)
     {
+      xfree (buffer);
       PyErr_SetString (PyExc_MemoryError,
 		       _("Could not allocate memory buffer object."));
-      do_cleanups (cleanups);
       return NULL;
     }
-
-  discard_cleanups (cleanups);
 
   membuf_obj->buffer = buffer;
   membuf_obj->addr = addr;
   membuf_obj->length = length;
 
-  return PyBuffer_FromReadWriteObject ((PyObject *) membuf_obj, 0,
-				       Py_END_OF_BUFFER);
+  result = PyBuffer_FromReadWriteObject ((PyObject *) membuf_obj, 0,
+					 Py_END_OF_BUFFER);
+  Py_DECREF (membuf_obj);
+  return result;
 }
 
 /* Implementation of gdb.write_memory (address, buffer [, length]).

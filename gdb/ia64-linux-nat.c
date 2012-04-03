@@ -1,8 +1,7 @@
 /* Functions specific to running gdb native on IA-64 running
    GNU/Linux.
 
-   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1999-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -273,7 +272,7 @@ static int u_offsets[] =
     -1, -1, -1, -1, -1, -1, -1, -1, -1,
     PT_AR_PFS,
     PT_AR_LC,
-    -1,		/* Not available: EC, the Epilog Count register.  */
+    PT_AR_EC,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -448,8 +447,20 @@ supply_fpregset (struct regcache *regcache, const fpregset_t *fpregsetp)
 {
   int regi;
   const char *from;
+  const gdb_byte f_zero[16] = { 0 };
+  const gdb_byte f_one[16] =
+    { 0, 0, 0, 0, 0, 0, 0, 0x80, 0xff, 0xff, 0, 0, 0, 0, 0, 0 };
 
-  for (regi = IA64_FR0_REGNUM; regi <= IA64_FR127_REGNUM; regi++)
+  /* Kernel generated cores have fr1==0 instead of 1.0.  Older GDBs
+     did the same.  So ignore whatever might be recorded in fpregset_t
+     for fr0/fr1 and always supply their expected values.  */
+
+  /* fr0 is always read as zero.  */
+  regcache_raw_supply (regcache, IA64_FR0_REGNUM, f_zero);
+  /* fr1 is always read as one (1.0).  */
+  regcache_raw_supply (regcache, IA64_FR1_REGNUM, f_one);
+
+  for (regi = IA64_FR2_REGNUM; regi <= IA64_FR127_REGNUM; regi++)
     {
       from = (const char *) &((*fpregsetp)[regi - IA64_FR0_REGNUM]);
       regcache_raw_supply (regcache, regi, from);
@@ -618,7 +629,7 @@ ia64_linux_remove_watchpoint (CORE_ADDR addr, int len, int type,
 }
 
 static void
-ia64_linux_new_thread (ptid_t ptid)
+ia64_linux_new_thread (struct lwp_info *lp)
 {
   int i, any;
 
@@ -627,18 +638,18 @@ ia64_linux_new_thread (ptid_t ptid)
     {
       if (debug_registers[i] != 0)
 	any = 1;
-      store_debug_register (ptid, i, debug_registers[i]);
+      store_debug_register (lp->ptid, i, debug_registers[i]);
     }
 
   if (any)
-    enable_watchpoints_in_psr (ptid);
+    enable_watchpoints_in_psr (lp->ptid);
 }
 
 static int
 ia64_linux_stopped_data_address (struct target_ops *ops, CORE_ADDR *addr_p)
 {
   CORE_ADDR psr;
-  struct siginfo *siginfo_p;
+  siginfo_t *siginfo_p;
   struct regcache *regcache = get_current_regcache ();
 
   siginfo_p = linux_nat_get_siginfo (inferior_ptid);
@@ -680,6 +691,37 @@ ia64_linux_fetch_register (struct regcache *regcache, int regnum)
   size_t size;
   PTRACE_TYPE_RET *buf;
   int pid, i;
+
+  /* r0 cannot be fetched but is always zero.  */
+  if (regnum == IA64_GR0_REGNUM)
+    {
+      const gdb_byte zero[8] = { 0 };
+
+      gdb_assert (sizeof (zero) == register_size (gdbarch, regnum));
+      regcache_raw_supply (regcache, regnum, zero);
+      return;
+    }
+
+  /* fr0 cannot be fetched but is always zero.  */
+  if (regnum == IA64_FR0_REGNUM)
+    {
+      const gdb_byte f_zero[16] = { 0 };
+
+      gdb_assert (sizeof (f_zero) == register_size (gdbarch, regnum));
+      regcache_raw_supply (regcache, regnum, f_zero);
+      return;
+    }
+
+  /* fr1 cannot be fetched but is always one (1.0).  */
+  if (regnum == IA64_FR1_REGNUM)
+    {
+      const gdb_byte f_one[16] =
+	{ 0, 0, 0, 0, 0, 0, 0, 0x80, 0xff, 0xff, 0, 0, 0, 0, 0, 0 };
+
+      gdb_assert (sizeof (f_one) == register_size (gdbarch, regnum));
+      regcache_raw_supply (regcache, regnum, f_one);
+      return;
+    }
 
   if (ia64_cannot_fetch_register (gdbarch, regnum))
     {

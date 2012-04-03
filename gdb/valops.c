@@ -1,8 +1,6 @@
 /* Perform non-arithmetic operations on values, for GDB.
 
-   Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1986-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -1774,15 +1772,7 @@ value_ind (struct value *arg1)
 			      (value_as_address (arg1)
 			       - value_pointed_to_offset (arg1)));
 
-      /* Re-adjust type.  */
-      deprecated_set_value_type (arg2, TYPE_TARGET_TYPE (base_type));
-      /* Add embedding info.  */
-      set_value_enclosing_type (arg2, enc_type);
-      set_value_embedded_offset (arg2, value_pointed_to_offset (arg1));
-
-      /* We may be pointing to an object of some derived type.  */
-      arg2 = value_full_object (arg2, NULL, 0, 0, 0);
-      return arg2;
+      return readjust_indirect_value_type (arg2, enc_type, base_type, arg1);
     }
 
   error (_("Attempt to take contents of a non-pointer value."));
@@ -2007,7 +1997,7 @@ search_struct_field (const char *name, struct value *arg1, int offset,
   if (!looking_for_baseclass)
     for (i = TYPE_NFIELDS (type) - 1; i >= nbases; i--)
       {
-	char *t_field_name = TYPE_FIELD_NAME (type, i);
+	const char *t_field_name = TYPE_FIELD_NAME (type, i);
 
 	if (t_field_name && (strcmp_iw (t_field_name, name) == 0))
 	  {
@@ -2165,7 +2155,7 @@ search_struct_method (const char *name, struct value **arg1p,
   CHECK_TYPEDEF (type);
   for (i = TYPE_NFN_FIELDS (type) - 1; i >= 0; i--)
     {
-      char *t_field_name = TYPE_FN_FIELDLIST_NAME (type, i);
+      const char *t_field_name = TYPE_FN_FIELDLIST_NAME (type, i);
 
       /* FIXME!  May need to check for ARM demangling here.  */
       if (strncmp (t_field_name, "__", 2) == 0 ||
@@ -2409,7 +2399,7 @@ find_method_list (struct value **argp, const char *method,
   for (i = TYPE_NFN_FIELDS (type) - 1; i >= 0; i--)
     {
       /* pai: FIXME What about operators and type conversions?  */
-      char *fn_field_name = TYPE_FN_FIELDLIST_NAME (type, i);
+      const char *fn_field_name = TYPE_FN_FIELDLIST_NAME (type, i);
 
       if (fn_field_name && (strcmp_iw (fn_field_name, method) == 0))
 	{
@@ -3156,7 +3146,7 @@ check_field (struct type *type, const char *name)
 
   for (i = TYPE_NFIELDS (type) - 1; i >= TYPE_N_BASECLASSES (type); i--)
     {
-      char *t_field_name = TYPE_FIELD_NAME (type, i);
+      const char *t_field_name = TYPE_FIELD_NAME (type, i);
 
       if (t_field_name && (strcmp_iw (t_field_name, name) == 0))
 	return 1;
@@ -3282,7 +3272,7 @@ value_struct_elt_for_reference (struct type *domain, int offset,
 
   for (i = TYPE_NFIELDS (t) - 1; i >= TYPE_N_BASECLASSES (t); i--)
     {
-      char *t_field_name = TYPE_FIELD_NAME (t, i);
+      const char *t_field_name = TYPE_FIELD_NAME (t, i);
 
       if (t_field_name && strcmp (t_field_name, name) == 0)
 	{
@@ -3319,7 +3309,7 @@ value_struct_elt_for_reference (struct type *domain, int offset,
 
   for (i = TYPE_NFN_FIELDS (t) - 1; i >= 0; --i)
     {
-      char *t_field_name = TYPE_FN_FIELDLIST_NAME (t, i);
+      const char *t_field_name = TYPE_FN_FIELDLIST_NAME (t, i);
       char dem_opname[64];
 
       if (strncmp (t_field_name, "__", 2) == 0 
@@ -3528,21 +3518,48 @@ value_maybe_namespace_elt (const struct type *curtype,
   return result;
 }
 
-/* Given a pointer value V, find the real (RTTI) type of the object it
-   points to.
+/* Given a pointer or a reference value V, find its real (RTTI) type.
 
    Other parameters FULL, TOP, USING_ENC as with value_rtti_type()
    and refer to the values computed for the object pointed to.  */
 
 struct type *
-value_rtti_target_type (struct value *v, int *full, 
-			int *top, int *using_enc)
+value_rtti_indirect_type (struct value *v, int *full, 
+			  int *top, int *using_enc)
 {
   struct value *target;
+  struct type *type, *real_type, *target_type;
 
-  target = value_ind (v);
+  type = value_type (v);
+  type = check_typedef (type);
+  if (TYPE_CODE (type) == TYPE_CODE_REF)
+    target = coerce_ref (v);
+  else if (TYPE_CODE (type) == TYPE_CODE_PTR)
+    target = value_ind (v);
+  else
+    return NULL;
 
-  return value_rtti_type (target, full, top, using_enc);
+  real_type = value_rtti_type (target, full, top, using_enc);
+
+  if (real_type)
+    {
+      /* Copy qualifiers to the referenced object.  */
+      target_type = value_type (target);
+      real_type = make_cv_type (TYPE_CONST (target_type),
+				TYPE_VOLATILE (target_type), real_type, NULL);
+      if (TYPE_CODE (type) == TYPE_CODE_REF)
+        real_type = lookup_reference_type (real_type);
+      else if (TYPE_CODE (type) == TYPE_CODE_PTR)
+        real_type = lookup_pointer_type (real_type);
+      else
+        internal_error (__FILE__, __LINE__, _("Unexpected value type."));
+
+      /* Copy qualifiers to the pointer/reference.  */
+      real_type = make_cv_type (TYPE_CONST (type), TYPE_VOLATILE (type),
+				real_type, NULL);
+    }
+
+  return real_type;
 }
 
 /* Given a value pointed to by ARGP, check its real run-time type, and
@@ -3579,6 +3596,13 @@ value_full_object (struct value *argp,
 
   /* If no RTTI data, or if object is already complete, do nothing.  */
   if (!real_type || real_type == value_enclosing_type (argp))
+    return argp;
+
+  /* In a destructor we might see a real type that is a superclass of
+     the object's type.  In this case it is better to leave the object
+     as-is.  */
+  if (full
+      && TYPE_LENGTH (real_type) < TYPE_LENGTH (value_enclosing_type (argp)))
     return argp;
 
   /* If we have the full object, but for some reason the enclosing

@@ -1,3 +1,11 @@
+2012-03-14  Michael Haubenwallner  <michael.haubenwallner@salomon.at>
+
+	* emul_unix.c (st_pad1, st_pad2, st_pad3): Undefine.
+
+2012-01-02  Joel Brobecker  <brobecker@adacore.com>
+
+	* dp-bit.c: Reformat copyright header.
+
 2011-02-11  Ben Golding  <ben_golding@yahoo.co.uk>
 
 	* events.c: add #include <stdlib.h> for free(). Fix PR build/13372.

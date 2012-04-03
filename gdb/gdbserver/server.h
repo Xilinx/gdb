@@ -1,6 +1,6 @@
 /* Common definitions for remote server for GDB.
-   Copyright (C) 1993, 1995, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005,
-   2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1995, 1997-2000, 2002-2012 Free Software
+   Foundation, Inc.
 
    This file is part of GDB.
 
@@ -100,6 +100,12 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap);
    code shared with gdb in common directory.  */
 #ifndef _
 #define _(String) (String)
+#endif
+
+#ifdef IN_PROCESS_AGENT
+#  define PROG "ipa"
+#else
+#  define PROG "gdbserver"
 #endif
 
 /* A type used for binary buffers.  */
@@ -236,6 +242,7 @@ extern struct inferior_list all_processes;
 extern struct inferior_list all_threads;
 extern struct inferior_list all_dlls;
 extern int dlls_changed;
+extern void clear_dlls (void);
 
 void add_inferior_to_list (struct inferior_list *list,
 			   struct inferior_list_entry *new_inferior);
@@ -272,8 +279,6 @@ void *inferior_target_data (struct thread_info *);
 void set_inferior_target_data (struct thread_info *, void *);
 void *inferior_regcache_data (struct thread_info *);
 void set_inferior_regcache_data (struct thread_info *, void *);
-void add_pid_to_list (struct inferior_list *list, unsigned long pid);
-int pull_pid_from_list (struct inferior_list *list, unsigned long pid);
 
 void loaded_dll (const char *name, CORE_ADDR base_addr);
 void unloaded_dll (const char *name, CORE_ADDR base_addr);
@@ -287,6 +292,8 @@ extern int server_waiting;
 extern int debug_threads;
 extern int debug_hw_points;
 extern int pass_signals[];
+extern int program_signals[];
+extern int program_signals_p;
 
 extern jmp_buf toplevel;
 
@@ -341,6 +348,9 @@ extern int noack_mode;
 extern int transport_is_reliable;
 
 int gdb_connected (void);
+
+#define STDIO_CONNECTION_NAME "stdio"
+int remote_connection_is_stdio (void);
 
 ptid_t read_ptid (char *buf, char **obuf);
 char *write_ptid (char *buf, ptid_t ptid);
@@ -429,7 +439,9 @@ char *pfildes (gdb_fildes_t fd);
 
 /* Functions from tracepoint.c */
 
-int in_process_agent_loaded (void);
+/* Size for a small buffer to report problems from the in-process
+   agent back to GDBserver.  */
+#define IPA_BUFSIZ 100
 
 void initialize_tracepoint (void);
 
@@ -494,9 +506,34 @@ void supply_fast_tracepoint_registers (struct regcache *regcache,
 void supply_static_tracepoint_registers (struct regcache *regcache,
 					 const unsigned char *regs,
 					 CORE_ADDR pc);
+void set_trampoline_buffer_space (CORE_ADDR begin, CORE_ADDR end,
+				  char *errmsg);
 #else
 void stop_tracing (void);
+
+int claim_trampoline_space (ULONGEST used, CORE_ADDR *trampoline);
+int have_fast_tracepoint_trampoline_buffer (char *msgbuf);
 #endif
+
+struct traceframe;
+
+/* Do memory copies for bytecodes.  */
+/* Do the recording of memory blocks for actions and bytecodes.  */
+
+int agent_mem_read (struct traceframe *tframe,
+		    unsigned char *to, CORE_ADDR from,
+		    ULONGEST len);
+
+LONGEST agent_get_trace_state_variable_value (int num);
+void agent_set_trace_state_variable_value (int num, LONGEST val);
+
+/* Record the value of a trace state variable.  */
+
+int agent_tsv_read (struct traceframe *tframe, int n);
+int agent_mem_read_string (struct traceframe *tframe,
+			   unsigned char *to,
+			   CORE_ADDR from,
+			   ULONGEST len);
 
 /* Bytecode compilation function vector.  */
 
@@ -553,6 +590,12 @@ struct emit_ops
 
 /* Returns the address of the get_raw_reg function in the IPA.  */
 CORE_ADDR get_raw_reg_func_addr (void);
+/* Returns the address of the get_trace_state_variable_value
+   function in the IPA.  */
+CORE_ADDR get_get_tsv_func_addr (void);
+/* Returns the address of the set_trace_state_variable_value
+   function in the IPA.  */
+CORE_ADDR get_set_tsv_func_addr (void);
 
 CORE_ADDR current_insn_ptr;
 int emit_error;

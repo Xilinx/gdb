@@ -1,5 +1,5 @@
 /* Cell SPU GNU/Linux multi-architecture debugging support.
-   Copyright (C) 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2009-2012 Free Software Foundation, Inc.
 
    Contributed by Ulrich Weigand <uweigand@de.ibm.com>.
 
@@ -400,6 +400,9 @@ init_spu_ops (void)
   spu_ops.to_stratum = arch_stratum;
   spu_ops.to_magic = OPS_MAGIC;
 }
+
+/* -Wmissing-prototypes */
+extern initialize_file_ftype _initialize_spu_multiarch;
 
 void
 _initialize_spu_multiarch (void)

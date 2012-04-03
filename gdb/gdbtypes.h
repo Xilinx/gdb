@@ -1,8 +1,6 @@
 /* Internal type definitions for GDB.
 
-   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1992-2004, 2006-2012 Free Software Foundation, Inc.
 
    Contributed by Cygnus Support, using pieces from other GDB modules.
 
@@ -292,6 +290,12 @@ enum type_instance_flag_value
 
 #define TYPE_DECLARED_CLASS(t) (TYPE_MAIN_TYPE (t)->flag_declared_class)
 
+/* True if this type is a "flag" enum.  A flag enum is one where all
+   the values are pairwise disjoint when "and"ed together.  This
+   affects how enum values are printed.  */
+
+#define TYPE_FLAG_ENUM(t) (TYPE_MAIN_TYPE (t)->flag_flag_enum)
+
 /* Constant type.  If this is set, the corresponding type has a
    const modifier.  */
 
@@ -402,6 +406,11 @@ struct main_type
      "struct".  */
   unsigned int flag_declared_class : 1;
 
+  /* True if this is an enum type with disjoint values.  This affects
+     how the enum is printed.  */
+
+  unsigned int flag_flag_enum : 1;
+
   /* A discriminant telling us which field of the type_specific union
      is being used for this type, if any.  */
   ENUM_BITFIELD(type_specific_kind) type_specific_field : 3;
@@ -427,9 +436,11 @@ struct main_type
   /* Name of this type, or NULL if none.
 
      This is used for printing only, except by poorly designed C++ code.
-     For looking up a name, look for a symbol in the VAR_DOMAIN.  */
+     For looking up a name, look for a symbol in the VAR_DOMAIN.
+     This is generally allocated in the objfile's obstack.
+     However coffread.c uses malloc.  */
 
-  char *name;
+  const char *name;
 
   /* Tag name for this type, or NULL if none.  This means that the
      name of the type consists of a keyword followed by the tag name.
@@ -442,7 +453,7 @@ struct main_type
      One more legitimate use is that if TYPE_FLAG_STUB is set, this is
      the name to use to look for definitions in other files.  */
 
-  char *tag_name;
+  const char *tag_name;
 
   /* Every type is now associated with a particular objfile, and the
      type is allocated on the objfile_obstack for that objfile.  One problem
@@ -547,7 +558,7 @@ struct main_type
 	 NULL for range bounds, array domains, and member function
 	 arguments.  */
 
-      char *name;
+      const char *name;
     } *fields;
 
     /* Union member used for range types.  */
@@ -695,11 +706,6 @@ struct cplus_struct_type
 
     short nfn_fields;
 
-    /* Number of methods described for this type, not including the
-       methods that it derives from.  */
-
-    short nfn_fields_total;
-
     /* Number of template arguments.  */
     unsigned short n_template_arguments;
 
@@ -757,9 +763,11 @@ struct cplus_struct_type
     struct fn_fieldlist
       {
 
-	/* The overloaded name.  */
+	/* The overloaded name.
+	   This is generally allocated in the objfile's obstack.
+	   However stabsread.c sometimes uses malloc.  */
 
-	char *name;
+	const char *name;
 
 	/* The number of methods with this name.  */
 
@@ -856,13 +864,6 @@ struct cplus_struct_type
        N_TEMPLATE_ARGUMENTS elements.  This is NULL for non-template
        classes.  */
     struct symbol **template_arguments;
-  };
-
-/* Struct used in computing virtual base list.  */
-struct vbase
-  {
-    struct type *vbasetype;	/* pointer to virtual base */
-    struct vbase *next;		/* next in chain */
   };
 
 /* Struct used to store conversion rankings.  */
@@ -1052,7 +1053,6 @@ extern void allocate_gnat_aux_type (struct type *);
 #define TYPE_VPTR_FIELDNO(thistype) TYPE_MAIN_TYPE(thistype)->vptr_fieldno
 #define TYPE_FN_FIELDS(thistype) TYPE_CPLUS_SPECIFIC(thistype)->fn_fields
 #define TYPE_NFN_FIELDS(thistype) TYPE_CPLUS_SPECIFIC(thistype)->nfn_fields
-#define TYPE_NFN_FIELDS_TOTAL(thistype) TYPE_CPLUS_SPECIFIC(thistype)->nfn_fields_total
 #define TYPE_SPECIFIC_FIELD(thistype) \
   TYPE_MAIN_TYPE(thistype)->type_specific_field
 #define	TYPE_TYPE_SPECIFIC(thistype) TYPE_MAIN_TYPE(thistype)->type_specific
@@ -1458,7 +1458,7 @@ extern void smash_to_methodptr_type (struct type *, struct type *);
 
 extern struct type *allocate_stub_method (struct type *);
 
-extern char *type_name_no_tag (const struct type *);
+extern const char *type_name_no_tag (const struct type *);
 
 extern const char *type_name_no_tag_or_error (struct type *type);
 
@@ -1486,10 +1486,10 @@ extern struct type *lookup_string_range_type (struct type *, int, int);
 extern struct type *create_set_type (struct type *, struct type *);
 
 extern struct type *lookup_unsigned_typename (const struct language_defn *,
-					      struct gdbarch *,char *);
+					      struct gdbarch *, const char *);
 
 extern struct type *lookup_signed_typename (const struct language_defn *,
-					    struct gdbarch *,char *);
+					    struct gdbarch *, const char *);
 
 extern struct type *check_typedef (struct type *);
 

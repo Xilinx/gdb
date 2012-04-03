@@ -1,7 +1,6 @@
 /* Include file for stabs debugging format support functions.
-   Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1999, 2000, 2001, 2002, 2003, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1986-1997, 1999-2003, 2007-2012 Free Software
+   Foundation, Inc.
 
    This file is part of GDB.
 
@@ -163,7 +162,7 @@ struct stab_section_list
    they are only used by some stabs readers.  */
 
 extern struct partial_symtab *end_psymtab (struct partial_symtab *pst,
-					   char **include_list,
+					   const char **include_list,
 					   int num_includes,
 					   int capping_symbol_offset,
 					   CORE_ADDR capping_text,

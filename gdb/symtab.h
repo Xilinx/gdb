@@ -1,8 +1,7 @@
 /* Symbol table definitions for GDB.
 
-   Copyright (C) 1986, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
-   1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009, 2010,
-   2011 Free Software Foundation, Inc.
+   Copyright (C) 1986, 1988-2004, 2007-2012 Free Software Foundation,
+   Inc.
 
    This file is part of GDB.
 
@@ -21,6 +20,8 @@
 
 #if !defined (SYMTAB_H)
 #define SYMTAB_H 1
+
+#include "vec.h"
 
 /* Opaque declarations.  */
 struct ui_file;
@@ -80,7 +81,7 @@ struct language_defn;
 
 struct cplus_specific
 {
-  char *demangled_name;
+  const char *demangled_name;
 };
 
 /* Define a structure for the information that is common to all symbol types,
@@ -98,7 +99,7 @@ struct general_symbol_info
      the mangled name and demangled name, this is the mangled
      name.  */
 
-  char *name;
+  const char *name;
 
   /* Value of the symbol.  Which member of this union to use, and what
      it means, depends on what kind of symbol this is and its
@@ -134,7 +135,7 @@ struct general_symbol_info
        currently used by Ada, Java, and Objective C.  */
     struct mangled_lang
     {
-      char *demangled_name;
+      const char *demangled_name;
     }
     mangled_lang;
 
@@ -165,7 +166,8 @@ struct general_symbol_info
 extern void symbol_set_demangled_name (struct general_symbol_info *, char *,
                                        struct objfile *);
 
-extern char *symbol_get_demangled_name (const struct general_symbol_info *);
+extern const char *symbol_get_demangled_name
+  (const struct general_symbol_info *);
 
 extern CORE_ADDR symbol_overlayed_address (CORE_ADDR, struct obj_section *);
 
@@ -224,7 +226,8 @@ extern void symbol_set_names (struct general_symbol_info *symbol,
 
 #define SYMBOL_NATURAL_NAME(symbol) \
   (symbol_natural_name (&(symbol)->ginfo))
-extern char *symbol_natural_name (const struct general_symbol_info *symbol);
+extern const char *symbol_natural_name
+  (const struct general_symbol_info *symbol);
 
 /* Return SYMBOL's name from the point of view of the linker.  In
    languages like C++ where symbols may be mangled for ease of
@@ -237,33 +240,22 @@ extern char *symbol_natural_name (const struct general_symbol_info *symbol);
    that symbol.  If no demangled name exists, return NULL.  */
 #define SYMBOL_DEMANGLED_NAME(symbol) \
   (symbol_demangled_name (&(symbol)->ginfo))
-extern char *symbol_demangled_name (const struct general_symbol_info *symbol);
+extern const char *symbol_demangled_name
+  (const struct general_symbol_info *symbol);
 
 /* Macro that returns a version of the name of a symbol that is
    suitable for output.  In C++ this is the "demangled" form of the
    name if demangle is on and the "mangled" form of the name if
    demangle is off.  In other languages this is just the symbol name.
    The result should never be NULL.  Don't use this for internal
-   purposes (e.g. storing in a hashtable): it's only suitable for
-   output.  */
+   purposes (e.g. storing in a hashtable): it's only suitable for output.
+
+   N.B. symbol may be anything with a ginfo member,
+   e.g., struct symbol or struct minimal_symbol.  */
 
 #define SYMBOL_PRINT_NAME(symbol)					\
   (demangle ? SYMBOL_NATURAL_NAME (symbol) : SYMBOL_LINKAGE_NAME (symbol))
-
-/* Macro that tests a symbol for a match against a specified name string.
-   First test the unencoded name, then looks for and test a C++ encoded
-   name if it exists.  Note that whitespace is ignored while attempting to
-   match a C++ encoded name, so that "foo::bar(int,long)" is the same as
-   "foo :: bar (int, long)".
-   Evaluates to zero if the match fails, or nonzero if it succeeds.  */
-
-/* Macro that tests a symbol for a match against a specified name
-   string.  It tests against SYMBOL_NATURAL_NAME, and it ignores
-   whitespace and trailing parentheses.  (See strcmp_iw for details
-   about its behavior.)  */
-
-#define SYMBOL_MATCHES_NATURAL_NAME(symbol, name)			\
-  (strcmp_iw (SYMBOL_NATURAL_NAME (symbol), (name)) == 0)
+extern int demangle;
 
 /* Macro that returns the name to be used when sorting and searching symbols.
    In  C++, Chill, and Java, we search for the demangled form of a name,
@@ -272,10 +264,11 @@ extern char *symbol_demangled_name (const struct general_symbol_info *symbol);
    returns the same value (same pointer) as SYMBOL_LINKAGE_NAME.  */
 #define SYMBOL_SEARCH_NAME(symbol)					 \
    (symbol_search_name (&(symbol)->ginfo))
-extern char *symbol_search_name (const struct general_symbol_info *);
+extern const char *symbol_search_name (const struct general_symbol_info *);
 
-/* Analogous to SYMBOL_MATCHES_NATURAL_NAME, but uses the search
-   name.  */
+/* Return non-zero if NAME matches the "search" name of SYMBOL.
+   Whitespace and trailing parentheses are ignored.
+   See strcmp_iw for details about its behavior.  */
 #define SYMBOL_MATCHES_SEARCH_NAME(symbol, name)			\
   (strcmp_iw (SYMBOL_SEARCH_NAME (symbol), (name)) == 0)
 
@@ -342,7 +335,7 @@ struct minimal_symbol
   unsigned long size;
 
   /* Which source file is this symbol in?  Only relevant for mst_file_*.  */
-  char *filename;
+  const char *filename;
 
   /* Classification type for this minimal symbol.  */
 
@@ -367,6 +360,8 @@ struct minimal_symbol
 #define MSYMBOL_TARGET_FLAG_2(msymbol)  (msymbol)->target_flag_2
 #define MSYMBOL_SIZE(msymbol)		(msymbol)->size
 #define MSYMBOL_TYPE(msymbol)		(msymbol)->type
+
+#include "minsyms.h"
 
 
 
@@ -866,10 +861,6 @@ struct symtab
 
 extern int currently_reading_symtab;
 
-/* From utils.c.  */
-extern int demangle;
-extern int asm_demangle;
-
 /* symtab.c lookup functions */
 
 extern const char multiple_symbols_ask[];
@@ -964,14 +955,14 @@ extern struct symbol *find_pc_function (CORE_ADDR);
 
 extern struct symbol *find_pc_sect_function (CORE_ADDR, struct obj_section *);
 
-extern int find_pc_partial_function_gnu_ifunc (CORE_ADDR pc, char **name,
+extern int find_pc_partial_function_gnu_ifunc (CORE_ADDR pc, const char **name,
 					       CORE_ADDR *address,
 					       CORE_ADDR *endaddr,
 					       int *is_gnu_ifunc_p);
 
 /* lookup function from address, return name, start addr and end addr.  */
 
-extern int find_pc_partial_function (CORE_ADDR, char **, CORE_ADDR *,
+extern int find_pc_partial_function (CORE_ADDR, const char **, CORE_ADDR *,
 				     CORE_ADDR *);
 
 extern void clear_pc_function_cache (void);
@@ -1007,56 +998,6 @@ extern struct type *basic_lookup_transparent_type (const char *);
 #define GCC2_COMPILED_FLAG_SYMBOL "gcc2_compiled."
 #endif
 
-/* Functions for dealing with the minimal symbol table, really a misc
-   address<->symbol mapping for things we don't have debug symbols for.  */
-
-extern void prim_record_minimal_symbol (const char *, CORE_ADDR,
-					enum minimal_symbol_type,
-					struct objfile *);
-
-extern struct minimal_symbol *prim_record_minimal_symbol_full
-  (const char *, int, int, CORE_ADDR,
-   enum minimal_symbol_type,
-   int section, asection * bfd_section, struct objfile *);
-
-extern struct minimal_symbol *prim_record_minimal_symbol_and_info
-  (const char *, CORE_ADDR,
-   enum minimal_symbol_type,
-   int section, asection * bfd_section, struct objfile *);
-
-extern unsigned int msymbol_hash_iw (const char *);
-
-extern unsigned int msymbol_hash (const char *);
-
-/* Compute the next hash value from previous HASH and the character C.  This
-   is only a GDB in-memory computed value with no external files compatibility
-   requirements.  */
-
-#define SYMBOL_HASH_NEXT(hash, c) \
-  ((hash) * 67 + tolower ((unsigned char) (c)) - 113)
-
-extern struct objfile * msymbol_objfile (struct minimal_symbol *sym);
-
-extern void
-add_minsym_to_hash_table (struct minimal_symbol *sym,
-			  struct minimal_symbol **table);
-
-extern struct minimal_symbol *lookup_minimal_symbol (const char *,
-						     const char *,
-						     struct objfile *);
-
-extern struct minimal_symbol *lookup_minimal_symbol_text (const char *,
-							  struct objfile *);
-
-struct minimal_symbol *lookup_minimal_symbol_solib_trampoline (const char *,
-							       struct objfile
-							       *);
-
-extern struct minimal_symbol *lookup_minimal_symbol_by_pc_name
-				(CORE_ADDR, const char *, struct objfile *);
-
-extern struct minimal_symbol *lookup_minimal_symbol_by_pc (CORE_ADDR);
-
 extern int in_gnu_ifunc_stub (CORE_ADDR pc);
 
 /* Functions for resolving STT_GNU_IFUNC symbols which are implemented only
@@ -1086,27 +1027,7 @@ struct gnu_ifunc_fns
 
 extern const struct gnu_ifunc_fns *gnu_ifunc_fns_p;
 
-extern struct minimal_symbol *
-    lookup_minimal_symbol_and_objfile (const char *,
-				       struct objfile **);
-
-extern struct minimal_symbol
-  *lookup_minimal_symbol_by_pc_section (CORE_ADDR, struct obj_section *);
-
-extern struct minimal_symbol
-  *lookup_solib_trampoline_symbol_by_pc (CORE_ADDR);
-
 extern CORE_ADDR find_solib_trampoline_target (struct frame_info *, CORE_ADDR);
-
-extern void init_minimal_symbol_collection (void);
-
-extern struct cleanup *make_cleanup_discard_minimal_symbols (void);
-
-extern void install_minimal_symbols (struct objfile *);
-
-/* Sort all the minimal symbols in OBJFILE.  */
-
-extern void msymbols_sort (struct objfile *objfile);
 
 struct symtab_and_line
 {
@@ -1296,8 +1217,6 @@ struct symbol *lookup_global_symbol_from_objfile (const struct objfile *,
 						  const char *name,
 						  const domain_enum domain);
 
-extern struct symtabs_and_lines expand_line_sal (struct symtab_and_line sal);
-
 /* Return 1 if the supplied producer string matches the ARM RealView
    compiler (armcc).  */
 int producer_is_realview (const char *producer);
@@ -1306,5 +1225,47 @@ void fixup_section (struct general_symbol_info *ginfo,
 		    CORE_ADDR addr, struct objfile *objfile);
 
 struct objfile *lookup_objfile_from_block (const struct block *block);
+
+extern int basenames_may_differ;
+
+int compare_filenames_for_search (const char *filename,
+				  const char *search_name,
+				  int search_len);
+
+int iterate_over_some_symtabs (const char *name,
+			       const char *full_path,
+			       const char *real_path,
+			       int (*callback) (struct symtab *symtab,
+						void *data),
+			       void *data,
+			       struct symtab *first,
+			       struct symtab *after_last);
+
+void iterate_over_symtabs (const char *name,
+			   int (*callback) (struct symtab *symtab,
+					    void *data),
+			   void *data);
+
+DEF_VEC_I (CORE_ADDR);
+
+VEC (CORE_ADDR) *find_pcs_for_symtab_line (struct symtab *symtab, int line,
+					   struct linetable_entry **best_entry);
+
+/* Callback for LA_ITERATE_OVER_SYMBOLS.  The callback will be called
+   once per matching symbol SYM, with DATA being the argument of the
+   same name that was passed to LA_ITERATE_OVER_SYMBOLS.  The callback
+   should return nonzero to indicate that LA_ITERATE_OVER_SYMBOLS
+   should continue iterating, or zero to indicate that the iteration
+   should end.  */
+
+typedef int (symbol_found_callback_ftype) (struct symbol *sym, void *data);
+
+void iterate_over_symbols (const struct block *block, const char *name,
+			   const domain_enum domain,
+			   symbol_found_callback_ftype *callback,
+			   void *data);
+
+struct cleanup *demangle_for_lookup (const char *name, enum language lang,
+				     const char **result_name);
 
 #endif /* !defined(SYMTAB_H) */

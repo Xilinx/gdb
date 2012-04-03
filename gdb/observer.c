@@ -1,7 +1,6 @@
 /* GDB Notifications to Observers.
 
-   Copyright (C) 2003, 2004, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2004, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -181,6 +180,11 @@ generic_observer_notify (struct observer_list *subject, const void *args)
 int observer_test_first_observer = 0;
 int observer_test_second_observer = 0;
 int observer_test_third_observer = 0;
+
+/* Provide prototypes to silence -Wmissing-prototypes.  */
+extern void observer_test_first_notification_function (int arg);
+extern void observer_test_second_notification_function (int arg);
+extern void observer_test_third_notification_function (int arg);
 
 void
 observer_test_first_notification_function (int arg)

@@ -1,6 +1,4 @@
-# Copyright (C) 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-# 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-# Free Software Foundation, Inc.
+# Copyright (C) 1989-2012 Free Software Foundation, Inc.
 
 # This file is part of GDB.
 
@@ -168,10 +166,6 @@ INTL = @LIBINTL@
 INTL_DEPS = @LIBINTL_DEP@
 INTL_CFLAGS = @INCINTL@
 
-# Did the user give us a --with-sysroot option?
-TARGET_SYSTEM_ROOT = @TARGET_SYSTEM_ROOT@
-TARGET_SYSTEM_ROOT_DEFINE = @TARGET_SYSTEM_ROOT_DEFINE@
-
 # Did the user give us a --with-gdb-datadir option?
 GDB_DATADIR = @GDB_DATADIR@
 
@@ -224,20 +218,16 @@ SUBDIR_MI_CFLAGS=
 # TUI sub directory definitions
 #
 
-# Name of the TUI program
-TUI=gdbtui
-
 SUBDIR_TUI_OBS = \
 	tui-command.o \
 	tui-data.o \
 	tui-disasm.o \
-	tui-file.o tui.o \
+	tui-file.o \
 	tui-hooks.o \
 	tui-interp.o \
 	tui-io.o \
 	tui-layout.o \
 	tui-out.o \
-	tui-main.o \
 	tui-regs.o \
 	tui-source.o \
 	tui-stack.o \
@@ -256,7 +246,6 @@ SUBDIR_TUI_SRCS = \
 	tui/tui-interp.c \
 	tui/tui-io.c \
 	tui/tui-layout.c \
-	tui/tui-main.c \
 	tui/tui-out.c \
 	tui/tui-regs.c \
 	tui/tui-source.c \
@@ -287,6 +276,7 @@ SUBDIR_PYTHON_OBS = \
 	py-evtregistry.o \
 	py-evts.o \
 	py-exitedevent.o \
+	py-finishbreakpoint.o \
 	py-frame.o \
 	py-function.o \
 	py-inferior.o \
@@ -318,6 +308,7 @@ SUBDIR_PYTHON_SRCS = \
 	python/py-evtregistry.c \
 	python/py-evts.c \
 	python/py-exitedevent.c \
+	python/py-finishbreakpoint.c \
 	python/py-frame.c \
 	python/py-function.c \
 	python/py-inferior.c \
@@ -495,7 +486,8 @@ RUNTESTFLAGS=
 
 # XML files to build in to GDB.
 XMLFILES = $(srcdir)/features/gdb-target.dtd $(srcdir)/features/xinclude.dtd \
-	$(srcdir)/features/library-list.dtd $(srcdir)/features/osdata.dtd \
+	$(srcdir)/features/library-list.dtd \
+	$(srcdir)/features/library-list-svr4.dtd $(srcdir)/features/osdata.dtd \
 	$(srcdir)/features/threads.dtd $(srcdir)/features/traceframe-info.dtd
 
 # This is ser-unix.o for any system which supports a v7/BSD/SYSV/POSIX
@@ -524,7 +516,7 @@ ALL_64_TARGET_OBS = \
 	amd64fbsd-tdep.o amd64-darwin-tdep.o amd64-dicos-tdep.o \
 	amd64-linux-tdep.o amd64nbsd-tdep.o \
 	amd64obsd-tdep.o amd64-sol2-tdep.o amd64-tdep.o amd64-windows-tdep.o \
-	ia64-hpux-tdep.o ia64-linux-tdep.o ia64-tdep.o \
+	ia64-hpux-tdep.o ia64-linux-tdep.o ia64-vms-tdep.o ia64-tdep.o \
 	mips64obsd-tdep.o \
 	sparc64fbsd-tdep.o sparc64-linux-tdep.o sparc64nbsd-tdep.o \
 	sparc64obsd-tdep.o sparc64-sol2-tdep.o sparc64-tdep.o
@@ -563,7 +555,9 @@ ALL_TARGET_OBS = \
 	mt-tdep.o \
 	nto-tdep.o \
 	ppc-linux-tdep.o ppcnbsd-tdep.o ppcobsd-tdep.o ppc-sysv-tdep.o \
+	rl78-tdep.o \
 	rs6000-aix-tdep.o rs6000-tdep.o \
+	rx-tdep.o \
 	s390-tdep.o \
 	score-tdep.o \
 	sh64-tdep.o sh-linux-tdep.o shnbsd-tdep.o sh-tdep.o \
@@ -579,13 +573,12 @@ ALL_TARGET_OBS = \
 	bsd-uthread.o \
 	nbsd-tdep.o obsd-tdep.o \
 	sol2-tdep.o \
-	solib-frv.o solib-irix.o solib-svr4.o solib-target.o \
+	solib-frv.o solib-irix.o solib-svr4.o \
 	solib-som.o solib-pa64.o solib-darwin.o solib-dsbt.o \
 	dbug-rom.o dink32-rom.o ppcbug-rom.o m32r-rom.o dsrec.o monitor.o \
 	remote-m32r-sdi.o remote-mips.o \
 	xcoffread.o \
 	symfile-mem.o \
-	corelow.o \
 	windows-tdep.o \
 	linux-record.o
 
@@ -689,14 +682,16 @@ TARGET_FLAGS_TO_PASS = \
 # SFILES is used in building the distribution archive.
 
 SFILES = ada-exp.y ada-lang.c ada-typeprint.c ada-valprint.c ada-tasks.c \
+	ada-varobj.c \
 	addrmap.c \
 	auxv.c ax-general.c ax-gdb.c \
+	agent.c \
 	bcache.c \
 	bfd-target.c \
 	block.c blockframe.c breakpoint.c buildsym.c \
 	c-exp.y c-lang.c c-typeprint.c c-valprint.c \
 	charset.c cli-out.c coffread.c coff-pe-read.c \
-	complaints.c completer.c continuations.c corefile.c \
+	complaints.c completer.c continuations.c corefile.c corelow.c \
 	cp-abi.c cp-support.c cp-namespace.c cp-valprint.c \
 	d-lang.c d-valprint.c \
 	cp-name-parser.y \
@@ -739,7 +734,6 @@ SFILES = ada-exp.y ada-lang.c ada-typeprint.c ada-valprint.c ada-tasks.c \
 	ui-out.c utils.c ui-file.h ui-file.c \
 	user-regs.c \
 	valarith.c valops.c valprint.c value.c varobj.c vec.c \
-	wrapper.c \
 	xml-tdesc.c xml-support.c \
 	inferior.c gdb_usleep.c \
 	record.c gcore.c \
@@ -748,7 +742,7 @@ SFILES = ada-exp.y ada-lang.c ada-typeprint.c ada-valprint.c ada-tasks.c \
 	annotate.c common/signals.c copying.c dfp.c gdb.c inf-child.c \
 	regset.c sol-thread.c windows-termcap.c \
 	common/common-utils.c common/xml-utils.c \
-	common/ptid.c common/buffer.c
+	common/ptid.c common/buffer.c gdb-dlfcn.c common/agent.c
 
 LINTFILES = $(SFILES) $(YYFILES) $(CONFIG_SRCS) init.c
 
@@ -771,9 +765,9 @@ common/gdb_signals.h common/gdb_thread_db.h common/i386-xstate.h \
 common/linux-ptrace.h \
 proc-utils.h arm-tdep.h ax-gdb.h ppcnbsd-tdep.h	\
 cli-out.h gdb_expat.h breakpoint.h infcall.h obsd-tdep.h \
-exec.h m32r-tdep.h osabi.h gdbcore.h solib-som.h \
+exec.h m32r-tdep.h osabi.h gdbcore.h solib-som.h amd64bsd-nat.h \
 i386bsd-nat.h xml-support.h xml-tdesc.h alphabsd-tdep.h gdb_obstack.h \
-ia64-tdep.h ada-lang.h varobj.h frv-tdep.h nto-tdep.h serial.h \
+ia64-tdep.h ada-lang.h ada-varobj.h varobj.h frv-tdep.h nto-tdep.h serial.h \
 c-lang.h d-lang.h frame.h event-loop.h block.h cli/cli-setshow.h	\
 cli/cli-decode.h cli/cli-cmds.h cli/cli-dump.h cli/cli-utils.h \
 cli/cli-script.h macrotab.h symtab.h version.h gnulib/wchar.in.h \
@@ -787,14 +781,14 @@ ser-unix.h inf-ptrace.h terminal.h ui-out.h frame-base.h \
 f-lang.h dwarf2loc.h value.h sparc-tdep.h defs.h target-descriptions.h \
 objfiles.h vec.h disasm.h mips-tdep.h ser-base.h \
 gdb_curses.h bfd-target.h memattr.h inferior.h ax.h dummy-frame.h \
-inflow.h fbsd-nat.h libunwind-frame.h completer.h inf-ttrace.h \
+inflow.h fbsd-nat.h ia64-libunwind-tdep.h completer.h inf-ttrace.h \
 solib-target.h gdb_vfork.h alpha-tdep.h dwarf2expr.h \
 m2-lang.h stack.h charset.h addrmap.h command.h solist.h source.h \
 target.h prologue-value.h cp-abi.h tui/tui-hooks.h tui/tui.h \
 tui/tui-file.h tui/tui-command.h tui/tui-disasm.h tui/tui-wingeneral.h \
 tui/tui-windata.h tui/tui-data.h tui/tui-win.h tui/tui-stack.h \
 tui/tui-winsource.h tui/tui-regs.h tui/tui-io.h tui/tui-layout.h \
-tui/tui-source.h xcoffsolib.h sol2-tdep.h gregset.h sh-tdep.h \
+tui/tui-source.h xcoffsolib.h sol2-tdep.h gregset.h sh-tdep.h sh64-tdep.h \
 expression.h score-tdep.h gdb_select.h ser-tcp.h buildsym.h valprint.h \
 call-cmds.h typeprint.h mi/mi-getopt.h mi/mi-parse.h mi/mi-console.h \
 mi/mi-out.h mi/mi-main.h mi/mi-common.h mi/mi-cmds.h linux-nat.h \
@@ -807,7 +801,7 @@ coff-pe-read.h parser-defs.h gdb_ptrace.h mips-linux-tdep.h \
 m68k-tdep.h spu-tdep.h jv-lang.h environ.h solib-irix.h amd64-tdep.h \
 doublest.h regset.h hppa-tdep.h ppc-linux-tdep.h rs6000-tdep.h \
 common/gdb_locale.h common/gdb_dirent.h arch-utils.h trad-frame.h gnu-nat.h \
-language.h nbsd-tdep.h wrapper.h solib-svr4.h \
+language.h nbsd-tdep.h solib-svr4.h \
 macroexp.h ui-file.h regcache.h gdb_string.h tracepoint.h i386-tdep.h \
 inf-child.h p-lang.h event-top.h gdbtypes.h user-regs.h \
 regformats/regdef.h config/alpha/nm-osf3.h  config/i386/nm-i386gnu.h \
@@ -829,11 +823,11 @@ solib-darwin.h solib-ia64-hpux.h solib-spu.h windows-nat.h xcoffread.h \
 gnulib/extra/arg-nonnull.h gnulib/extra/c++defs.h gnulib/extra/warn-on-use.h \
 gnulib/stddef.in.h inline-frame.h skip.h \
 common/common-utils.h common/xml-utils.h common/buffer.h common/ptid.h \
-common/linux-osdata.h
+common/linux-osdata.h gdb-dlfcn.h
 
 # Header files that already have srcdir in them, or which are in objdir.
 
-HFILES_WITH_SRCDIR = ../bfd/bfd.h
+HFILES_WITH_SRCDIR = ../bfd/bfd.h jit-reader.h
 
 
 # GDB "info" files, which should be included in their entirety
@@ -862,9 +856,10 @@ COMMON_OBS = $(DEPFILES) $(CONFIG_OBS) $(YYOBJ) \
 	annotate.o \
 	addrmap.o \
 	auxv.o \
+	agent.o \
 	bfd-target.o \
 	blockframe.o breakpoint.o findvar.o regcache.o \
-	charset.o continuations.o disasm.o dummy-frame.o dfp.o \
+	charset.o continuations.o corelow.o disasm.o dummy-frame.o dfp.o \
 	source.o value.o eval.o valops.o valarith.o valprint.o printcmd.o \
 	block.o symtab.o psymtab.o symfile.o symmisc.o linespec.o dictionary.o \
 	infcall.o \
@@ -889,9 +884,9 @@ COMMON_OBS = $(DEPFILES) $(CONFIG_OBS) $(YYOBJ) \
 	dwarf2read.o mipsread.o stabsread.o corefile.o \
 	dwarf2expr.o dwarf2loc.o dwarf2-frame.o dwarf2-frame-tailcall.o \
 	ada-lang.o c-lang.o d-lang.o f-lang.o objc-lang.o \
-	ada-tasks.o \
+	ada-tasks.o ada-varobj.o \
 	ui-out.o cli-out.o \
-	varobj.o vec.o wrapper.o \
+	varobj.o vec.o \
 	jv-lang.o jv-valprint.o jv-typeprint.o \
 	m2-lang.o opencl-lang.o p-lang.o p-typeprint.o p-valprint.o \
 	sentinel-frame.o \
@@ -916,7 +911,7 @@ COMMON_OBS = $(DEPFILES) $(CONFIG_OBS) $(YYOBJ) \
 	target-descriptions.o target-memory.o xml-tdesc.o xml-builtin.o \
 	inferior.o osdata.o gdb_usleep.o record.o gcore.o \
 	jit.o progspace.o skip.o \
-	common-utils.o buffer.o ptid.o
+	common-utils.o buffer.o ptid.o gdb-dlfcn.o common-agent.o
 
 TSOBS = inflow.o
 
@@ -950,7 +945,7 @@ DISTSTUFF = $(YYFILES)
 
 
 # All generated files which can be included by another file.
-generated_files = config.h observer.h observer.inc ada-lex.c \
+generated_files = config.h observer.h observer.inc ada-lex.c jit-reader.h \
 	$(GNULIB_H) $(NAT_GENERATED_FILES)
 
 .c.o:
@@ -959,8 +954,6 @@ generated_files = config.h observer.h observer.inc ada-lex.c \
 
 all: gdb$(EXEEXT) $(CONFIG_ALL)
 	@$(MAKE) $(FLAGS_TO_PASS) DO=all "DODIRS=`echo $(SUBDIRS) | sed 's/testsuite//'`" subdir_do
-.PHONY: all-tui
-all-tui: $(TUI)$(EXEEXT)
 
 installcheck:
 
@@ -1035,24 +1028,10 @@ install-only: $(CONFIG_INSTALL)
 		$(SHELL) $(srcdir)/../mkinstalldirs \
 			$(DESTDIR)$(man1dir) ; \
 		$(INSTALL_DATA) $(srcdir)/gdb.1 \
-			$(DESTDIR)$(man1dir)/$$transformed_name.1
+			$(DESTDIR)$(man1dir)/$$transformed_name.1 ; \
+		$(SHELL) $(srcdir)/../mkinstalldirs $(DESTDIR)$(includedir)/gdb ; \
+		$(INSTALL_DATA) jit-reader.h $(DESTDIR)$(includedir)/gdb/jit-reader.h
 	@$(MAKE) DO=install "DODIRS=$(SUBDIRS)" $(FLAGS_TO_PASS) subdir_do
-.PHONY: install-tui
-install-tui:
-	transformed_name=`t='$(program_transform_name)'; \
-			  echo $(TUI) | sed -e "$$t"` ; \
-		if test "x$$transformed_name" = x; then \
-		  transformed_name=$(TUI) ; \
-		else \
-		  true ; \
-		fi ; \
-		$(SHELL) $(srcdir)/../mkinstalldirs $(DESTDIR)$(bindir) ; \
-		$(INSTALL_PROGRAM) $(TUI)$(EXEEXT) \
-			$(DESTDIR)$(bindir)/$$transformed_name$(EXEEXT) ; \
-		$(SHELL) $(srcdir)/../mkinstalldirs \
-			$(DESTDIR)$(man1dir) ; \
-		$(INSTALL_DATA) $(srcdir)/gdb.1 \
-			$(DESTDIR)$(man1dir)/$$transformed_name.1
 
 install-python:
 	$(SHELL) $(srcdir)/../mkinstalldirs $(DESTDIR)$(GDB_DATADIR)/python/gdb
@@ -1068,17 +1047,6 @@ uninstall: force $(CONFIG_UNINSTALL)
 		rm -f $(DESTDIR)$(bindir)/$$transformed_name$(EXEEXT) \
 		      $(DESTDIR)$(man1dir)/$$transformed_name.1
 	@$(MAKE) DO=uninstall "DODIRS=$(SUBDIRS)" $(FLAGS_TO_PASS) subdir_do
-.PHONY: uninstall-tui
-uninstall-tui:
-	transformed_name=`t='$(program_transform_name)'; \
-			  echo $(TUI) | sed -e $$t` ; \
-		if test "x$$transformed_name" = x; then \
-		  transformed_name=$(TUI) ; \
-		else \
-		  true ; \
-		fi ; \
-		rm -f $(DESTDIR)$(bindir)/$$transformed_name$(EXEEXT) \
-		      $(DESTDIR)$(man1dir)/$$transformed_name.1
 
 # The C++ name parser can be built standalone for testing.
 test-cp-name-parser.o: cp-name-parser.c
@@ -1175,17 +1143,21 @@ init.c: $(INIT_FILES)
 
 .PRECIOUS: init.c
 
+# Create a library of the gdb object files and build GDB by linking
+# against that.
+#
+# init.o is very important.  It pulls in the rest of GDB.
+LIBGDB_OBS= $(COMMON_OBS) $(TSOBS) $(ADD_FILES) init.o
+libgdb.a: $(LIBGDB_OBS)
+	-rm -f libgdb.a
+	$(AR) q libgdb.a $(LIBGDB_OBS)
+	$(RANLIB) libgdb.a
+
 # Removing the old gdb first works better if it is running, at least on SunOS.
-gdb$(EXEEXT): gdb.o libgdb.a $(ADD_DEPS) $(CDEPS) $(TDEPLIBS)
+gdb$(EXEEXT): gdb.o $(LIBGDB_OBS) $(ADD_DEPS) $(CDEPS) $(TDEPLIBS)
 	rm -f gdb$(EXEEXT)
 	$(CC_LD) $(INTERNAL_LDFLAGS) $(WIN32LDAPP) \
-		-o gdb$(EXEEXT) gdb.o libgdb.a \
-		$(TDEPLIBS) $(TUI_LIBRARY) $(CLIBS) $(LOADLIBES)
-
-$(TUI)$(EXEEXT): tui-main.o libgdb.a $(ADD_DEPS) $(CDEPS) $(TDEPLIBS)
-	rm -f $(TUI)$(EXEEXT)
-	$(CC_LD) $(INTERNAL_LDFLAGS) $(WIN32LDAPP) \
-		-o $(TUI)$(EXEEXT) tui-main.o libgdb.a \
+		-o gdb$(EXEEXT) gdb.o $(LIBGDB_OBS) \
 		$(TDEPLIBS) $(TUI_LIBRARY) $(CLIBS) $(LOADLIBES)
 
 # Convenience rule to handle recursion.
@@ -1198,16 +1170,6 @@ all-lib: gnulib/Makefile
 .PHONY: all-data-directory
 all-data-directory: data-directory/Makefile
 	@$(MAKE) $(FLAGS_TO_PASS) DO=all DODIRS=data-directory subdir_do
-
-# Create a library of the gdb object files and build GDB by linking
-# against that.
-#
-# init.o is very important.  It pulls in the rest of GDB.
-LIBGDB_OBS= $(COMMON_OBS) $(TSOBS) $(ADD_FILES) init.o
-libgdb.a: $(LIBGDB_OBS)
-	-rm -f libgdb.a
-	$(AR) q libgdb.a $(LIBGDB_OBS)
-	$(RANLIB) libgdb.a
 
 # This is useful when debugging GDB, because some Unix's don't let you run GDB
 # on itself without copying the executable.  So "make gdb1" will make
@@ -1248,10 +1210,6 @@ clean mostlyclean: $(CONFIG_CLEAN)
 	rm -f xml-builtin.c stamp-xml
 	rm -f $(DEPDIR)/*
 
-.PHONY: clean-tui
-clean-tui:
-	rm -f $(TUI)$(EXEEXT)
-
 # This used to depend on c-exp.c m2-exp.c TAGS
 # I believe this is wrong; the makefile standards for distclean just
 # describe removing files; the only sort of "re-create a distribution"
@@ -1263,7 +1221,7 @@ distclean: clean
 	rm -f gdbserver/config.status gdbserver/config.log
 	rm -f gdbserver/tm.h gdbserver/xm.h gdbserver/nm.h
 	rm -f gdbserver/Makefile gdbserver/config.cache
-	rm -f nm.h config.status config.h stamp-h .gdbinit
+	rm -f nm.h config.status config.h stamp-h .gdbinit jit-reader.h
 	rm -f y.output yacc.acts yacc.tmp y.tab.h
 	rm -f config.log config.cache
 	rm -f Makefile
@@ -1328,6 +1286,9 @@ data-directory/Makefile: data-directory/Makefile.in config.status @frags@
 	  CONFIG_HEADERS= \
 	  CONFIG_LINKS= \
 	  $(SHELL) config.status
+
+jit-reader.h: $(srcdir)/jit-reader.in
+	$(SHELL) config.status $@
 
 config.h: stamp-h ; @true
 stamp-h: $(srcdir)/config.in config.status
@@ -1477,7 +1438,7 @@ ALLDEPFILES = \
 	avr-tdep.c \
 	bfin-linux-tdep.c bfin-tdep.c \
 	bsd-uthread.c bsd-kvm.c \
-	core-regset.c corelow.c \
+	core-regset.c \
 	dcache.c dicos-tdep.c darwin-nat.c \
 	exec.c \
 	fbsd-nat.c \
@@ -1500,10 +1461,10 @@ ALLDEPFILES = \
 	i386-sol2-nat.c i386-sol2-tdep.c \
 	i386gnu-nat.c i386gnu-tdep.c \
 	ia64-hpux-nat.c ia64-hpux-tdep.c \
-	ia64-linux-nat.c ia64-linux-tdep.c ia64-tdep.c \
+	ia64-linux-nat.c ia64-linux-tdep.c ia64-tdep.c ia64-vms-tdep.c \
 	inf-ptrace.c inf-ttrace.c \
 	irix5-nat.c \
-	libunwind-frame.c \
+	ia64-libunwind-tdep.c \
 	linux-fork.c \
 	linux-tdep.c \
 	linux-record.c \
@@ -1533,7 +1494,9 @@ ALLDEPFILES = \
 	remote-m32r-sdi.c remote-mips.c \
 	remote-sim.c \
 	dcache.c \
+	rl78-tdep.c \
 	rs6000-nat.c rs6000-tdep.c \
+	rx-tdep.c \
 	s390-tdep.c s390-nat.c \
 	score-tdep.c \
 	ser-go32.c ser-pipe.c ser-tcp.c ser-mingw.c \
@@ -1557,11 +1520,6 @@ ALLDEPFILES = \
 
 # Some files need explicit build rules (due to -Werror problems) or due
 # to sub-directory fun 'n' games.
-
-# main.o needs an explicit build rule to get TARGET_SYSTEM_ROOT and BINDIR.
-main.o: $(srcdir)/main.c
-	$(COMPILE) $(TARGET_SYSTEM_ROOT_DEFINE) -DBINDIR=\"$(bindir)\" $(srcdir)/main.c
-	$(POSTCOMPILE)
 
 # FIXME: cagney/2003-08-10: "monitor.c" gets -Wformat-nonliteral
 # errors.  It turns out that that is the least of monitor.c's
@@ -1972,6 +1930,14 @@ linux-procfs.o: $(srcdir)/common/linux-procfs.c
 	$(COMPILE) $(srcdir)/common/linux-procfs.c
 	$(POSTCOMPILE)
 
+linux-ptrace.o: $(srcdir)/common/linux-ptrace.c
+	$(COMPILE) $(srcdir)/common/linux-ptrace.c
+	$(POSTCOMPILE)
+
+common-agent.o: $(srcdir)/common/agent.c
+	$(COMPILE) $(srcdir)/common/agent.c
+	$(POSTCOMPILE)
+
 #
 # gdb/tui/ dependencies
 #
@@ -2012,10 +1978,6 @@ tui-io.o: $(srcdir)/tui/tui-io.c
 
 tui-layout.o: $(srcdir)/tui/tui-layout.c
 	$(COMPILE) $(srcdir)/tui/tui-layout.c
-	$(POSTCOMPILE)
-
-tui-main.o: $(srcdir)/tui/tui-main.c
-	$(COMPILE) $(srcdir)/tui/tui-main.c
 	$(POSTCOMPILE)
 
 tui-out.o: $(srcdir)/tui/tui-out.c
@@ -2101,6 +2063,10 @@ py-evts.o: $(srcdir)/python/py-evts.c
 
 py-exitedevent.o: $(srcdir)/python/py-exitedevent.c
 	$(COMPILE) $(PYTHON_CFLAGS) $(srcdir)/python/py-exitedevent.c
+	$(POSTCOMPILE)
+
+py-finishbreakpoint.o: $(srcdir)/python/py-finishbreakpoint.c
+	$(COMPILE) $(PYTHON_CFLAGS) $(srcdir)/python/py-finishbreakpoint.c
 	$(POSTCOMPILE)
 
 py-frame.o: $(srcdir)/python/py-frame.c
@@ -2199,7 +2165,7 @@ py-value.o: $(srcdir)/python/py-value.c
 
 # A list of all the objects we might care about in this build, for
 # dependency tracking.
-all_object_files = gdb.o tui-main.o $(LIBGDB_OBS) gdbtk-main.o \
+all_object_files = gdb.o $(LIBGDB_OBS) gdbtk-main.o \
 	test-cp-name-parser.o
 
 # Ensure that generated files are created early.  Use order-only

@@ -1,7 +1,7 @@
 /* Target-dependent code for Lattice Mico32 processor, for GDB.
    Contributed by Jon Beniston <jon@beniston.com>
 
-   Copyright (C) 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2009-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -589,6 +589,9 @@ lm32_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   return gdbarch;
 }
+
+/* -Wmissing-prototypes */
+extern initialize_file_ftype _initialize_lm32_tdep;
 
 void
 _initialize_lm32_tdep (void)

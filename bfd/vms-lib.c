@@ -277,6 +277,9 @@ vms_traverse_index (bfd *abfd, unsigned int vbn, struct carsym_mem *cs)
       if (idx_vbn == 0)
         return FALSE;
 
+      /* Point to the next index entry.  */
+      p = keyname + keylen;
+
       if (idx_off == RFADEF__C_INDEX)
         {
           /* Indirect entry.  Recurse.  */
@@ -368,9 +371,6 @@ vms_traverse_index (bfd *abfd, unsigned int vbn, struct carsym_mem *cs)
                 return FALSE;
             }
         }
-
-      /* Point to the next index entry.  */
-      p = keyname + keylen;
     }
 
   return TRUE;
@@ -1542,18 +1542,24 @@ get_idxlen (struct lib_index *idx, bfd_boolean is_elfidx)
 {
   if (is_elfidx)
     {
+      /* 9 is the size of struct vms_elfidx without keyname.  */
       if (idx->namlen > MAX_KEYLEN)
-        return 9 + sizeof (struct vms_rfa);
+        return 9 + sizeof (struct vms_kbn);
       else
         return 9 + idx->namlen;
     }
   else
-    return 7 + idx->namlen;
+    {
+      /* 7 is the size of struct vms_idx without keyname.  */
+      return 7 + idx->namlen;
+    }
 }
 
-/* Write the index.  VBN is the first vbn to be used, and will contain
-   on return the last vbn.
+/* Write the index composed by NBR symbols contained in IDX.
+   VBN is the first vbn to be used, and will contain on return the last vbn.
    Can be called with ABFD set to NULL just to size the index.
+   If not null, TOPVBN will be assigned to the vbn of the root index tree.
+   IS_ELFIDX is true for elfidx (ie ia64) indexes layout.
    Return TRUE on success.  */
 
 static bfd_boolean
@@ -1637,9 +1643,11 @@ vms_write_index (bfd *abfd,
                         }
                       *(unsigned short *)kbn_blk = 0;
                     }
+                  /* Allocate a new block for the keys.  */
                   kbn_vbn = (*vbn)++;
                   kbn_sz = VMS_BLOCK_SIZE - 2;
                 }
+              /* Size of the chunk written to the current key block.  */
               if (kl + sizeof (struct vms_kbn) > kbn_sz)
                 kl_chunk = kbn_sz - sizeof (struct vms_kbn);
               else
@@ -1998,6 +2006,7 @@ _bfd_vms_lib_write_archive_contents (bfd *arch)
   unsigned int mod_idx_vbn;
   unsigned int sym_idx_vbn;
   bfd_boolean is_elfidx = tdata->kind == vms_lib_ia64;
+  unsigned int max_keylen = is_elfidx ? 1025 : MAX_KEYLEN;
 
   /* Count the number of modules (and do a first sanity check).  */
   nbr_modules = 0;
@@ -2029,7 +2038,7 @@ _bfd_vms_lib_write_archive_contents (bfd *arch)
        current != NULL;
        current = current->archive_next, i++)
     {
-      int nl;
+      unsigned int nl;
 
       modules[i].abfd = current;
       modules[i].name = vms_get_module_name (current->filename, FALSE);
@@ -2037,7 +2046,7 @@ _bfd_vms_lib_write_archive_contents (bfd *arch)
 
       /* FIXME: silently truncate long names ?  */
       nl = strlen (modules[i].name);
-      modules[i].namlen = (nl > MAX_KEYLEN ? MAX_KEYLEN : nl);
+      modules[i].namlen = (nl > max_keylen ? max_keylen : nl);
     }
 
   /* Create the module index.  */
@@ -2228,20 +2237,27 @@ _bfd_vms_lib_write_archive_contents (bfd *arch)
     bfd_putl32 (nbr_modules, lhd->modcnt);
     bfd_putl32 (nbr_modules, lhd->modhdrs);
 
+    /* Number of blocks for index.  */
+    bfd_putl32 (nbr_mod_iblk + nbr_sym_iblk, lhd->idxblks);
     bfd_putl32 (vbn - 1, lhd->hipreal);
     bfd_putl32 (vbn - 1, lhd->hiprusd);
+
+    /* VBN of the next free block.  */
+    bfd_putl32 ((off / VMS_BLOCK_SIZE) + 1, lhd->nextvbn);
+    bfd_putl32 ((off / VMS_BLOCK_SIZE) + 1, lhd->nextrfa + 0);
+    bfd_putl16 (0, lhd->nextrfa + 4);
 
     /* First index (modules name).  */
     idd_flags = IDD__FLAGS_ASCII | IDD__FLAGS_VARLENIDX
       | IDD__FLAGS_NOCASECMP | IDD__FLAGS_NOCASENTR;
     bfd_putl16 (idd_flags, idd->flags);
-    bfd_putl16 (MAX_KEYLEN, idd->keylen);
+    bfd_putl16 (max_keylen, idd->keylen);
     bfd_putl16 (mod_idx_vbn, idd->vbn);
     idd++;
 
     /* Second index (symbols name).  */
     bfd_putl16 (idd_flags, idd->flags);
-    bfd_putl16 (MAX_KEYLEN, idd->keylen);
+    bfd_putl16 (max_keylen, idd->keylen);
     bfd_putl16 (sym_idx_vbn, idd->vbn);
     idd++;
 

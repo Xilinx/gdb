@@ -1,7 +1,7 @@
 /* Output generating routines for GDB.
 
-   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2005, 2007, 2008, 2009, 2010,
-   2011 Free Software Foundation, Inc.
+   Copyright (C) 1999-2003, 2005, 2007-2012 Free Software Foundation,
+   Inc.
 
    Contributed by Cygnus Solutions.
    Written by Fernando Nasser for Cygnus.
@@ -49,17 +49,6 @@ enum ui_flags
   {
     ui_from_tty = 1,
     ui_source_list = 2
-  };
-
-
-/* The ui_out stream structure.  */
-/* NOTE: cagney/2000-02-01: The ui_stream object can be subsumed by
-   the more generic ui_file object.  */
-
-struct ui_stream
-  {
-    struct ui_out *uiout;
-    struct ui_file *stream;
   };
 
 
@@ -122,7 +111,7 @@ extern void ui_out_field_string (struct ui_out * uiout, const char *fldname,
 				 const char *string);
 
 extern void ui_out_field_stream (struct ui_out *uiout, const char *fldname,
-				 struct ui_stream *buf);
+				 struct ui_file *stream);
 
 extern void ui_out_field_fmt (struct ui_out *uiout, const char *fldname,
 			      const char *format, ...)
@@ -137,12 +126,6 @@ extern void ui_out_text (struct ui_out *uiout, const char *string);
 extern void ui_out_message (struct ui_out *uiout, int verbosity,
 			    const char *format, ...)
      ATTRIBUTE_PRINTF (3, 4);
-
-extern struct ui_stream *ui_out_stream_new (struct ui_out *uiout);
-
-extern void ui_out_stream_delete (struct ui_stream *buf);
-
-struct cleanup *make_cleanup_ui_out_stream_delete (struct ui_stream *buf);
 
 extern void ui_out_wrap_hint (struct ui_out *uiout, char *identstring);
 

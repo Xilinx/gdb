@@ -1,7 +1,6 @@
 /* Generate a core file for the inferior process.
 
-   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-   2011 Free Software Foundation, Inc.
+   Copyright (C) 2001-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -72,35 +71,37 @@ write_gcore_file (bfd *obfd)
   asection *note_sec = NULL;
 
   /* An external target method must build the notes section.  */
-  note_data = target_make_corefile_notes (obfd, &note_size);
+  /* FIXME: uweigand/2011-10-06: All architectures that support core file
+     generation should be converted to gdbarch_make_corefile_notes; at that
+     point, the target vector method can be removed.  */
+  if (!gdbarch_make_corefile_notes_p (target_gdbarch))
+    note_data = target_make_corefile_notes (obfd, &note_size);
+  else
+    note_data = gdbarch_make_corefile_notes (target_gdbarch, obfd, &note_size);
+
+  if (note_data == NULL || note_size == 0)
+    error (_("Target does not support core file generation."));
 
   /* Create the note section.  */
-  if (note_data != NULL && note_size != 0)
-    {
-      note_sec = bfd_make_section_anyway_with_flags (obfd, "note0",
-						     SEC_HAS_CONTENTS
-						     | SEC_READONLY
-						     | SEC_ALLOC);
-      if (note_sec == NULL)
-	error (_("Failed to create 'note' section for corefile: %s"),
-	       bfd_errmsg (bfd_get_error ()));
+  note_sec = bfd_make_section_anyway_with_flags (obfd, "note0",
+						 SEC_HAS_CONTENTS
+						 | SEC_READONLY
+						 | SEC_ALLOC);
+  if (note_sec == NULL)
+    error (_("Failed to create 'note' section for corefile: %s"),
+	   bfd_errmsg (bfd_get_error ()));
 
-      bfd_set_section_vma (obfd, note_sec, 0);
-      bfd_set_section_alignment (obfd, note_sec, 0);
-      bfd_set_section_size (obfd, note_sec, note_size);
-    }
+  bfd_set_section_vma (obfd, note_sec, 0);
+  bfd_set_section_alignment (obfd, note_sec, 0);
+  bfd_set_section_size (obfd, note_sec, note_size);
 
   /* Now create the memory/load sections.  */
   if (gcore_memory_sections (obfd) == 0)
     error (_("gcore: failed to get corefile memory sections from target."));
 
   /* Write out the contents of the note section.  */
-  if (note_data != NULL && note_size != 0)
-    {
-      if (!bfd_set_section_contents (obfd, note_sec, note_data, 0, note_size))
-	warning (_("writing note section (%s)"), 
-		 bfd_errmsg (bfd_get_error ()));
-    }
+  if (!bfd_set_section_contents (obfd, note_sec, note_data, 0, note_size))
+    warning (_("writing note section (%s)"), bfd_errmsg (bfd_get_error ()));
 }
 
 static void
@@ -560,8 +561,14 @@ gcore_copy_callback (bfd *obfd, asection *osec, void *ignored)
 static int
 gcore_memory_sections (bfd *obfd)
 {
-  if (target_find_memory_regions (gcore_create_callback, obfd) != 0)
-    return 0;			/* FIXME: error return/msg?  */
+  /* Try gdbarch method first, then fall back to target method.  */
+  if (!gdbarch_find_memory_regions_p (target_gdbarch)
+      || gdbarch_find_memory_regions (target_gdbarch,
+				      gcore_create_callback, obfd) != 0)
+    {
+      if (target_find_memory_regions (gcore_create_callback, obfd) != 0)
+	return 0;			/* FIXME: error return/msg?  */
+    }
 
   /* Record phdrs for section-to-segment mapping.  */
   bfd_map_over_sections (obfd, make_output_phdrs, NULL);

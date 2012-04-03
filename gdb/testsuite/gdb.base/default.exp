@@ -1,6 +1,5 @@
-#   Copyright 1988, 1990, 1991, 1992, 1994, 1995, 1996, 1997, 1998, 1999,
-#   2000, 2001, 2002, 2003, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-#   Free Software Foundation, Inc.
+#   Copyright 1988, 1990-1992, 1994-2003, 2005-2012 Free Software
+#   Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -39,8 +38,7 @@ gdb_test "append value"  "Missing filename\."
 gdb_test "append binary memory" "Missing filename\." 
 gdb_test "append binary value"  "Missing filename\." 
 
-if ![target_info exists use_gdb_stub] {
-    setup_xfail "mips-idt-*"
+if !$use_gdb_stub {
     gdb_test_multiple "attach" "attach" {
 	-re "Argument required .(process-id|program) to attach.*$gdb_prompt $"\
 	    { pass "attach" }
@@ -62,7 +60,6 @@ if ![target_info exists use_gdb_stub] {
     }
 
     
-    setup_xfail "mips-idt-*"
     gdb_test "backtrace" "No stack."
 
     # ba and bac are no longer unique command prefixes. So these tests
@@ -70,18 +67,14 @@ if ![target_info exists use_gdb_stub] {
     # GDB needs to be fixed to map unique alias here for ba bac.
     #
     foreach i "bt ba bac" {
-	setup_xfail "mips-idt-*"
 	gdb_test $i "No stack." "backtrace \"$i\" abbreviation"
     }
 } else {
     warning "Skipping backtrace and break tests because of GDB stub."
 }
 
-# This works on the MIPS IDT board, but confuses future tests.
-if ![istarget "mips-idt-*"] then {
-    gdb_test "continue" "The program is not being run." "continue"
-    gdb_test "c" "The program is not being run." "continue \"c\" abbreviation"
-}
+gdb_test "continue" "The program is not being run." "continue"
+gdb_test "c" "The program is not being run." "continue \"c\" abbreviation"
 
 #test call
 gdb_test "call" "The history is empty..*" "call"
@@ -103,7 +96,7 @@ gdb_test "commands" "Argument required .one or more breakpoint numbers...*" "com
 gdb_test "condition" "Argument required .breakpoint number.*" "condition"
 
 #test core-file
-gdb_test "core-file" "No core file now.|GDB can't read core files on this machine." "core-file"
+gdb_test "core-file" "No core file now." "core-file"
 #test delete "d" abbreviation
 gdb_test_no_output "d" "delete \"d\" abbreviation"
 #test delete
@@ -283,8 +276,6 @@ gdb_test "info args" "No frame selected." "info args"
 gdb_test "info bogus-gdb-command" "Undefined info command: \"bogus-gdb-command\".  Try \"help info\".*" "info bogus-gdb-command"
 #test info breakpoints
 gdb_test "info breakpoints" "No breakpoints or watchpoints." "info breakpoints"
-#test info catch
-gdb_test "info catch" "No frame selected." "info catch"
 #test info copying
 # FIXME -- doesn't work worth a shit
 #send_gdb "info copying"
@@ -420,7 +411,7 @@ gdb_test "ptype" "The history is empty." "ptype"
 gdb_test "pwd" "Working directory .*" "pwd"
 
 #test run "r" abbreviation
-if [target_info exists use_gdb_stub] {
+if $use_gdb_stub {
     # Only extended-remote supports "run".
 } elseif [istarget "*-*-vxworks*"] then {
     gdb_test "set args" ".*" "" 
@@ -444,11 +435,13 @@ You must specify a function name to run, and arguments if any"\
 	    { pass "run \"r\" abbreviation" }
 	-re "Don't know how to run.  Try \"help target\"..*$gdb_prompt $"\
 	    { pass "run \"r\" abbreviation" }
+	-re "Starting program:  .*Running the default executable on the remote target failed; try \"set remote exec-file\"?.*$gdb_prompt $"\
+	    { pass "run \"r\" abbreviation" }
     }
 }
 
 #test run
-if [target_info exists use_gdb_stub] {
+if $use_gdb_stub {
     # Only extended-remote supports "run".
 } elseif [istarget "*-*-vxworks*"] then {
     gdb_test "set args" ".*" "" 
@@ -470,6 +463,8 @@ You must specify a function name to run, and arguments if any"
 	-re "Starting program:  .*No program loaded.*$gdb_prompt $"\
 	    { pass "run" }
 	-re "Don't know how to run.  Try \"help target\"..*$gdb_prompt $"\
+	    { pass "run" }
+	-re "Starting program:  .*Running the default executable on the remote target failed; try \"set remote exec-file\"?.*$gdb_prompt $"\
 	    { pass "run" }
     }
 }
@@ -565,8 +560,6 @@ gdb_test_no_output "set print vtbl" "set print vtbl"
 # FIXME -- need a test for "set prompt"
 #test set radix
 gdb_test "set radix" "Input and output radices now set to decimal 10, hex a, octal 12.*" "set radix"
-#test set symbol-reloading
-gdb_test_no_output "set symbol-reloading" "set symbol-reloading"
 #test set variable
 gdb_test "set variable" "Argument required .expression to compute.*" "set variable"
 #test set verbose
@@ -668,8 +661,6 @@ gdb_test "show print vtbl" "Printing of C\[+\]+ virtual function tables is on." 
 gdb_test "show prompt" "Gdb's prompt is \"$gdb_prompt \".*" "show prompt"
 #test show radix
 gdb_test "show radix" "Input and output radices set to decimal 10, hex a, octal 12." "show radix"
-#test show symbol-reloading
-gdb_test "show symbol-reloading" "Dynamic symbol table reloading multiple times in one run is on." "show symbol-reloading"
 #test show user
 gdb_test_no_output "show user" "show user"
 #test show values

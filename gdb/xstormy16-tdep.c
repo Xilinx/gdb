@@ -1,7 +1,6 @@
 /* Target-dependent code for the Sanyo Xstormy16a (LC590000) processor.
 
-   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2005, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -414,7 +413,7 @@ static CORE_ADDR
 xstormy16_skip_prologue (struct gdbarch *gdbarch, CORE_ADDR pc)
 {
   CORE_ADDR func_addr = 0, func_end = 0;
-  char *func_name;
+  const char *func_name;
 
   if (find_pc_partial_function (pc, &func_name, &func_addr, &func_end))
     {

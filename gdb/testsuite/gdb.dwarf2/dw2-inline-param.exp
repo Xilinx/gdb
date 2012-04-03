@@ -1,4 +1,4 @@
-# Copyright 2010, 2011 Free Software Foundation, Inc.
+# Copyright 2010-2012 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,7 +41,9 @@ gdb_unload
 # Strip out any labels there as they could corrupt the `main' name.
 
 set objcopy_program [transform objcopy]
-set result [catch "exec $objcopy_program -N block_start -N block_end -N break_at ${binfile}" output]
+set command "$objcopy_program -N block_start -N block_end -N break_at ${binfile}"
+verbose -log "Executing: $command"
+set result [catch "exec $command" output]
 verbose "result is $result"
 verbose "output is $output"
 if {$result != 0} {
@@ -49,9 +51,6 @@ if {$result != 0} {
 }
 
 gdb_load ${binfile}
-if [target_info exists gdb_stub] {
-    gdb_step_for_stub;
-}    
 
 if ![runto "*${break_at}"] {
     return -1

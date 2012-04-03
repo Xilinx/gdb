@@ -652,6 +652,7 @@ microblaze
 mips
 mn10300
 moxie
+rl78
 rx
 sh64
 sh
@@ -3771,6 +3772,13 @@ subdirs="$subdirs arm"
 
   sim_arch=rx
   subdirs="$subdirs rx"
+
+
+       ;;
+   rl78-*-*)
+
+  sim_arch=rl78
+  subdirs="$subdirs rl78"
 
 
        ;;

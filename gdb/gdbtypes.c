@@ -1,8 +1,6 @@
 /* Support routines for manipulating internal types for GDB.
 
-   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1992-1996, 1998-2012 Free Software Foundation, Inc.
 
    Contributed by Cygnus Support, using pieces from other GDB modules.
 
@@ -35,11 +33,10 @@
 #include "demangle.h"
 #include "complaints.h"
 #include "gdbcmd.h"
-#include "wrapper.h"
 #include "cp-abi.h"
 #include "gdb_assert.h"
 #include "hashtab.h"
-
+#include "exceptions.h"
 
 /* Initialize BADNESS constants.  */
 
@@ -1095,7 +1092,7 @@ smash_to_method_type (struct type *type, struct type *domain,
 /* Return a typename for a struct/union/enum type without "struct ",
    "union ", or "enum ".  If the type has a NULL name, return NULL.  */
 
-char *
+const char *
 type_name_no_tag (const struct type *type)
 {
   if (TYPE_TAG_NAME (type) != NULL)
@@ -1167,7 +1164,7 @@ lookup_typename (const struct language_defn *language,
 
 struct type *
 lookup_unsigned_typename (const struct language_defn *language,
-			  struct gdbarch *gdbarch, char *name)
+			  struct gdbarch *gdbarch, const char *name)
 {
   char *uns = alloca (strlen (name) + 10);
 
@@ -1178,7 +1175,7 @@ lookup_unsigned_typename (const struct language_defn *language,
 
 struct type *
 lookup_signed_typename (const struct language_defn *language,
-			struct gdbarch *gdbarch, char *name)
+			struct gdbarch *gdbarch, const char *name)
 {
   struct type *t;
   char *uns = alloca (strlen (name) + 8);
@@ -1341,7 +1338,7 @@ lookup_struct_elt_type (struct type *type, char *name, int noerr)
 
   for (i = TYPE_NFIELDS (type) - 1; i >= TYPE_N_BASECLASSES (type); i--)
     {
-      char *t_field_name = TYPE_FIELD_NAME (type, i);
+      const char *t_field_name = TYPE_FIELD_NAME (type, i);
 
       if (t_field_name && (strcmp_iw (t_field_name, name) == 0))
 	{
@@ -1454,6 +1451,10 @@ stub_noname_complaint (void)
    not been computed and we're either in the middle of reading symbols, or
    there was no name for the typedef in the debug info.
 
+   NOTE: Lookup of opaque types can throw errors for invalid symbol files.
+   QUITs in the symbol reading code can also throw.
+   Thus this function can throw an exception.
+
    If TYPE is a TYPE_CODE_TYPEDEF, its length is updated to the length of
    the target type.
 
@@ -1479,7 +1480,7 @@ check_typedef (struct type *type)
     {
       if (!TYPE_TARGET_TYPE (type))
 	{
-	  char *name;
+	  const char *name;
 	  struct symbol *sym;
 
 	  /* It is dangerous to call lookup_symbol if we are currently
@@ -1542,7 +1543,7 @@ check_typedef (struct type *type)
       && opaque_type_resolution 
       && !currently_reading_symtab)
     {
-      char *name = type_name_no_tag (type);
+      const char *name = type_name_no_tag (type);
       struct type *newtype;
 
       if (name == NULL)
@@ -1576,7 +1577,7 @@ check_typedef (struct type *type)
      types.  */
   else if (TYPE_STUB (type) && !currently_reading_symtab)
     {
-      char *name = type_name_no_tag (type);
+      const char *name = type_name_no_tag (type);
       /* FIXME: shouldn't we separately check the TYPE_NAME and the
          TYPE_TAG_NAME, and look in STRUCT_DOMAIN and/or VAR_DOMAIN
          as appropriate?  (this code was written before TYPE_NAME and
@@ -1673,14 +1674,20 @@ static struct type *
 safe_parse_type (struct gdbarch *gdbarch, char *p, int length)
 {
   struct ui_file *saved_gdb_stderr;
-  struct type *type;
+  struct type *type = NULL; /* Initialize to keep gcc happy.  */
+  volatile struct gdb_exception except;
 
   /* Suppress error messages.  */
   saved_gdb_stderr = gdb_stderr;
   gdb_stderr = ui_file_new ();
 
   /* Call parse_and_eval_type() without fear of longjmp()s.  */
-  if (!gdb_parse_and_eval_type (p, length, &type))
+  TRY_CATCH (except, RETURN_MASK_ERROR)
+    {
+      type = parse_and_eval_type (p, length);
+    }
+
+  if (except.reason < 0)
     type = builtin_type (gdbarch)->builtin_void;
 
   /* Stop suppressing error messages.  */
@@ -2893,8 +2900,6 @@ print_cplus_stuff (struct type *type, int spaces)
 		    TYPE_N_BASECLASSES (type));
   printfi_filtered (spaces, "nfn_fields %d\n",
 		    TYPE_NFN_FIELDS (type));
-  printfi_filtered (spaces, "nfn_fields_total %d\n",
-		    TYPE_NFN_FIELDS_TOTAL (type));
   if (TYPE_N_BASECLASSES (type) > 0)
     {
       printfi_filtered (spaces, "virtual_field_bits (%d bits at *",

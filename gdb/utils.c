@@ -1,8 +1,6 @@
 /* General utility routines for GDB, the GNU debugger.
 
-   Copyright (C) 1986, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
-   1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1986, 1988-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -24,6 +22,7 @@
 #include "gdb_assert.h"
 #include <ctype.h>
 #include "gdb_string.h"
+#include "gdb_wait.h"
 #include "event-top.h"
 #include "exceptions.h"
 #include "gdbthread.h"
@@ -50,7 +49,7 @@
 #include "serial.h"
 #include "bfd.h"
 #include "target.h"
-#include "demangle.h"
+#include "gdb-demangle.h"
 #include "expression.h"
 #include "language.h"
 #include "charset.h"
@@ -137,35 +136,6 @@ int quit_flag;
    expect to block), call QUIT after setting immediate_quit.  */
 
 int immediate_quit;
-
-/* Nonzero means that encoded C++/ObjC names should be printed out in their
-   C++/ObjC form rather than raw.  */
-
-int demangle = 1;
-static void
-show_demangle (struct ui_file *file, int from_tty,
-	       struct cmd_list_element *c, const char *value)
-{
-  fprintf_filtered (file,
-		    _("Demangling of encoded C++/ObjC names "
-		      "when displaying symbols is %s.\n"),
-		    value);
-}
-
-/* Nonzero means that encoded C++/ObjC names should be printed out in their
-   C++/ObjC form even in assembler language displays.  If this is set, but
-   DEMANGLE is zero, names are printed raw, i.e. DEMANGLE controls.  */
-
-int asm_demangle = 0;
-static void
-show_asm_demangle (struct ui_file *file, int from_tty,
-		   struct cmd_list_element *c, const char *value)
-{
-  fprintf_filtered (file,
-		    _("Demangling of C++/ObjC names in "
-		      "disassembly listings is %s.\n"),
-		    value);
-}
 
 /* Nonzero means that strings with character values >0x7F should be printed
    as octal escapes.  Zero means just print the value (e.g. it's an
@@ -736,7 +706,8 @@ report_command_stats (void *arg)
 			 ? _("Startup time: %ld.%06ld (cpu), %ld.%06ld (wall)\n")
 			 : _("Command execution time: %ld.%06ld (cpu), %ld.%06ld (wall)\n"),
 			 cmd_time / 1000000, cmd_time % 1000000,
-			 delta_wall_time.tv_sec, delta_wall_time.tv_usec);
+			 (long) delta_wall_time.tv_sec,
+			 (long) delta_wall_time.tv_usec);
     }
 
   if (display_space)
@@ -915,7 +886,7 @@ can_dump_core (const char *reason)
 const char internal_problem_ask[] = "ask";
 const char internal_problem_yes[] = "yes";
 const char internal_problem_no[] = "no";
-static const char *internal_problem_modes[] =
+static const char *const internal_problem_modes[] =
 {
   internal_problem_ask,
   internal_problem_yes,
@@ -999,7 +970,7 @@ internal_vproblem (struct internal_problem *problem,
       /* Default (yes/batch case) is to quit GDB.  When in batch mode
 	 this lessens the likelihood of GDB going into an infinite
 	 loop.  */
-      if (caution == 0)
+      if (!confirm)
         {
           /* Emit the message and quit.  */
           fputs_unfiltered (reason, gdb_stderr);
@@ -1413,7 +1384,7 @@ defaulted_query (const char *ctlstr, const char defchar, va_list args)
 
   /* Automatically answer the default value if the user did not want
      prompts or the command was issued with the server prefix.  */
-  if (! caution || server_command)
+  if (!confirm || server_command)
     return def_value;
 
   /* If input isn't coming from the user directly, just say what
@@ -2618,7 +2589,7 @@ print_spaces_filtered (int n, struct ui_file *stream)
    demangling is off, the name is printed in its "raw" form.  */
 
 void
-fprintf_symbol_filtered (struct ui_file *stream, char *name,
+fprintf_symbol_filtered (struct ui_file *stream, const char *name,
 			 enum language lang, int arg_mode)
 {
   char *demangled;
@@ -2864,13 +2835,6 @@ Show number of lines gdb thinks are in a page."), NULL,
 
   init_page_info ();
 
-  add_setshow_boolean_cmd ("demangle", class_support, &demangle, _("\
-Set demangling of encoded C++/ObjC names when displaying symbols."), _("\
-Show demangling of encoded C++/ObjC names when displaying symbols."), NULL,
-			   NULL,
-			   show_demangle,
-			   &setprintlist, &showprintlist);
-
   add_setshow_boolean_cmd ("pagination", class_support,
 			   &pagination_enabled, _("\
 Set state of pagination."), _("\
@@ -2893,13 +2857,6 @@ Set printing of 8-bit characters in strings as \\nnn."), _("\
 Show printing of 8-bit characters in strings as \\nnn."), NULL,
 			   NULL,
 			   show_sevenbit_strings,
-			   &setprintlist, &showprintlist);
-
-  add_setshow_boolean_cmd ("asm-demangle", class_support, &asm_demangle, _("\
-Set demangling of C++/ObjC names in disassembly listings."), _("\
-Show demangling of C++/ObjC names in disassembly listings."), NULL,
-			   NULL,
-			   show_asm_demangle,
 			   &setprintlist, &showprintlist);
 
   add_setshow_boolean_cmd ("timestamp", class_maintenance,
@@ -3382,6 +3339,25 @@ gdb_realpath (const char *filename)
   }
 #endif
 
+  /* The MS Windows method.  If we don't have realpath, we assume we
+     don't have symlinks and just canonicalize to a Windows absolute
+     path.  GetFullPath converts ../ and ./ in relative paths to
+     absolute paths, filling in current drive if one is not given
+     or using the current directory of a specified drive (eg, "E:foo").
+     It also converts all forward slashes to back slashes.  */
+  /* The file system is case-insensitive but case-preserving.
+     So we do not lowercase the path.  Otherwise, we might not
+     be able to display the original casing in a given path.  */
+#if defined (_WIN32)
+  {
+    char buf[MAX_PATH];
+    DWORD len = GetFullPathName (filename, MAX_PATH, buf, NULL);
+
+    if (len > 0 && len < MAX_PATH)
+      return xstrdup (buf);
+  }
+#endif
+
   /* This system is a lost cause, just dup the buffer.  */
   return xstrdup (filename);
 }
@@ -3693,6 +3669,17 @@ compare_positive_ints (const void *ap, const void *bp)
   return * (int *) ap - * (int *) bp;
 }
 
+/* String compare function for qsort.  */
+
+int
+compare_strings (const void *arg1, const void *arg2)
+{
+  const char **s1 = (const char **) arg1;
+  const char **s2 = (const char **) arg2;
+
+  return strcmp (*s1, *s2);
+}
+
 #define AMBIGUOUS_MESS1	".\nMatching formats:"
 #define AMBIGUOUS_MESS2	\
   ".\nUse \"set gnutarget format-name\" to specify the format."
@@ -3814,6 +3801,78 @@ producer_is_gcc_ge_4 (const char *producer)
     return INT_MAX;
   return minor;
 }
+
+#ifdef HAVE_WAITPID
+
+#ifdef SIGALRM
+
+/* SIGALRM handler for waitpid_with_timeout.  */
+
+static void
+sigalrm_handler (int signo)
+{
+  /* Nothing to do.  */
+}
+
+#endif
+
+/* Wrapper to wait for child PID to die with TIMEOUT.
+   TIMEOUT is the time to stop waiting in seconds.
+   If TIMEOUT is zero, pass WNOHANG to waitpid.
+   Returns PID if it was successfully waited for, otherwise -1.
+
+   Timeouts are currently implemented with alarm and SIGALRM.
+   If the host does not support them, this waits "forever".
+   It would be odd though for a host to have waitpid and not SIGALRM.  */
+
+pid_t
+wait_to_die_with_timeout (pid_t pid, int *status, int timeout)
+{
+  pid_t waitpid_result;
+
+  gdb_assert (pid > 0);
+  gdb_assert (timeout >= 0);
+
+  if (timeout > 0)
+    {
+#ifdef SIGALRM
+#if defined (HAVE_SIGACTION) && defined (SA_RESTART)
+      struct sigaction sa, old_sa;
+
+      sa.sa_handler = sigalrm_handler;
+      sigemptyset (&sa.sa_mask);
+      sa.sa_flags = 0;
+      sigaction (SIGALRM, &sa, &old_sa);
+#else
+      void (*ofunc) ();
+
+      ofunc = (void (*)()) signal (SIGALRM, sigalrm_handler);
+#endif
+
+      alarm (timeout);
+#endif
+
+      waitpid_result = waitpid (pid, status, 0);
+
+#ifdef SIGALRM
+      alarm (0);
+#if defined (HAVE_SIGACTION) && defined (SA_RESTART)
+      sigaction (SIGALRM, &old_sa, NULL);
+#else
+      signal (SIGALRM, ofunc);
+#endif
+#endif
+    }
+  else
+    waitpid_result = waitpid (pid, status, WNOHANG);
+
+  if (waitpid_result == pid)
+    return pid;
+  else
+    return -1;
+}
+
+#endif /* HAVE_WAITPID */
 
 /* Provide a prototype to silence -Wmissing-prototypes.  */
 extern initialize_file_ftype _initialize_utils;

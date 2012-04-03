@@ -1,6 +1,5 @@
 /* GNU/Linux/ARM specific low level interface, for the remote server for GDB.
-   Copyright (C) 1995, 1996, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-   2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1995-1996, 1998-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -632,7 +631,7 @@ static int
 arm_stopped_by_watchpoint (void)
 {
   struct lwp_info *lwp = get_thread_lwp (current_inferior);
-  struct siginfo siginfo;
+  siginfo_t siginfo;
 
   /* We must be able to set hardware watchpoints.  */
   if (arm_linux_get_hw_watchpoint_count () == 0)
@@ -835,8 +834,10 @@ struct linux_target_ops the_low_target = {
   arm_arch_setup,
   arm_num_regs,
   arm_regmap,
+  NULL,
   arm_cannot_fetch_register,
   arm_cannot_store_register,
+  NULL, /* fetch_register */
   arm_get_pc,
   arm_set_pc,
 

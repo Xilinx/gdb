@@ -1,6 +1,7 @@
 /* Renesas / SuperH SH specific support for 32-bit ELF
    Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-   2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   2006, 2007, 2008, 2009, 2010, 2011, 2012
+   Free Software Foundation, Inc.
    Contributed by Ian Lance Taylor, Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -2926,13 +2927,6 @@ sh_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
       return TRUE;
     }
 
-  if (h->size == 0)
-    {
-      (*_bfd_error_handler) (_("dynamic variable `%s' is zero size"),
-			     h->root.root.string);
-      return TRUE;
-    }
-
   /* We must allocate the symbol in our .dynbss section, which will
      become part of the .bss section of the executable.  There will be
      an entry for this symbol in the .dynsym section.  The dynamic
@@ -2950,7 +2944,7 @@ sh_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
      copy the initial value out of the dynamic object and into the
      runtime process image.  We need to remember the offset into the
      .rela.bss section we are going to use.  */
-  if ((h->root.u.def.section->flags & SEC_ALLOC) != 0)
+  if ((h->root.u.def.section->flags & SEC_ALLOC) != 0 && h->size != 0)
     {
       asection *srel;
 
@@ -3788,8 +3782,10 @@ sh_elf_got_offset (struct elf_sh_link_hash_table *htab)
 static unsigned
 sh_elf_osec_to_segment (bfd *output_bfd, asection *osec)
 {
-  Elf_Internal_Phdr *p = _bfd_elf_find_segment_containing_section (output_bfd,
-								   osec);
+  Elf_Internal_Phdr *p = NULL;
+
+  if (output_bfd->xvec->flavour == bfd_target_elf_flavour)
+    p = _bfd_elf_find_segment_containing_section (output_bfd, osec);
 
   /* FIXME: Nothing ever says what this index is relative to.  The kernel
      supplies data in terms of the number of load segments but this is
@@ -3802,7 +3798,8 @@ sh_elf_osec_readonly_p (bfd *output_bfd, asection *osec)
 {
   unsigned seg = sh_elf_osec_to_segment (output_bfd, osec);
 
-  return ! (elf_tdata (output_bfd)->phdr[seg].p_flags & PF_W);
+  return (seg != (unsigned) -1
+	  && ! (elf_tdata (output_bfd)->phdr[seg].p_flags & PF_W));
 }
 
 /* Generate the initial contents of a local function descriptor, along

@@ -1,7 +1,7 @@
 /* DWARF 2 Expression Evaluator.
 
-   Copyright (C) 2001, 2002, 2003, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2003, 2005, 2007-2012 Free Software Foundation,
+   Inc.
 
    Contributed by Daniel Berlin <dan@dberlin.org>.
 
@@ -24,6 +24,18 @@
 #define DWARF2EXPR_H
 
 struct dwarf_expr_context;
+
+/* Offset relative to the start of its containing CU (compilation unit).  */
+typedef struct
+{
+  unsigned int cu_off;
+} cu_offset;
+
+/* Offset relative to the start of its .debug_info or .debug_types section.  */
+typedef struct
+{
+  unsigned int sect_off;
+} sect_offset;
 
 /* Virtual method table for struct dwarf_expr_context below.  */
 
@@ -53,14 +65,14 @@ struct dwarf_expr_context_funcs
   /* Execute DW_AT_location expression for the DWARF expression subroutine in
      the DIE at DIE_OFFSET in the CU from CTX.  Do not touch STACK while it
      being passed to and returned from the called DWARF subroutine.  */
-  void (*dwarf_call) (struct dwarf_expr_context *ctx, size_t die_offset);
+  void (*dwarf_call) (struct dwarf_expr_context *ctx, cu_offset die_offset);
 
   /* Return the base type given by the indicated DIE.  This can throw
      an exception if the DIE is invalid or does not represent a base
      type.  If can also be NULL in the special case where the
      callbacks are not performing evaluation, and thus it is
      meaningful to substitute a stub type of the correct size.  */
-  struct type *(*get_base_type) (struct dwarf_expr_context *ctx, size_t die);
+  struct type *(*get_base_type) (struct dwarf_expr_context *ctx, cu_offset die);
 
   /* Push on DWARF stack an entry evaluated for DW_TAG_GNU_call_site's
      DWARF_REG/FB_OFFSET at the caller of specified BATON.  If DWARF register
@@ -160,7 +172,7 @@ struct dwarf_expr_context
 
   /* For DWARF_VALUE_LITERAL, the current literal value's length and
      data.  For DWARF_VALUE_IMPLICIT_POINTER, LEN is the offset of the
-     target DIE.  */
+     target DIE of cu_offset kind.  */
   ULONGEST len;
   const gdb_byte *data;
 
@@ -231,7 +243,7 @@ struct dwarf_expr_piece
     struct
     {
       /* The referent DIE from DW_OP_GNU_implicit_pointer.  */
-      ULONGEST die;
+      cu_offset die;
       /* The byte offset into the resulting data.  */
       LONGEST offset;
     } ptr;
@@ -275,8 +287,9 @@ void ctx_no_get_frame_base (void *baton, const gdb_byte **start,
 CORE_ADDR ctx_no_get_frame_cfa (void *baton);
 CORE_ADDR ctx_no_get_frame_pc (void *baton);
 CORE_ADDR ctx_no_get_tls_address (void *baton, CORE_ADDR offset);
-void ctx_no_dwarf_call (struct dwarf_expr_context *ctx, size_t die_offset);
-struct type *ctx_no_get_base_type (struct dwarf_expr_context *ctx, size_t die);
+void ctx_no_dwarf_call (struct dwarf_expr_context *ctx, cu_offset die_offset);
+struct type *ctx_no_get_base_type (struct dwarf_expr_context *ctx,
+				   cu_offset die);
 void ctx_no_push_dwarf_reg_entry_value (struct dwarf_expr_context *ctx,
 					int dwarf_reg, CORE_ADDR fb_offset,
 					int deref_size);

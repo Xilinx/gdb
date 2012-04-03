@@ -1,7 +1,7 @@
 /* GDB-specific functions for operating on agent expressions.
 
-   Copyright (C) 1998, 1999, 2000, 2001, 2003, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1998-2001, 2003, 2007-2012 Free Software Foundation,
+   Inc.
 
    This file is part of GDB.
 
@@ -515,6 +515,9 @@ gen_fetch (struct agent_expr *ax, struct type *type)
       ax_trace_quick (ax, TYPE_LENGTH (type));
     }
 
+  if (TYPE_CODE (type) == TYPE_CODE_RANGE)
+    type = TYPE_TARGET_TYPE (type);
+
   switch (TYPE_CODE (type))
     {
     case TYPE_CODE_PTR:
@@ -553,12 +556,11 @@ gen_fetch (struct agent_expr *ax, struct type *type)
       break;
 
     default:
-      /* Either our caller shouldn't have asked us to dereference that
-         pointer (other code's fault), or we're not implementing
-         something we should be (this code's fault).  In any case,
-         it's a bug the user shouldn't see.  */
-      internal_error (__FILE__, __LINE__,
-		      _("gen_fetch: bad type code"));
+      /* Our caller requested us to dereference a pointer from an unsupported
+	 type.  Error out and give callers a chance to handle the failure
+	 gracefully.  */
+      error (_("gen_fetch: Unsupported type code `%s'."),
+	     TYPE_NAME (type));
     }
 }
 
@@ -878,12 +880,6 @@ gen_usual_unary (struct expression *exp, struct agent_expr *ax,
     case TYPE_CODE_STRUCT:
     case TYPE_CODE_UNION:
       return;
-
-      /* If the value is an enum or a bool, call it an integer.  */
-    case TYPE_CODE_ENUM:
-    case TYPE_CODE_BOOL:
-      value->type = builtin_type (exp->gdbarch)->builtin_int;
-      break;
     }
 
   /* If the value is an lvalue, dereference it.  */
@@ -1477,7 +1473,7 @@ gen_struct_ref_recursive (struct expression *exp, struct agent_expr *ax,
 
   for (i = TYPE_NFIELDS (type) - 1; i >= nbases; i--)
     {
-      char *this_name = TYPE_FIELD_NAME (type, i);
+      const char *this_name = TYPE_FIELD_NAME (type, i);
 
       if (this_name)
 	{
@@ -1625,7 +1621,7 @@ gen_struct_elt_for_reference (struct expression *exp,
 
   for (i = TYPE_NFIELDS (t) - 1; i >= TYPE_N_BASECLASSES (t); i--)
     {
-      char *t_field_name = TYPE_FIELD_NAME (t, i);
+      const char *t_field_name = TYPE_FIELD_NAME (t, i);
 
       if (t_field_name && strcmp (t_field_name, fieldname) == 0)
 	{
@@ -2221,7 +2217,7 @@ gen_expr (struct expression *exp, union exp_element **pc,
 
     default:
       error (_("Unsupported operator %s (%d) in expression."),
-	     op_string (op), op);
+	     op_name (exp, op), op);
     }
 }
 

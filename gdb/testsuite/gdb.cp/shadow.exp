@@ -1,4 +1,4 @@
-# Copyright 2008, 2011 Free Software Foundation, Inc.
+# Copyright 2008, 2011-2012 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,10 +15,6 @@
 
 # Test that when multiple variables have the same
 # name the one from the correct scope is printed.
-
-if $tracelevel then {
-    strace $tracelevel
-}
 
 
 set testfile shadow

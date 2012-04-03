@@ -1,7 +1,6 @@
 /* GNU/Linux on ARM target support.
 
-   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1999-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -843,7 +842,12 @@ arm_linux_software_single_step (struct frame_info *frame)
 {
   struct gdbarch *gdbarch = get_frame_arch (frame);
   struct address_space *aspace = get_frame_address_space (frame);
-  CORE_ADDR next_pc = arm_get_next_pc (frame, get_frame_pc (frame));
+  CORE_ADDR next_pc;
+
+  if (arm_deal_with_atomic_sequence (frame))
+    return 1;
+
+  next_pc = arm_get_next_pc (frame, get_frame_pc (frame));
 
   /* The Linux kernel offers some user-mode helpers in a high page.  We can
      not read this page (as of 2.6.23), and even if we could then we couldn't
@@ -932,6 +936,9 @@ arm_linux_copy_svc (struct gdbarch *gdbarch, struct regcache *regs,
 	      inferior_thread ()->control.step_resume_breakpoint
         	= set_momentary_breakpoint (gdbarch, sal, get_frame_id (frame),
 					    bp_step_resume);
+
+	      /* set_momentary_breakpoint invalidates FRAME.  */
+	      frame = NULL;
 
 	      /* We need to make sure we actually insert the momentary
 	         breakpoint set above.  */
@@ -1148,8 +1155,13 @@ arm_linux_init_abi (struct gdbarch_info info,
 					   simple_displaced_step_free_closure);
   set_gdbarch_displaced_step_location (gdbarch, displaced_step_at_entry_point);
 
+  /* Reversible debugging, process record.  */
+  set_gdbarch_process_record (gdbarch, arm_process_record);
 
   tdep->syscall_next_pc = arm_linux_syscall_next_pc;
+
+  /* Syscall record.  */
+  tdep->arm_swi_record = NULL;
 }
 
 /* Provide a prototype to silence -Wmissing-prototypes.  */

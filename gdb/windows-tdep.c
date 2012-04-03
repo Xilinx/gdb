@@ -1,4 +1,4 @@
-/* Copyright (C) 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+/* Copyright (C) 2008-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -424,6 +424,9 @@ init_w32_command_list (void)
       w32_prefix_command_valid = 1;
     }
 }
+
+/* Provide a prototype to silence -Wmissing-prototypes.  */
+extern initialize_file_ftype _initialize_windows_tdep;
 
 void
 _initialize_windows_tdep (void)

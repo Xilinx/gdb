@@ -1,7 +1,6 @@
 /* Target-dependent code for GNU/Linux on MIPS processors.
 
-   Copyright (C) 2001, 2002, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2002, 2004-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -120,13 +119,8 @@ mips_supply_gregset (struct regcache *regcache,
   supply_32bit_reg (regcache, mips_regnum (gdbarch)->cause,
 		    regp + EF_CP0_CAUSE);
 
-  /* Fill inaccessible registers with zero.  */
+  /* Fill the inaccessible zero register with zero.  */
   regcache_raw_supply (regcache, MIPS_ZERO_REGNUM, zerobuf);
-  regcache_raw_supply (regcache, MIPS_UNUSED_REGNUM, zerobuf);
-  for (regi = MIPS_FIRST_EMBED_REGNUM;
-       regi <= MIPS_LAST_EMBED_REGNUM;
-       regi++)
-    regcache_raw_supply (regcache, regi, zerobuf);
 }
 
 static void
@@ -375,13 +369,8 @@ mips64_supply_gregset (struct regcache *regcache,
   supply_64bit_reg (regcache, mips_regnum (gdbarch)->cause,
 		    (const gdb_byte *) (regp + MIPS64_EF_CP0_CAUSE));
 
-  /* Fill inaccessible registers with zero.  */
+  /* Fill the inaccessible zero register with zero.  */
   regcache_raw_supply (regcache, MIPS_ZERO_REGNUM, zerobuf);
-  regcache_raw_supply (regcache, MIPS_UNUSED_REGNUM, zerobuf);
-  for (regi = MIPS_FIRST_EMBED_REGNUM;
-       regi <= MIPS_LAST_EMBED_REGNUM;
-       regi++)
-    regcache_raw_supply (regcache, regi, zerobuf);
 }
 
 static void
@@ -592,7 +581,7 @@ mips64_fill_fpregset_wrapper (const struct regset *regset,
   mips64_fill_fpregset (regcache, (mips64_elf_fpregset_t *)gregs, regnum);
 }
 
-const struct regset *
+static const struct regset *
 mips_linux_regset_from_core_section (struct gdbarch *gdbarch,
 			             const char *sect_name, size_t sect_size)
 {
@@ -1335,6 +1324,7 @@ mips_linux_init_abi (struct gdbarch_info info,
 	 described or not).  */
       gdb_assert (gdbarch_num_regs (gdbarch) <= MIPS_RESTART_REGNUM);
       set_gdbarch_num_regs (gdbarch, MIPS_RESTART_REGNUM + 1);
+      set_gdbarch_num_pseudo_regs (gdbarch, MIPS_RESTART_REGNUM + 1);
 
       /* If it's present, then assign it to the reserved number.  */
       feature = tdesc_find_feature (info.target_desc,

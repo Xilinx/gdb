@@ -1,6 +1,6 @@
 /* 32-bit ELF support for ARM
    Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009, 2010, 2011  Free Software Foundation, Inc.
+   2008, 2009, 2010, 2011, 2012 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -1966,6 +1966,8 @@ elf32_arm_nabi_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 	return FALSE;
 
       case 124:		/* Linux/ARM elf_prpsinfo.  */
+	elf_tdata (abfd)->core_pid
+	 = bfd_get_32 (abfd, note->descdata + 12);
 	elf_tdata (abfd)->core_program
 	 = _bfd_elfcore_strndup (abfd, note->descdata + 28, 16);
 	elf_tdata (abfd)->core_command
@@ -1986,6 +1988,54 @@ elf32_arm_nabi_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
   return TRUE;
 }
 
+static char *
+elf32_arm_nabi_write_core_note (bfd *abfd, char *buf, int *bufsiz,
+				int note_type, ...)
+{
+  switch (note_type)
+    {
+    default:
+      return NULL;
+
+    case NT_PRPSINFO:
+      {
+	char data[124];
+	va_list ap;
+
+	va_start (ap, note_type);
+	memset (data, 0, sizeof (data));
+	strncpy (data + 28, va_arg (ap, const char *), 16);
+	strncpy (data + 44, va_arg (ap, const char *), 80);
+	va_end (ap);
+
+	return elfcore_write_note (abfd, buf, bufsiz,
+				   "CORE", note_type, data, sizeof (data));
+      }
+
+    case NT_PRSTATUS:
+      {
+	char data[148];
+	va_list ap;
+	long pid;
+	int cursig;
+	const void *greg;
+
+	va_start (ap, note_type);
+	memset (data, 0, sizeof (data));
+	pid = va_arg (ap, long);
+	bfd_put_32 (abfd, pid, data + 24);
+	cursig = va_arg (ap, int);
+	bfd_put_16 (abfd, cursig, data + 12);
+	greg = va_arg (ap, const void *);
+	memcpy (data + 72, greg, 72);
+	va_end (ap);
+
+	return elfcore_write_note (abfd, buf, bufsiz,
+				   "CORE", note_type, data, sizeof (data));
+      }
+    }
+}
+
 #define TARGET_LITTLE_SYM               bfd_elf32_littlearm_vec
 #define TARGET_LITTLE_NAME              "elf32-littlearm"
 #define TARGET_BIG_SYM                  bfd_elf32_bigarm_vec
@@ -1993,6 +2043,7 @@ elf32_arm_nabi_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 
 #define elf_backend_grok_prstatus	elf32_arm_nabi_grok_prstatus
 #define elf_backend_grok_psinfo		elf32_arm_nabi_grok_psinfo
+#define elf_backend_write_core_note	elf32_arm_nabi_write_core_note
 
 typedef unsigned long int insn32;
 typedef unsigned short int insn16;
@@ -6931,7 +6982,7 @@ elf32_thumb_to_arm_stub (struct bfd_link_info * info,
 	{
 	  (*_bfd_error_handler)
 	    (_("%B(%s): warning: interworking not enabled.\n"
-	       "  first occurrence: %B: thumb call to arm"),
+	       "  first occurrence: %B: Thumb call to ARM"),
 	     sym_sec->owner, input_bfd, name);
 
 	  return FALSE;
@@ -11217,6 +11268,46 @@ tag_cpu_arch_combine (bfd *ibfd, int oldtag, int *secondary_compat_out,
 #undef T
 }
 
+/* Query attributes object to see if integer divide instructions may be
+   present in an object.  */
+static bfd_boolean
+elf32_arm_attributes_accept_div (const obj_attribute *attr)
+{
+  int arch = attr[Tag_CPU_arch].i;
+  int profile = attr[Tag_CPU_arch_profile].i;
+
+  switch (attr[Tag_DIV_use].i)
+    {
+    case 0:
+      /* Integer divide allowed if instruction contained in archetecture.  */
+      if (arch == TAG_CPU_ARCH_V7 && (profile == 'R' || profile == 'M'))
+	return TRUE;
+      else if (arch >= TAG_CPU_ARCH_V7E_M)
+	return TRUE;
+      else
+	return FALSE;
+
+    case 1:
+      /* Integer divide explicitly prohibited.  */
+      return FALSE;
+
+    default:
+      /* Unrecognised case - treat as allowing divide everywhere.  */
+    case 2:
+      /* Integer divide allowed in ARM state.  */
+      return TRUE;
+    }
+}
+
+/* Query attributes object to see if integer divide instructions are
+   forbidden to be in the object.  This is not the inverse of
+   elf32_arm_attributes_accept_div.  */
+static bfd_boolean
+elf32_arm_attributes_forbid_div (const obj_attribute *attr)
+{
+  return attr[Tag_DIV_use].i == 1;
+}
+
 /* Merge EABI object attributes from IBFD into OBFD.  Raise an error if there
    are conflicting attributes.  */
 
@@ -11658,29 +11749,22 @@ elf32_arm_merge_eabi_attributes (bfd *ibfd, bfd *obfd)
 	  break;
 
 	case Tag_DIV_use:
-	  /* This tag is set to zero if we can use UDIV and SDIV in Thumb
-	     mode on a v7-M or v7-R CPU; to one if we can not use UDIV or
-	     SDIV at all; and to two if we can use UDIV or SDIV on a v7-A
-	     CPU.  We will merge as follows: If the input attribute's value
-	     is one then the output attribute's value remains unchanged.  If
-	     the input attribute's value is zero or two then if the output
-	     attribute's value is one the output value is set to the input
-	     value, otherwise the output value must be the same as the
-	     inputs.  */ 
-	  if (in_attr[i].i != 1 && out_attr[i].i != 1) 
-	    { 
-	      if (in_attr[i].i != out_attr[i].i)
-		{
-		  _bfd_error_handler
-		    (_("DIV usage mismatch between %B and %B"),
-		     ibfd, obfd); 
-		  result = FALSE;
-		}
-	    } 
-
-	  if (in_attr[i].i != 1)
-	    out_attr[i].i = in_attr[i].i; 
-	  
+	  /* A value of zero on input means that the divide instruction may
+	     be used if available in the base architecture as specified via
+	     Tag_CPU_arch and Tag_CPU_arch_profile.  A value of 1 means that
+	     the user did not want divide instructions.  A value of 2
+	     explicitly means that divide instructions were allowed in ARM
+	     and Thumb state.  */
+	  if (in_attr[i].i == out_attr[i].i)
+	    /* Do nothing.  */ ;
+	  else if (elf32_arm_attributes_forbid_div (in_attr)
+		   && !elf32_arm_attributes_accept_div (out_attr))
+	    out_attr[i].i = 1;
+	  else if (elf32_arm_attributes_forbid_div (out_attr)
+		   && elf32_arm_attributes_accept_div (in_attr))
+	    out_attr[i].i = in_attr[i].i;
+	  else if (in_attr[i].i == 2)
+	    out_attr[i].i = in_attr[i].i;
 	  break;
 
 	case Tag_MPextension_use_legacy:
@@ -12795,13 +12879,6 @@ elf32_arm_adjust_dynamic_symbol (struct bfd_link_info * info,
   if (info->shared || globals->root.is_relocatable_executable)
     return TRUE;
 
-  if (h->size == 0)
-    {
-      (*_bfd_error_handler) (_("dynamic variable `%s' is zero size"),
-			     h->root.root.string);
-      return TRUE;
-    }
-
   /* We must allocate the symbol in our .dynbss section, which will
      become part of the .bss section of the executable.  There will be
      an entry for this symbol in the .dynsym section.  The dynamic
@@ -12818,7 +12895,7 @@ elf32_arm_adjust_dynamic_symbol (struct bfd_link_info * info,
      copy the initial value out of the dynamic object and into the
      runtime process image.  We need to remember the offset into the
      .rel(a).bss section we are going to use.  */
-  if ((h->root.u.def.section->flags & SEC_ALLOC) != 0)
+  if ((h->root.u.def.section->flags & SEC_ALLOC) != 0 && h->size != 0)
     {
       asection *srel;
 

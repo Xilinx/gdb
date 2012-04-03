@@ -1,7 +1,6 @@
 /* Routines for name->symbol lookups in GDB.
    
-   Copyright (C) 2003, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003, 2007-2012 Free Software Foundation, Inc.
 
    Contributed by David Carlton <carlton@bactrian.org> and by Kealia,
    Inc.
@@ -801,6 +800,17 @@ dict_hash (const char *string0)
   hash = 0;
   while (*string)
     {
+      /* Ignore "TKB" suffixes.
+
+	 These are used by Ada for subprograms implementing a task body.
+	 For instance for a task T inside package Pck, the name of the
+	 subprogram implementing T's body is `pck__tTKB'.  We need to
+	 ignore the "TKB" suffix because searches for this task body
+	 subprogram are going to be performed using `pck__t' (the encoded
+	 version of the natural name `pck.t').  */
+      if (strcmp (string, "TKB") == 0)
+	return hash;
+
       switch (*string)
 	{
 	case '$':

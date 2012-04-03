@@ -1,6 +1,5 @@
 /* Memory breakpoint interfaces for the remote server for GDB.
-   Copyright (C) 2002, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2002, 2005, 2007-2012 Free Software Foundation, Inc.
 
    Contributed by MontaVista Software.
 
@@ -26,6 +25,11 @@
 struct breakpoint;
 struct fast_tracepoint_jump;
 
+/* Locate a breakpoint placed at address WHERE and return a pointer
+   to its structure.  */
+
+struct breakpoint *find_gdb_breakpoint_at (CORE_ADDR where);
+
 /* Create a new GDB breakpoint at WHERE.  Returns -1 if breakpoints
    are not supported on this target, 0 otherwise.  */
 
@@ -39,6 +43,19 @@ int breakpoint_here (CORE_ADDR addr);
 /* Returns TRUE if there's any inserted breakpoint set at ADDR.  */
 
 int breakpoint_inserted_here (CORE_ADDR addr);
+
+/* Clear all breakpoint conditions associated with this address.  */
+
+void clear_gdb_breakpoint_conditions (CORE_ADDR addr);
+
+/* Set target-side condition CONDITION to the breakpoint at ADDR.  */
+
+int add_breakpoint_condition (CORE_ADDR addr, char **condition);
+
+/* Evaluation condition (if any) at breakpoint BP.  Return 1 if
+   true and 0 otherwise.  */
+
+int gdb_condition_true_at_breakpoint (CORE_ADDR where);
 
 /* Returns TRUE if there's a GDB breakpoint set at ADDR.  */
 
@@ -136,6 +153,9 @@ void validate_breakpoints (void);
 struct fast_tracepoint_jump *set_fast_tracepoint_jump (CORE_ADDR where,
 						       unsigned char *insn,
 						       ULONGEST length);
+
+/* Increment reference counter of JP.  */
+void inc_ref_fast_tracepoint_jump (struct fast_tracepoint_jump *jp);
 
 /* Delete fast tracepoint jump TODEL from our tables, and uninsert if
    from memory.  */

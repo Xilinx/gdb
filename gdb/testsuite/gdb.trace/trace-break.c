@@ -1,6 +1,6 @@
 /* This testcase is part of GDB, the GNU debugger.
 
-   Copyright 2011 Free Software Foundation, Inc.
+   Copyright 2011-2012 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,13 @@ marker (void)
      fit a fast tracepoint jump.  */
   asm ("    .global " SYMBOL(set_point) "\n"
        SYMBOL(set_point) ":\n"
+#if (defined __x86_64__ || defined __i386__)
+       "    call " SYMBOL(func) "\n"
+#endif
+       );
+
+  asm ("    .global " SYMBOL(after_set_point) "\n"
+       SYMBOL(after_set_point) ":\n"
 #if (defined __x86_64__ || defined __i386__)
        "    call " SYMBOL(func) "\n"
 #endif

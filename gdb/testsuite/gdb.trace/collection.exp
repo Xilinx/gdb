@@ -1,5 +1,4 @@
-# Copyright 1998, 2005, 2007, 2008, 2009, 2010, 2011
-# Free Software Foundation, Inc.
+# Copyright 1998, 2005, 2007-2012 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,10 +14,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 load_lib "trace-support.exp"
-
-if $tracelevel then {
-	strace $tracelevel
-}
 
 
 set testfile "collection"
@@ -589,6 +584,7 @@ proc gdb_collect_global_in_pieces_test { } {
 }
 
 proc gdb_collect_return_test { } {
+    global gdb_prompt
 
     prepare_for_trace_test
 
@@ -606,10 +602,10 @@ proc gdb_collect_return_test { } {
     # Since we can't guarantee that $_ret will give us the caller,
     # pass either way, but giving different messages.
     gdb_test_multiple "backtrace" "" {
-	-re ".*#1 .* in main .*" {
+	-re ".*#1 .* in main .*\r\n$gdb_prompt $" {
 	    pass "collect \$_ret: backtrace lists main"
 	}
-	-re ".*#1 .* in ?? .*" {
+	-re ".*#1 .* in ?? .*\r\n$gdb_prompt $" {
 	    pass "collect \$_ret: backtrace not listing main"
 	}
     }
@@ -783,10 +779,8 @@ proc gdb_trace_collection_test {} {
 clean_restart $executable
 runto_main
 
-# We generously give ourselves one "pass" if we successfully
-# detect that this test cannot be run on this target!
 if { ![gdb_target_supports_trace] } then {
-    pass "Current target does not support trace"
+    unsupported "Current target does not support trace"
     return 1;
 }
 

@@ -1,8 +1,7 @@
 /* Find a variable's value in memory, for GDB, the GNU debugger.
 
-   Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2001, 2003, 2004, 2005, 2007, 2008, 2009,
-   2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1986-2001, 2003-2005, 2007-2012 Free Software
+   Foundation, Inc.
 
    This file is part of GDB.
 
@@ -35,6 +34,7 @@
 #include "user-regs.h"
 #include "block.h"
 #include "objfiles.h"
+#include "language.h"
 
 /* Basic byte-swapping routines.  All 'extract' functions return a
    host-format integer from a target-format integer at ADDR which is
@@ -406,13 +406,11 @@ symbol_read_needs_frame (struct symbol *sym)
   return 1;
 }
 
-/* Given a struct symbol for a variable,
-   and a stack frame id, read the value of the variable
-   and return a (pointer to a) struct value containing the value.
-   If the variable cannot be found, throw error.  */
+/* A default implementation for the "la_read_var_value" hook in
+   the language vector which should work in most situations.  */
 
 struct value *
-read_var_value (struct symbol *var, struct frame_info *frame)
+default_read_var_value (struct symbol *var, struct frame_info *frame)
 {
   struct value *v;
   struct type *type = SYMBOL_TYPE (var);
@@ -595,6 +593,19 @@ read_var_value (struct symbol *var, struct frame_info *frame)
   return v;
 }
 
+/* Calls VAR's language la_read_var_value hook with the given arguments.  */
+
+struct value *
+read_var_value (struct symbol *var, struct frame_info *frame)
+{
+  const struct language_defn *lang = language_def (SYMBOL_LANGUAGE (var));
+
+  gdb_assert (lang != NULL);
+  gdb_assert (lang->la_read_var_value != NULL);
+
+  return lang->la_read_var_value (var, frame);
+}
+
 /* Install default attributes for register values.  */
 
 struct value *
@@ -631,23 +642,37 @@ default_value_from_register (struct type *type, int regnum,
 void
 read_frame_register_value (struct value *value, struct frame_info *frame)
 {
+  struct gdbarch *gdbarch = get_frame_arch (frame);
   int offset = 0;
+  int reg_offset = value_offset (value);
   int regnum = VALUE_REGNUM (value);
-  const int len = TYPE_LENGTH (check_typedef (value_type (value)));
+  int len = TYPE_LENGTH (check_typedef (value_type (value)));
 
   gdb_assert (VALUE_LVAL (value) == lval_register);
 
-  while (offset < len)
+  /* Skip registers wholly inside of REG_OFFSET.  */
+  while (reg_offset >= register_size (gdbarch, regnum))
+    {
+      reg_offset -= register_size (gdbarch, regnum);
+      regnum++;
+    }
+
+  /* Copy the data.  */
+  while (len > 0)
     {
       struct value *regval = get_frame_register_value (frame, regnum);
-      int reg_len = TYPE_LENGTH (value_type (regval));
+      int reg_len = TYPE_LENGTH (value_type (regval)) - reg_offset;
 
-      if (offset + reg_len > len)
-        reg_len = len - offset;
-      value_contents_copy (value, offset, regval, value_offset (regval),
-			   reg_len);
+      /* If the register length is larger than the number of bytes
+         remaining to copy, then only copy the appropriate bytes.  */
+      if (reg_len > len)
+	reg_len = len;
+
+      value_contents_copy (value, offset, regval, reg_offset, reg_len);
 
       offset += reg_len;
+      len -= reg_len;
+      reg_offset = 0;
       regnum++;
     }
 }

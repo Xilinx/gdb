@@ -1,8 +1,6 @@
 /* Work with executable files, for GDB. 
 
-   Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2001, 2002, 2003, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1988-2003, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -669,7 +667,7 @@ section_table_xfer_memory_partial (gdb_byte *readbuf, const gdb_byte *writebuf,
   return 0;			/* We can't help.  */
 }
 
-struct target_section_table *
+static struct target_section_table *
 exec_get_section_table (struct target_ops *ops)
 {
   return current_target_sections;
@@ -763,7 +761,10 @@ print_section_info (struct target_section_table *t, bfd *abfd)
 static void
 exec_files_info (struct target_ops *t)
 {
-  print_section_info (current_target_sections, exec_bfd);
+  if (exec_bfd)
+    print_section_info (current_target_sections, exec_bfd);
+  else
+    puts_filtered (_("\t<no file loaded>\n"));
 
   if (vmap)
     {
@@ -815,9 +816,9 @@ set_section_command (char *args, int from_tty)
   table = current_target_sections;
   for (p = table->sections; p < table->sections_end; p++)
     {
-      if (!strncmp (secname, bfd_section_name (exec_bfd,
+      if (!strncmp (secname, bfd_section_name (p->bfd,
 					       p->the_bfd_section), seclen)
-	  && bfd_section_name (exec_bfd, p->the_bfd_section)[seclen] == '\0')
+	  && bfd_section_name (p->bfd, p->the_bfd_section)[seclen] == '\0')
 	{
 	  offset = secaddr - p->addr;
 	  p->addr += offset;

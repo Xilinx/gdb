@@ -1,6 +1,5 @@
 /* Definitions for expressions designed to be executed on the agent
-   Copyright (C) 1998, 1999, 2000, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1998-2000, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -21,6 +20,7 @@
 #define AGENTEXPR_H
 
 #include "doublest.h"		/* For DOUBLEST.  */
+#include "vec.h"
 
 /* It's sometimes useful to be able to debug programs that you can't
    really stop for more than a fraction of a second.  To this end, the
@@ -144,6 +144,12 @@ struct agent_expr
     int reg_mask_len;
     unsigned char *reg_mask;
   };
+
+/* Pointer to an agent_expr structure.  */
+typedef struct agent_expr *agent_expr_p;
+
+/* Vector of pointers to agent expressions.  */
+DEF_VEC_P (agent_expr_p);
 
 /* The actual values of the various bytecode operations.  */
 

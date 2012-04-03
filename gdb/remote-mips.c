@@ -1,8 +1,6 @@
 /* Remote debugging interface for MIPS remote debugging protocol.
 
-   Copyright (C) 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1993-2004, 2006-2012 Free Software Foundation, Inc.
 
    Contributed by Cygnus Support.  Written by Ian Lance Taylor
    <ian@cygnus.com>.
@@ -1956,7 +1954,7 @@ mips_wait (struct target_ops *ops,
          is not a normal breakpoint.  */
       if (strcmp (target_shortname, "lsi") == 0)
 	{
-	  char *func_name;
+	  const char *func_name;
 	  CORE_ADDR func_start;
 	  CORE_ADDR pc = regcache_read_pc (get_current_regcache ());
 
@@ -2386,7 +2384,7 @@ mips_remove_breakpoint (struct gdbarch *gdbarch,
    is the number of hardware breakpoints already installed.  This
    implements the target_can_use_hardware_watchpoint macro.  */
 
-int
+static int
 mips_can_use_watchpoint (int type, int cnt, int othertype)
 {
   return cnt < MAX_LSI_BREAKPOINTS && strcmp (target_shortname, "lsi") == 0;
@@ -2420,7 +2418,7 @@ calculate_mask (CORE_ADDR addr, int len)
    for a write watchpoint, 1 for a read watchpoint, or 2 for a read/write
    watchpoint.  */
 
-int
+static int
 mips_insert_watchpoint (CORE_ADDR addr, int len, int type,
 			struct expression *cond)
 {
@@ -2432,7 +2430,7 @@ mips_insert_watchpoint (CORE_ADDR addr, int len, int type,
 
 /* Remove a watchpoint.  */
 
-int
+static int
 mips_remove_watchpoint (CORE_ADDR addr, int len, int type,
 			struct expression *cond)
 {
@@ -2445,7 +2443,7 @@ mips_remove_watchpoint (CORE_ADDR addr, int len, int type,
 /* Test to see if a watchpoint has been hit.  Return 1 if so; return 0,
    if not.  */
 
-int
+static int
 mips_stopped_by_watchpoint (void)
 {
   return hit_watchpoint;

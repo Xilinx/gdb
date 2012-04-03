@@ -1,6 +1,6 @@
 /* gdb-if.c -- sim interface to GDB.
 
-Copyright (C) 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+Copyright (C) 2008-2012 Free Software Foundation, Inc.
 Contributed by Red Hat, Inc.
 
 This file is part of the GNU simulators.
@@ -201,7 +201,7 @@ sim_load (SIM_DESC sd, char *prog, struct bfd *abfd, int from_tty)
   if (!abfd)
     return SIM_RC_FAIL;
 
-  rx_load (abfd);
+  rx_load (abfd, get_callbacks ());
   build_swap_list (abfd);
 
   return SIM_RC_OK;
@@ -214,7 +214,7 @@ sim_create_inferior (SIM_DESC sd, struct bfd *abfd, char **argv, char **env)
 
   if (abfd)
     {
-      rx_load (abfd);
+      rx_load (abfd, NULL);
       build_swap_list (abfd);
     }
 

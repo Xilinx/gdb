@@ -1,8 +1,7 @@
 /* Definitions for dealing with stack frames, for GDB, the GNU debugger.
 
-   Copyright (C) 1986, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1996, 1997,
-   1998, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1986, 1988-1994, 1996-2004, 2007-2012 Free Software
+   Foundation, Inc.
 
    This file is part of GDB.
 
@@ -501,6 +500,13 @@ extern ULONGEST frame_unwind_register_unsigned (struct frame_info *frame,
 extern ULONGEST get_frame_register_unsigned (struct frame_info *frame,
 					     int regnum);
 
+/* Read a register from this, or unwind a register from the next
+   frame.  Note that the read_frame methods are wrappers to
+   get_frame_register_value, that do not throw if the result is
+   optimized out or unavailable.  */
+
+extern int read_frame_register_unsigned (struct frame_info *frame,
+					 int regnum, ULONGEST *val);
 
 /* Get the value of the register that belongs to this FRAME.  This
    function is a wrapper to the call sequence ``frame_register_unwind

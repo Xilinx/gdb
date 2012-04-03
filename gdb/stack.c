@@ -1,8 +1,6 @@
 /* Print and select stack frames for GDB, the GNU debugger.
 
-   Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008,
-   2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1986-2005, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -47,6 +45,7 @@
 #include "cp-support.h"
 #include "disasm.h"
 #include "inline-frame.h"
+#include "linespec.h"
 
 #include "gdb_assert.h"
 #include <ctype.h>
@@ -60,7 +59,7 @@ void (*deprecated_selected_frame_level_changed_hook) (int);
 /* The possible choices of "set print frame-arguments", and the value
    of this setting.  */
 
-static const char *print_frame_arguments_choices[] =
+static const char *const print_frame_arguments_choices[] =
   {"all", "scalars", "none", NULL};
 static const char *print_frame_arguments = "scalars";
 
@@ -74,7 +73,7 @@ const char print_entry_values_if_needed[] = "if-needed";
 const char print_entry_values_both[] = "both";
 const char print_entry_values_compact[] = "compact";
 const char print_entry_values_default[] = "default";
-static const char *print_entry_values_choices[] =
+static const char *const print_entry_values_choices[] =
 {
   print_entry_values_no,
   print_entry_values_only,
@@ -211,10 +210,10 @@ print_frame_arg (const struct frame_arg *arg)
   struct ui_out *uiout = current_uiout;
   volatile struct gdb_exception except;
   struct cleanup *old_chain;
-  struct ui_stream *stb;
+  struct ui_file *stb;
 
-  stb = ui_out_stream_new (uiout);
-  old_chain = make_cleanup_ui_out_stream_delete (stb);
+  stb = mem_fileopen ();
+  old_chain = make_cleanup_ui_file_delete (stb);
 
   gdb_assert (!arg->val || !arg->error);
   gdb_assert (arg->entry_kind == print_entry_values_no
@@ -225,21 +224,21 @@ print_frame_arg (const struct frame_arg *arg)
   annotate_arg_begin ();
 
   make_cleanup_ui_out_tuple_begin_end (uiout, NULL);
-  fprintf_symbol_filtered (stb->stream, SYMBOL_PRINT_NAME (arg->sym),
+  fprintf_symbol_filtered (stb, SYMBOL_PRINT_NAME (arg->sym),
 			   SYMBOL_LANGUAGE (arg->sym), DMGL_PARAMS | DMGL_ANSI);
   if (arg->entry_kind == print_entry_values_compact)
     {
       /* It is OK to provide invalid MI-like stream as with
 	 PRINT_ENTRY_VALUE_COMPACT we never use MI.  */
-      fputs_filtered ("=", stb->stream);
+      fputs_filtered ("=", stb);
 
-      fprintf_symbol_filtered (stb->stream, SYMBOL_PRINT_NAME (arg->sym),
+      fprintf_symbol_filtered (stb, SYMBOL_PRINT_NAME (arg->sym),
 			       SYMBOL_LANGUAGE (arg->sym),
 			       DMGL_PARAMS | DMGL_ANSI);
     }
   if (arg->entry_kind == print_entry_values_only
       || arg->entry_kind == print_entry_values_compact)
-    fputs_filtered ("@entry", stb->stream);
+    fputs_filtered ("@entry", stb);
   ui_out_field_stream (uiout, "name", stb);
   annotate_arg_name_end ();
   ui_out_text (uiout, "=");
@@ -280,17 +279,17 @@ print_frame_arg (const struct frame_arg *arg)
 	      /* True in "summary" mode, false otherwise.  */
 	      opts.summary = !strcmp (print_frame_arguments, "scalars");
 
-	      common_val_print (arg->val, stb->stream, 2, &opts, language);
+	      common_val_print (arg->val, stb, 2, &opts, language);
 	    }
 	}
       if (except.message)
-	fprintf_filtered (stb->stream, _("<error reading variable: %s>"),
+	fprintf_filtered (stb, _("<error reading variable: %s>"),
 			  except.message);
     }
 
   ui_out_field_stream (uiout, "value", stb);
 
-  /* Aleo invoke ui_out_tuple_end.  */
+  /* Also invoke ui_out_tuple_end.  */
   do_cleanups (old_chain);
 
   annotate_arg_end ();
@@ -501,14 +500,14 @@ print_frame_args (struct symbol *func, struct frame_info *frame,
   /* Number of ints of arguments that we have printed so far.  */
   int args_printed = 0;
   struct cleanup *old_chain, *list_chain;
-  struct ui_stream *stb;
+  struct ui_file *stb;
   /* True if we should print arguments, false otherwise.  */
   int print_args = strcmp (print_frame_arguments, "none");
   /* True in "summary" mode, false otherwise.  */
   int summary = !strcmp (print_frame_arguments, "scalars");
 
-  stb = ui_out_stream_new (uiout);
-  old_chain = make_cleanup_ui_out_stream_delete (stb);
+  stb = mem_fileopen ();
+  old_chain = make_cleanup_ui_file_delete (stb);
 
   if (func)
     {
@@ -910,6 +909,12 @@ set_last_displayed_sal (int valid, struct program_space *pspace,
   last_displayed_addr = addr;
   last_displayed_symtab = symtab;
   last_displayed_line = line;
+  if (valid && pspace == NULL)
+    {
+      clear_last_displayed_sal ();
+      internal_error (__FILE__, __LINE__,
+		      _("Trying to set NULL pspace."));
+    }
 }
 
 /* Forget the last sal we displayed.  */
@@ -1000,7 +1005,7 @@ get_last_displayed_sal (struct symtab_and_line *sal)
    corresponding to FRAME.  */
 
 void
-find_frame_funname (struct frame_info *frame, char **funname,
+find_frame_funname (struct frame_info *frame, const char **funname,
 		    enum language *funlang, struct symbol **funcp)
 {
   struct symbol *func;
@@ -1096,9 +1101,9 @@ print_frame (struct frame_info *frame, int print_level,
 {
   struct gdbarch *gdbarch = get_frame_arch (frame);
   struct ui_out *uiout = current_uiout;
-  char *funname = NULL;
+  const char *funname = NULL;
   enum language funlang = language_unknown;
-  struct ui_stream *stb;
+  struct ui_file *stb;
   struct cleanup *old_chain, *list_chain;
   struct value_print_options opts;
   struct symbol *func;
@@ -1107,8 +1112,8 @@ print_frame (struct frame_info *frame, int print_level,
 
   pc_p = get_frame_pc_if_available (frame, &pc);
 
-  stb = ui_out_stream_new (uiout);
-  old_chain = make_cleanup_ui_out_stream_delete (stb);
+  stb = mem_fileopen ();
+  old_chain = make_cleanup_ui_file_delete (stb);
 
   find_frame_funname (frame, &funname, &funlang, &func);
 
@@ -1138,7 +1143,7 @@ print_frame (struct frame_info *frame, int print_level,
 	ui_out_text (uiout, " in ");
       }
   annotate_frame_function_name ();
-  fprintf_symbol_filtered (stb->stream, funname ? funname : "??",
+  fprintf_symbol_filtered (stb, funname ? funname : "??",
 			   funlang, DMGL_ANSI);
   ui_out_field_stream (uiout, "func", stb);
   ui_out_wrap_hint (uiout, "   ");
@@ -1364,7 +1369,7 @@ frame_info (char *addr_exp, int from_tty)
   struct symtab *s;
   struct frame_info *calling_frame_info;
   int numregs;
-  char *funname = 0;
+  const char *funname = 0;
   enum language funlang = language_unknown;
   const char *pc_regname;
   int selected_frame_p;
@@ -1969,95 +1974,11 @@ print_frame_local_vars (struct frame_info *frame, int num_tabs,
     fprintf_filtered (stream, _("No locals.\n"));
 }
 
-/* Same, but print labels.  */
-
-static void
-print_frame_label_vars (struct frame_info *frame, int this_level_only,
-			struct ui_file *stream)
-{
-#if 1
-  fprintf_filtered (stream, "print_frame_label_vars disabled.\n");
-#else
-  struct blockvector *bl;
-  struct block *block = get_frame_block (frame, 0);
-  struct gdbarch *gdbarch = get_frame_arch (frame);
-  int values_printed = 0;
-  int index, have_default = 0;
-  char *blocks_printed;
-  CORE_ADDR pc = get_frame_pc (frame);
-
-  if (block == 0)
-    {
-      fprintf_filtered (stream, "No symbol table info available.\n");
-      return;
-    }
-
-  bl = blockvector_for_pc (BLOCK_END (block) - 4, &index);
-  blocks_printed = alloca (BLOCKVECTOR_NBLOCKS (bl) * sizeof (char));
-  memset (blocks_printed, 0, BLOCKVECTOR_NBLOCKS (bl) * sizeof (char));
-
-  while (block != 0)
-    {
-      CORE_ADDR end = BLOCK_END (block) - 4;
-      int last_index;
-
-      if (bl != blockvector_for_pc (end, &index))
-	error (_("blockvector blotch"));
-      if (BLOCKVECTOR_BLOCK (bl, index) != block)
-	error (_("blockvector botch"));
-      last_index = BLOCKVECTOR_NBLOCKS (bl);
-      index += 1;
-
-      /* Don't print out blocks that have gone by.  */
-      while (index < last_index
-	     && BLOCK_END (BLOCKVECTOR_BLOCK (bl, index)) < pc)
-	index++;
-
-      while (index < last_index
-	     && BLOCK_END (BLOCKVECTOR_BLOCK (bl, index)) < end)
-	{
-	  if (blocks_printed[index] == 0)
-	    {
-	      if (print_block_frame_labels (gdbarch,
-					    BLOCKVECTOR_BLOCK (bl, index),
-					    &have_default, stream))
-		values_printed = 1;
-	      blocks_printed[index] = 1;
-	    }
-	  index++;
-	}
-      if (have_default)
-	return;
-      if (values_printed && this_level_only)
-	return;
-
-      /* After handling the function's top-level block, stop.  Don't
-         continue to its superblock, the block of per-file symbols.
-         Also do not continue to the containing function of an inlined
-         function.  */
-      if (BLOCK_FUNCTION (block))
-	break;
-      block = BLOCK_SUPERBLOCK (block);
-    }
-
-  if (!values_printed && !this_level_only)
-    fprintf_filtered (stream, _("No catches.\n"));
-#endif
-}
-
 void
 locals_info (char *args, int from_tty)
 {
   print_frame_local_vars (get_selected_frame (_("No frame selected.")),
 			  0, gdb_stdout);
-}
-
-static void
-catch_info (char *ignore, int from_tty)
-{
-  /* Assume g++ compiled code; old GDB 4.16 behaviour.  */
-  print_frame_label_vars (get_selected_frame (_("No frame selected.")),
-                          0, gdb_stdout);
 }
 
 /* Iterate over all the argument variables in block B.
@@ -2444,20 +2365,25 @@ func_command (char *arg, int from_tty)
   int i;
   int level = 1;
   struct function_bounds *func_bounds = NULL;
+  struct cleanup *cleanups;
 
   if (arg != NULL)
     return;
 
   frame = parse_frame_specification ("0");
-  sals = decode_line_spec (arg, 1);
+  sals = decode_line_spec (arg, DECODE_LINE_FUNFIRSTLINE);
+  cleanups = make_cleanup (xfree, sals.sals);
   func_bounds = (struct function_bounds *) xmalloc (
 			      sizeof (struct function_bounds) * sals.nelts);
+  make_cleanup (xfree, func_bounds);
   for (i = 0; (i < sals.nelts && !found); i++)
     {
-      if (sals.sals[i].pc == 0
-	  || find_pc_partial_function (sals.sals[i].pc, NULL,
-				       &func_bounds[i].low,
-				       &func_bounds[i].high) == 0)
+      if (sals.sals[i].pspace != current_program_space)
+	func_bounds[i].low = func_bounds[i].high = 0;
+      else if (sals.sals[i].pc == 0
+	       || find_pc_partial_function (sals.sals[i].pc, NULL,
+					    &func_bounds[i].low,
+					    &func_bounds[i].high) == 0)
 	{
 	  func_bounds[i].low = func_bounds[i].high = 0;
 	}
@@ -2476,8 +2402,7 @@ func_command (char *arg, int from_tty)
     }
   while (!found && level == 0);
 
-  if (func_bounds)
-    xfree (func_bounds);
+  do_cleanups (cleanups);
 
   if (!found)
     printf_filtered (_("'%s' not within current stack frame.\n"), arg);
@@ -2611,9 +2536,6 @@ Usage: T <count>\n"));
     add_com ("func", class_stack, func_command, _("\
 Select the stack frame that contains <func>.\n\
 Usage: func <name>\n"));
-
-  add_info ("catch", catch_info,
-	    _("Exceptions that can be caught in the current stack frame."));
 
   add_setshow_enum_cmd ("frame-arguments", class_stack,
 			print_frame_arguments_choices, &print_frame_arguments,

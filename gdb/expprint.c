@@ -1,8 +1,7 @@
 /* Print in infix form a struct expression.
 
-   Copyright (C) 1986, 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2003, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1986, 1988-1989, 1991-2000, 2003, 2007-2012 Free
+   Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -648,12 +647,11 @@ op_string (enum exp_opcode op)
 /* Support for dumping the raw data from expressions in a human readable
    form.  */
 
-static char *op_name (struct expression *, enum exp_opcode);
 static int dump_subexp_body (struct expression *exp, struct ui_file *, int);
 
 /* Name for OPCODE, when it appears in expression EXP.  */
 
-static char *
+char *
 op_name (struct expression *exp, enum exp_opcode opcode)
 {
   return exp->language_defn->la_exp_desc->op_name (opcode);

@@ -8,8 +8,8 @@
 /* Main header file for the bfd library -- portable access to object files.
 
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011,
+   2012 Free Software Foundation, Inc.
 
    Contributed by Cygnus Support.
 
@@ -701,16 +701,11 @@ extern bfd *bfd_elf_bfd_from_remote_memory
   (bfd *templ, bfd_vma ehdr_vma, bfd_vma *loadbasep,
    int (*target_read_memory) (bfd_vma vma, bfd_byte *myaddr, int len));
 
-/* Return the arch_size field of an elf bfd, or -1 if not elf.  */
-extern int bfd_get_arch_size
-  (bfd *);
-
-/* Return TRUE if address "naturally" sign extends, or -1 if not elf.  */
-extern int bfd_get_sign_extend_vma
-  (bfd *);
-
 extern struct bfd_section *_bfd_elf_tls_setup
   (bfd *, struct bfd_link_info *);
+
+extern struct bfd_section *
+_bfd_nearby_section (bfd *, struct bfd_section *, bfd_vma);
 
 extern void _bfd_fix_excluded_sec_syms
   (bfd *, struct bfd_link_info *);
@@ -1900,6 +1895,8 @@ enum bfd_architecture
 #define bfd_mach_mips_loongson_3a      3003
 #define bfd_mach_mips_sb1              12310201 /* octal 'SB', 01 */
 #define bfd_mach_mips_octeon           6501
+#define bfd_mach_mips_octeonp          6601
+#define bfd_mach_mips_octeon2          6502
 #define bfd_mach_mips_xlr              887682   /* decimal 'XLR'  */
 #define bfd_mach_mipsisa32             32
 #define bfd_mach_mipsisa32r2           33
@@ -1963,6 +1960,8 @@ enum bfd_architecture
 #define bfd_mach_ppc_e500      500
 #define bfd_mach_ppc_e500mc    5001
 #define bfd_mach_ppc_e500mc64  5005
+#define bfd_mach_ppc_e5500     5006
+#define bfd_mach_ppc_e6500     5007
 #define bfd_mach_ppc_titan     83
   bfd_arch_rs6000,    /* IBM RS/6000 */
 #define bfd_mach_rs6k          6000
@@ -2175,6 +2174,7 @@ enum bfd_architecture
   bfd_arch_tilegx, /* Tilera TILE-Gx */
 #define bfd_mach_tilepro   1
 #define bfd_mach_tilegx    1
+#define bfd_mach_tilegx32  2
   bfd_arch_last
   };
 
@@ -2196,6 +2196,12 @@ typedef struct bfd_arch_info
     (const struct bfd_arch_info *a, const struct bfd_arch_info *b);
 
   bfd_boolean (*scan) (const struct bfd_arch_info *, const char *);
+
+  /* Allocate via bfd_malloc and return a fill buffer of size COUNT.  If
+     IS_BIGENDIAN is TRUE, the order of bytes is big endian.  If CODE is
+     TRUE, the buffer contains code.  */
+  void *(*fill) (bfd_size_type count, bfd_boolean is_bigendian,
+                 bfd_boolean code);
 
   const struct bfd_arch_info *next;
 }
@@ -2802,6 +2808,15 @@ to compensate for the borrow when the low bits are added.  */
 /* MIPS16 low 16 bits.  */
   BFD_RELOC_MIPS16_LO16,
 
+/* MIPS16 TLS relocations  */
+  BFD_RELOC_MIPS16_TLS_GD,
+  BFD_RELOC_MIPS16_TLS_LDM,
+  BFD_RELOC_MIPS16_TLS_DTPREL_HI16,
+  BFD_RELOC_MIPS16_TLS_DTPREL_LO16,
+  BFD_RELOC_MIPS16_TLS_GOTTPREL,
+  BFD_RELOC_MIPS16_TLS_TPREL_HI16,
+  BFD_RELOC_MIPS16_TLS_TPREL_LO16,
+
 /* Relocation against a MIPS literal section.  */
   BFD_RELOC_MIPS_LITERAL,
   BFD_RELOC_MICROMIPS_LITERAL,
@@ -2962,6 +2977,25 @@ in the same section.  */
 be honoured at the offset's location, regardless of linker
 relaxation.  */
   BFD_RELOC_MN10300_ALIGN,
+
+/* Various TLS-related relocations.  */
+  BFD_RELOC_MN10300_TLS_GD,
+  BFD_RELOC_MN10300_TLS_LD,
+  BFD_RELOC_MN10300_TLS_LDO,
+  BFD_RELOC_MN10300_TLS_GOTIE,
+  BFD_RELOC_MN10300_TLS_IE,
+  BFD_RELOC_MN10300_TLS_LE,
+  BFD_RELOC_MN10300_TLS_DTPMOD,
+  BFD_RELOC_MN10300_TLS_DTPOFF,
+  BFD_RELOC_MN10300_TLS_TPOFF,
+
+/* This is a 32bit pcrel reloc for the mn10300, offset by two bytes in the
+instruction.  */
+  BFD_RELOC_MN10300_32_PCREL,
+
+/* This is a 16bit pcrel reloc for the mn10300, offset by two bytes in the
+instruction.  */
+  BFD_RELOC_MN10300_16_PCREL,
 
 
 /* i386/elf relocations  */
@@ -3797,14 +3831,6 @@ instructions.  */
 
 /* start data in text.  */
   BFD_RELOC_V850_DATA,
-
-/* This is a 32bit pcrel reloc for the mn10300, offset by two bytes in the
-instruction.  */
-  BFD_RELOC_MN10300_32_PCREL,
-
-/* This is a 16bit pcrel reloc for the mn10300, offset by two bytes in the
-instruction.  */
-  BFD_RELOC_MN10300_16_PCREL,
 
 /* This is a 8bit DP reloc for the tms320c30, where the most
 significant 8 bits of a 24 bit word are placed into the least
@@ -4826,6 +4852,9 @@ BFD_RELOC_XTENSA_ASM_EXPAND.  */
 BFD_RELOC_MACH_O_PAIR.  */
   BFD_RELOC_MACH_O_SECTDIFF,
 
+/* Like BFD_RELOC_MACH_O_SECTDIFF but with a local symbol.  */
+  BFD_RELOC_MACH_O_LOCAL_SECTDIFF,
+
 /* Pair of relocation.  Contains the first symbol.  */
   BFD_RELOC_MACH_O_PAIR,
 
@@ -4988,6 +5017,12 @@ to two words (uses imm instruction).  */
   BFD_RELOC_TILEPRO_SHAMT_X1,
   BFD_RELOC_TILEPRO_SHAMT_Y0,
   BFD_RELOC_TILEPRO_SHAMT_Y1,
+  BFD_RELOC_TILEPRO_TLS_GD_CALL,
+  BFD_RELOC_TILEPRO_IMM8_X0_TLS_GD_ADD,
+  BFD_RELOC_TILEPRO_IMM8_X1_TLS_GD_ADD,
+  BFD_RELOC_TILEPRO_IMM8_Y0_TLS_GD_ADD,
+  BFD_RELOC_TILEPRO_IMM8_Y1_TLS_GD_ADD,
+  BFD_RELOC_TILEPRO_TLS_IE_LOAD,
   BFD_RELOC_TILEPRO_IMM16_X0_TLS_GD,
   BFD_RELOC_TILEPRO_IMM16_X1_TLS_GD,
   BFD_RELOC_TILEPRO_IMM16_X0_TLS_GD_LO,
@@ -5007,6 +5042,14 @@ to two words (uses imm instruction).  */
   BFD_RELOC_TILEPRO_TLS_DTPMOD32,
   BFD_RELOC_TILEPRO_TLS_DTPOFF32,
   BFD_RELOC_TILEPRO_TLS_TPOFF32,
+  BFD_RELOC_TILEPRO_IMM16_X0_TLS_LE,
+  BFD_RELOC_TILEPRO_IMM16_X1_TLS_LE,
+  BFD_RELOC_TILEPRO_IMM16_X0_TLS_LE_LO,
+  BFD_RELOC_TILEPRO_IMM16_X1_TLS_LE_LO,
+  BFD_RELOC_TILEPRO_IMM16_X0_TLS_LE_HI,
+  BFD_RELOC_TILEPRO_IMM16_X1_TLS_LE_HI,
+  BFD_RELOC_TILEPRO_IMM16_X0_TLS_LE_HA,
+  BFD_RELOC_TILEPRO_IMM16_X1_TLS_LE_HA,
 
 /* Tilera TILE-Gx Relocations.  */
   BFD_RELOC_TILEGX_HW0,
@@ -5066,52 +5109,44 @@ to two words (uses imm instruction).  */
   BFD_RELOC_TILEGX_IMM16_X1_HW2_LAST_PCREL,
   BFD_RELOC_TILEGX_IMM16_X0_HW0_GOT,
   BFD_RELOC_TILEGX_IMM16_X1_HW0_GOT,
-  BFD_RELOC_TILEGX_IMM16_X0_HW1_GOT,
-  BFD_RELOC_TILEGX_IMM16_X1_HW1_GOT,
-  BFD_RELOC_TILEGX_IMM16_X0_HW2_GOT,
-  BFD_RELOC_TILEGX_IMM16_X1_HW2_GOT,
-  BFD_RELOC_TILEGX_IMM16_X0_HW3_GOT,
-  BFD_RELOC_TILEGX_IMM16_X1_HW3_GOT,
   BFD_RELOC_TILEGX_IMM16_X0_HW0_LAST_GOT,
   BFD_RELOC_TILEGX_IMM16_X1_HW0_LAST_GOT,
   BFD_RELOC_TILEGX_IMM16_X0_HW1_LAST_GOT,
   BFD_RELOC_TILEGX_IMM16_X1_HW1_LAST_GOT,
-  BFD_RELOC_TILEGX_IMM16_X0_HW2_LAST_GOT,
-  BFD_RELOC_TILEGX_IMM16_X1_HW2_LAST_GOT,
   BFD_RELOC_TILEGX_IMM16_X0_HW0_TLS_GD,
   BFD_RELOC_TILEGX_IMM16_X1_HW0_TLS_GD,
-  BFD_RELOC_TILEGX_IMM16_X0_HW1_TLS_GD,
-  BFD_RELOC_TILEGX_IMM16_X1_HW1_TLS_GD,
-  BFD_RELOC_TILEGX_IMM16_X0_HW2_TLS_GD,
-  BFD_RELOC_TILEGX_IMM16_X1_HW2_TLS_GD,
-  BFD_RELOC_TILEGX_IMM16_X0_HW3_TLS_GD,
-  BFD_RELOC_TILEGX_IMM16_X1_HW3_TLS_GD,
+  BFD_RELOC_TILEGX_IMM16_X0_HW0_TLS_LE,
+  BFD_RELOC_TILEGX_IMM16_X1_HW0_TLS_LE,
+  BFD_RELOC_TILEGX_IMM16_X0_HW0_LAST_TLS_LE,
+  BFD_RELOC_TILEGX_IMM16_X1_HW0_LAST_TLS_LE,
+  BFD_RELOC_TILEGX_IMM16_X0_HW1_LAST_TLS_LE,
+  BFD_RELOC_TILEGX_IMM16_X1_HW1_LAST_TLS_LE,
   BFD_RELOC_TILEGX_IMM16_X0_HW0_LAST_TLS_GD,
   BFD_RELOC_TILEGX_IMM16_X1_HW0_LAST_TLS_GD,
   BFD_RELOC_TILEGX_IMM16_X0_HW1_LAST_TLS_GD,
   BFD_RELOC_TILEGX_IMM16_X1_HW1_LAST_TLS_GD,
-  BFD_RELOC_TILEGX_IMM16_X0_HW2_LAST_TLS_GD,
-  BFD_RELOC_TILEGX_IMM16_X1_HW2_LAST_TLS_GD,
   BFD_RELOC_TILEGX_IMM16_X0_HW0_TLS_IE,
   BFD_RELOC_TILEGX_IMM16_X1_HW0_TLS_IE,
-  BFD_RELOC_TILEGX_IMM16_X0_HW1_TLS_IE,
-  BFD_RELOC_TILEGX_IMM16_X1_HW1_TLS_IE,
-  BFD_RELOC_TILEGX_IMM16_X0_HW2_TLS_IE,
-  BFD_RELOC_TILEGX_IMM16_X1_HW2_TLS_IE,
-  BFD_RELOC_TILEGX_IMM16_X0_HW3_TLS_IE,
-  BFD_RELOC_TILEGX_IMM16_X1_HW3_TLS_IE,
   BFD_RELOC_TILEGX_IMM16_X0_HW0_LAST_TLS_IE,
   BFD_RELOC_TILEGX_IMM16_X1_HW0_LAST_TLS_IE,
   BFD_RELOC_TILEGX_IMM16_X0_HW1_LAST_TLS_IE,
   BFD_RELOC_TILEGX_IMM16_X1_HW1_LAST_TLS_IE,
-  BFD_RELOC_TILEGX_IMM16_X0_HW2_LAST_TLS_IE,
-  BFD_RELOC_TILEGX_IMM16_X1_HW2_LAST_TLS_IE,
   BFD_RELOC_TILEGX_TLS_DTPMOD64,
   BFD_RELOC_TILEGX_TLS_DTPOFF64,
   BFD_RELOC_TILEGX_TLS_TPOFF64,
   BFD_RELOC_TILEGX_TLS_DTPMOD32,
   BFD_RELOC_TILEGX_TLS_DTPOFF32,
   BFD_RELOC_TILEGX_TLS_TPOFF32,
+  BFD_RELOC_TILEGX_TLS_GD_CALL,
+  BFD_RELOC_TILEGX_IMM8_X0_TLS_GD_ADD,
+  BFD_RELOC_TILEGX_IMM8_X1_TLS_GD_ADD,
+  BFD_RELOC_TILEGX_IMM8_Y0_TLS_GD_ADD,
+  BFD_RELOC_TILEGX_IMM8_Y1_TLS_GD_ADD,
+  BFD_RELOC_TILEGX_TLS_IE_LOAD,
+  BFD_RELOC_TILEGX_IMM8_X0_TLS_ADD,
+  BFD_RELOC_TILEGX_IMM8_X1_TLS_ADD,
+  BFD_RELOC_TILEGX_IMM8_Y0_TLS_ADD,
+  BFD_RELOC_TILEGX_IMM8_Y1_TLS_ADD,
 
 /* Adapteva EPIPHANY - 8 bit signed pc-relative displacement  */
   BFD_RELOC_EPIPHANY_SIMM8,

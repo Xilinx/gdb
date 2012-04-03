@@ -1,7 +1,6 @@
 /* Target-dependent code for the IA-64 for GDB, the GNU debugger.
 
-   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1999-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -43,8 +42,7 @@
 
 #ifdef HAVE_LIBUNWIND_IA64_H
 #include "elf/ia64.h"           /* for PT_IA_64_UNWIND value */
-#include "libunwind-frame.h"
-#include "libunwind-ia64.h"
+#include "ia64-libunwind-tdep.h"
 
 /* Note: KERNEL_START is supposed to be an address which is not going
          to ever contain any valid unwind info.  For ia64 linux, the choice
@@ -811,7 +809,7 @@ ia64_memory_remove_breakpoint (struct gdbarch *gdbarch,
   /* In BUNDLE_MEM, be careful to modify only the bits belonging to SLOTNUM
      and not any of the other ones that are stored in SHADOW_CONTENTS.  */
   replace_slotN_contents (bundle_mem, instr_saved, slotnum);
-  val = target_write_memory (addr, bundle_mem, BUNDLE_LEN);
+  val = target_write_raw_memory (addr, bundle_mem, BUNDLE_LEN);
 
   do_cleanups (cleanup);
   return val;
@@ -2419,8 +2417,8 @@ ia64_rse_skip_regs (uint64_t addr, long num_regs)
   return addr + ((num_regs + delta/0x3f) << 3);
 }
   
-/* Gdb libunwind-frame callback function to convert from an ia64 gdb register 
-   number to a libunwind register number.  */
+/* Gdb ia64-libunwind-tdep callback function to convert from an ia64 gdb
+   register number to a libunwind register number.  */
 static int
 ia64_gdb2uw_regnum (int regnum)
 {
@@ -2452,8 +2450,8 @@ ia64_gdb2uw_regnum (int regnum)
     return -1;
 }
   
-/* Gdb libunwind-frame callback function to convert from a libunwind register 
-   number to a ia64 gdb register number.  */
+/* Gdb ia64-libunwind-tdep callback function to convert from a libunwind
+   register number to a ia64 gdb register number.  */
 static int
 ia64_uw2gdb_regnum (int uw_regnum)
 {
@@ -2483,8 +2481,8 @@ ia64_uw2gdb_regnum (int uw_regnum)
     return -1;
 }
 
-/* Gdb libunwind-frame callback function to reveal if register is a float 
-   register or not.  */
+/* Gdb ia64-libunwind-tdep callback function to reveal if register is
+   a float register or not.  */
 static int
 ia64_is_fpreg (int uw_regnum)
 {
@@ -3150,7 +3148,7 @@ static const struct frame_unwind ia64_libunwind_sigtramp_frame_unwind =
 };
 
 /* Set of libunwind callback acccessor functions.  */
-static unw_accessors_t ia64_unw_accessors =
+unw_accessors_t ia64_unw_accessors =
 {
   ia64_find_proc_info_x,
   ia64_put_unwind_info,
@@ -3166,7 +3164,7 @@ static unw_accessors_t ia64_unw_accessors =
    the rse registers.  At the top of the stack, we want libunwind to figure out
    how to read r32 - r127.  Though usually they are found sequentially in
    memory starting from $bof, this is not always true.  */
-static unw_accessors_t ia64_unw_rse_accessors =
+unw_accessors_t ia64_unw_rse_accessors =
 {
   ia64_find_proc_info_x,
   ia64_put_unwind_info,
@@ -3178,9 +3176,9 @@ static unw_accessors_t ia64_unw_rse_accessors =
   /* get_proc_name */
 };
 
-/* Set of ia64 gdb libunwind-frame callbacks and data for generic
-   libunwind-frame code to use.  */
-static struct libunwind_descr ia64_libunwind_descr =
+/* Set of ia64-libunwind-tdep gdb callbacks and data for generic
+   ia64-libunwind-tdep code to use.  */
+struct libunwind_descr ia64_libunwind_descr =
 {
   ia64_gdb2uw_regnum, 
   ia64_uw2gdb_regnum, 

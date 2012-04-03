@@ -1,8 +1,7 @@
 /* Multi-process/thread control for GDB, the GNU debugger.
 
-   Copyright (C) 1986, 1987, 1988, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1986-1988, 1993-2004, 2007-2012 Free Software
+   Foundation, Inc.
 
    Contributed by Lynx Real-Time Systems, Inc.  Los Gatos, CA.
 
@@ -114,12 +113,12 @@ clear_thread_inferior_resources (struct thread_info *tp)
       tp->control.exception_resume_breakpoint = NULL;
     }
 
+  delete_longjmp_breakpoint_at_next_stop (tp->num);
+
   bpstat_clear (&tp->control.stop_bpstat);
 
   do_all_intermediate_continuations_thread (tp, 1);
   do_all_continuations_thread (tp, 1);
-
-  delete_longjmp_breakpoint (tp->num);
 }
 
 static void
@@ -1073,6 +1072,7 @@ struct current_thread_cleanup
   int selected_frame_level;
   int was_stopped;
   int inf_id;
+  int was_removable;
 };
 
 static void
@@ -1113,10 +1113,14 @@ restore_current_thread_cleanup_dtor (void *arg)
 {
   struct current_thread_cleanup *old = arg;
   struct thread_info *tp;
+  struct inferior *inf;
 
   tp = find_thread_ptid (old->inferior_ptid);
   if (tp)
     tp->refcount--;
+  inf = find_inferior_id (old->inf_id);
+  if (inf != NULL)
+    inf->removable = old->was_removable;
   xfree (old);
 }
 
@@ -1130,6 +1134,7 @@ make_cleanup_restore_current_thread (void)
   old = xmalloc (sizeof (struct current_thread_cleanup));
   old->inferior_ptid = inferior_ptid;
   old->inf_id = current_inferior ()->num;
+  old->was_removable = current_inferior ()->removable;
 
   if (!ptid_equal (inferior_ptid, null_ptid))
     {
@@ -1156,6 +1161,8 @@ make_cleanup_restore_current_thread (void)
       if (tp)
 	tp->refcount++;
     }
+
+  current_inferior ()->removable = 0;
 
   return make_cleanup_dtor (do_restore_current_thread_cleanup, old,
 			    restore_current_thread_cleanup_dtor);

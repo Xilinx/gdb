@@ -1,4 +1,4 @@
-# Copyright 2007, 2009, 2010, 2011 Free Software Foundation, Inc.
+# Copyright 2007, 2009-2012 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,10 +20,6 @@
 # TYPE_VPTR_BASETYPE dangling.
 #
 # PR c++/9489.
-
-if $tracelevel then {
-    strace $tracelevel
-}
 
 if { [skip_cplus_tests] } { continue }
 if { [skip_shlib_tests] } { continue }

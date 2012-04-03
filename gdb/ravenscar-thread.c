@@ -1,6 +1,6 @@
 /* Ada Ravenscar thread support.
 
-   Copyright 2004, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright 2004, 2009-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -420,6 +420,9 @@ Support for Ravenscar task/thread switching is enabled\n"));
     fprintf_filtered (file, _("\
 Support for Ravenscar task/thread switching is disabled\n"));
 }
+
+/* Provide a prototype to silence -Wmissing-prototypes.  */
+extern void _initialize_ravenscar (void);
 
 /* Module startup initialization function, automagically called by
    init.c.  */

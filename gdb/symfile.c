@@ -1,8 +1,6 @@
 /* Generic symbol file reading for the GNU debugger, GDB.
 
-   Copyright (C) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1990-2012 Free Software Foundation, Inc.
 
    Contributed by Cygnus Support, using pieces from other GDB modules.
 
@@ -148,23 +146,6 @@ typedef const struct sym_fns *sym_fns_ptr;
 DEF_VEC_P (sym_fns_ptr);
 
 static VEC (sym_fns_ptr) *symtab_fns = NULL;
-
-/* Flag for whether user will be reloading symbols multiple times.
-   Defaults to ON for VxWorks, otherwise OFF.  */
-
-#ifdef SYMBOL_RELOADING_DEFAULT
-int symbol_reloading = SYMBOL_RELOADING_DEFAULT;
-#else
-int symbol_reloading = 0;
-#endif
-static void
-show_symbol_reloading (struct ui_file *file, int from_tty,
-		       struct cmd_list_element *c, const char *value)
-{
-  fprintf_filtered (file, _("Dynamic symbol table reloading "
-			    "multiple times in one run is %s.\n"),
-		    value);
-}
 
 /* If non-zero, shared library symbols will be added automatically
    when the inferior is created, new libraries are loaded, or when
@@ -1165,8 +1146,6 @@ symbol_file_add_with_addrs_or_offsets (bfd *abfd,
      time.  */
   gdb_flush (gdb_stdout);
 
-  do_cleanups (my_cleanups);
-
   if (objfile->sf == NULL)
     {
       observer_notify_new_objfile (objfile);
@@ -1250,14 +1229,17 @@ symbol_file_add_main (char *args, int from_tty)
 static void
 symbol_file_add_main_1 (char *args, int from_tty, int flags)
 {
-  const int add_flags = SYMFILE_MAINLINE | (from_tty ? SYMFILE_VERBOSE : 0);
+  const int add_flags = (current_inferior ()->symfile_flags
+			 | SYMFILE_MAINLINE | (from_tty ? SYMFILE_VERBOSE : 0));
+
   symbol_file_add (args, add_flags, NULL, flags);
 
   /* Getting new symbols may change our opinion about
      what is frameless.  */
   reinit_frame_cache ();
 
-  set_initial_language ();
+  if ((flags & SYMFILE_NO_READ) == 0)
+    set_initial_language ();
 }
 
 void
@@ -1445,66 +1427,51 @@ show_debug_file_directory (struct ui_file *file, int from_tty,
 #define DEBUG_SUBDIRECTORY ".debug"
 #endif
 
-char *
-find_separate_debug_file_by_debuglink (struct objfile *objfile)
+/* Find a separate debuginfo file for OBJFILE, using DIR as the directory
+   where the original file resides (may not be the same as
+   dirname(objfile->name) due to symlinks), and DEBUGLINK as the file we are
+   looking for.  Returns the name of the debuginfo, of NULL.  */
+
+static char *
+find_separate_debug_file (const char *dir,
+			  const char *canon_dir,
+			  const char *debuglink,
+			  unsigned long crc32, struct objfile *objfile)
 {
-  char *basename, *debugdir;
-  char *dir = NULL;
-  char *debugfile = NULL;
-  char *canon_name = NULL;
-  unsigned long crc32;
+  char *debugdir;
+  char *debugfile;
   int i;
 
-  basename = get_debug_link_info (objfile, &crc32);
-
-  if (basename == NULL)
-    /* There's no separate debug info, hence there's no way we could
-       load it => no warning.  */
-    goto cleanup_return_debugfile;
-
-  dir = xstrdup (objfile->name);
-
-  /* Strip off the final filename part, leaving the directory name,
-     followed by a slash.  The directory can be relative or absolute.  */
-  for (i = strlen(dir) - 1; i >= 0; i--)
-    {
-      if (IS_DIR_SEPARATOR (dir[i]))
-	break;
-    }
-  /* If I is -1 then no directory is present there and DIR will be "".  */
-  dir[i+1] = '\0';
-
-  /* Set I to max (strlen (canon_name), strlen (dir)).  */
-  canon_name = lrealpath (dir);
+  /* Set I to max (strlen (canon_dir), strlen (dir)).  */
   i = strlen (dir);
-  if (canon_name && strlen (canon_name) > i)
-    i = strlen (canon_name);
+  if (canon_dir != NULL && strlen (canon_dir) > i)
+    i = strlen (canon_dir);
 
   debugfile = xmalloc (strlen (debug_file_directory) + 1
 		       + i
 		       + strlen (DEBUG_SUBDIRECTORY)
 		       + strlen ("/")
-		       + strlen (basename)
+		       + strlen (debuglink)
 		       + 1);
 
   /* First try in the same directory as the original file.  */
   strcpy (debugfile, dir);
-  strcat (debugfile, basename);
+  strcat (debugfile, debuglink);
 
   if (separate_debug_file_exists (debugfile, crc32, objfile))
-    goto cleanup_return_debugfile;
+    return debugfile;
 
   /* Then try in the subdirectory named DEBUG_SUBDIRECTORY.  */
   strcpy (debugfile, dir);
   strcat (debugfile, DEBUG_SUBDIRECTORY);
   strcat (debugfile, "/");
-  strcat (debugfile, basename);
+  strcat (debugfile, debuglink);
 
   if (separate_debug_file_exists (debugfile, crc32, objfile))
-    goto cleanup_return_debugfile;
+    return debugfile;
 
   /* Then try in the global debugfile directories.
- 
+
      Keep backward compatibility so that DEBUG_FILE_DIRECTORY being "" will
      cause "/..." lookups.  */
 
@@ -1524,39 +1491,117 @@ find_separate_debug_file_by_debuglink (struct objfile *objfile)
       debugfile[debugdir_end - debugdir] = 0;
       strcat (debugfile, "/");
       strcat (debugfile, dir);
-      strcat (debugfile, basename);
+      strcat (debugfile, debuglink);
 
       if (separate_debug_file_exists (debugfile, crc32, objfile))
-	goto cleanup_return_debugfile;
+	return debugfile;
 
       /* If the file is in the sysroot, try using its base path in the
 	 global debugfile directory.  */
-      if (canon_name
-	  && filename_ncmp (canon_name, gdb_sysroot,
+      if (canon_dir != NULL
+	  && filename_ncmp (canon_dir, gdb_sysroot,
 			    strlen (gdb_sysroot)) == 0
-	  && IS_DIR_SEPARATOR (canon_name[strlen (gdb_sysroot)]))
+	  && IS_DIR_SEPARATOR (canon_dir[strlen (gdb_sysroot)]))
 	{
 	  memcpy (debugfile, debugdir, debugdir_end - debugdir);
 	  debugfile[debugdir_end - debugdir] = 0;
-	  strcat (debugfile, canon_name + strlen (gdb_sysroot));
+	  strcat (debugfile, canon_dir + strlen (gdb_sysroot));
 	  strcat (debugfile, "/");
-	  strcat (debugfile, basename);
+	  strcat (debugfile, debuglink);
 
 	  if (separate_debug_file_exists (debugfile, crc32, objfile))
-	    goto cleanup_return_debugfile;
+	    return debugfile;
 	}
 
       debugdir = debugdir_end;
     }
   while (*debugdir != 0);
-  
-  xfree (debugfile);
-  debugfile = NULL;
 
-cleanup_return_debugfile:
-  xfree (canon_name);
-  xfree (basename);
-  xfree (dir);
+  xfree (debugfile);
+  return NULL;
+}
+
+/* Modify PATH to contain only "directory/" part of PATH.
+   If there were no directory separators in PATH, PATH will be empty
+   string on return.  */
+
+static void
+terminate_after_last_dir_separator (char *path)
+{
+  int i;
+
+  /* Strip off the final filename part, leaving the directory name,
+     followed by a slash.  The directory can be relative or absolute.  */
+  for (i = strlen(path) - 1; i >= 0; i--)
+    if (IS_DIR_SEPARATOR (path[i]))
+      break;
+
+  /* If I is -1 then no directory is present there and DIR will be "".  */
+  path[i + 1] = '\0';
+}
+
+/* Find separate debuginfo for OBJFILE (using .gnu_debuglink section).
+   Returns pathname, or NULL.  */
+
+char *
+find_separate_debug_file_by_debuglink (struct objfile *objfile)
+{
+  char *debuglink;
+  char *dir, *canon_dir;
+  char *debugfile;
+  unsigned long crc32;
+  struct cleanup *cleanups;
+
+  debuglink = get_debug_link_info (objfile, &crc32);
+
+  if (debuglink == NULL)
+    {
+      /* There's no separate debug info, hence there's no way we could
+	 load it => no warning.  */
+      return NULL;
+    }
+
+  dir = xstrdup (objfile->name);
+  cleanups = make_cleanup (xfree, dir);
+  terminate_after_last_dir_separator (dir);
+  canon_dir = lrealpath (dir);
+
+  debugfile = find_separate_debug_file (dir, canon_dir, debuglink,
+					crc32, objfile);
+  xfree (canon_dir);
+
+  if (debugfile == NULL)
+    {
+#ifdef HAVE_LSTAT
+      /* For PR gdb/9538, try again with realpath (if different from the
+	 original).  */
+
+      struct stat st_buf;
+
+      if (lstat (objfile->name, &st_buf) == 0 && S_ISLNK(st_buf.st_mode))
+	{
+	  char *symlink_dir;
+
+	  symlink_dir = lrealpath (objfile->name);
+	  if (symlink_dir != NULL)
+	    {
+	      make_cleanup (xfree, symlink_dir);
+	      terminate_after_last_dir_separator (symlink_dir);
+	      if (strcmp (dir, symlink_dir) != 0)
+		{
+		  /* Different directory, so try using it.  */
+		  debugfile = find_separate_debug_file (symlink_dir,
+							symlink_dir,
+							debuglink,
+							crc32,
+							objfile);
+		}
+	    }
+	}
+#endif  /* HAVE_LSTAT  */
+    }
+
+  do_cleanups (cleanups);
   return debugfile;
 }
 
@@ -1635,7 +1680,7 @@ set_initial_language (void)
   else
     {
       const char *filename;
-      
+
       filename = find_main_filename ();
       if (filename != NULL)
 	lang = deduce_language_from_filename (filename);
@@ -2373,15 +2418,22 @@ add_symbol_file_command (char *args, int from_tty)
 }
 
 
+typedef struct objfile *objfilep;
+
+DEF_VEC_P (objfilep);
+
 /* Re-read symbols if a symbol-file has changed.  */
 void
 reread_symbols (void)
 {
   struct objfile *objfile;
   long new_modtime;
-  int reread_one = 0;
   struct stat new_statbuf;
   int res;
+  VEC (objfilep) *new_objfiles = NULL;
+  struct cleanup *all_cleanups;
+
+  all_cleanups = make_cleanup (VEC_cleanup (objfilep), &new_objfiles);
 
   /* With the addition of shared libraries, this should be modified,
      the load time should be saved in the partial symbol tables, since
@@ -2448,6 +2500,29 @@ reread_symbols (void)
 	      exec_file_attach (bfd_get_filename (objfile->obfd), 0);
 	    }
 
+	  /* Keep the calls order approx. the same as in free_objfile.  */
+
+	  /* Free the separate debug objfiles.  It will be
+	     automatically recreated by sym_read.  */
+	  free_objfile_separate_debug (objfile);
+
+	  /* Remove any references to this objfile in the global
+	     value lists.  */
+	  preserve_values (objfile);
+
+	  /* Nuke all the state that we will re-read.  Much of the following
+	     code which sets things to NULL really is necessary to tell
+	     other parts of GDB that there is nothing currently there.
+
+	     Try to keep the freeing order compatible with free_objfile.  */
+
+	  if (objfile->sf != NULL)
+	    {
+	      (*objfile->sf->sym_finish) (objfile);
+	    }
+
+	  clear_objfile_data (objfile);
+
 	  /* Clean up any state BFD has sitting around.  We don't need
 	     to close the descriptor but BFD lacks a way of closing the
 	     BFD without closing the descriptor.  */
@@ -2472,27 +2547,6 @@ reread_symbols (void)
 		     alloca (SIZEOF_N_SECTION_OFFSETS (num_offsets)));
 	  memcpy (offsets, objfile->section_offsets,
 		  SIZEOF_N_SECTION_OFFSETS (num_offsets));
-
-	  /* Remove any references to this objfile in the global
-	     value lists.  */
-	  preserve_values (objfile);
-
-	  /* Nuke all the state that we will re-read.  Much of the following
-	     code which sets things to NULL really is necessary to tell
-	     other parts of GDB that there is nothing currently there.
-
-	     Try to keep the freeing order compatible with free_objfile.  */
-
-	  if (objfile->sf != NULL)
-	    {
-	      (*objfile->sf->sym_finish) (objfile);
-	    }
-
-	  clear_objfile_data (objfile);
-
-	  /* Free the separate debug objfiles.  It will be
-	     automatically recreated by sym_read.  */
-          free_objfile_separate_debug (objfile);
 
 	  /* FIXME: Do we have to free a whole linked list, or is this
 	     enough?  */
@@ -2534,14 +2588,9 @@ reread_symbols (void)
 
 	  /* obstack_init also initializes the obstack so it is
 	     empty.  We could use obstack_specify_allocation but
-	     gdb_obstack.h specifies the alloc/dealloc
-	     functions.  */
+	     gdb_obstack.h specifies the alloc/dealloc functions.  */
 	  obstack_init (&objfile->objfile_obstack);
-	  if (build_objfile_section_table (objfile))
-	    {
-	      error (_("Can't find the file sections in `%s': %s"),
-		     objfile->name, bfd_errmsg (bfd_get_error ()));
-	    }
+	  build_objfile_section_table (objfile);
 	  terminate_minimal_symbol_table (objfile);
 
 	  /* We use the same section offsets as from last time.  I'm not
@@ -2594,21 +2643,33 @@ reread_symbols (void)
 	     and now, we *want* this to be out of date, so don't call stat
 	     again now.  */
 	  objfile->mtime = new_modtime;
-	  reread_one = 1;
 	  init_entry_point_info (objfile);
+
+	  VEC_safe_push (objfilep, new_objfiles, objfile);
 	}
     }
 
-  if (reread_one)
+  if (new_objfiles)
     {
+      int ix;
+
       /* Notify objfiles that we've modified objfile sections.  */
       objfiles_changed ();
 
       clear_symtab_users (0);
+
+      /* clear_objfile_data for each objfile was called before freeing it and
+	 observer_notify_new_objfile (NULL) has been called by
+	 clear_symtab_users above.  Notify the new files now.  */
+      for (ix = 0; VEC_iterate (objfilep, new_objfiles, ix, objfile); ix++)
+	observer_notify_new_objfile (objfile);
+
       /* At least one objfile has changed, so we can consider that
          the executable we're debugging has changed too.  */
       observer_notify_executable_changed ();
     }
+
+  do_cleanups (all_cleanups);
 }
 
 
@@ -2925,7 +2986,7 @@ section_is_overlay (struct obj_section *section)
     {
       bfd *abfd = section->objfile->obfd;
       asection *bfd_section = section->the_bfd_section;
-  
+
       if (bfd_section_lma (abfd, bfd_section) != 0
 	  && bfd_section_lma (abfd, bfd_section)
 	     != bfd_section_vma (abfd, bfd_section))
@@ -3754,14 +3815,6 @@ Dynamically load FILE into the running program, and record its symbols\n\
 for access from GDB.\n\
 A load OFFSET may also be given."), &cmdlist);
   set_cmd_completer (c, filename_completer);
-
-  add_setshow_boolean_cmd ("symbol-reloading", class_support,
-			   &symbol_reloading, _("\
-Set dynamic symbol table reloading multiple times in one run."), _("\
-Show dynamic symbol table reloading multiple times in one run."), NULL,
-			   NULL,
-			   show_symbol_reloading,
-			   &setlist, &showlist);
 
   add_prefix_cmd ("overlay", class_support, overlay_command,
 		  _("Commands for debugging overlays."), &overlaylist,

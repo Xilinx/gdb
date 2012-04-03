@@ -1,7 +1,6 @@
 /* Block-related functions for the GNU debugger, GDB.
 
-   Copyright (C) 2003, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2003, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -77,6 +76,20 @@ block_linkage_function (const struct block *bl)
 {
   while ((BLOCK_FUNCTION (bl) == NULL || block_inlined_p (bl))
 	 && BLOCK_SUPERBLOCK (bl) != NULL)
+    bl = BLOCK_SUPERBLOCK (bl);
+
+  return BLOCK_FUNCTION (bl);
+}
+
+/* Return the symbol for the function which contains a specified
+   block, described by a struct block BL.  The return value will be
+   the closest enclosing function, which might be an inline
+   function.  */
+
+struct symbol *
+block_containing_function (const struct block *bl)
+{
+  while (BLOCK_FUNCTION (bl) == NULL && BLOCK_SUPERBLOCK (bl) != NULL)
     bl = BLOCK_SUPERBLOCK (bl);
 
   return BLOCK_FUNCTION (bl);

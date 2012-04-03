@@ -1,8 +1,7 @@
 /* Parser definitions for GDB.
 
-   Copyright (C) 1986, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2002, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1986, 1989-2000, 2002, 2007-2012 Free Software
+   Foundation, Inc.
 
    Modified from expread.y by the Department of Computer Science at the
    State University of New York at Buffalo.
@@ -216,17 +215,6 @@ extern char *lexptr;
 /* After a token has been recognized, this variable points to it.
    Currently used only for error reporting.  */
 extern char *prev_lexptr;
-
-/* Tokens that refer to names do so with explicit pointer and length,
-   so they can share the storage that lexptr is parsing.
-
-   When it is necessary to pass a name to a function that expects
-   a null-terminated string, the substring is copied out
-   into a block of storage that namecopy points to.
-
-   namecopy is allocated once, guaranteed big enough, for each parsing.  */
-
-extern char *namecopy;
 
 /* Current depth in parentheses within the expression.  */
 

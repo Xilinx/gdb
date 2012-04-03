@@ -1,6 +1,5 @@
 /* Darwin support for GDB, the GNU debugger.
-   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2005, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright 1997-2002, 2005, 2008-2012 Free Software Foundation, Inc.
 
    Contributed by Apple Computer, Inc.
 
@@ -116,10 +115,13 @@ x86_darwin_init_abi_64 (struct gdbarch_info info, struct gdbarch *gdbarch)
   tdep->sc_reg_offset = amd64_darwin_thread_state_reg_offset;
   tdep->sc_num_regs = amd64_darwin_thread_state_num_regs;
 
-  tdep->jb_pc_offset = 148;
+  tdep->jb_pc_offset = 56;
 
   set_solib_ops (gdbarch, &darwin_so_ops);
 }
+
+/* -Wmissing-prototypes */
+extern initialize_file_ftype _initialize_amd64_darwin_tdep;
 
 void
 _initialize_amd64_darwin_tdep (void)

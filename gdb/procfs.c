@@ -1,7 +1,6 @@
 /* Machine independent support for SVR4 /proc (process file system) for GDB.
 
-   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2006, 2007, 2008, 2009, 2010,
-   2011 Free Software Foundation, Inc.
+   Copyright (C) 1999-2003, 2006-2012 Free Software Foundation, Inc.
 
    Written by Michael Snyder at Cygnus Solutions.
    Based on work by Fred Fish, Stu Grossman, Geoff Noer, and others.
@@ -152,6 +151,9 @@ static char * procfs_make_note_section (bfd *, int *);
 
 static int procfs_can_use_hw_breakpoint (int, int, int);
 
+static void procfs_info_proc (struct target_ops *, char *,
+			      enum info_proc_what);
+
 #if defined (PR_MODEL_NATIVE) && (PR_MODEL_NATIVE == PR_MODEL_LP64)
 /* When GDB is built as 64-bit application on Solaris, the auxv data
    is presented in 64-bit format.  We need to provide a custom parser
@@ -212,6 +214,7 @@ procfs_target (void)
   t->to_has_thread_control = tc_schedlock;
   t->to_find_memory_regions = proc_find_memory_regions;
   t->to_make_corefile_notes = procfs_make_note_section;
+  t->to_info_proc = procfs_info_proc;
 
 #if defined(PR_MODEL_NATIVE) && (PR_MODEL_NATIVE == PR_MODEL_LP64)
   t->to_auxv_parse = procfs_auxv_parse;
@@ -263,7 +266,7 @@ typedef struct sigaction gdb_sigaction_t;
 #ifdef HAVE_PR_SIGINFO64_T
 typedef pr_siginfo64_t gdb_siginfo_t;
 #else
-typedef struct siginfo gdb_siginfo_t;
+typedef siginfo_t gdb_siginfo_t;
 #endif
 
 /* On mips-irix, praddset and prdelset are defined in such a way that
@@ -605,7 +608,7 @@ open_procinfo_files (procinfo *pi, int which)
     else
       strcat (tmp, "/ctl");
     fd = open_with_retry (tmp, O_WRONLY);
-    if (fd <= 0)
+    if (fd < 0)
       return 0;		/* fail */
     pi->ctl_fd = fd;
     break;
@@ -614,7 +617,7 @@ open_procinfo_files (procinfo *pi, int which)
       return 0;		/* There is no 'as' file descriptor for an lwp.  */
     strcat (tmp, "/as");
     fd = open_with_retry (tmp, O_RDWR);
-    if (fd <= 0)
+    if (fd < 0)
       return 0;		/* fail */
     pi->as_fd = fd;
     break;
@@ -624,7 +627,7 @@ open_procinfo_files (procinfo *pi, int which)
     else
       strcat (tmp, "/status");
     fd = open_with_retry (tmp, O_RDONLY);
-    if (fd <= 0)
+    if (fd < 0)
       return 0;		/* fail */
     pi->status_fd = fd;
     break;
@@ -646,13 +649,13 @@ open_procinfo_files (procinfo *pi, int which)
 
 #ifdef PIOCTSTATUS	/* OSF */
   /* Only one FD; just open it.  */
-  if ((fd = open_with_retry (pi->pathname, O_RDWR)) == 0)
+  if ((fd = open_with_retry (pi->pathname, O_RDWR)) < 0)
     return 0;
 #else			/* Sol 2.5, Irix, other?  */
   if (pi->tid == 0)	/* Master procinfo for the process */
     {
       fd = open_with_retry (pi->pathname, O_RDWR);
-      if (fd <= 0)
+      if (fd < 0)
 	return 0;	/* fail */
     }
   else			/* LWP thread procinfo */
@@ -666,7 +669,7 @@ open_procinfo_files (procinfo *pi, int which)
 	return 0;	/* fail */
 
       /* Now obtain the file descriptor for the LWP.  */
-      if ((fd = ioctl (process->ctl_fd, PIOCOPENLWP, &lwpid)) <= 0)
+      if ((fd = ioctl (process->ctl_fd, PIOCOPENLWP, &lwpid)) < 0)
 	return 0;	/* fail */
 #else			/* Irix, other?  */
       return 0;		/* Don't know how to open threads.  */
@@ -878,6 +881,7 @@ load_syscalls (procinfo *pi)
   prsysent_t header;
   prsyscall_t *syscalls;
   int i, size, maxcall;
+  struct cleanup *cleanups;
 
   pi->num_syscalls = 0;
   pi->syscall_names = 0;
@@ -889,6 +893,7 @@ load_syscalls (procinfo *pi)
     {
       error (_("load_syscalls: Can't open /proc/%d/sysent"), pi->pid);
     }
+  cleanups = make_cleanup_close (sysent_fd);
 
   size = sizeof header - sizeof (prsyscall_t);
   if (read (sysent_fd, &header, size) != size)
@@ -904,12 +909,10 @@ load_syscalls (procinfo *pi)
 
   size = header.pr_nsyscalls * sizeof (prsyscall_t);
   syscalls = xmalloc (size);
+  make_cleanup (free_current_contents, &syscalls);
 
   if (read (sysent_fd, syscalls, size) != size)
-    {
-      xfree (syscalls);
-      error (_("load_syscalls: Error reading /proc/%d/sysent"), pi->pid);
-    }
+    error (_("load_syscalls: Error reading /proc/%d/sysent"), pi->pid);
 
   /* Find maximum syscall number.  This may not be the same as
      pr_nsyscalls since that value refers to the number of entries
@@ -963,8 +966,7 @@ load_syscalls (procinfo *pi)
       pi->syscall_names[callnum][size-1] = '\0';
     }
 
-  close (sysent_fd);
-  xfree (syscalls);
+  do_cleanups (cleanups);
 }
 
 /* Free the space allocated for the syscall names from the procinfo
@@ -5217,6 +5219,7 @@ iterate_over_mappings (procinfo *pi, find_memory_region_ftype child_func,
   int funcstat;
   int map_fd;
   int nmap;
+  struct cleanup *cleanups = make_cleanup (null_cleanup, NULL);
 #ifdef NEW_PROC_API
   struct stat sbuf;
 #endif
@@ -5254,8 +5257,12 @@ iterate_over_mappings (procinfo *pi, find_memory_region_ftype child_func,
 
   for (prmap = prmaps; nmap > 0; prmap++, nmap--)
     if ((funcstat = (*func) (prmap, child_func, data)) != 0)
-      return funcstat;
+      {
+	do_cleanups (cleanups);
+        return funcstat;
+      }
 
+  do_cleanups (cleanups);
   return 0;
 }
 
@@ -5387,7 +5394,8 @@ info_proc_mappings (procinfo *pi, int summary)
 /* Implement the "info proc" command.  */
 
 static void
-info_proc_cmd (char *args, int from_tty)
+procfs_info_proc (struct target_ops *ops, char *args,
+		  enum info_proc_what what)
 {
   struct cleanup *old_chain;
   procinfo *process  = NULL;
@@ -5397,6 +5405,20 @@ info_proc_cmd (char *args, int from_tty)
   int       pid      = 0;
   int       tid      = 0;
   int       mappings = 0;
+
+  switch (what)
+    {
+    case IP_MINIMAL:
+      break;
+
+    case IP_MAPPINGS:
+    case IP_ALL:
+      mappings = 1;
+      break;
+
+    default:
+      error (_("Not supported on this target."));
+    }
 
   old_chain = make_cleanup (null_cleanup, 0);
   if (args)
@@ -5415,14 +5437,6 @@ info_proc_cmd (char *args, int from_tty)
       else if (argv[0][0] == '/')
 	{
 	  tid = strtoul (argv[0] + 1, NULL, 10);
-	}
-      else if (strncmp (argv[0], "mappings", strlen (argv[0])) == 0)
-	{
-	  mappings = 1;
-	}
-      else
-	{
-	  /* [...] */
 	}
       argv++;
     }
@@ -5564,10 +5578,6 @@ _initialize_procfs (void)
 {
   observer_attach_inferior_created (procfs_inferior_created);
 
-  add_info ("proc", info_proc_cmd, _("\
-Show /proc process information about any running process.\n\
-Specify process id, or use the program being debugged by default.\n\
-Specify keyword 'mappings' for detailed info on memory mappings."));
   add_com ("proc-trace-entry", no_class, proc_trace_sysentry_cmd,
 	   _("Give a trace of entries into the syscall."));
   add_com ("proc-trace-exit", no_class, proc_trace_sysexit_cmd,

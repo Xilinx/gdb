@@ -1,7 +1,5 @@
 /* List lines of source files for GDB, the GNU debugger.
-   Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008,
-   2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1986-2005, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -245,7 +243,7 @@ select_source_symtab (struct symtab *s)
      if one exists.  */
   if (lookup_symbol (main_name (), 0, VAR_DOMAIN, 0))
     {
-      sals = decode_line_spec (main_name (), 1);
+      sals = decode_line_spec (main_name (), DECODE_LINE_FUNFIRSTLINE);
       sal = sals.sals[0];
       xfree (sals.sals);
       current_source_pspace = sal.pspace;
@@ -590,7 +588,7 @@ add_path (char *dirname, char **which_path, int parse_separators)
 		  p--;		/* Back over leading separator.  */
 		if (prefix > p - *which_path)
 		  goto skip_dup;	/* Same dir twice in one cmd.  */
-		strcpy (p, &p[len + 1]);	/* Copy from next \0 or  : */
+		memmove (p, &p[len + 1], strlen (&p[len + 1]) + 1);	/* Copy from next \0 or  : */
 	      }
 	    p = strchr (p, DIRNAME_SEPARATOR);
 	    if (p != 0)
@@ -973,26 +971,6 @@ rewrite_source_path (const char *path)
   return new_path;
 }
 
-/* This function is capable of finding the absolute path to a
-   source file, and opening it, provided you give it a FILENAME.  Both the
-   DIRNAME and FULLNAME are only added suggestions on where to find the file.
-
-   FILENAME should be the filename to open.
-   DIRNAME is the compilation directory of a particular source file.
-           Only some debug formats provide this info.
-   FULLNAME can be the last known absolute path to the file in question.
-     Space for the path must have been malloc'd.  If a path substitution
-     is applied we free the old value and set a new one.
-
-   On Success 
-     A valid file descriptor is returned (the return value is positive).
-     FULLNAME is set to the absolute path to the file just opened.
-     The caller is responsible for freeing FULLNAME.
-
-   On Failure
-     An invalid file descriptor is returned (the return value is negative).
-     FULLNAME is set to NULL.  */
-
 int
 find_and_open_source (const char *filename,
 		      const char *dirname,
@@ -1105,6 +1083,7 @@ open_source_file (struct symtab *s)
 
    If this function fails to find the file that this symtab represents,
    NULL will be returned and s->fullname will be set to NULL.  */
+
 char *
 symtab_to_fullname (struct symtab *s)
 {
@@ -1113,8 +1092,12 @@ symtab_to_fullname (struct symtab *s)
   if (!s)
     return NULL;
 
-  /* Don't check s->fullname here, the file could have been 
-     deleted/moved/..., look for it again.  */
+  /* Use cached copy if we have it.
+     We rely on forget_cached_source_info being called appropriately
+     to handle cases like the file being moved.  */
+  if (s->fullname)
+    return s->fullname;
+
   r = find_and_open_source (s->filename, s->dirname, &s->fullname);
 
   if (r >= 0)
@@ -1317,10 +1300,12 @@ print_source_lines_base (struct symtab *s, int line, int stopline, int noerror)
 	  print_sys_errmsg (name, errno);
 	}
       else
-	ui_out_field_int (uiout, "line", line);
-      ui_out_text (uiout, "\tin ");
-      ui_out_field_string (uiout, "file", s->filename);
-      ui_out_text (uiout, "\n");
+	{
+	  ui_out_field_int (uiout, "line", line);
+	  ui_out_text (uiout, "\tin ");
+	  ui_out_field_string (uiout, "file", s->filename);
+	  ui_out_text (uiout, "\n");
+	}
 
       return;
     }
@@ -1408,12 +1393,14 @@ line_info (char *arg, int from_tty)
   struct symtab_and_line sal;
   CORE_ADDR start_pc, end_pc;
   int i;
+  struct cleanup *cleanups;
 
   init_sal (&sal);		/* initialize to zeroes */
 
   if (arg == 0)
     {
       sal.symtab = current_source_symtab;
+      sal.pspace = current_program_space;
       sal.line = last_line_listed;
       sals.nelts = 1;
       sals.sals = (struct symtab_and_line *)
@@ -1422,16 +1409,20 @@ line_info (char *arg, int from_tty)
     }
   else
     {
-      sals = decode_line_spec_1 (arg, 0);
+      sals = decode_line_spec_1 (arg, DECODE_LINE_LIST_MODE);
 
       dont_repeat ();
     }
+
+  cleanups = make_cleanup (xfree, sals.sals);
 
   /* C++  More than one line may have been specified, as when the user
      specifies an overloaded function name.  Print info on them all.  */
   for (i = 0; i < sals.nelts; i++)
     {
       sal = sals.sals[i];
+      if (sal.pspace != current_program_space)
+	continue;
 
       if (sal.symtab == 0)
 	{
@@ -1497,7 +1488,7 @@ line_info (char *arg, int from_tty)
 	printf_filtered (_("Line number %d is out of range for \"%s\".\n"),
 			 sal.line, sal.symtab->filename);
     }
-  xfree (sals.sals);
+  do_cleanups (cleanups);
 }
 
 /* Commands to search the source file for a regexp.  */

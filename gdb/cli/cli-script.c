@@ -1,8 +1,6 @@
 /* GDB CLI command scripting.
 
-   Copyright (c) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2001, 2002, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (c) 1986-2002, 2004-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -1616,11 +1614,9 @@ script_from_file (FILE *stream, const char *file)
   if (stream == NULL)
     internal_error (__FILE__, __LINE__, _("called with NULL file pointer!"));
 
-  old_cleanups = make_cleanup_fclose (stream);
-
   old_lines.old_line = source_line_number;
   old_lines.old_file = source_file_name;
-  make_cleanup (source_cleanup_lines, &old_lines);
+  old_cleanups = make_cleanup (source_cleanup_lines, &old_lines);
   source_line_number = 0;
   source_file_name = file;
   /* This will get set every time we read a line.  So it won't stay ""

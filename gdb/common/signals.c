@@ -1,7 +1,5 @@
 /* Target signal translation functions for GDB.
-   Copyright (C) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1990-2003, 2006-2012 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
    This file is part of GDB.
@@ -651,45 +649,3 @@ target_signal_to_host (enum target_signal oursig)
   else
     return targ_signo;
 }
-
-#ifndef GDBSERVER
-
-/* In some circumstances we allow a command to specify a numeric
-   signal.  The idea is to keep these circumstances limited so that
-   users (and scripts) develop portable habits.  For comparison,
-   POSIX.2 `kill' requires that 1,2,3,6,9,14, and 15 work (and using a
-   numeric signal at all is obsolescent.  We are slightly more
-   lenient and allow 1-15 which should match host signal numbers on
-   most systems.  Use of symbolic signal names is strongly encouraged.  */
-
-enum target_signal
-target_signal_from_command (int num)
-{
-  if (num >= 1 && num <= 15)
-    return (enum target_signal) num;
-  error (_("Only signals 1-15 are valid as numeric signals.\n\
-Use \"info signals\" for a list of symbolic signals."));
-}
-
-extern initialize_file_ftype _initialize_signals; /* -Wmissing-prototype */
-
-void
-_initialize_signals (void)
-{
-  if (strcmp (signals[TARGET_SIGNAL_LAST].string, "TARGET_SIGNAL_MAGIC") != 0)
-    internal_error (__FILE__, __LINE__, "failed internal consistency check");
-}
-
-int
-default_target_signal_to_host (struct gdbarch *gdbarch, enum target_signal ts)
-{
-  return target_signal_to_host (ts);
-}
-
-enum target_signal
-default_target_signal_from_host (struct gdbarch *gdbarch, int signo)
-{
-  return target_signal_from_host (signo);
-}
-
-#endif /* ! GDBSERVER */

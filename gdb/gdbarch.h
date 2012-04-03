@@ -631,8 +631,8 @@ extern void set_gdbarch_skip_solib_resolver (struct gdbarch *gdbarch, gdbarch_sk
 
 /* Some systems also have trampoline code for returning from shared libs. */
 
-typedef int (gdbarch_in_solib_return_trampoline_ftype) (struct gdbarch *gdbarch, CORE_ADDR pc, char *name);
-extern int gdbarch_in_solib_return_trampoline (struct gdbarch *gdbarch, CORE_ADDR pc, char *name);
+typedef int (gdbarch_in_solib_return_trampoline_ftype) (struct gdbarch *gdbarch, CORE_ADDR pc, const char *name);
+extern int gdbarch_in_solib_return_trampoline (struct gdbarch *gdbarch, CORE_ADDR pc, const char *name);
 extern void set_gdbarch_in_solib_return_trampoline (struct gdbarch *gdbarch, gdbarch_in_solib_return_trampoline_ftype *in_solib_return_trampoline);
 
 /* A target might have problems with watchpoints as soon as the stack
@@ -709,6 +709,22 @@ extern void set_gdbarch_regset_from_core_section (struct gdbarch *gdbarch, gdbar
 extern struct core_regset_section * gdbarch_core_regset_sections (struct gdbarch *gdbarch);
 extern void set_gdbarch_core_regset_sections (struct gdbarch *gdbarch, struct core_regset_section * core_regset_sections);
 
+/* Create core file notes */
+
+extern int gdbarch_make_corefile_notes_p (struct gdbarch *gdbarch);
+
+typedef char * (gdbarch_make_corefile_notes_ftype) (struct gdbarch *gdbarch, bfd *obfd, int *note_size);
+extern char * gdbarch_make_corefile_notes (struct gdbarch *gdbarch, bfd *obfd, int *note_size);
+extern void set_gdbarch_make_corefile_notes (struct gdbarch *gdbarch, gdbarch_make_corefile_notes_ftype *make_corefile_notes);
+
+/* Find core file memory regions */
+
+extern int gdbarch_find_memory_regions_p (struct gdbarch *gdbarch);
+
+typedef int (gdbarch_find_memory_regions_ftype) (struct gdbarch *gdbarch, find_memory_region_ftype func, void *data);
+extern int gdbarch_find_memory_regions (struct gdbarch *gdbarch, find_memory_region_ftype func, void *data);
+extern void set_gdbarch_find_memory_regions (struct gdbarch *gdbarch, gdbarch_find_memory_regions_ftype *find_memory_regions);
+
 /* Read offset OFFSET of TARGET_OBJECT_LIBRARIES formatted shared libraries list from
    core file into buffer READBUF with length LEN. */
 
@@ -754,7 +770,7 @@ typedef void (gdbarch_skip_permanent_breakpoint_ftype) (struct regcache *regcach
 extern void gdbarch_skip_permanent_breakpoint (struct gdbarch *gdbarch, struct regcache *regcache);
 extern void set_gdbarch_skip_permanent_breakpoint (struct gdbarch *gdbarch, gdbarch_skip_permanent_breakpoint_ftype *skip_permanent_breakpoint);
 
-/* The maximum length of an instruction on this architecture. */
+/* The maximum length of an instruction on this architecture in bytes. */
 
 extern int gdbarch_max_insn_length_p (struct gdbarch *gdbarch);
 
@@ -893,8 +909,8 @@ extern void set_gdbarch_core_read_description (struct gdbarch *gdbarch, gdbarch_
 
 extern int gdbarch_static_transform_name_p (struct gdbarch *gdbarch);
 
-typedef char * (gdbarch_static_transform_name_ftype) (char *name);
-extern char * gdbarch_static_transform_name (struct gdbarch *gdbarch, char *name);
+typedef const char * (gdbarch_static_transform_name_ftype) (const char *name);
+extern const char * gdbarch_static_transform_name (struct gdbarch *gdbarch, const char *name);
 extern void set_gdbarch_static_transform_name (struct gdbarch *gdbarch, gdbarch_static_transform_name_ftype *static_transform_name);
 
 /* Set if the address in N_SO or N_FUN stabs may be zero. */
@@ -1030,6 +1046,14 @@ extern void set_gdbarch_has_dos_based_file_system (struct gdbarch *gdbarch, int 
 typedef void (gdbarch_gen_return_address_ftype) (struct gdbarch *gdbarch, struct agent_expr *ax, struct axs_value *value, CORE_ADDR scope);
 extern void gdbarch_gen_return_address (struct gdbarch *gdbarch, struct agent_expr *ax, struct axs_value *value, CORE_ADDR scope);
 extern void set_gdbarch_gen_return_address (struct gdbarch *gdbarch, gdbarch_gen_return_address_ftype *gen_return_address);
+
+/* Implement the "info proc" command. */
+
+extern int gdbarch_info_proc_p (struct gdbarch *gdbarch);
+
+typedef void (gdbarch_info_proc_ftype) (struct gdbarch *gdbarch, char *args, enum info_proc_what what);
+extern void gdbarch_info_proc (struct gdbarch *gdbarch, char *args, enum info_proc_what what);
+extern void set_gdbarch_info_proc (struct gdbarch *gdbarch, gdbarch_info_proc_ftype *info_proc);
 
 /* Definition for an unknown syscall, used basically in error-cases.  */
 #define UNKNOWN_SYSCALL (-1)

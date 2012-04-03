@@ -1,6 +1,6 @@
 /* Linux-specific functions to retrieve OS data.
    
-   Copyright (C) 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 2009-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -44,6 +44,8 @@
 #include "buffer.h"
 #include "gdb_assert.h"
 #include "gdb_dirent.h"
+
+/* Compute and return the processor core of a given thread.  */
 
 int
 linux_common_core_of_thread (ptid_t ptid)

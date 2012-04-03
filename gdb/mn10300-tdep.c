@@ -1,7 +1,6 @@
 /* Target-dependent code for the Matsushita MN10300 for GDB, the GNU debugger.
 
-   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-   2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1996-2005, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -1062,7 +1061,7 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
 static CORE_ADDR
 mn10300_skip_prologue (struct gdbarch *gdbarch, CORE_ADDR pc)
 {
-  char *name;
+  const char *name;
   CORE_ADDR func_addr, func_end;
   struct mn10300_prologue p;
 

@@ -1,8 +1,6 @@
 /* Low level packing and unpacking of values for GDB, the GNU Debugger.
 
-   Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-   1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1986-2000, 2002-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -43,6 +41,7 @@
 #include "python/python.h"
 #include <ctype.h>
 #include "tracepoint.h"
+#include "cp-abi.h"
 
 /* Prototypes for exported functions.  */
 
@@ -169,6 +168,9 @@ ranges_contain (VEC(range_s) *ranges, int offset, int length)
 
 static struct cmd_list_element *functionlist;
 
+/* Note that the fields in this structure are arranged to save a bit
+   of memory.  */
+
 struct value
 {
   /* Type of value; either not an lval, or one of the various
@@ -176,7 +178,37 @@ struct value
   enum lval_type lval;
 
   /* Is it modifiable?  Only relevant if lval != not_lval.  */
-  int modifiable;
+  unsigned int modifiable : 1;
+
+  /* If zero, contents of this value are in the contents field.  If
+     nonzero, contents are in inferior.  If the lval field is lval_memory,
+     the contents are in inferior memory at location.address plus offset.
+     The lval field may also be lval_register.
+
+     WARNING: This field is used by the code which handles watchpoints
+     (see breakpoint.c) to decide whether a particular value can be
+     watched by hardware watchpoints.  If the lazy flag is set for
+     some member of a value chain, it is assumed that this member of
+     the chain doesn't need to be watched as part of watching the
+     value itself.  This is how GDB avoids watching the entire struct
+     or array when the user wants to watch a single struct member or
+     array element.  If you ever change the way lazy flag is set and
+     reset, be sure to consider this use as well!  */
+  unsigned int lazy : 1;
+
+  /* If nonzero, this is the value of a variable which does not
+     actually exist in the program.  */
+  unsigned int optimized_out : 1;
+
+  /* If value is a variable, is it initialized or not.  */
+  unsigned int initialized : 1;
+
+  /* If value is from the stack.  If this is set, read_stack will be
+     used instead of read_memory to enable extra caching.  */
+  unsigned int stack : 1;
+
+  /* If the value has been released.  */
+  unsigned int released : 1;
 
   /* Location of value (if lval).  */
   union
@@ -216,6 +248,13 @@ struct value
      gdbarch_bits_big_endian=0 targets, it is the position of the LSB.  For
      gdbarch_bits_big_endian=1 targets, it is the position of the MSB.  */
   int bitpos;
+
+  /* The number of references to this value.  When a value is created,
+     the value chain holds a reference, so REFERENCE_COUNT is 1.  If
+     release_value is called, this value is removed from the chain but
+     the caller of release_value now has a reference to this value.
+     The caller must arrange for a call to value_free later.  */
+  int reference_count;
 
   /* Only used for bitfields; the containing value.  This allows a
      single read from the target when displaying multiple
@@ -282,33 +321,6 @@ struct value
   /* Register number if the value is from a register.  */
   short regnum;
 
-  /* If zero, contents of this value are in the contents field.  If
-     nonzero, contents are in inferior.  If the lval field is lval_memory,
-     the contents are in inferior memory at location.address plus offset.
-     The lval field may also be lval_register.
-
-     WARNING: This field is used by the code which handles watchpoints
-     (see breakpoint.c) to decide whether a particular value can be
-     watched by hardware watchpoints.  If the lazy flag is set for
-     some member of a value chain, it is assumed that this member of
-     the chain doesn't need to be watched as part of watching the
-     value itself.  This is how GDB avoids watching the entire struct
-     or array when the user wants to watch a single struct member or
-     array element.  If you ever change the way lazy flag is set and
-     reset, be sure to consider this use as well!  */
-  char lazy;
-
-  /* If nonzero, this is the value of a variable which does not
-     actually exist in the program.  */
-  char optimized_out;
-
-  /* If value is a variable, is it initialized or not.  */
-  int initialized;
-
-  /* If value is from the stack.  If this is set, read_stack will be
-     used instead of read_memory to enable extra caching.  */
-  int stack;
-
   /* Actual contents of the value.  Target byte-order.  NULL or not
      valid if lazy is nonzero.  */
   gdb_byte *contents;
@@ -317,13 +329,6 @@ struct value
      rather than available, since the common and default case is for a
      value to be available.  This is filled in at value read time.  */
   VEC(range_s) *unavailable;
-
-  /* The number of references to this value.  When a value is created,
-     the value chain holds a reference, so REFERENCE_COUNT is 1.  If
-     release_value is called, this value is removed from the chain but
-     the caller of release_value now has a reference to this value.
-     The caller must arrange for a call to value_free later.  */
-  int reference_count;
 };
 
 int
@@ -801,6 +806,14 @@ value_parent (struct value *value)
   return value->parent;
 }
 
+/* See value.h.  */
+
+void
+set_value_parent (struct value *value, struct value *parent)
+{
+  value->parent = parent;
+}
+
 gdb_byte *
 value_contents_raw (struct value *value)
 {
@@ -1096,7 +1109,10 @@ value_address (const struct value *value)
   if (value->lval == lval_internalvar
       || value->lval == lval_internalvar_component)
     return 0;
-  return value->location.address + value->offset;
+  if (value->parent != NULL)
+    return value_address (value->parent) + value->offset;
+  else
+    return value->location.address + value->offset;
 }
 
 CORE_ADDR
@@ -1207,6 +1223,7 @@ value_free_to_mark (struct value *mark)
   for (val = all_values; val && val != mark; val = next)
     {
       next = val->next;
+      val->released = 1;
       value_free (val);
     }
   all_values = val;
@@ -1225,6 +1242,7 @@ free_all_values (void)
   for (val = all_values; val; val = next)
     {
       next = val->next;
+      val->released = 1;
       value_free (val);
     }
 
@@ -1257,6 +1275,7 @@ release_value (struct value *val)
     {
       all_values = val->next;
       val->next = NULL;
+      val->released = 1;
       return;
     }
 
@@ -1266,9 +1285,24 @@ release_value (struct value *val)
 	{
 	  v->next = val->next;
 	  val->next = NULL;
+	  val->released = 1;
 	  break;
 	}
     }
+}
+
+/* If the value is not already released, release it.
+   If the value is already released, increment its reference count.
+   That is, this function ensures that the value is released from the
+   value chain and that the caller owns a reference to it.  */
+
+void
+release_value_or_incref (struct value *val)
+{
+  if (val->released)
+    value_incref (val);
+  else
+    release_value (val);
 }
 
 /* Release all values up to mark  */
@@ -1279,12 +1313,15 @@ value_release_to_mark (struct value *mark)
   struct value *next;
 
   for (val = next = all_values; next; next = next->next)
-    if (next->next == mark)
-      {
-	all_values = next->next;
-	next->next = NULL;
-	return val;
-      }
+    {
+      if (next->next == mark)
+	{
+	  all_values = next->next;
+	  next->next = NULL;
+	  return val;
+	}
+      next->released = 1;
+    }
   all_values = 0;
   return val;
 }
@@ -2524,10 +2561,23 @@ value_primitive_field (struct value *arg1, int offset,
       /* This field is actually a base subobject, so preserve the
 	 entire object's contents for later references to virtual
 	 bases, etc.  */
+      int boffset;
 
       /* Lazy register values with offsets are not supported.  */
       if (VALUE_LVAL (arg1) == lval_register && value_lazy (arg1))
 	value_fetch_lazy (arg1);
+
+      /* We special case virtual inheritance here because this
+	 requires access to the contents, which we would rather avoid
+	 for references to ordinary fields of unavailable values.  */
+      if (BASETYPE_VIA_VIRTUAL (arg_type, fieldno))
+	boffset = baseclass_offset (arg_type, fieldno,
+				    value_contents (arg1),
+				    value_embedded_offset (arg1),
+				    value_address (arg1),
+				    arg1);
+      else
+	boffset = TYPE_FIELD_BITPOS (arg_type, fieldno) / 8;
 
       if (value_lazy (arg1))
 	v = allocate_value_lazy (value_enclosing_type (arg1));
@@ -2539,8 +2589,7 @@ value_primitive_field (struct value *arg1, int offset,
 	}
       v->type = type;
       v->offset = value_offset (arg1);
-      v->embedded_offset = (offset + value_embedded_offset (arg1)
-			    + TYPE_FIELD_BITPOS (arg_type, fieldno) / 8);
+      v->embedded_offset = offset + value_embedded_offset (arg1) + boffset;
     }
   else
     {
@@ -2904,7 +2953,7 @@ pack_long (gdb_byte *buf, struct type *type, LONGEST num)
 
 /* Pack NUM into BUF using a target format of TYPE.  */
 
-void
+static void
 pack_unsigned_long (gdb_byte *buf, struct type *type, ULONGEST num)
 {
   int len;
@@ -3109,11 +3158,30 @@ coerce_ref_if_computed (const struct value *arg)
   return funcs->coerce_ref (arg);
 }
 
+/* Look at value.h for description.  */
+
+struct value *
+readjust_indirect_value_type (struct value *value, struct type *enc_type,
+			      struct type *original_type,
+			      struct value *original_value)
+{
+  /* Re-adjust type.  */
+  deprecated_set_value_type (value, TYPE_TARGET_TYPE (original_type));
+
+  /* Add embedding info.  */
+  set_value_enclosing_type (value, enc_type);
+  set_value_embedded_offset (value, value_pointed_to_offset (original_value));
+
+  /* We may be pointing to an object of some derived type.  */
+  return value_full_object (value, NULL, 0, 0, 0);
+}
+
 struct value *
 coerce_ref (struct value *arg)
 {
   struct type *value_type_arg_tmp = check_typedef (value_type (arg));
   struct value *retval;
+  struct type *enc_type;
 
   retval = coerce_ref_if_computed (arg);
   if (retval)
@@ -3122,9 +3190,14 @@ coerce_ref (struct value *arg)
   if (TYPE_CODE (value_type_arg_tmp) != TYPE_CODE_REF)
     return arg;
 
-  return value_at_lazy (TYPE_TARGET_TYPE (value_type_arg_tmp),
-			unpack_pointer (value_type (arg),
-					value_contents (arg)));
+  enc_type = check_typedef (value_enclosing_type (arg));
+  enc_type = TYPE_TARGET_TYPE (enc_type);
+
+  retval = value_at_lazy (enc_type,
+                          unpack_pointer (value_type (arg),
+                                          value_contents (arg)));
+  return readjust_indirect_value_type (retval, enc_type,
+                                       value_type_arg_tmp, arg);
 }
 
 struct value *

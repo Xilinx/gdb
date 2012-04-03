@@ -1,7 +1,6 @@
 /* Target-dependent header for the MIPS architecture, for GDB, the GNU Debugger.
 
-   Copyright (C) 2002, 2003, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2002-2003, 2007-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -54,6 +53,8 @@ struct mips_regnum
   int cause;		/* Describes last exception.  */
   int hi;		/* Multiply/divide temp.  */
   int lo;		/* ...  */
+  int dspacc;		/* SmartMIPS/DSP accumulators.  */
+  int dspctl;		/* DSP control.  */
 };
 extern const struct mips_regnum *mips_regnum (struct gdbarch *gdbarch);
 

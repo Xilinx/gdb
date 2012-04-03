@@ -1,7 +1,6 @@
 /* GNU/Linux native-dependent code common to multiple platforms.
 
-   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-   2011 Free Software Foundation, Inc.
+   Copyright (C) 2001-2012 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -59,7 +58,13 @@
 #include <sys/vfs.h>
 #include "solib.h"
 #include "linux-osdata.h"
-#include "cli/cli-utils.h"
+#include "linux-tdep.h"
+#include "symfile.h"
+#include "agent.h"
+#include "tracepoint.h"
+#include "exceptions.h"
+#include "linux-ptrace.h"
+#include "buffer.h"
 
 #ifndef SPUFS_MAGIC
 #define SPUFS_MAGIC 0x23c9b64e
@@ -175,12 +180,15 @@ static struct target_ops *linux_ops;
 static struct target_ops linux_ops_saved;
 
 /* The method to call, if any, when a new thread is attached.  */
-static void (*linux_nat_new_thread) (ptid_t);
+static void (*linux_nat_new_thread) (struct lwp_info *);
+
+/* Hook to call prior to resuming a thread.  */
+static void (*linux_nat_prepare_to_resume) (struct lwp_info *);
 
 /* The method to call, if any, when the siginfo object needs to be
    converted between the layout returned by ptrace, and the layout in
    the architecture of the inferior.  */
-static int (*linux_nat_siginfo_fixup) (struct siginfo *,
+static int (*linux_nat_siginfo_fixup) (siginfo_t *,
 				       gdb_byte *,
 				       int);
 
@@ -286,6 +294,7 @@ static void restore_child_signals_mask (sigset_t *prev_mask);
 struct lwp_info;
 static struct lwp_info *add_lwp (ptid_t ptid);
 static void purge_lwp_list (int pid);
+static void delete_lwp (ptid_t ptid);
 static struct lwp_info *find_lwp_pid (ptid_t ptid);
 
 
@@ -582,6 +591,31 @@ linux_child_post_startup_inferior (ptid_t ptid)
   linux_enable_tracesysgood (ptid);
 }
 
+/* Return the number of known LWPs in the tgid given by PID.  */
+
+static int
+num_lwps (int pid)
+{
+  int count = 0;
+  struct lwp_info *lp;
+
+  for (lp = lwp_list; lp; lp = lp->next)
+    if (ptid_get_pid (lp->ptid) == pid)
+      count++;
+
+  return count;
+}
+
+/* Call delete_lwp with prototype compatible for make_cleanup.  */
+
+static void
+delete_lwp_cleanup (void *lp_voidp)
+{
+  struct lwp_info *lp = lp_voidp;
+
+  delete_lwp (lp->ptid);
+}
+
 static int
 linux_child_follow_fork (struct target_ops *ops, int follow_child)
 {
@@ -628,6 +662,8 @@ holding the child stopped.  Try \"set detach-on-fork\" or \
       /* Detach new forked process?  */
       if (detach_fork)
 	{
+	  struct cleanup *old_chain;
+
 	  /* Before detaching from the child, remove all breakpoints
 	     from it.  If we forked, then this has already been taken
 	     care of by infrun.c.  If we vforked however, any
@@ -650,7 +686,28 @@ holding the child stopped.  Try \"set detach-on-fork\" or \
 				child_pid);
 	    }
 
+	  old_chain = save_inferior_ptid ();
+	  inferior_ptid = ptid_build (child_pid, child_pid, 0);
+
+	  child_lp = add_lwp (inferior_ptid);
+	  child_lp->stopped = 1;
+	  child_lp->last_resume_kind = resume_stop;
+	  make_cleanup (delete_lwp_cleanup, child_lp);
+
+	  /* CHILD_LP has new PID, therefore linux_nat_new_thread is not called for it.
+	     See i386_inferior_data_get for the Linux kernel specifics.
+	     Ensure linux_nat_prepare_to_resume will reset the hardware debug
+	     registers.  It is done by the linux_nat_new_thread call, which is
+	     being skipped in add_lwp above for the first lwp of a pid.  */
+	  gdb_assert (num_lwps (GET_PID (child_lp->ptid)) == 1);
+	  if (linux_nat_new_thread != NULL)
+	    linux_nat_new_thread (child_lp);
+
+	  if (linux_nat_prepare_to_resume != NULL)
+	    linux_nat_prepare_to_resume (child_lp);
 	  ptrace (PTRACE_DETACH, child_pid, 0, 0);
+
+	  do_cleanups (old_chain);
 	}
       else
 	{
@@ -672,6 +729,7 @@ holding the child stopped.  Try \"set detach-on-fork\" or \
 	  child_lp = add_lwp (inferior_ptid);
 	  child_lp->stopped = 1;
 	  child_lp->last_resume_kind = resume_stop;
+	  child_inf->symfile_flags = SYMFILE_NO_READ;
 
 	  /* If this is a vfork child, then the address-space is
 	     shared with the parent.  */
@@ -877,6 +935,7 @@ holding the child stopped.  Try \"set detach-on-fork\" or \
 	  child_inf->aspace = new_address_space ();
 	  child_inf->pspace = add_program_space (child_inf->aspace);
 	  child_inf->removable = 1;
+	  child_inf->symfile_flags = SYMFILE_NO_READ;
 	  set_current_program_space (child_inf->pspace);
 	  clone_program_space (child_inf->pspace, parent_pspace);
 
@@ -1073,6 +1132,15 @@ status_to_str (int status)
   return buf;
 }
 
+/* Destroy and free LP.  */
+
+static void
+lwp_free (struct lwp_info *lp)
+{
+  xfree (lp->arch_private);
+  xfree (lp);
+}
+
 /* Remove all LWPs belong to PID from the lwp list.  */
 
 static void
@@ -1093,26 +1161,11 @@ purge_lwp_list (int pid)
 	  else
 	    lpprev->next = lp->next;
 
-	  xfree (lp);
+	  lwp_free (lp);
 	}
       else
 	lpprev = lp;
     }
-}
-
-/* Return the number of known LWPs in the tgid given by PID.  */
-
-static int
-num_lwps (int pid)
-{
-  int count = 0;
-  struct lwp_info *lp;
-
-  for (lp = lwp_list; lp; lp = lp->next)
-    if (ptid_get_pid (lp->ptid) == pid)
-      count++;
-
-  return count;
 }
 
 /* Add the LWP specified by PID to the list.  Return a pointer to the
@@ -1139,8 +1192,16 @@ add_lwp (ptid_t ptid)
   lp->next = lwp_list;
   lwp_list = lp;
 
+  /* Let the arch specific bits know about this new thread.  Current
+     clients of this callback take the opportunity to install
+     watchpoints in the new thread.  Don't do this for the first
+     thread though.  If we're spawning a child ("run"), the thread
+     executes the shell wrapper first, and we shouldn't touch it until
+     it execs the program we want to debug.  For "attach", it'd be
+     okay to call the callback, but it's not necessary, because
+     watchpoints can't yet have been inserted into the inferior.  */
   if (num_lwps (GET_PID (ptid)) > 1 && linux_nat_new_thread != NULL)
-    linux_nat_new_thread (ptid);
+    linux_nat_new_thread (lp);
 
   return lp;
 }
@@ -1166,7 +1227,7 @@ delete_lwp (ptid_t ptid)
   else
     lwp_list = lp->next;
 
-  xfree (lp);
+  lwp_free (lp);
 }
 
 /* Return a pointer to the structure describing the LWP corresponding
@@ -1216,6 +1277,46 @@ iterate_over_lwps (ptid_t filter,
   return NULL;
 }
 
+/* Iterate like iterate_over_lwps does except when forking-off a child call
+   CALLBACK with CALLBACK_DATA specifically only for that new child PID.  */
+
+void
+linux_nat_iterate_watchpoint_lwps
+  (linux_nat_iterate_watchpoint_lwps_ftype callback, void *callback_data)
+{
+  int inferior_pid = ptid_get_pid (inferior_ptid);
+  struct inferior *inf = current_inferior ();
+
+  if (inf->pid == inferior_pid)
+    {
+      /* Iterate all the threads of the current inferior.  Without specifying
+	 INFERIOR_PID it would iterate all threads of all inferiors, which is
+	 inappropriate for watchpoints.  */
+
+      iterate_over_lwps (pid_to_ptid (inferior_pid), callback, callback_data);
+    }
+  else
+    {
+      /* Detaching a new child PID temporarily present in INFERIOR_PID.  */
+
+      struct lwp_info *child_lp;
+      struct cleanup *old_chain;
+      pid_t child_pid = GET_PID (inferior_ptid);
+      ptid_t child_ptid = ptid_build (child_pid, child_pid, 0);
+
+      gdb_assert (!is_lwp (inferior_ptid));
+      gdb_assert (find_lwp_pid (child_ptid) == NULL);
+      child_lp = add_lwp (child_ptid);
+      child_lp->stopped = 1;
+      child_lp->last_resume_kind = resume_stop;
+      old_chain = make_cleanup (delete_lwp_cleanup, child_lp);
+
+      callback (child_lp, callback_data);
+
+      do_cleanups (old_chain);
+    }
+}
+
 /* Update our internal state when changing from one checkpoint to
    another indicated by NEW_PTID.  We can only switch single-threaded
    applications, so we only create one new LWP, and the previous list
@@ -1260,37 +1361,6 @@ exit_lwp (struct lwp_info *lp)
   delete_lwp (lp->ptid);
 }
 
-/* Detect `T (stopped)' in `/proc/PID/status'.
-   Other states including `T (tracing stop)' are reported as false.  */
-
-static int
-pid_is_stopped (pid_t pid)
-{
-  FILE *status_file;
-  char buf[100];
-  int retval = 0;
-
-  snprintf (buf, sizeof (buf), "/proc/%d/status", (int) pid);
-  status_file = fopen (buf, "r");
-  if (status_file != NULL)
-    {
-      int have_state = 0;
-
-      while (fgets (buf, sizeof (buf), status_file))
-	{
-	  if (strncmp (buf, "State:", 6) == 0)
-	    {
-	      have_state = 1;
-	      break;
-	    }
-	}
-      if (have_state && strstr (buf, "T (stopped)") != NULL)
-	retval = 1;
-      fclose (status_file);
-    }
-  return retval;
-}
-
 /* Wait for the LWP specified by LP, which we have just attached to.
    Returns a wait status for that LWP, to cache.  */
 
@@ -1301,7 +1371,7 @@ linux_nat_post_attach_wait (ptid_t ptid, int first, int *cloned,
   pid_t new_pid, pid = GET_LWP (ptid);
   int status;
 
-  if (pid_is_stopped (pid))
+  if (linux_proc_pid_is_stopped (pid))
     {
       if (debug_linux_nat)
 	fprintf_unfiltered (gdb_stdlog,
@@ -1545,11 +1615,33 @@ linux_nat_attach (struct target_ops *ops, char *args, int from_tty)
   struct lwp_info *lp;
   int status;
   ptid_t ptid;
+  volatile struct gdb_exception ex;
 
   /* Make sure we report all signals during attach.  */
   linux_nat_pass_signals (0, NULL);
 
-  linux_ops->to_attach (ops, args, from_tty);
+  TRY_CATCH (ex, RETURN_MASK_ERROR)
+    {
+      linux_ops->to_attach (ops, args, from_tty);
+    }
+  if (ex.reason < 0)
+    {
+      pid_t pid = parse_pid_to_attach (args);
+      struct buffer buffer;
+      char *message, *buffer_s;
+
+      message = xstrdup (ex.message);
+      make_cleanup (xfree, message);
+
+      buffer_init (&buffer);
+      linux_ptrace_attach_warnings (pid, &buffer);
+
+      buffer_grow_str0 (&buffer, "");
+      buffer_s = buffer_finish (&buffer);
+      make_cleanup (xfree, buffer_s);
+
+      throw_error (ex.error, "%s%s", buffer_s, message);
+    }
 
   /* The ptrace base target adds the main thread with (pid,0,0)
      format.  Decorate it with lwp info.  */
@@ -1724,6 +1816,8 @@ detach_callback (struct lwp_info *lp, void *data)
       /* Pass on any pending signal for this LWP.  */
       get_pending_status (lp, &status);
 
+      if (linux_nat_prepare_to_resume != NULL)
+	linux_nat_prepare_to_resume (lp);
       errno = 0;
       if (ptrace (PTRACE_DETACH, GET_LWP (lp->ptid), 0,
 		  WSTOPSIG (status)) < 0)
@@ -1784,6 +1878,8 @@ linux_nat_detach (struct target_ops *ops, char *args, int from_tty)
 			    target_pid_to_str (main_lwp->ptid));
     }
 
+  if (linux_nat_prepare_to_resume != NULL)
+    linux_nat_prepare_to_resume (main_lwp);
   delete_lwp (main_lwp->ptid);
 
   if (forks_exist_p ())
@@ -1825,6 +1921,8 @@ resume_lwp (struct lwp_info *lp, int step)
 				"RC:  PTRACE_CONT %s, 0, 0 (resuming sibling)\n",
 				target_pid_to_str (lp->ptid));
 
+	  if (linux_nat_prepare_to_resume != NULL)
+	    linux_nat_prepare_to_resume (lp);
 	  linux_ops->to_resume (linux_ops,
 				pid_to_ptid (GET_LWP (lp->ptid)),
 				step, TARGET_SIGNAL_0);
@@ -1969,6 +2067,8 @@ linux_nat_resume (struct target_ops *ops,
   /* Convert to something the lower layer understands.  */
   ptid = pid_to_ptid (GET_LWP (lp->ptid));
 
+  if (linux_nat_prepare_to_resume != NULL)
+    linux_nat_prepare_to_resume (lp);
   linux_ops->to_resume (linux_ops, ptid, step, signo);
   memset (&lp->siginfo, 0, sizeof (lp->siginfo));
   lp->stopped_by_watchpoint = 0;
@@ -2138,6 +2238,8 @@ linux_handle_syscall_trap (struct lwp_info *lp, int stopping)
   /* Note that gdbarch_get_syscall_number may access registers, hence
      fill a regcache.  */
   registers_changed ();
+  if (linux_nat_prepare_to_resume != NULL)
+    linux_nat_prepare_to_resume (lp);
   linux_ops->to_resume (linux_ops, pid_to_ptid (GET_LWP (lp->ptid)),
 			lp->step, TARGET_SIGNAL_0);
   return 1;
@@ -2325,6 +2427,8 @@ linux_handle_extended_wait (struct lwp_info *lp, int status,
 		    fprintf_unfiltered (gdb_stdlog,
 					"LHEW: resuming new LWP %ld\n",
 					GET_LWP (new_lp->ptid));
+		  if (linux_nat_prepare_to_resume != NULL)
+		    linux_nat_prepare_to_resume (new_lp);
 		  linux_ops->to_resume (linux_ops, pid_to_ptid (new_pid),
 					0, TARGET_SIGNAL_0);
 		  new_lp->stopped = 0;
@@ -2334,6 +2438,8 @@ linux_handle_extended_wait (struct lwp_info *lp, int status,
 	  if (debug_linux_nat)
 	    fprintf_unfiltered (gdb_stdlog,
 				"LHEW: resuming parent LWP %d\n", pid);
+	  if (linux_nat_prepare_to_resume != NULL)
+	    linux_nat_prepare_to_resume (lp);
 	  linux_ops->to_resume (linux_ops, pid_to_ptid (GET_LWP (lp->ptid)),
 				0, TARGET_SIGNAL_0);
 
@@ -2382,37 +2488,6 @@ linux_handle_extended_wait (struct lwp_info *lp, int status,
 
   internal_error (__FILE__, __LINE__,
 		  _("unknown ptrace event %d"), event);
-}
-
-/* Return non-zero if LWP is a zombie.  */
-
-static int
-linux_lwp_is_zombie (long lwp)
-{
-  char buffer[MAXPATHLEN];
-  FILE *procfile;
-  int retval;
-  int have_state;
-
-  xsnprintf (buffer, sizeof (buffer), "/proc/%ld/status", lwp);
-  procfile = fopen (buffer, "r");
-  if (procfile == NULL)
-    {
-      warning (_("unable to open /proc file '%s'"), buffer);
-      return 0;
-    }
-
-  have_state = 0;
-  while (fgets (buffer, sizeof (buffer), procfile) != NULL)
-    if (strncmp (buffer, "State:", 6) == 0)
-      {
-	have_state = 1;
-	break;
-      }
-  retval = (have_state
-	    && strcmp (buffer, "State:\tZ (zombie)\n") == 0);
-  fclose (procfile);
-  return retval;
 }
 
 /* Wait for LP to stop.  Returns the wait status, or 0 if the LWP has
@@ -2468,10 +2543,10 @@ wait_lwp (struct lwp_info *lp)
 
 	 This is racy, what if the tgl becomes a zombie right after we check?
 	 Therefore always use WNOHANG with sigsuspend - it is equivalent to
-	 waiting waitpid but the linux_lwp_is_zombie is safe this way.  */
+	 waiting waitpid but linux_proc_pid_is_zombie is safe this way.  */
 
       if (GET_PID (lp->ptid) == GET_LWP (lp->ptid)
-	  && linux_lwp_is_zombie (GET_LWP (lp->ptid)))
+	  && linux_proc_pid_is_zombie (GET_LWP (lp->ptid)))
 	{
 	  thread_dead = 1;
 	  if (debug_linux_nat)
@@ -2595,6 +2670,14 @@ stop_callback (struct lwp_info *lp, void *data)
     }
 
   return 0;
+}
+
+/* Request a stop on LWP.  */
+
+void
+linux_stop_lwp (struct lwp_info *lwp)
+{
+  stop_callback (lwp, NULL);
 }
 
 /* Return non-zero if LWP PID has a pending SIGINT.  */
@@ -3333,6 +3416,8 @@ linux_nat_filter_event (int lwpid, int status, int *new_pending_p)
 
 	  registers_changed ();
 
+	  if (linux_nat_prepare_to_resume != NULL)
+	    linux_nat_prepare_to_resume (lp);
 	  linux_ops->to_resume (linux_ops, pid_to_ptid (GET_LWP (lp->ptid)),
 			    lp->step, TARGET_SIGNAL_0);
 	  if (debug_linux_nat)
@@ -3364,6 +3449,8 @@ linux_nat_filter_event (int lwpid, int status, int *new_pending_p)
       lp->ignore_sigint = 0;
 
       registers_changed ();
+      if (linux_nat_prepare_to_resume != NULL)
+	linux_nat_prepare_to_resume (lp);
       linux_ops->to_resume (linux_ops, pid_to_ptid (GET_LWP (lp->ptid)),
 			    lp->step, TARGET_SIGNAL_0);
       if (debug_linux_nat)
@@ -3406,7 +3493,7 @@ check_zombie_leaders (void)
 	  /* Check if there are other threads in the group, as we may
 	     have raced with the inferior simply exiting.  */
 	  && num_lwps (inf->pid) > 1
-	  && linux_lwp_is_zombie (inf->pid))
+	  && linux_proc_pid_is_zombie (inf->pid))
 	{
 	  if (debug_linux_nat)
 	    fprintf_unfiltered (gdb_stdlog,
@@ -3538,6 +3625,8 @@ retry:
       /* Resume the thread.  It should halt immediately returning the
          pending SIGSTOP.  */
       registers_changed ();
+      if (linux_nat_prepare_to_resume != NULL)
+	linux_nat_prepare_to_resume (lp);
       linux_ops->to_resume (linux_ops, pid_to_ptid (GET_LWP (lp->ptid)),
 			    lp->step, TARGET_SIGNAL_0);
       if (debug_linux_nat)
@@ -3787,6 +3876,8 @@ retry:
 	     newly attached threads may cause an unwanted delay in
 	     getting them running.  */
 	  registers_changed ();
+	  if (linux_nat_prepare_to_resume != NULL)
+	    linux_nat_prepare_to_resume (lp);
 	  linux_ops->to_resume (linux_ops, pid_to_ptid (GET_LWP (lp->ptid)),
 				lp->step, signo);
 	  if (debug_linux_nat)
@@ -3903,7 +3994,7 @@ retry:
       || ourstatus->kind == TARGET_WAITKIND_SIGNALLED)
     lp->core = -1;
   else
-    lp->core = linux_nat_core_of_thread_1 (lp->ptid);
+    lp->core = linux_common_core_of_thread (lp->ptid);
 
   return lp->ptid;
 }
@@ -3921,24 +4012,30 @@ resume_stopped_resumed_lwps (struct lwp_info *lp, void *data)
       && lp->status == 0
       && lp->waitstatus.kind == TARGET_WAITKIND_IGNORE)
     {
+      struct regcache *regcache = get_thread_regcache (lp->ptid);
+      struct gdbarch *gdbarch = get_regcache_arch (regcache);
+      CORE_ADDR pc = regcache_read_pc (regcache);
+
       gdb_assert (is_executing (lp->ptid));
 
       /* Don't bother if there's a breakpoint at PC that we'd hit
 	 immediately, and we're not waiting for this LWP.  */
       if (!ptid_match (lp->ptid, *wait_ptid_p))
 	{
-	  struct regcache *regcache = get_thread_regcache (lp->ptid);
-	  CORE_ADDR pc = regcache_read_pc (regcache);
-
 	  if (breakpoint_inserted_here_p (get_regcache_aspace (regcache), pc))
 	    return 0;
 	}
 
       if (debug_linux_nat)
 	fprintf_unfiltered (gdb_stdlog,
-			    "RSRL: resuming stopped-resumed LWP %s\n",
-			    target_pid_to_str (lp->ptid));
+			    "RSRL: resuming stopped-resumed LWP %s at %s: step=%d\n",
+			    target_pid_to_str (lp->ptid),
+			    paddress (gdbarch, pc),
+			    lp->step);
 
+      registers_changed ();
+      if (linux_nat_prepare_to_resume != NULL)
+	linux_nat_prepare_to_resume (lp);
       linux_ops->to_resume (linux_ops, pid_to_ptid (GET_LWP (lp->ptid)),
 			    lp->step, TARGET_SIGNAL_0);
       lp->stopped = 0;
@@ -3980,7 +4077,8 @@ linux_nat_wait (struct target_ops *ops,
      may be more.  If we requested a specific lwp or process, also
      assume there may be more.  */
   if (target_can_async_p ()
-      && (ourstatus->kind != TARGET_WAITKIND_IGNORE
+      && ((ourstatus->kind != TARGET_WAITKIND_IGNORE
+	   && ourstatus->kind != TARGET_WAITKIND_NO_RESUMED)
 	  || !ptid_equal (ptid, minus_one_ptid)))
     async_file_mark ();
 
@@ -4134,7 +4232,7 @@ linux_nat_mourn_inferior (struct target_ops *ops)
    layout of the inferiors' architecture.  */
 
 static void
-siginfo_fixup (struct siginfo *siginfo, gdb_byte *inf_siginfo, int direction)
+siginfo_fixup (siginfo_t *siginfo, gdb_byte *inf_siginfo, int direction)
 {
   int done = 0;
 
@@ -4146,9 +4244,9 @@ siginfo_fixup (struct siginfo *siginfo, gdb_byte *inf_siginfo, int direction)
   if (!done)
     {
       if (direction == 1)
-	memcpy (siginfo, inf_siginfo, sizeof (struct siginfo));
+	memcpy (siginfo, inf_siginfo, sizeof (siginfo_t));
       else
-	memcpy (inf_siginfo, siginfo, sizeof (struct siginfo));
+	memcpy (inf_siginfo, siginfo, sizeof (siginfo_t));
     }
 }
 
@@ -4158,8 +4256,8 @@ linux_xfer_siginfo (struct target_ops *ops, enum target_object object,
 		    const gdb_byte *writebuf, ULONGEST offset, LONGEST len)
 {
   int pid;
-  struct siginfo siginfo;
-  gdb_byte inf_siginfo[sizeof (struct siginfo)];
+  siginfo_t siginfo;
+  gdb_byte inf_siginfo[sizeof (siginfo_t)];
 
   gdb_assert (object == TARGET_OBJECT_SIGNAL_INFO);
   gdb_assert (readbuf || writebuf);
@@ -4340,344 +4438,47 @@ linux_child_pid_to_exec_file (int pid)
     return name1;
 }
 
-/* Service function for corefiles and info proc.  */
-
-static int
-read_mapping (FILE *mapfile,
-	      long long *addr,
-	      long long *endaddr,
-	      char *permissions,
-	      long long *offset,
-	      char *device, long long *inode, char *filename)
-{
-  int ret = fscanf (mapfile, "%llx-%llx %s %llx %s %llx",
-		    addr, endaddr, permissions, offset, device, inode);
-
-  filename[0] = '\0';
-  if (ret > 0 && ret != EOF)
-    {
-      /* Eat everything up to EOL for the filename.  This will prevent
-         weird filenames (such as one with embedded whitespace) from
-         confusing this code.  It also makes this code more robust in
-         respect to annotations the kernel may add after the filename.
-
-         Note the filename is used for informational purposes
-         only.  */
-      ret += fscanf (mapfile, "%[^\n]\n", filename);
-    }
-
-  return (ret != 0 && ret != EOF);
-}
-
-/* Fills the "to_find_memory_regions" target vector.  Lists the memory
-   regions in the inferior for a corefile.  */
-
-static int
-linux_nat_find_memory_regions (find_memory_region_ftype func, void *obfd)
-{
-  int pid = PIDGET (inferior_ptid);
-  char mapsfilename[MAXPATHLEN];
-  FILE *mapsfile;
-  long long addr, endaddr, size, offset, inode;
-  char permissions[8], device[8], filename[MAXPATHLEN];
-  int read, write, exec;
-  struct cleanup *cleanup;
-
-  /* Compose the filename for the /proc memory map, and open it.  */
-  sprintf (mapsfilename, "/proc/%d/maps", pid);
-  if ((mapsfile = fopen (mapsfilename, "r")) == NULL)
-    error (_("Could not open %s."), mapsfilename);
-  cleanup = make_cleanup_fclose (mapsfile);
-
-  if (info_verbose)
-    fprintf_filtered (gdb_stdout,
-		      "Reading memory regions from %s\n", mapsfilename);
-
-  /* Now iterate until end-of-file.  */
-  while (read_mapping (mapsfile, &addr, &endaddr, &permissions[0],
-		       &offset, &device[0], &inode, &filename[0]))
-    {
-      size = endaddr - addr;
-
-      /* Get the segment's permissions.  */
-      read = (strchr (permissions, 'r') != 0);
-      write = (strchr (permissions, 'w') != 0);
-      exec = (strchr (permissions, 'x') != 0);
-
-      if (info_verbose)
-	{
-	  fprintf_filtered (gdb_stdout,
-			    "Save segment, %s bytes at %s (%c%c%c)",
-			    plongest (size), paddress (target_gdbarch, addr),
-			    read ? 'r' : ' ',
-			    write ? 'w' : ' ', exec ? 'x' : ' ');
-	  if (filename[0])
-	    fprintf_filtered (gdb_stdout, " for %s", filename);
-	  fprintf_filtered (gdb_stdout, "\n");
-	}
-
-      /* Invoke the callback function to create the corefile
-	 segment.  */
-      func (addr, size, read, write, exec, obfd);
-    }
-  do_cleanups (cleanup);
-  return 0;
-}
-
-static int
-find_signalled_thread (struct thread_info *info, void *data)
-{
-  if (info->suspend.stop_signal != TARGET_SIGNAL_0
-      && ptid_get_pid (info->ptid) == ptid_get_pid (inferior_ptid))
-    return 1;
-
-  return 0;
-}
-
-static enum target_signal
-find_stop_signal (void)
-{
-  struct thread_info *info =
-    iterate_over_threads (find_signalled_thread, NULL);
-
-  if (info)
-    return info->suspend.stop_signal;
-  else
-    return TARGET_SIGNAL_0;
-}
-
 /* Records the thread's register state for the corefile note
    section.  */
 
 static char *
-linux_nat_do_thread_registers (bfd *obfd, ptid_t ptid,
-			       char *note_data, int *note_size,
-			       enum target_signal stop_signal)
+linux_nat_collect_thread_registers (const struct regcache *regcache,
+				    ptid_t ptid, bfd *obfd,
+				    char *note_data, int *note_size,
+				    enum target_signal stop_signal)
 {
-  unsigned long lwp = ptid_get_lwp (ptid);
-  struct gdbarch *gdbarch = target_gdbarch;
-  struct regcache *regcache = get_thread_arch_regcache (ptid, gdbarch);
+  struct gdbarch *gdbarch = get_regcache_arch (regcache);
   const struct regset *regset;
   int core_regset_p;
-  struct cleanup *old_chain;
-  struct core_regset_section *sect_list;
-  char *gdb_regset;
-
-  old_chain = save_inferior_ptid ();
-  inferior_ptid = ptid;
-  target_fetch_registers (regcache, -1);
-  do_cleanups (old_chain);
+  gdb_gregset_t gregs;
+  gdb_fpregset_t fpregs;
 
   core_regset_p = gdbarch_regset_from_core_section_p (gdbarch);
-  sect_list = gdbarch_core_regset_sections (gdbarch);
 
-  /* The loop below uses the new struct core_regset_section, which stores
-     the supported section names and sizes for the core file.  Note that
-     note PRSTATUS needs to be treated specially.  But the other notes are
-     structurally the same, so they can benefit from the new struct.  */
-  if (core_regset_p && sect_list != NULL)
-    while (sect_list->sect_name != NULL)
-      {
-	regset = gdbarch_regset_from_core_section (gdbarch,
-						   sect_list->sect_name,
-						   sect_list->size);
-	gdb_assert (regset && regset->collect_regset);
-	gdb_regset = xmalloc (sect_list->size);
-	regset->collect_regset (regset, regcache, -1,
-				gdb_regset, sect_list->size);
-
-	if (strcmp (sect_list->sect_name, ".reg") == 0)
-	  note_data = (char *) elfcore_write_prstatus
-				(obfd, note_data, note_size,
-				 lwp, target_signal_to_host (stop_signal),
-				 gdb_regset);
-	else
-	  note_data = (char *) elfcore_write_register_note
-				(obfd, note_data, note_size,
-				 sect_list->sect_name, gdb_regset,
-				 sect_list->size);
-	xfree (gdb_regset);
-	sect_list++;
-      }
-
-  /* For architectures that does not have the struct core_regset_section
-     implemented, we use the old method.  When all the architectures have
-     the new support, the code below should be deleted.  */
+  if (core_regset_p
+      && (regset = gdbarch_regset_from_core_section (gdbarch, ".reg",
+						     sizeof (gregs)))
+	 != NULL && regset->collect_regset != NULL)
+    regset->collect_regset (regset, regcache, -1, &gregs, sizeof (gregs));
   else
-    {
-      gdb_gregset_t gregs;
-      gdb_fpregset_t fpregs;
+    fill_gregset (regcache, &gregs, -1);
 
-      if (core_regset_p
-	  && (regset = gdbarch_regset_from_core_section (gdbarch, ".reg",
-							 sizeof (gregs)))
+  note_data = (char *) elfcore_write_prstatus
+			 (obfd, note_data, note_size, ptid_get_lwp (ptid),
+			  target_signal_to_host (stop_signal), &gregs);
+
+  if (core_regset_p
+      && (regset = gdbarch_regset_from_core_section (gdbarch, ".reg2",
+						     sizeof (fpregs)))
 	  != NULL && regset->collect_regset != NULL)
-	regset->collect_regset (regset, regcache, -1,
-				&gregs, sizeof (gregs));
-      else
-	fill_gregset (regcache, &gregs, -1);
+    regset->collect_regset (regset, regcache, -1, &fpregs, sizeof (fpregs));
+  else
+    fill_fpregset (regcache, &fpregs, -1);
 
-      note_data = (char *) elfcore_write_prstatus
-	(obfd, note_data, note_size, lwp, target_signal_to_host (stop_signal),
-	 &gregs);
-
-      if (core_regset_p
-          && (regset = gdbarch_regset_from_core_section (gdbarch, ".reg2",
-							 sizeof (fpregs)))
-	  != NULL && regset->collect_regset != NULL)
-	regset->collect_regset (regset, regcache, -1,
-				&fpregs, sizeof (fpregs));
-      else
-	fill_fpregset (regcache, &fpregs, -1);
-
-      note_data = (char *) elfcore_write_prfpreg (obfd,
-						  note_data,
-						  note_size,
-						  &fpregs, sizeof (fpregs));
-    }
+  note_data = (char *) elfcore_write_prfpreg (obfd, note_data, note_size,
+					      &fpregs, sizeof (fpregs));
 
   return note_data;
-}
-
-struct linux_nat_corefile_thread_data
-{
-  bfd *obfd;
-  char *note_data;
-  int *note_size;
-  int num_notes;
-  enum target_signal stop_signal;
-};
-
-/* Called by gdbthread.c once per thread.  Records the thread's
-   register state for the corefile note section.  */
-
-static int
-linux_nat_corefile_thread_callback (struct lwp_info *ti, void *data)
-{
-  struct linux_nat_corefile_thread_data *args = data;
-
-  args->note_data = linux_nat_do_thread_registers (args->obfd,
-						   ti->ptid,
-						   args->note_data,
-						   args->note_size,
-						   args->stop_signal);
-  args->num_notes++;
-
-  return 0;
-}
-
-/* Enumerate spufs IDs for process PID.  */
-
-static void
-iterate_over_spus (int pid, void (*callback) (void *, int), void *data)
-{
-  char path[128];
-  DIR *dir;
-  struct dirent *entry;
-
-  xsnprintf (path, sizeof path, "/proc/%d/fd", pid);
-  dir = opendir (path);
-  if (!dir)
-    return;
-
-  rewinddir (dir);
-  while ((entry = readdir (dir)) != NULL)
-    {
-      struct stat st;
-      struct statfs stfs;
-      int fd;
-
-      fd = atoi (entry->d_name);
-      if (!fd)
-	continue;
-
-      xsnprintf (path, sizeof path, "/proc/%d/fd/%d", pid, fd);
-      if (stat (path, &st) != 0)
-	continue;
-      if (!S_ISDIR (st.st_mode))
-	continue;
-
-      if (statfs (path, &stfs) != 0)
-	continue;
-      if (stfs.f_type != SPUFS_MAGIC)
-	continue;
-
-      callback (data, fd);
-    }
-
-  closedir (dir);
-}
-
-/* Generate corefile notes for SPU contexts.  */
-
-struct linux_spu_corefile_data
-{
-  bfd *obfd;
-  char *note_data;
-  int *note_size;
-};
-
-static void
-linux_spu_corefile_callback (void *data, int fd)
-{
-  struct linux_spu_corefile_data *args = data;
-  int i;
-
-  static const char *spu_files[] =
-    {
-      "object-id",
-      "mem",
-      "regs",
-      "fpcr",
-      "lslr",
-      "decr",
-      "decr_status",
-      "signal1",
-      "signal1_type",
-      "signal2",
-      "signal2_type",
-      "event_mask",
-      "event_status",
-      "mbox_info",
-      "ibox_info",
-      "wbox_info",
-      "dma_info",
-      "proxydma_info",
-   };
-
-  for (i = 0; i < sizeof (spu_files) / sizeof (spu_files[0]); i++)
-    {
-      char annex[32], note_name[32];
-      gdb_byte *spu_data;
-      LONGEST spu_len;
-
-      xsnprintf (annex, sizeof annex, "%d/%s", fd, spu_files[i]);
-      spu_len = target_read_alloc (&current_target, TARGET_OBJECT_SPU,
-				   annex, &spu_data);
-      if (spu_len > 0)
-	{
-	  xsnprintf (note_name, sizeof note_name, "SPU/%s", annex);
-	  args->note_data = elfcore_write_note (args->obfd, args->note_data,
-						args->note_size, note_name,
-						NT_SPU, spu_data, spu_len);
-	  xfree (spu_data);
-	}
-    }
-}
-
-static char *
-linux_spu_make_corefile_notes (bfd *obfd, char *note_data, int *note_size)
-{
-  struct linux_spu_corefile_data args;
-
-  args.obfd = obfd;
-  args.note_data = note_data;
-  args.note_size = note_size;
-
-  iterate_over_spus (PIDGET (inferior_ptid),
-		     linux_spu_corefile_callback, &args);
-
-  return args.note_data;
 }
 
 /* Fills the "to_make_corefile_note" target vector.  Builds the note
@@ -4686,398 +4487,10 @@ linux_spu_make_corefile_notes (bfd *obfd, char *note_data, int *note_size)
 static char *
 linux_nat_make_corefile_notes (bfd *obfd, int *note_size)
 {
-  struct linux_nat_corefile_thread_data thread_args;
-  /* The variable size must be >= sizeof (prpsinfo_t.pr_fname).  */
-  char fname[16] = { '\0' };
-  /* The variable size must be >= sizeof (prpsinfo_t.pr_psargs).  */
-  char psargs[80] = { '\0' };
-  char *note_data = NULL;
-  ptid_t filter = pid_to_ptid (ptid_get_pid (inferior_ptid));
-  gdb_byte *auxv;
-  int auxv_len;
-
-  if (get_exec_file (0))
-    {
-      strncpy (fname, lbasename (get_exec_file (0)), sizeof (fname));
-      strncpy (psargs, get_exec_file (0), sizeof (psargs));
-      if (get_inferior_args ())
-	{
-	  char *string_end;
-	  char *psargs_end = psargs + sizeof (psargs);
-
-	  /* linux_elfcore_write_prpsinfo () handles zero unterminated
-	     strings fine.  */
-	  string_end = memchr (psargs, 0, sizeof (psargs));
-	  if (string_end != NULL)
-	    {
-	      *string_end++ = ' ';
-	      strncpy (string_end, get_inferior_args (),
-		       psargs_end - string_end);
-	    }
-	}
-      note_data = (char *) elfcore_write_prpsinfo (obfd,
-						   note_data,
-						   note_size, fname, psargs);
-    }
-
-  /* Dump information for threads.  */
-  thread_args.obfd = obfd;
-  thread_args.note_data = note_data;
-  thread_args.note_size = note_size;
-  thread_args.num_notes = 0;
-  thread_args.stop_signal = find_stop_signal ();
-  iterate_over_lwps (filter, linux_nat_corefile_thread_callback, &thread_args);
-  gdb_assert (thread_args.num_notes != 0);
-  note_data = thread_args.note_data;
-
-  auxv_len = target_read_alloc (&current_target, TARGET_OBJECT_AUXV,
-				NULL, &auxv);
-  if (auxv_len > 0)
-    {
-      note_data = elfcore_write_note (obfd, note_data, note_size,
-				      "CORE", NT_AUXV, auxv, auxv_len);
-      xfree (auxv);
-    }
-
-  note_data = linux_spu_make_corefile_notes (obfd, note_data, note_size);
-
-  make_cleanup (xfree, note_data);
-  return note_data;
-}
-
-/* Implement the "info proc" command.  */
-
-enum info_proc_what
-  {
-    /* Display the default cmdline, cwd and exe outputs.  */
-    IP_MINIMAL,
-
-    /* Display `info proc mappings'.  */
-    IP_MAPPINGS,
-
-    /* Display `info proc status'.  */
-    IP_STATUS,
-
-    /* Display `info proc stat'.  */
-    IP_STAT,
-
-    /* Display `info proc cmdline'.  */
-    IP_CMDLINE,
-
-    /* Display `info proc exe'.  */
-    IP_EXE,
-
-    /* Display `info proc cwd'.  */
-    IP_CWD,
-
-    /* Display all of the above.  */
-    IP_ALL
-  };
-
-static void
-linux_nat_info_proc_cmd_1 (char *args, enum info_proc_what what, int from_tty)
-{
-  /* A long is used for pid instead of an int to avoid a loss of precision
-     compiler warning from the output of strtoul.  */
-  long pid = PIDGET (inferior_ptid);
-  FILE *procfile;
-  char buffer[MAXPATHLEN];
-  char fname1[MAXPATHLEN], fname2[MAXPATHLEN];
-  int cmdline_f = (what == IP_MINIMAL || what == IP_CMDLINE || what == IP_ALL);
-  int cwd_f = (what == IP_MINIMAL || what == IP_CWD || what == IP_ALL);
-  int exe_f = (what == IP_MINIMAL || what == IP_EXE || what == IP_ALL);
-  int mappings_f = (what == IP_MAPPINGS || what == IP_ALL);
-  int status_f = (what == IP_STATUS || what == IP_ALL);
-  int stat_f = (what == IP_STAT || what == IP_ALL);
-  struct stat dummy;
-
-  if (args && isdigit (args[0]))
-    pid = strtoul (args, &args, 10);
-
-  args = skip_spaces (args);
-  if (args && args[0])
-    error (_("Too many parameters: %s"), args);
-
-  if (pid == 0)
-    error (_("No current process: you must name one."));
-
-  sprintf (fname1, "/proc/%ld", pid);
-  if (stat (fname1, &dummy) != 0)
-    error (_("No /proc directory: '%s'"), fname1);
-
-  printf_filtered (_("process %ld\n"), pid);
-  if (cmdline_f)
-    {
-      sprintf (fname1, "/proc/%ld/cmdline", pid);
-      if ((procfile = fopen (fname1, "r")) != NULL)
-	{
-	  struct cleanup *cleanup = make_cleanup_fclose (procfile);
-
-          if (fgets (buffer, sizeof (buffer), procfile))
-            printf_filtered ("cmdline = '%s'\n", buffer);
-          else
-            warning (_("unable to read '%s'"), fname1);
-	  do_cleanups (cleanup);
-	}
-      else
-	warning (_("unable to open /proc file '%s'"), fname1);
-    }
-  if (cwd_f)
-    {
-      sprintf (fname1, "/proc/%ld/cwd", pid);
-      memset (fname2, 0, sizeof (fname2));
-      if (readlink (fname1, fname2, sizeof (fname2)) > 0)
-	printf_filtered ("cwd = '%s'\n", fname2);
-      else
-	warning (_("unable to read link '%s'"), fname1);
-    }
-  if (exe_f)
-    {
-      sprintf (fname1, "/proc/%ld/exe", pid);
-      memset (fname2, 0, sizeof (fname2));
-      if (readlink (fname1, fname2, sizeof (fname2)) > 0)
-	printf_filtered ("exe = '%s'\n", fname2);
-      else
-	warning (_("unable to read link '%s'"), fname1);
-    }
-  if (mappings_f)
-    {
-      sprintf (fname1, "/proc/%ld/maps", pid);
-      if ((procfile = fopen (fname1, "r")) != NULL)
-	{
-	  long long addr, endaddr, size, offset, inode;
-	  char permissions[8], device[8], filename[MAXPATHLEN];
-	  struct cleanup *cleanup;
-
-	  cleanup = make_cleanup_fclose (procfile);
-	  printf_filtered (_("Mapped address spaces:\n\n"));
-	  if (gdbarch_addr_bit (target_gdbarch) == 32)
-	    {
-	      printf_filtered ("\t%10s %10s %10s %10s %7s\n",
-			   "Start Addr",
-			   "  End Addr",
-			   "      Size", "    Offset", "objfile");
-            }
-	  else
-            {
-	      printf_filtered ("  %18s %18s %10s %10s %7s\n",
-			   "Start Addr",
-			   "  End Addr",
-			   "      Size", "    Offset", "objfile");
-	    }
-
-	  while (read_mapping (procfile, &addr, &endaddr, &permissions[0],
-			       &offset, &device[0], &inode, &filename[0]))
-	    {
-	      size = endaddr - addr;
-
-	      /* FIXME: carlton/2003-08-27: Maybe the printf_filtered
-		 calls here (and possibly above) should be abstracted
-		 out into their own functions?  Andrew suggests using
-		 a generic local_address_string instead to print out
-		 the addresses; that makes sense to me, too.  */
-
-	      if (gdbarch_addr_bit (target_gdbarch) == 32)
-	        {
-	          printf_filtered ("\t%#10lx %#10lx %#10x %#10x %7s\n",
-			       (unsigned long) addr,	/* FIXME: pr_addr */
-			       (unsigned long) endaddr,
-			       (int) size,
-			       (unsigned int) offset,
-			       filename[0] ? filename : "");
-		}
-	      else
-	        {
-	          printf_filtered ("  %#18lx %#18lx %#10x %#10x %7s\n",
-			       (unsigned long) addr,	/* FIXME: pr_addr */
-			       (unsigned long) endaddr,
-			       (int) size,
-			       (unsigned int) offset,
-			       filename[0] ? filename : "");
-	        }
-	    }
-
-	  do_cleanups (cleanup);
-	}
-      else
-	warning (_("unable to open /proc file '%s'"), fname1);
-    }
-  if (status_f)
-    {
-      sprintf (fname1, "/proc/%ld/status", pid);
-      if ((procfile = fopen (fname1, "r")) != NULL)
-	{
-	  struct cleanup *cleanup = make_cleanup_fclose (procfile);
-
-	  while (fgets (buffer, sizeof (buffer), procfile) != NULL)
-	    puts_filtered (buffer);
-	  do_cleanups (cleanup);
-	}
-      else
-	warning (_("unable to open /proc file '%s'"), fname1);
-    }
-  if (stat_f)
-    {
-      sprintf (fname1, "/proc/%ld/stat", pid);
-      if ((procfile = fopen (fname1, "r")) != NULL)
-	{
-	  int itmp;
-	  char ctmp;
-	  long ltmp;
-	  struct cleanup *cleanup = make_cleanup_fclose (procfile);
-
-	  if (fscanf (procfile, "%d ", &itmp) > 0)
-	    printf_filtered (_("Process: %d\n"), itmp);
-	  if (fscanf (procfile, "(%[^)]) ", &buffer[0]) > 0)
-	    printf_filtered (_("Exec file: %s\n"), buffer);
-	  if (fscanf (procfile, "%c ", &ctmp) > 0)
-	    printf_filtered (_("State: %c\n"), ctmp);
-	  if (fscanf (procfile, "%d ", &itmp) > 0)
-	    printf_filtered (_("Parent process: %d\n"), itmp);
-	  if (fscanf (procfile, "%d ", &itmp) > 0)
-	    printf_filtered (_("Process group: %d\n"), itmp);
-	  if (fscanf (procfile, "%d ", &itmp) > 0)
-	    printf_filtered (_("Session id: %d\n"), itmp);
-	  if (fscanf (procfile, "%d ", &itmp) > 0)
-	    printf_filtered (_("TTY: %d\n"), itmp);
-	  if (fscanf (procfile, "%d ", &itmp) > 0)
-	    printf_filtered (_("TTY owner process group: %d\n"), itmp);
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
-	    printf_filtered (_("Flags: 0x%lx\n"), ltmp);
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
-	    printf_filtered (_("Minor faults (no memory page): %lu\n"),
-			     (unsigned long) ltmp);
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
-	    printf_filtered (_("Minor faults, children: %lu\n"),
-			     (unsigned long) ltmp);
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
-	    printf_filtered (_("Major faults (memory page faults): %lu\n"),
-			     (unsigned long) ltmp);
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
-	    printf_filtered (_("Major faults, children: %lu\n"),
-			     (unsigned long) ltmp);
-	  if (fscanf (procfile, "%ld ", &ltmp) > 0)
-	    printf_filtered (_("utime: %ld\n"), ltmp);
-	  if (fscanf (procfile, "%ld ", &ltmp) > 0)
-	    printf_filtered (_("stime: %ld\n"), ltmp);
-	  if (fscanf (procfile, "%ld ", &ltmp) > 0)
-	    printf_filtered (_("utime, children: %ld\n"), ltmp);
-	  if (fscanf (procfile, "%ld ", &ltmp) > 0)
-	    printf_filtered (_("stime, children: %ld\n"), ltmp);
-	  if (fscanf (procfile, "%ld ", &ltmp) > 0)
-	    printf_filtered (_("jiffies remaining in current "
-			       "time slice: %ld\n"), ltmp);
-	  if (fscanf (procfile, "%ld ", &ltmp) > 0)
-	    printf_filtered (_("'nice' value: %ld\n"), ltmp);
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
-	    printf_filtered (_("jiffies until next timeout: %lu\n"),
-			     (unsigned long) ltmp);
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
-	    printf_filtered (_("jiffies until next SIGALRM: %lu\n"),
-			     (unsigned long) ltmp);
-	  if (fscanf (procfile, "%ld ", &ltmp) > 0)
-	    printf_filtered (_("start time (jiffies since "
-			       "system boot): %ld\n"), ltmp);
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
-	    printf_filtered (_("Virtual memory size: %lu\n"),
-			     (unsigned long) ltmp);
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
-	    printf_filtered (_("Resident set size: %lu\n"),
-			     (unsigned long) ltmp);
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
-	    printf_filtered (_("rlim: %lu\n"), (unsigned long) ltmp);
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
-	    printf_filtered (_("Start of text: 0x%lx\n"), ltmp);
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
-	    printf_filtered (_("End of text: 0x%lx\n"), ltmp);
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)
-	    printf_filtered (_("Start of stack: 0x%lx\n"), ltmp);
-#if 0	/* Don't know how architecture-dependent the rest is...
-	   Anyway the signal bitmap info is available from "status".  */
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)	/* FIXME arch?  */
-	    printf_filtered (_("Kernel stack pointer: 0x%lx\n"), ltmp);
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)	/* FIXME arch?  */
-	    printf_filtered (_("Kernel instr pointer: 0x%lx\n"), ltmp);
-	  if (fscanf (procfile, "%ld ", &ltmp) > 0)
-	    printf_filtered (_("Pending signals bitmap: 0x%lx\n"), ltmp);
-	  if (fscanf (procfile, "%ld ", &ltmp) > 0)
-	    printf_filtered (_("Blocked signals bitmap: 0x%lx\n"), ltmp);
-	  if (fscanf (procfile, "%ld ", &ltmp) > 0)
-	    printf_filtered (_("Ignored signals bitmap: 0x%lx\n"), ltmp);
-	  if (fscanf (procfile, "%ld ", &ltmp) > 0)
-	    printf_filtered (_("Catched signals bitmap: 0x%lx\n"), ltmp);
-	  if (fscanf (procfile, "%lu ", &ltmp) > 0)	/* FIXME arch?  */
-	    printf_filtered (_("wchan (system call): 0x%lx\n"), ltmp);
-#endif
-	  do_cleanups (cleanup);
-	}
-      else
-	warning (_("unable to open /proc file '%s'"), fname1);
-    }
-}
-
-/* Implement `info proc' when given without any futher parameters.  */
-
-static void
-linux_nat_info_proc_cmd (char *args, int from_tty)
-{
-  linux_nat_info_proc_cmd_1 (args, IP_MINIMAL, from_tty);
-}
-
-/* Implement `info proc mappings'.  */
-
-static void
-linux_nat_info_proc_cmd_mappings (char *args, int from_tty)
-{
-  linux_nat_info_proc_cmd_1 (args, IP_MAPPINGS, from_tty);
-}
-
-/* Implement `info proc stat'.  */
-
-static void
-linux_nat_info_proc_cmd_stat (char *args, int from_tty)
-{
-  linux_nat_info_proc_cmd_1 (args, IP_STAT, from_tty);
-}
-
-/* Implement `info proc status'.  */
-
-static void
-linux_nat_info_proc_cmd_status (char *args, int from_tty)
-{
-  linux_nat_info_proc_cmd_1 (args, IP_STATUS, from_tty);
-}
-
-/* Implement `info proc cwd'.  */
-
-static void
-linux_nat_info_proc_cmd_cwd (char *args, int from_tty)
-{
-  linux_nat_info_proc_cmd_1 (args, IP_CWD, from_tty);
-}
-
-/* Implement `info proc cmdline'.  */
-
-static void
-linux_nat_info_proc_cmd_cmdline (char *args, int from_tty)
-{
-  linux_nat_info_proc_cmd_1 (args, IP_CMDLINE, from_tty);
-}
-
-/* Implement `info proc exe'.  */
-
-static void
-linux_nat_info_proc_cmd_exe (char *args, int from_tty)
-{
-  linux_nat_info_proc_cmd_1 (args, IP_EXE, from_tty);
-}
-
-/* Implement `info proc all'.  */
-
-static void
-linux_nat_info_proc_cmd_all (char *args, int from_tty)
-{
-  linux_nat_info_proc_cmd_1 (args, IP_ALL, from_tty);
+  /* FIXME: uweigand/2011-10-06: Once all GNU/Linux architectures have been
+     converted to gdbarch_core_regset_sections, this function can go away.  */
+  return linux_make_corefile_notes (target_gdbarch, obfd, note_size,
+				    linux_nat_collect_thread_registers);
 }
 
 /* Implement the to_xfer_partial interface for memory reads using the /proc
@@ -5355,6 +4768,73 @@ linux_xfer_partial (struct target_ops *ops, enum target_object object,
 			     offset, len);
 }
 
+static void
+cleanup_target_stop (void *arg)
+{
+  ptid_t *ptid = (ptid_t *) arg;
+
+  gdb_assert (arg != NULL);
+
+  /* Unpause all */
+  target_resume (*ptid, 0, TARGET_SIGNAL_0);
+}
+
+static VEC(static_tracepoint_marker_p) *
+linux_child_static_tracepoint_markers_by_strid (const char *strid)
+{
+  char s[IPA_CMD_BUF_SIZE];
+  struct cleanup *old_chain;
+  int pid = ptid_get_pid (inferior_ptid);
+  VEC(static_tracepoint_marker_p) *markers = NULL;
+  struct static_tracepoint_marker *marker = NULL;
+  char *p = s;
+  ptid_t ptid = ptid_build (pid, 0, 0);
+
+  /* Pause all */
+  target_stop (ptid);
+
+  memcpy (s, "qTfSTM", sizeof ("qTfSTM"));
+  s[sizeof ("qTfSTM")] = 0;
+
+  agent_run_command (pid, s);
+
+  old_chain = make_cleanup (free_current_marker, &marker);
+  make_cleanup (cleanup_target_stop, &ptid);
+
+  while (*p++ == 'm')
+    {
+      if (marker == NULL)
+	marker = XCNEW (struct static_tracepoint_marker);
+
+      do
+	{
+	  parse_static_tracepoint_marker_definition (p, &p, marker);
+
+	  if (strid == NULL || strcmp (strid, marker->str_id) == 0)
+	    {
+	      VEC_safe_push (static_tracepoint_marker_p,
+			     markers, marker);
+	      marker = NULL;
+	    }
+	  else
+	    {
+	      release_static_tracepoint_marker (marker);
+	      memset (marker, 0, sizeof (*marker));
+	    }
+	}
+      while (*p++ == ',');	/* comma-separated list */
+
+      memcpy (s, "qTsSTM", sizeof ("qTsSTM"));
+      s[sizeof ("qTsSTM")] = 0;
+      agent_run_command (pid, s);
+      p = s;
+    }
+
+  do_cleanups (old_chain);
+
+  return markers;
+}
+
 /* Create a prototype generic GNU/Linux target.  The client can override
    it with local methods.  */
 
@@ -5372,11 +4852,13 @@ linux_target_install_ops (struct target_ops *t)
   t->to_post_startup_inferior = linux_child_post_startup_inferior;
   t->to_post_attach = linux_child_post_attach;
   t->to_follow_fork = linux_child_follow_fork;
-  t->to_find_memory_regions = linux_nat_find_memory_regions;
   t->to_make_corefile_notes = linux_nat_make_corefile_notes;
 
   super_xfer_partial = t->to_xfer_partial;
   t->to_xfer_partial = linux_xfer_partial;
+
+  t->to_static_tracepoint_markers_by_strid
+    = linux_child_static_tracepoint_markers_by_strid;
 }
 
 struct target_ops *
@@ -5661,8 +5143,8 @@ static void
 linux_nat_close (int quitting)
 {
   /* Unregister from the event loop.  */
-  if (target_is_async_p ())
-    target_async (NULL, 0);
+  if (linux_nat_is_async_p ())
+    linux_nat_async (NULL, 0);
 
   if (linux_ops->to_close)
     linux_ops->to_close (quitting);
@@ -5675,7 +5157,7 @@ linux_nat_close (int quitting)
    lwpid is a "main" process id or not (it assumes so).  We reverse
    look up the "main" process id from the lwp here.  */
 
-struct address_space *
+static struct address_space *
 linux_nat_thread_address_space (struct target_ops *t, ptid_t ptid)
 {
   struct lwp_info *lwp;
@@ -5701,74 +5183,9 @@ linux_nat_thread_address_space (struct target_ops *t, ptid_t ptid)
   return inf->aspace;
 }
 
-int
-linux_nat_core_of_thread_1 (ptid_t ptid)
-{
-  struct cleanup *back_to;
-  char *filename;
-  FILE *f;
-  char *content = NULL;
-  char *p;
-  char *ts = 0;
-  int content_read = 0;
-  int i;
-  int core;
-
-  filename = xstrprintf ("/proc/%d/task/%ld/stat",
-			 GET_PID (ptid), GET_LWP (ptid));
-  back_to = make_cleanup (xfree, filename);
-
-  f = fopen (filename, "r");
-  if (!f)
-    {
-      do_cleanups (back_to);
-      return -1;
-    }
-
-  make_cleanup_fclose (f);
-
-  for (;;)
-    {
-      int n;
-
-      content = xrealloc (content, content_read + 1024);
-      n = fread (content + content_read, 1, 1024, f);
-      content_read += n;
-      if (n < 1024)
-	{
-	  content[content_read] = '\0';
-	  break;
-	}
-    }
-
-  make_cleanup (xfree, content);
-
-  p = strchr (content, '(');
-
-  /* Skip ")".  */
-  if (p != NULL)
-    p = strchr (p, ')');
-  if (p != NULL)
-    p++;
-
-  /* If the first field after program name has index 0, then core number is
-     the field with index 36.  There's no constant for that anywhere.  */
-  if (p != NULL)
-    p = strtok_r (p, " ", &ts);
-  for (i = 0; p != NULL && i != 36; ++i)
-    p = strtok_r (NULL, " ", &ts);
-
-  if (p == NULL || sscanf (p, "%d", &core) == 0)
-    core = -1;
-
-  do_cleanups (back_to);
-
-  return core;
-}
-
 /* Return the cached value of the processor core for thread PTID.  */
 
-int
+static int
 linux_nat_core_of_thread (struct target_ops *ops, ptid_t ptid)
 {
   struct lwp_info *info = find_lwp_pid (ptid);
@@ -5835,7 +5252,8 @@ linux_nat_add_target (struct target_ops *t)
 
 /* Register a method to call whenever a new thread is attached.  */
 void
-linux_nat_set_new_thread (struct target_ops *t, void (*new_thread) (ptid_t))
+linux_nat_set_new_thread (struct target_ops *t,
+			  void (*new_thread) (struct lwp_info *))
 {
   /* Save the pointer.  We only support a single registered instance
      of the GNU/Linux native target, so we do not need to map this to
@@ -5848,7 +5266,7 @@ linux_nat_set_new_thread (struct target_ops *t, void (*new_thread) (ptid_t))
    inferior.  */
 void
 linux_nat_set_siginfo_fixup (struct target_ops *t,
-			     int (*siginfo_fixup) (struct siginfo *,
+			     int (*siginfo_fixup) (siginfo_t *,
 						   gdb_byte *,
 						   int))
 {
@@ -5856,8 +5274,18 @@ linux_nat_set_siginfo_fixup (struct target_ops *t,
   linux_nat_siginfo_fixup = siginfo_fixup;
 }
 
+/* Register a method to call prior to resuming a thread.  */
+
+void
+linux_nat_set_prepare_to_resume (struct target_ops *t,
+				 void (*prepare_to_resume) (struct lwp_info *))
+{
+  /* Save the pointer.  */
+  linux_nat_prepare_to_resume = prepare_to_resume;
+}
+
 /* Return the saved siginfo associated with PTID.  */
-struct siginfo *
+siginfo_t *
 linux_nat_get_siginfo (ptid_t ptid)
 {
   struct lwp_info *lp = find_lwp_pid (ptid);
@@ -5873,43 +5301,6 @@ extern initialize_file_ftype _initialize_linux_nat;
 void
 _initialize_linux_nat (void)
 {
-  static struct cmd_list_element *info_proc_cmdlist;
-
-  add_prefix_cmd ("proc", class_info, linux_nat_info_proc_cmd,
-		  _("\
-Show /proc process information about any running process.\n\
-Specify any process id, or use the program being debugged by default."),
-		  &info_proc_cmdlist, "info proc ",
-		  1/*allow-unknown*/, &infolist);
-
-  add_cmd ("mappings", class_info, linux_nat_info_proc_cmd_mappings, _("\
-List of mapped memory regions."),
-	   &info_proc_cmdlist);
-
-  add_cmd ("stat", class_info, linux_nat_info_proc_cmd_stat, _("\
-List process info from /proc/PID/stat."),
-	   &info_proc_cmdlist);
-
-  add_cmd ("status", class_info, linux_nat_info_proc_cmd_status, _("\
-List process info from /proc/PID/status."),
-	   &info_proc_cmdlist);
-
-  add_cmd ("cwd", class_info, linux_nat_info_proc_cmd_cwd, _("\
-List current working directory of the process."),
-	   &info_proc_cmdlist);
-
-  add_cmd ("cmdline", class_info, linux_nat_info_proc_cmd_cmdline, _("\
-List command line arguments of the process."),
-	   &info_proc_cmdlist);
-
-  add_cmd ("exe", class_info, linux_nat_info_proc_cmd_exe, _("\
-List absolute filename for executable of the process."),
-	   &info_proc_cmdlist);
-
-  add_cmd ("all", class_info, linux_nat_info_proc_cmd_all, _("\
-List all available /proc info."),
-	   &info_proc_cmdlist);
-
   add_setshow_zinteger_cmd ("lin-lwp", class_maintenance,
 			    &debug_linux_nat, _("\
 Set debugging of GNU/Linux lwp module."), _("\

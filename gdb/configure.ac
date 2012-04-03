@@ -1,7 +1,5 @@
 dnl Autoconf configure script for GDB, the GNU debugger.
-dnl Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-dnl 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
-dnl Free Software Foundation, Inc.
+dnl Copyright (C) 1995-2012 Free Software Foundation, Inc.
 dnl
 dnl This file is part of GDB.
 dnl 
@@ -87,24 +85,12 @@ PACKAGE=gdb
 AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE", [Name of this package. ])
 AC_SUBST(PACKAGE)
 
-# Do we have a single-tree copy of texinfo?  Even if we do, we can't
-# rely on it - libiberty is built before texinfo.
-AC_CHECK_PROG(MAKEINFO, makeinfo, makeinfo, )
-if test "x$MAKEINFO" = "x"; then
-  AC_ERROR([makeinfo is required for compilation])
-else
-  case "$MAKEINFO" in
-    */missing\ makeinfo*)
-      AC_ERROR([makeinfo is required for compilation])
-      ;;
-  esac
-fi
-AC_SUBST(MAKEINFO)
-
-# --split-size=5000000 may be already in $MAKEINFO from parent configure.
-# Re-running configure in gdb/ would lose it so ensure it stays present.
-MAKEINFOFLAGS=${MAKEINFOFLAGS---split-size=5000000}
-AC_SUBST(MAKEINFOFLAGS)
+# We never need to detect it in this sub-configure.
+# But preserve it for config.status --recheck.
+AC_ARG_VAR(MAKEINFO,
+  [Parent configure detects if it is of sufficient version.])
+AC_ARG_VAR(MAKEINFOFLAGS,
+  [Parameters for MAKEINFO.])
 
 MAKEINFO_EXTRA_FLAGS=""
 AC_CACHE_CHECK([whether $MAKEINFO supports @click], gdb_cv_have_makeinfo_click,
@@ -126,6 +112,14 @@ AM_INIT_AUTOMAKE(gdb, UNUSED-VERSION, [no-define])
 GDB_AC_WITH_DIR(DEBUGDIR, separate-debug-dir,
     [look for global separate debug info in this path @<:@LIBDIR/debug@:>@],
     [${libdir}/debug])
+
+# We can't pass paths as command line arguments.
+# Mingw32 tries to be clever and will convert the paths for us.
+# For example -DBINDIR="/usr/local/bin" passed on the command line may get
+# converted to -DBINDIR="E:/msys/mingw32/msys/1.0/local/bin".
+# This breaks GDB's relocatable path conversions since paths passed in
+# config.h would not get so translated, the path prefixes no longer match.
+AC_DEFINE_DIR(BINDIR, bindir, [Directory of programs.])
 
 # GDB's datadir relocation
 
@@ -334,26 +328,44 @@ case $host_os in
     enable_gdbtk=no ;;
 esac
 
-# Libunwind support.
-AC_ARG_WITH(libunwind,
-AS_HELP_STRING([--with-libunwind], [use libunwind frame unwinding support]),
-[case "${withval}" in
-  yes)  enable_libunwind=yes ;;
-  no)   enable_libunwind=no ;;
-  *)    AC_MSG_ERROR(bad value ${withval} for GDB with-libunwind option) ;;
-esac],[
-  AC_CHECK_HEADERS(libunwind.h libunwind-ia64.h)
-  if test x"$ac_cv_header_libunwind_h" = xyes -a x"$ac_cv_header_libunwind_ia64_h" = xyes; then
-    enable_libunwind=yes;
+# Libunwind support for ia64.
+
+AC_ARG_WITH(libunwind-ia64,
+AS_HELP_STRING([--with-libunwind-ia64],
+	       [use libunwind frame unwinding for ia64 targets]),,
+	    [with_libunwind_ia64=auto])
+
+# Backward compatibility option.
+if test "${with_libunwind+set}" = set; then
+  if test x"$with_libunwind_ia64" != xauto; then
+    AC_MSG_ERROR(
+      [option --with-libunwind is deprecated, use --with-libunwind-ia64])
   fi
-])
-   
-if test x"$enable_libunwind" = xyes; then
-  AC_CHECK_HEADERS(libunwind.h libunwind-ia64.h)
-  AC_DEFINE(HAVE_LIBUNWIND, 1, [Define if libunwind library is being used.])
-  CONFIG_OBS="$CONFIG_OBS libunwind-frame.o"
-  CONFIG_DEPS="$CONFIG_DEPS libunwind-frame.o"
-  CONFIG_SRCS="$CONFIG_SRCS libunwind-frame.c"
+  AC_MSG_WARN([option --with-libunwind is deprecated, use --with-libunwind-ia64])
+  with_libunwind_ia64="$with_libunwind"
+fi
+
+case "$with_libunwind_ia64" in
+  yes | no)
+    ;;
+  auto)
+    AC_CHECK_HEADERS(libunwind-ia64.h)
+    with_libunwind_ia64=$ac_cv_header_libunwind_ia64_h
+    ;;
+  *)
+    AC_MSG_ERROR(
+      [bad value $with_libunwind_ia64 for GDB --with-libunwind-ia64 option])
+    ;;
+esac
+
+if test x"$with_libunwind_ia64" = xyes; then
+  AC_CHECK_HEADERS(libunwind-ia64.h)
+  if test x"$ac_cv_header_libunwind_ia64_h" != xyes; then
+    AC_MSG_ERROR([GDB option --with-libunwind-ia64 requires libunwind-ia64.h])
+  fi
+  CONFIG_OBS="$CONFIG_OBS ia64-libunwind-tdep.o"
+  CONFIG_DEPS="$CONFIG_DEPS ia64-libunwind-tdep.o"
+  CONFIG_SRCS="$CONFIG_SRCS ia64-libunwind-tdep.c"
 fi
 
 opt_curses=no
@@ -545,10 +557,6 @@ if test x"$enable_tui" != xno; then
       CONFIG_DEPS="$CONFIG_DEPS \$(SUBDIR_TUI_DEPS)"
       CONFIG_SRCS="$CONFIG_SRCS \$(SUBDIR_TUI_SRCS)"
       ENABLE_CFLAGS="$ENABLE_CFLAGS \$(SUBDIR_TUI_CFLAGS)"
-      CONFIG_ALL="${CONFIG_ALL} all-tui"
-      CONFIG_CLEAN="${CONFIG_CLEAN} clean-tui"
-      CONFIG_INSTALL="${CONFIG_INSTALL} install-tui"
-      CONFIG_UNINSTALL="${CONFIG_UNINSTALL} uninstall-tui"
     else
       if test x"$enable_tui" = xyes; then
 	AC_MSG_ERROR([no enhanced curses library found; disable TUI])
@@ -604,6 +612,34 @@ AC_SUBST(READLINE)
 AC_SUBST(READLINE_DEPS)
 AC_SUBST(READLINE_CFLAGS)
 AC_SUBST(READLINE_TEXI_INCFLAG)
+
+# Generate jit-reader.h
+
+# This is typedeffed to GDB_CORE_ADDR in jit-reader.h
+TARGET_PTR=
+
+AC_CHECK_SIZEOF(unsigned long long)
+AC_CHECK_SIZEOF(unsigned long)
+AC_CHECK_SIZEOF(unsigned __int128)
+
+if test "x${ac_cv_sizeof_unsigned_long}" = "x8"; then
+  TARGET_PTR="unsigned long"
+elif test "x${ac_cv_sizeof_unsigned_long_long}" = "x8"; then
+  TARGET_PTR="unsigned long long"
+elif test "x${ac_cv_sizeof_unsigned___int128}" = "x16"; then
+  TARGET_PTR="unsigned __int128"
+else
+  TARGET_PTR="unsigned long"
+fi
+
+AC_SUBST(TARGET_PTR)
+AC_CONFIG_FILES([jit-reader.h:jit-reader.in])
+
+AC_SEARCH_LIBS(dlopen, dl)
+
+GDB_AC_WITH_DIR([JIT_READER_DIR], [jit-reader-dir],
+                [directory to load the JIT readers from],
+                [${libdir}/gdb])
 
 AC_ARG_WITH(expat,
   AS_HELP_STRING([--with-expat], [include expat support (auto/yes/no)]),
@@ -704,7 +740,7 @@ if test "${with_python}" = no; then
   have_libpython=no
 else
   case "${with_python}" in
-  /*)
+  [[\\/]]* | ?:[[\\/]]*)
     if test -d ${with_python}; then
       # Assume the python binary is ${with_python}/bin/python.
       python_prog="${with_python}/bin/python"
@@ -955,7 +991,8 @@ AC_CHECK_HEADERS([nlist.h machine/reg.h poll.h sys/poll.h proc_service.h \
 		  sys/resource.h sys/procfs.h sys/ptrace.h ptrace.h \
 		  sys/reg.h sys/debugreg.h sys/select.h sys/syscall.h \
 		  sys/types.h sys/wait.h wait.h termios.h termio.h \
-		  sgtty.h unistd.h elf_hp.h ctype.h time.h locale.h])
+		  sgtty.h unistd.h elf_hp.h ctype.h time.h locale.h \
+		  dlfcn.h sys/socket.h sys/un.h])
 AC_CHECK_HEADERS(link.h, [], [],
 [#if HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -1032,11 +1069,12 @@ AC_C_BIGENDIAN
 AC_FUNC_ALLOCA
 AC_FUNC_MMAP
 AC_FUNC_VFORK
-AC_CHECK_FUNCS([canonicalize_file_name realpath getrusage getuid \
-		getgid pipe poll pread64 resize_term sbrk setpgid setpgrp setsid \
+AC_CHECK_FUNCS([canonicalize_file_name realpath getrusage getuid getgid \
+		pipe poll pread pread64 pwrite readlink resize_term \
+		sbrk setpgid setpgrp setsid \
 		sigaction sigprocmask sigsetmask socketpair syscall \
 		ttrace wborder wresize setlocale iconvlist libiconvlist btowc \
-		setrlimit getrlimit posix_madvise waitpid])
+		setrlimit getrlimit posix_madvise waitpid lstat])
 AM_LANGINFO_CODESET
 
 # Check the return and argument types of ptrace.  No canned test for
@@ -1730,42 +1768,20 @@ fi
 
 dnl Handle optional features that can be enabled.
 
-target_sysroot_reloc=0
+# Support for --with-sysroot is a copy of GDB_AC_WITH_DIR,
+# except that the argument to --with-sysroot is optional.
+# --with-sysroot (or --with-sysroot=yes) sets the default sysroot path.
+if test "x$with_sysroot" = xyes; then
+  with_sysroot="${exec_prefix}/${target_alias}/sys-root"
+fi
 AC_ARG_WITH(sysroot,
-AS_HELP_STRING([--with-sysroot@<:@=DIR@:>@], [search for usr/lib et al within DIR]),
-[
- case ${with_sysroot} in
- yes) TARGET_SYSTEM_ROOT='${exec_prefix}/${target_alias}/sys-root' ;;
- *) TARGET_SYSTEM_ROOT=$with_sysroot ;;
- esac
-
- TARGET_SYSTEM_ROOT_DEFINE='-DTARGET_SYSTEM_ROOT=\"$(TARGET_SYSTEM_ROOT)\"'
-
- if test "x$prefix" = xNONE; then
-  test_prefix=/usr/local
- else
-  test_prefix=$prefix
- fi
- if test "x$exec_prefix" = xNONE || test "x$exec_prefix" = 'x${prefix}'; then
-  test_exec_prefix=$test_prefix
- else
-  test_exec_prefix=$exec_prefix
- fi
- case ${TARGET_SYSTEM_ROOT} in
- "${test_prefix}"|"${test_prefix}/"*|\
- "${test_exec_prefix}"|"${test_exec_prefix}/"*|\
- '${prefix}'|'${prefix}/'*|\
- '${exec_prefix}'|'${exec_prefix}/'*)
-   target_sysroot_reloc=1
-   ;;
- esac
-], [
- TARGET_SYSTEM_ROOT=
- TARGET_SYSTEM_ROOT_DEFINE='-DTARGET_SYSTEM_ROOT=\"\"'
-])
-TARGET_SYSTEM_ROOT_DEFINE="$TARGET_SYSTEM_ROOT_DEFINE -DTARGET_SYSTEM_ROOT_RELOCATABLE=$target_sysroot_reloc"
+  AS_HELP_STRING([--with-sysroot@<:@=DIR@:>@],
+                 [search for usr/lib et al within DIR]),
+  [TARGET_SYSTEM_ROOT=$withval], [TARGET_SYSTEM_ROOT=])
+AC_DEFINE_DIR(TARGET_SYSTEM_ROOT, TARGET_SYSTEM_ROOT,
+              [search for usr/lib et al within DIR])
 AC_SUBST(TARGET_SYSTEM_ROOT)
-AC_SUBST(TARGET_SYSTEM_ROOT_DEFINE)
+GDB_AC_DEFINE_RELOCATABLE(TARGET_SYSTEM_ROOT, sysroot, ${ac_define_dir})
 
 GDB_AC_WITH_DIR(SYSTEM_GDBINIT, system-gdbinit,
     [automatically load a system-wide gdbinit file],
@@ -1797,7 +1813,7 @@ fi
 build_warnings="-Wall -Wdeclaration-after-statement -Wpointer-arith \
 -Wformat-nonliteral -Wno-pointer-sign \
 -Wno-unused -Wunused-value -Wunused-function \
--Wno-switch -Wno-char-subscripts"
+-Wno-switch -Wno-char-subscripts -Wmissing-prototypes"
 
 # Enable -Wno-format by default when using gcc on mingw since many
 # GCC versions complain about %I64.
@@ -1898,8 +1914,11 @@ AC_SUBST(WIN32LIBS)
 OLD_CFLAGS=$CFLAGS
 OLD_LDFLAGS=$LDFLAGS
 OLD_LIBS=$LIBS
-CFLAGS="$CFLAGS -I${srcdir}/../include -I../bfd -I${srcdir}/../bfd"
-LDFLAGS="$LDFLAGS -L../bfd -L../libiberty"
+# Put the old CFLAGS/LDFLAGS last, in case the user's (C|LD)FLAGS
+# points somewhere with bfd, with -I/foo/lib and -L/foo/lib.  We
+# always want our bfd.
+CFLAGS="-I${srcdir}/../include -I../bfd -I${srcdir}/../bfd $CFLAGS"
+LDFLAGS="-L../bfd -L../libiberty $LDFLAGS"
 intl=`echo $LIBINTL | sed 's,${top_builddir}/,,g'`
 # -ldl is provided by bfd/Makfile.am (LIBDL) <PLUGINS>.
 if test "$plugins" = "yes"; then

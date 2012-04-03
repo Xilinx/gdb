@@ -1,5 +1,4 @@
-# Copyright 2011
-# Free Software Foundation, Inc.
+# Copyright 2011-2012 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,10 +16,6 @@
 # This file is part of the gdb testsuite
 
 # Test the memory attribute commands.
-
-if $tracelevel then {
-    strace $tracelevel
-}
 
 set testfile "memattr"
 set srcfile  ${testfile}.c

@@ -1,7 +1,6 @@
 /* Target-dependent code for AMD64.
 
-   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-   2011 Free Software Foundation, Inc.
+   Copyright (C) 2001-2012 Free Software Foundation, Inc.
 
    Contributed by Jiri Smid, SuSE Labs.
 
@@ -878,7 +877,6 @@ amd64_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   /* Pass "hidden" argument".  */
   if (struct_return)
     {
-      struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
       /* The "hidden" argument is passed throught the first argument
          register.  */
       const int arg_regnum = tdep->call_dummy_integer_regs[0];
@@ -1082,9 +1080,9 @@ amd64_get_unused_input_int_reg (const struct amd64_insn *details)
       if (have_sib)
 	{
 	  int base = SIB_BASE_FIELD (details->raw_insn[details->modrm_offset + 1]);
-	  int index = SIB_INDEX_FIELD (details->raw_insn[details->modrm_offset + 1]);
+	  int idx = SIB_INDEX_FIELD (details->raw_insn[details->modrm_offset + 1]);
 	  used_regs_mask |= 1 << base;
-	  used_regs_mask |= 1 << index;
+	  used_regs_mask |= 1 << idx;
 	}
       else
 	{
@@ -1260,7 +1258,7 @@ amd64_displaced_step_copy_insn (struct gdbarch *gdbarch,
 				struct regcache *regs)
 {
   int len = gdbarch_max_insn_length (gdbarch);
-  /* Extra space for sentinels so fixup_{riprel,displaced_copy don't have to
+  /* Extra space for sentinels so fixup_{riprel,displaced_copy} don't have to
      continually watch for running off the end of the buffer.  */
   int fixup_sentinel_space = len;
   struct displaced_step_closure *dsc =
@@ -1551,7 +1549,7 @@ append_insns (CORE_ADDR *to, ULONGEST len, const gdb_byte *buf)
   *to += len;
 }
 
-void
+static void
 amd64_relocate_instruction (struct gdbarch *gdbarch,
 			    CORE_ADDR *to, CORE_ADDR oldloc)
 {

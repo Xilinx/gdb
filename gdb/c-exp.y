@@ -1,7 +1,6 @@
 /* YACC parser for C expressions, for GDB.
-   Copyright (C) 1986, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2003, 2004, 2006, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1986, 1989-2000, 2003-2004, 2006-2012 Free Software
+   Foundation, Inc.
 
    This file is part of GDB.
 
@@ -779,6 +778,13 @@ variable:	block COLONCOLON name
 			  if (sym == 0)
 			    error (_("No symbol \"%s\" in specified context."),
 				   copy_name ($3));
+			  if (symbol_read_needs_frame (sym))
+			    {
+			      if (innermost_block == 0
+				  || contained_in (block_found,
+						   innermost_block))
+				innermost_block = block_found;
+			    }
 
 			  write_exp_elt_opcode (OP_VAR_VALUE);
 			  /* block_found is set by lookup_symbol.  */
@@ -1212,11 +1218,11 @@ const_or_volatile_noopt:  	const_and_volatile
 operator:	OPERATOR NEW
 			{ $$ = operator_stoken (" new"); }
 	|	OPERATOR DELETE
-			{ $$ = operator_stoken (" delete"); }
+			{ $$ = operator_stoken (" delete "); }
 	|	OPERATOR NEW '[' ']'
 			{ $$ = operator_stoken (" new[]"); }
 	|	OPERATOR DELETE '[' ']'
-			{ $$ = operator_stoken (" delete[]"); }
+			{ $$ = operator_stoken (" delete[] "); }
 	|	OPERATOR '+'
 			{ $$ = operator_stoken ("+"); }
 	|	OPERATOR '-'
