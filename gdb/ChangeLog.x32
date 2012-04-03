@@ -1,5 +1,9 @@
 2012-04-03  H.J. Lu  <hongjiu.lu@intel.com>
 
+	* amd64-tdep.c (amd64_pseudo_register_type): Simplified.
+
+2012-04-03  H.J. Lu  <hongjiu.lu@intel.com>
+
 	* amd64-tdep.c (amd64_word_names): Add "eip".
 	(amd64_pseudo_register_type): New function.
 	(amd64_init_abi): Set num_dword_regs to 17.  Call

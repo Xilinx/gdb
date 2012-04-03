@@ -271,12 +271,7 @@ amd64_pseudo_register_type (struct gdbarch *gdbarch, int regnum)
   if (gdbarch_ptr_bit (gdbarch) == 32)
     {
       struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
-      int eax_regnum = tdep->eax_regnum;
-
-      if (eax_regnum < 0)
-	return 0;
-
-      switch (regnum - eax_regnum)
+      switch (regnum - tdep->eax_regnum)
 	{
 	default:
 	  break;
