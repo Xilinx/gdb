@@ -25,6 +25,7 @@
 
 #include <asm/ptrace.h>
 
+#include "gdb_proc_service.h"
 
 static int microblaze_regmap[] =
  {       -1,     PT_GPR(1),     PT_GPR(2),     PT_GPR(3),
@@ -40,6 +41,9 @@ static int microblaze_regmap[] =
   };
 
 #define microblaze_num_regs (sizeof microblaze_regmap / sizeof microblaze_regmap[0])
+
+/* Defined in auto-generated file reg-microblaze.c.  */
+void init_registers_microblaze (void);
 
 static int
 microblaze_cannot_store_register (int regno)
@@ -113,10 +117,13 @@ microblaze_reinsert_addr (struct regcache *regcache)
 }
 
 struct linux_target_ops the_low_target = {
+  init_registers_microblaze,
   microblaze_num_regs,
   microblaze_regmap,
+  NULL,
   microblaze_cannot_fetch_register,
   microblaze_cannot_store_register,
+  NULL, /* fetch_register */
   microblaze_get_pc,
   microblaze_set_pc,
   (const unsigned char *) &microblaze_breakpoint,
