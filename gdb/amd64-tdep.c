@@ -275,10 +275,10 @@ amd64_pseudo_register_type (struct gdbarch *gdbarch, int regnum)
 	{
 	default:
 	  break;
-	case 6:		/* ebp  */
-	case 7:		/* esp	*/
+	case AMD64_RBP_REGNUM:	/* ebp  */
+	case AMD64_RSP_REGNUM:	/* esp	*/
 	  return builtin_type (gdbarch)->builtin_data_ptr;
-	case 16:	/* eip */
+	case AMD64_RIP_REGNUM:	/* eip */
 	  return builtin_type (gdbarch)->builtin_func_ptr;
 	}
     }
@@ -2660,6 +2660,8 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
     {
       set_gdbarch_long_bit (gdbarch, 32);
       set_gdbarch_ptr_bit (gdbarch, 32);
+      tdep->sp_regnum_from_eax = AMD64_RSP_REGNUM;
+      tdep->pc_regnum_from_eax = AMD64_RIP_REGNUM;
     }
   else
     {

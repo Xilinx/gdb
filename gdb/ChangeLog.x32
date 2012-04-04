@@ -1,3 +1,15 @@
+2012-04-04  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-tdep.c (amd64_pseudo_register_type): Use
+	AMD64_RBP_REGNUM, AMD64_RSP_REGNUM and AMD64_RIP_REGNUM.
+	(amd64_init_abi): Set sp_regnum_from_eax to AMD64_RSP_REGNUM
+	and pc_regnum_from_eax to AMD64_RIP_REGNUM for x32.
+
+	* i386-tdep.c (i386_gdbarch_init): Initialize sp_regnum_from_eax
+	and pc_regnum_from_eax to 0.  Update SP regnum from
+	sp_regnum_from_eax and PC regnum from pc_regnum_from_eax if
+	needed.
+
 2012-04-03  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* amd64-tdep.c (amd64_pseudo_register_type): Simplified.
