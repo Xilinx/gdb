@@ -1,3 +1,8 @@
+2012-04-10  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-tdep.c (amd64_analyze_prologue): Remove mov_esp_ebp_1
+	and mov_esp_ebp_2.
+
 2012-04-04  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* amd64-tdep.c (amd64_pseudo_register_type): Use
