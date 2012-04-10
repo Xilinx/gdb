@@ -1892,7 +1892,7 @@ amd64_analyze_stack_align (CORE_ADDR pc, CORE_ADDR current_pc,
    We will handle only functions beginning with:
 
       pushq %rbp        0x55
-      movq %rsp, %rbp   0x48 0x89 0xe5
+      movq %rsp, %rbp   0x48 0x89 0xe5 (or 0x48 0x8b 0xec)
 
    Any function that doesn't start with this sequence will be assumed
    to have no prologue and thus no valid frame pointer in %rbp.  */
@@ -1903,8 +1903,12 @@ amd64_analyze_prologue (struct gdbarch *gdbarch,
 			struct amd64_frame_cache *cache)
 {
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
-  static gdb_byte proto[3] = { 0x48, 0x89, 0xe5 }; /* movq %rsp, %rbp */
-  static gdb_byte protox32[2] = { 0x89, 0xe5 }; /* movl %esp, %ebp */
+  /* There are two variations of movq %rsp, %rbp.  */
+  static const gdb_byte mov_rsp_rbp_1[3] = { 0x48, 0x89, 0xe5 };
+  static const gdb_byte mov_rsp_rbp_2[3] = { 0x48, 0x8b, 0xec };
+  /* There are two variations of movl %esp, %ebp.  */
+  static const gdb_byte mov_esp_ebp_1[2] = { 0x89, 0xe5 };
+  static const gdb_byte mov_esp_ebp_2[2] = { 0x8b, 0xec };
   gdb_byte buf[3];
   gdb_byte op;
 
@@ -1929,9 +1933,11 @@ amd64_analyze_prologue (struct gdbarch *gdbarch,
       /* Check for `movq %rsp, %rbp'.  Also check for `movl %rsp, %rbp'
 	 if it is an x32 target.  */
       read_memory (pc + 1, buf, 3);
-      if (memcmp (buf, proto, 3) != 0
+      if (memcmp (buf, mov_rsp_rbp_1, 3) != 0
+	  && memcmp (buf, mov_rsp_rbp_2, 3) != 0
 	  && (gdbarch_ptr_bit (gdbarch) == 64
-	      || memcmp (buf, protox32, 2) != 0))
+	      || (memcmp (buf, mov_esp_ebp_1, 2) != 0
+		  && memcmp (buf, mov_esp_ebp_2, 2) != 0)))
 	return pc + 1;
 
       /* OK, we actually have a frame.  */

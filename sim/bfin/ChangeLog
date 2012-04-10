@@ -1,3 +1,73 @@
+2012-04-09  Mike Frysinger  <vapier@gentoo.org>
+
+	* configure.ac (SIM_AC_OPTION_HARDWARE): Add bfin_pint.
+	* configure: Regenerate.
+	* dv-bfin_pint.c, dv-bfin_pint.h: New device model.
+	* machs.c (bf542_dev): Add PINT register blocks.
+	(bf544_dev, bf547_dev): Likewise.
+	(PINT_PIQS): Define.
+	(bf54x_port): Add pint/gpio routing.
+	* machs.h (BFIN_MMR_PINT_SIZE): Define.
+
+2012-04-09  Mike Frysinger  <vapier@gentoo.org>
+
+	* configure.ac (SIM_AC_OPTION_HARDWARE): Add bfin_gpio2.
+	* configure: Regenerate.
+	* dv-bfin_gpio2.c, dv-bfin_gpio2.h: New device model.
+	* machs.c (bf54x_mem): Delete GPIO mem stub.
+	(bf542_dev): Add GPIO register blocks.
+	(bf544_dev, bf547_dev): Likewise.
+	* machs.h (BFIN_MMR_GPIO2_SIZE): Define.
+
+2012-04-09  Robin Getz  <robin.getz@analog.com>
+
+	* bfin-sim.c (decode_dsp32shift_0): Extract the sign for ASHIFT
+	and LSHIFT, and set ASTAT based on the before/after values.
+	Rename "val" to "acc" to be consistent with other code branches.
+
+2012-04-09  Robin Getz  <robin.getz@analog.com>
+
+	* bfin-sim.c (sgn_extend): New helper.
+	(decode_dsp32shiftimm_0): Call lshift when newimmag is more
+	than 16, otherwise call ashiftrt.  Set ASTAT fields as needed.
+	For accumulator shifts, call new sgn_extend helper.
+
+2012-04-08  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin-sim.c (illegal_instruction_or_combination): New helper.
+	(decode_ProgCtrl_0): Call illegal_instruction_or_combination instead
+	of illegal_instruction.
+	(decode_PushPopReg_0, decode_CCflag_0, decode_CC2dreg_0,
+	decode_LDSTpmod_0, decode_dagMODim_0, decode_dagMODik_0,
+	decode_dspLDST_0, decode_LDST_0, _interp_insn_bfin): Likewise.
+	(decode_PushPopMultiple_0): Call illegal_instruction_combination when
+	PARALLEL_GROUP is not BFIN_PARALLEL_NONE.
+	(decode_CCflag_0, decode_REGMV_0, decode_ALU2op_0, decode_PTR2op_0,
+	decode_COMPI2opD_0, decode_COMPI2opP_0): Likewise.
+	(decode_CC2stat_0): Check PARALLEL_GROUP before cbit.
+	(decode_LDSTpmod_0): Call illegal_instruction_combination when
+	PARALLEL_GROUP is BFIN_PARALLEL_GROUP2.
+	(decode_dagMODim_0, decode_dagMODik_0, decode_LDST_0,
+	decode_LDSTiiFP_0, decode_LDSTii_0): Likewise.
+
+2012-04-08  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin-sim.h (bfin_parallel_group): New enum.
+	(bfin_cpu_state): Add new "group" member.
+	(PARALLEL_GROUP): Define.
+	* bfin-sim.c (decode_ProgCtrl_0): Change INSN_LEN check to
+	PARALLEL_GROUP.
+	(decode_CaCTRL_0, decode_PushPopReg_0, decode_ccMV_0, decode_CCflag_0,
+	decode_CC2dreg_0, decode_CC2stat_0, decode_BRCC_0, decode_UJUMP_0,
+	decode_LOGI2op_0, decode_LoopSetup_0, decode_LDIMMhalf_0,
+	decode_CALLa_0, decode_linkage_0): Likewise.
+	(_interp_insn_bfin): Set PARALLEL_GROUP.
+	(interp_insn_bfin): Likewise.
+
+2012-04-08  Mike Frysinger  <vapier@gentoo.org>
+
+	* bfin-sim.c (decode_dsp32alu_0): Delete extra space in TRACE_INSN.
+
 2012-04-01  Mike Frysinger  <vapier@gentoo.org>
 
 	* bfin-sim.c (_interp_insn_bfin): Call illegal_instruction_combination

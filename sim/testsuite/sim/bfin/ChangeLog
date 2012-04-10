@@ -1,3 +1,38 @@
+2012-04-09  Robin Getz  <robin.getz@analog.com>
+
+	* random_0017.S, random_0018.S, random_0025.S: New ASTAT shift tests.
+
+2012-04-09  Robin Getz  <robin.getz@analog.com>
+
+	* random_0036.S, random_0037.S: New astat tests.
+
+2012-04-09  Mike Frysinger  <vapier@gentoo.org>
+
+	* se_all64bitg1opcodes.S: Delete xfail line.
+	* se_all64bitg2opcodes.S: Likewise.
+
+2012-04-08  Mike Frysinger  <vapier@gentoo.org>
+
+	* se_all16bitopcodes.S (SE_ALL_BITS): Define to 16.
+	(SE_ALL_NEW_INSN_STUB): Define.
+	(se_all_load_table): Delete.
+	(se_all_new_insn_log): Likewise.
+	* se_all32bitopcodes.S: Add more details on slowness.
+	(SE_ALL_BITS): Define to 13.
+	(se_all_load_table): Delete.
+	(se_all_new_insn_stub, se_all_new_insn_log): Likewise.
+	* se_all64bitg0opcodes.S: Add more details on slowness.
+	(se_all_new_insn_stub): Delete.
+	* se_all64bitg1opcodes.S: See mach to bfin.
+	(se_all_new_insn_stub): Delete.
+	* se_all64bitg2opcodes.S: See mach to bfin.
+	(se_all_new_insn_stub): Delete.
+	* se_allopcodes.h (LOAD_PFX): Define based on SE_ALL_BITS.
+	(se_all_new_16bit_insn_log, se_all_new_32bit_insn_log): Unify
+	into new se_all_new_insn_log helper.
+	(se_all_load_table): New helper.
+	(se_all_new_insn_stub): Likewise.
+
 2012-03-25  Mike Frysinger  <vapier@gentoo.org>
 
 	* c_dsp32mac_dr_a1a0.s: Change 0x12efbc5569 to 0xefbc5569.

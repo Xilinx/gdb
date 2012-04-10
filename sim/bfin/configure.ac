@@ -24,12 +24,14 @@ SIM_AC_OPTION_HARDWARE(yes,,\
 	bfin_eppi \
 	bfin_evt \
 	bfin_gpio \
+	bfin_gpio2 \
 	bfin_gptimer \
 	bfin_jtag \
 	bfin_mmu \
 	bfin_nfc \
 	bfin_otp \
 	bfin_pfmon \
+	bfin_pint \
 	bfin_pll \
 	bfin_ppi \
 	bfin_rtc \
