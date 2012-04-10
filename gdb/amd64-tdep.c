@@ -1927,7 +1927,7 @@ amd64_analyze_prologue (struct gdbarch *gdbarch,
       if (current_pc <= pc + 1)
         return current_pc;
 
-      /* Check for `movq %rsp, %rbp'.  Also check for `movl %rsp, %rbp'
+      /* Check for `movq %rsp, %rbp'.  Also check for `movl %esp, %ebp'
 	 if it is an x32 target.  */
       read_memory (pc + 1, buf, 3);
       if (memcmp (buf, mov_rsp_rbp_1, 3) != 0
