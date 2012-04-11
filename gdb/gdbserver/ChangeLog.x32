@@ -1,3 +1,10 @@
+2012-04-11  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* linux-x86-low.c (linux_is_64bit): Defined only if __x86_64__
+	is defined.
+	(x86_arch_setup): Check if GDBserver is compatible with
+	process.
+
 2012-02-14  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* linux-low.c (linux_is_64bit): Removed.

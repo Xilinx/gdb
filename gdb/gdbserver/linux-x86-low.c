@@ -945,8 +945,10 @@ x86_siginfo_fixup (siginfo_t *native, void *inf, int direction)
 
 static int use_xml;
 
+#ifdef __x86_64__
 /* Is this process 64bit?  */
 static int linux_is_64bit;
+#endif
 
 /* Update gdbserver_xmltarget.  */
 
@@ -1117,11 +1119,21 @@ x86_linux_process_qsupported (const char *query)
 static void
 x86_arch_setup (void)
 {
-#ifdef __x86_64__
   int pid = pid_of (get_thread_lwp (current_inferior));
   unsigned int machine;
   int use_64bit = linux_pid_exe_is_elf_64_file (pid, &machine);
 
+  if (sizeof (void *) == 4)
+    {
+      if (use_64bit > 0)
+	error (_("Can't debug 64-bit process with 32-bit GDBserver"));
+#ifndef __x86_64__
+      else if (machine == EM_X86_64)
+	error (_("Can't debug x86-64 process with 32-bit GDBserver"));
+#endif
+    }
+
+#ifdef __x86_64__
   if (use_64bit < 0)
     {
       /* This can only happen if /proc/<pid>/exe is unreadable,
