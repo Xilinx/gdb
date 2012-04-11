@@ -592,7 +592,7 @@ typedef struct compat_siginfo
 } compat_siginfo_t;
 
 /* For x32, clock_t in _sigchld is 64bit aligned at 4 bytes.  */
-typedef long long __attribute__ ((__aligned__ (4))) compat_x32_clock_t;
+typedef long __attribute__ ((__aligned__ (4))) compat_x32_clock_t;
 
 typedef struct compat_x32_siginfo
 {
@@ -922,7 +922,8 @@ amd64_linux_siginfo_fixup (siginfo_t *native, gdb_byte *inf, int direction)
 
       return 1;
     }
-  else if (gdbarch_addr_bit (gdbarch) == 32)
+  /* No fixup for native x32 GDB.  */
+  else if (gdbarch_addr_bit (gdbarch) == 32 && sizeof (long) == 8)
     {
       gdb_assert (sizeof (siginfo_t) == sizeof (compat_siginfo_t));
 
@@ -985,6 +986,9 @@ amd64_linux_read_description (struct target_ops *ops)
     perror_with_name (_("Couldn't get DS register"));
 
   is_x32 = ds == AMD64_LINUX_X32_DS;
+
+  if (sizeof (long) == 4 && is_64bit && !is_x32)
+    error (_("Can't debug 64-bit process with 32-bit GDB"));
 
   if (have_ptrace_getregset == -1)
     {
