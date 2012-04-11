@@ -705,11 +705,14 @@ darwin_resume_thread (struct inferior *inf, darwin_thread_t *thread,
 	  thread->signaled = 1;
 	}
 
-      /* Set single step.  */
-      inferior_debug (4, _("darwin_set_sstep (thread=%x, enable=%d)\n"),
-                      thread->gdb_port, step);
-      darwin_set_sstep (thread->gdb_port, step);
-      thread->single_step = step;
+      /* Set or reset single step.  */
+      if (step != thread->single_step)
+	{
+	  inferior_debug (4, _("darwin_set_sstep (thread=%x, enable=%d)\n"),
+			  thread->gdb_port, step);
+	  darwin_set_sstep (thread->gdb_port, step);
+	  thread->single_step = step;
+	}
 
       darwin_send_reply (inf, thread);
       thread->msg_state = DARWIN_RUNNING;
@@ -1524,22 +1527,6 @@ darwin_execvp (const char *file, char * const argv[], char * const env[])
     {
       fprintf_unfiltered (gdb_stderr, "Cannot set posix_spawn flags\n");
       return;
-    }
-
-  /* Specify the same binary preference to spawn the shell as the
-     exec binary.  This avoids spawning a 64bit shell while debugging
-     a 32bit program, which may confuse gdb.
-     Also, this slightly breaks internal layers as we suppose the binary
-     is Mach-O.  Doesn't harm in practice.  */
-  if (exec_bfd != NULL)
-    {
-      cpu_type_t pref;
-      size_t ocount;
-
-      pref = bfd_mach_o_get_data (exec_bfd)->header.cputype;
-      res = posix_spawnattr_setbinpref_np (&attr, 1, &pref, &ocount);
-      if (res != 0 || ocount != 1)
-	fprintf_unfiltered (gdb_stderr, "Cannot set posix_spawn binpref\n");
     }
 
   posix_spawnp (NULL, argv[0], NULL, &attr, argv, env);
