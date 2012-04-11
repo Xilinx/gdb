@@ -923,7 +923,7 @@ amd64_linux_siginfo_fixup (siginfo_t *native, gdb_byte *inf, int direction)
       return 1;
     }
   /* No fixup for native x32 GDB.  */
-  else if (gdbarch_addr_bit (gdbarch) == 32 && sizeof (long) == 8)
+  else if (gdbarch_addr_bit (gdbarch) == 32 && sizeof (void *) == 8)
     {
       gdb_assert (sizeof (siginfo_t) == sizeof (compat_siginfo_t));
 
@@ -987,7 +987,7 @@ amd64_linux_read_description (struct target_ops *ops)
 
   is_x32 = ds == AMD64_LINUX_X32_DS;
 
-  if (sizeof (long) == 4 && is_64bit && !is_x32)
+  if (sizeof (void *) == 4 && is_64bit && !is_x32)
     error (_("Can't debug 64-bit process with 32-bit GDB"));
 
   if (have_ptrace_getregset == -1)
