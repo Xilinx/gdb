@@ -1,3 +1,34 @@
+2012-04-12  Mark Kettenis  <kettenis@gnu.org>
+
+	* i386bsd-nat.c (_initialize_i386bsd_nat): Add missing prototype.
+
+2012-04-12  Doug Evans  <dje@google.com>
+
+	* dwarf2read.c (create_all_type_units): Renamed from
+	create_debug_types_hash_table.  All callers updated.
+
+	* dwarf2read.c (create_signatured_type_table_from_index): Rename
+	local type_sig to sig_type, type_offset to type_offset_in_tu.
+	(hash_signatured_type): Renamed from hash_type_signature,
+	all callers updated.
+	(eq_signatured_type): Renamed from eq_type_signature,
+	all callers updated.
+	(create_debug_types_hash_table): Rename local type_sig to sig_type.
+	(process_enumeration_scope): Ditto.
+	(lookup_signatured_type_at_offset): Ditto.
+	(load_full_type_unit, read_signatured_type): Ditto.
+
+2012-04-12  Yao Qi  <yao@codesourcery.com>
+
+	* remote.c (async_remote_interrupt): Correct function name in
+	debug message.
+	(async_remote_interrupt_twice): Ditto.
+
+2012-04-11  Yuanhui Zhang  <asmwarrior@gmail.com>
+
+	* source.c (find_and_open_source): Consistently pass resulting
+	full path through xfullpath.
+
 2012-04-11  Jan Kratochvil  <jan.kratochvil@redhat.com>
 
 	Provide more specific displaced-stepping memory error message.
