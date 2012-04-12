@@ -1088,7 +1088,7 @@ siginfo_from_compat_x32_siginfo (siginfo_t *to,
     }
 }
 
-/* Is this process 64bit?  */
+/* Is this process 64-bit?  */
 static int linux_is_elf64;
 #endif /* __x86_64__ */
 
