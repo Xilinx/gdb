@@ -1,5 +1,14 @@
 2012-04-12  H.J. Lu  <hongjiu.lu@intel.com>
 
+	* linux-x86-low.c (compat_x32_clock_t): New.
+	(compat_x32_siginfo_t): Likewise.
+	(compat_x32_siginfo_from_siginfo): Likewise.
+	(siginfo_from_compat_x32_siginfo): Likewise.
+	(x86_siginfo_fixup): Call compat_x32_siginfo_from_siginfo
+	and siginfo_from_compat_x32_siginfo for x32.
+
+2012-04-12  H.J. Lu  <hongjiu.lu@intel.com>
+
 	* linux-x86-low.c (linux_is_64bit): Renamed to ...
 	(linux_is_elf64): This.
 	(x86_linux_update_xmltarget): Updated.
