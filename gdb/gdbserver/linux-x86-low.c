@@ -947,7 +947,7 @@ static int use_xml;
 
 #ifdef __x86_64__
 /* Is this process 64bit?  */
-static int linux_is_64bit;
+static int linux_is_elf64;
 #endif
 
 /* Update gdbserver_xmltarget.  */
@@ -975,7 +975,7 @@ x86_linux_update_xmltarget (void)
 #ifdef __x86_64__
   if (num_xmm_registers == 8)
     init_registers_i386_linux ();
-  else if (linux_is_64bit)
+  else if (linux_is_elf64)
     init_registers_amd64_linux ();
   else
     init_registers_x32_linux ();
@@ -1073,7 +1073,7 @@ x86_linux_update_xmltarget (void)
 	  /* I386 has 8 xmm regs.  */
 	  if (num_xmm_registers == 8)
 	    init_registers_i386_avx_linux ();
-	  else if (linux_is_64bit)
+	  else if (linux_is_elf64)
 	    init_registers_amd64_avx_linux ();
 	  else
 	    init_registers_x32_avx_linux ();
@@ -1121,11 +1121,11 @@ x86_arch_setup (void)
 {
   int pid = pid_of (get_thread_lwp (current_inferior));
   unsigned int machine;
-  int use_64bit = linux_pid_exe_is_elf_64_file (pid, &machine);
+  int is_elf64 = linux_pid_exe_is_elf_64_file (pid, &machine);
 
   if (sizeof (void *) == 4)
     {
-      if (use_64bit > 0)
+      if (is_elf64 > 0)
 	error (_("Can't debug 64-bit process with 32-bit GDBserver"));
 #ifndef __x86_64__
       else if (machine == EM_X86_64)
@@ -1134,7 +1134,7 @@ x86_arch_setup (void)
     }
 
 #ifdef __x86_64__
-  if (use_64bit < 0)
+  if (is_elf64 < 0)
     {
       /* This can only happen if /proc/<pid>/exe is unreadable,
 	 but "that can't happen" if we've gotten this far.
@@ -1151,7 +1151,7 @@ x86_arch_setup (void)
       /* Amd64 has 16 xmm regs.  */
       num_xmm_registers = 16;
 
-      linux_is_64bit = use_64bit;
+      linux_is_elf64 = is_elf64;
       x86_linux_update_xmltarget ();
       return;
     }

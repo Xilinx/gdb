@@ -1,3 +1,10 @@
+2012-04-12  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* linux-x86-low.c (linux_is_64bit): Renamed to ...
+	(linux_is_elf64): This.
+	(x86_linux_update_xmltarget): Updated.
+	(x86_arch_setup): Likewise.
+
 2012-04-11  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* linux-x86-low.c (linux_is_64bit): Defined only if __x86_64__
