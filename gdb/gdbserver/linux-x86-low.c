@@ -1088,6 +1088,8 @@ siginfo_from_compat_x32_siginfo (siginfo_t *to,
     }
 }
 
+/* Is this process 64bit?  */
+static int linux_is_elf64;
 #endif /* __x86_64__ */
 
 /* Convert a native/host siginfo object, into/from the siginfo in the
@@ -1114,7 +1116,7 @@ x86_siginfo_fixup (siginfo_t *native, void *inf, int direction)
       return 1;
     }
   /* No fixup for native x32 GDB.  */
-  else if (sizeof (void *) == 8)
+  else if (!linux_is_elf64 && sizeof (void *) == 8)
     {
       if (sizeof (siginfo_t) != sizeof (compat_x32_siginfo_t))
 	fatal ("unexpected difference in siginfo");
@@ -1134,11 +1136,6 @@ x86_siginfo_fixup (siginfo_t *native, void *inf, int direction)
 }
 
 static int use_xml;
-
-#ifdef __x86_64__
-/* Is this process 64bit?  */
-static int linux_is_elf64;
-#endif
 
 /* Update gdbserver_xmltarget.  */
 
