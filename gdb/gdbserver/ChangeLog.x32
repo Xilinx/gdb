@@ -1,5 +1,10 @@
 2012-04-12  H.J. Lu  <hongjiu.lu@intel.com>
 
+	* linux-x86-low.c (x86_arch_setup): Clear linux_is_elf64 for
+	32-bit inferior.
+
+2012-04-12  H.J. Lu  <hongjiu.lu@intel.com>
+
 	* linux-x86-low.c (linux_is_elf64): Moved before x86_siginfo_fixup.
 	(x86_siginfo_fixup): Convert siginfo for x32 only if linux_is_elf64
 	is 0.

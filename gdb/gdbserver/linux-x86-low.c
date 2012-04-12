@@ -1342,6 +1342,8 @@ x86_arch_setup (void)
       x86_linux_update_xmltarget ();
       return;
     }
+
+  linux_is_elf64 = 0;
 #endif
 
   /* Ok we have a 32-bit inferior.  */
