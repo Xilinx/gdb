@@ -925,7 +925,7 @@ amd64_linux_siginfo_fixup (siginfo_t *native, gdb_byte *inf, int direction)
   /* No fixup for native x32 GDB.  */
   else if (gdbarch_addr_bit (gdbarch) == 32 && sizeof (void *) == 8)
     {
-      gdb_assert (sizeof (siginfo_t) == sizeof (compat_siginfo_t));
+      gdb_assert (sizeof (siginfo_t) == sizeof (compat_x32_siginfo_t));
 
       if (direction == 0)
 	compat_x32_siginfo_from_siginfo ((struct compat_x32_siginfo *) inf,

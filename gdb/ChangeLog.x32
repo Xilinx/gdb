@@ -1,3 +1,8 @@
+2012-04-12  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-linux-nat.c (amd64_linux_siginfo_fixup): Assert sizeof
+	compat_x32_siginfo_t for x32.
+
 2012-04-11  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* amd64-linux-nat.c (amd64_linux_siginfo_fixup): Check sizeof
