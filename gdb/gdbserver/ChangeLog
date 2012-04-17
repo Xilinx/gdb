@@ -1,3 +1,103 @@
+2012-04-16  Yao Qi  <yao@codesourcery.com>
+
+	* tracepoint.c (cmd_qtstart): Download tracepoints even when they are
+	duplicated on address.
+
+2012-04-16  Yao Qi  <yao@codesourcery.com>
+
+	* tracepoint.c (COPY_FIELD_TO_BUF): New macro.
+	(struct tracepoint_action_ops) <send>: New field.
+	(m_tracepoint_action_send, r_tracepoint_action_send): New.
+	(agent_expr_send, x_tracepoint_action_send): New.
+	(l_tracepoint_action_send): New.
+	(cmd_qtdp): Download and install tracepoint
+	according to `use_agent'.
+	(run_inferior_command): Add one more parameter `len'.
+	Update callers.
+	(tracepoint_send_agent): New.
+	(cmd_qtdp, cmd_qtstart): Call tracepoint_send_agent.
+
+2012-04-16  Yao Qi  <yao@codesourcery.com>
+
+	* tracepoint.c (download_tracepoints): Moved to ...
+	(cmd_qtstart): ... here.
+
+2012-04-14  Yao Qi  <yao@codesourcery.com>
+
+	* tracepoint.c: Include inttypes.h.
+	(struct collect_memory_action): Use sized types.
+	(struct tracepoint): Likewise.
+	(cmd_qtdp, stop_tracing): Update print specifiers.
+	(cmd_qtp, response_tracepoint): Likewise.
+	(collect_data_at_tracepoint): Likewise.
+	(collect_data_at_step): Likewise.
+
+2012-04-14  Yao Qi  <yao@codesourcery.com>
+
+	Import gnulib module inttypes.
+	* aclocal.m4, config.in, configure: Regenerated.
+
+2012-04-14  Yao Qi  <yao@codesourcery.com>
+
+	* Makefile.in (maintainer-clean, realclean, distclean): Remove
+	Makefile and config.status at last.
+
+2012-04-13  Yao Qi  <yao@codesourcery.com>
+
+	* tracepoint.c: Include stdint.h unconditionally.
+
+2012-04-13  Thiago Jung Bauermann  <thiago.bauermann@linaro.org>
+
+	* acinclude.m4 (GDBSERVER_HAVE_THREAD_DB_TYPE): New macro based
+	on BFD_HAVE_SYS_PROCFS_TYPE.
+	* configure.ac: Look for lwpid_t and psaddr_t in libthread_db.h.
+	* configure: Regenerate.
+	* config.in: Likewise.
+
+2012-04-13  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* Makefile.in (clean): Also remove x32.c x32-linux.c
+	x32-avx.c x32-avx-linux.c.
+	(x32.o): New target.
+	(x32.c): Likewise.
+	(x32-linux.o): Likewise.
+	(x32-linux.c): Likewise.
+	(x32-avx.o): Likewise.
+	(x32-avx.c): Likewise.
+	(x32-avx-linux.o): Likewise.
+	(x32-avx-linux.c): Likewise.
+
+	* configure.srv (srv_amd64_regobj): Add x32.o x32-avx.o.
+	(srv_amd64_linux_regobj): Add x32-linux.o x32-avx-linux.o.
+	(srv_i386_64bit_xmlfiles): Add i386/x32-core.xml.
+	(srv_amd64_xmlfiles): Add i386/x32.xml i386/x32-avx.xml.
+	(srv_amd64_linux_xmlfiles): Add i386/x32-linux.xml
+	i386/x32-avx-linux.xml.
+
+	* linux-x86-low.c (init_registers_x32_linux): New prototype.
+	(init_registers_x32_avx_linux): Likwise.
+	(x86_linux_update_xmltarget): Call init_registers_x32_linux
+	or init_registers_x32_avx_linux if linux_is_elf64 is false.
+
+2012-04-13  Pedro Alves  <palves@redhat.com>
+
+	* Makefile.in (GNULIB_FLAGS_TO_PASS): New.
+	(FLAGS_TO_PASS): Don't change or set $top_srcdir, $srcdir and VPATH.
+	(all, uninstall, clean-info, all-lib, clean, maintainer-clean)
+	(realclean, distclean): Explicitly pass $GNULIB_FLAGS_TO_PASS to
+	the sub-make.
+
+2012-04-12  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* linux-x86-low.c (compat_x32_clock_t): New.
+	(compat_x32_siginfo_t): Likewise.
+	(compat_x32_siginfo_from_siginfo): Likewise.
+	(siginfo_from_compat_x32_siginfo): Likewise.
+	(linux_is_elf64): Likewise.
+	(x86_siginfo_fixup): Call compat_x32_siginfo_from_siginfo
+	and siginfo_from_compat_x32_siginfo for x32.
+	(x86_arch_setup): Set linux_is_elf64.
+
 2012-04-12  H.J. Lu  <hongjiu.lu@intel.com>
 
 	PR gdb/13969

@@ -1,3 +1,28 @@
+2012-04-17  Tristan Gingold  <gingold@adacore.com>
+
+	* vms-lib.c (_bfd_vms_lib_get_module): Append .obj extension to
+	member of an object archive.<
+
+2012-04-17  Tristan Gingold  <gingold@adacore.com>
+
+	* vms-lib.c (MAX_EKEYLEN): Define.
+	(MAX_KEYLEN): Fix value.
+	(vms_write_index): Add comments and fix indentation.
+	Adjust comparaison.  Add assertions.  Free kbn_blk.
+	(_bfd_vms_lib_write_archive_contents): Use MAX_EKEYLEN.
+	Compense MAX_KEYLEN adjustment.
+
+2012-04-16  Maciej W. Rozycki  <macro@linux-mips.org>
+
+	* elfxx-mips.c (mips16_stub_symndx): Handle n64 compound relocs.
+	(_bfd_mips_elf_check_relocs): Update accordingly.
+
+2012-04-13  Alan Modra  <amodra@gmail.com>
+
+	PR ld/13947
+	* elflink.c (bfd_elf_final_link): Set reloc_count to 0 for
+	reloc sections.
+
 2012-04-12  David S. Miller  <davem@davemloft.net>
 
 	* reloc.c (BFD_RELOC_SPARC_H34, BFD_RELOC_SPARC_SIZE32,
