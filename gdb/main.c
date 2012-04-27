@@ -41,6 +41,7 @@
 #include "cli/cli-cmds.h"
 #include "python/python.h"
 #include "objfiles.h"
+#include "auto-load.h"
 
 /* The selected interpreter.  This will be used as a set command
    variable, so it should always be malloc'ed - since
@@ -230,7 +231,7 @@ captured_command_loop (void *data)
      are not that well behaved.  do_cleanups should either be replaced
      with a do_cleanups call (to cover the problem) or an assertion
      check to detect bad FUNCs code.  */
-  do_cleanups (ALL_CLEANUPS);
+  do_cleanups (all_cleanups ());
   /* If the command_loop returned, normally (rather than threw an
      error) we try to quit.  If the quit is aborted, catch_errors()
      which called this catch the signal and restart the command
@@ -876,8 +877,8 @@ captured_main (void *data)
   /* Skip auto-loading section-specified scripts until we've sourced
      local_gdbinit (which is often used to augment the source search
      path).  */
-  save_auto_load = gdbpy_global_auto_load;
-  gdbpy_global_auto_load = 0;
+  save_auto_load = global_auto_load;
+  global_auto_load = 0;
 
   if (execarg != NULL
       && symarg != NULL
@@ -939,14 +940,28 @@ captured_main (void *data)
 
   /* Read the .gdbinit file in the current directory, *if* it isn't
      the same as the $HOME/.gdbinit file (it should exist, also).  */
-  if (local_gdbinit && !inhibit_gdbinit)
-    catch_command_errors (source_script, local_gdbinit, 0, RETURN_MASK_ALL);
+  if (local_gdbinit)
+    {
+      auto_load_local_gdbinit_pathname = gdb_realpath (local_gdbinit);
+
+      if (!inhibit_gdbinit && auto_load_local_gdbinit
+	  && file_is_auto_load_safe (local_gdbinit,
+				     _("auto-load: Loading .gdbinit "
+				       "file \"%s\".\n"),
+				     local_gdbinit))
+	{
+	  auto_load_local_gdbinit_loaded = 1;
+
+	  catch_command_errors (source_script, local_gdbinit, 0,
+				RETURN_MASK_ALL);
+	}
+    }
 
   /* Now that all .gdbinit's have been read and all -d options have been
      processed, we can read any scripts mentioned in SYMARG.
      We wait until now because it is common to add to the source search
      path in local_gdbinit.  */
-  gdbpy_global_auto_load = save_auto_load;
+  global_auto_load = save_auto_load;
   ALL_OBJFILES (objfile)
     load_auto_scripts_for_objfile (objfile);
 
@@ -1092,7 +1107,7 @@ At startup, GDB reads the following init files and executes their commands:\n\
 "), home_gdbinit);
   if (local_gdbinit)
     fprintf_unfiltered (stream, _("\
-   * local init file: ./%s\n\
+   * local init file (see also 'set auto-load local-gdbinit'): ./%s\n\
 "), local_gdbinit);
   fputs_unfiltered (_("\n\
 For more information, type \"help\" from within GDB, or consult the\n\

@@ -4611,7 +4611,7 @@ cortex_a8_erratum_scan (bfd *input_bfd,
       if (elf_section_type (section) != SHT_PROGBITS
           || (elf_section_flags (section) & SHF_EXECINSTR) == 0
           || (section->flags & SEC_EXCLUDE) != 0
-          || (section->sec_info_type == ELF_INFO_TYPE_JUST_SYMS)
+          || (section->sec_info_type == SEC_INFO_TYPE_JUST_SYMS)
           || (section->output_section == bfd_abs_section_ptr))
         continue;
 
@@ -6682,7 +6682,7 @@ bfd_elf32_arm_vfp11_erratum_scan (bfd *abfd, struct bfd_link_info *link_info)
       if (elf_section_type (sec) != SHT_PROGBITS
           || (elf_section_flags (sec) & SHF_EXECINSTR) == 0
           || (sec->flags & SEC_EXCLUDE) != 0
-	  || sec->sec_info_type == ELF_INFO_TYPE_JUST_SYMS
+	  || sec->sec_info_type == SEC_INFO_TYPE_JUST_SYMS
 	  || sec->output_section == bfd_abs_section_ptr
           || strcmp (sec->name, VFP11_ERRATUM_VENEER_SECTION_NAME) == 0)
         continue;
@@ -10481,7 +10481,7 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
 	  sym_type = h->type;
 	}
 
-      if (sec != NULL && elf_discarded_section (sec))
+      if (sec != NULL && discarded_section (sec))
 	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
 					 rel, relend, howto, contents);
 
@@ -12256,8 +12256,19 @@ elf32_arm_gc_sweep_hook (bfd *                     abfd,
       if (may_need_local_target_p
 	  && elf32_arm_get_plt_info (abfd, eh, r_symndx, &root_plt, &arm_plt))
 	{
-	  BFD_ASSERT (root_plt->refcount > 0);
-	  root_plt->refcount -= 1;
+	  /* If PLT refcount book-keeping is wrong and too low, we'll
+	     see a zero value (going to -1) for the root PLT reference
+	     count.  */
+	  if (root_plt->refcount >= 0)
+	    {
+	      BFD_ASSERT (root_plt->refcount != 0);
+	      root_plt->refcount -= 1;
+	    }
+	  else
+	    /* A value of -1 means the symbol has become local, forced
+	       or seeing a hidden definition.  Any other negative value
+	       is an error.  */
+	    BFD_ASSERT (root_plt->refcount == -1);
 
 	  if (!call_reloc_p)
 	    arm_plt->noncall_refcount--;

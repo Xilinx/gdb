@@ -2830,8 +2830,8 @@ read_cpp_abbrev (struct field_info *fip, char **pp, struct type *type,
       {
 	int nbits;
 
-	FIELD_BITPOS (fip->list->field) = read_huge_number (pp, ';', &nbits,
-                                                            0);
+	SET_FIELD_BITPOS (fip->list->field,
+			  read_huge_number (pp, ';', &nbits, 0));
 	if (nbits != 0)
 	  return 0;
       }
@@ -2907,7 +2907,8 @@ read_one_struct_field (struct field_info *fip, char **pp, char *p,
   {
     int nbits;
 
-    FIELD_BITPOS (fip->list->field) = read_huge_number (pp, ',', &nbits, 0);
+    SET_FIELD_BITPOS (fip->list->field,
+		      read_huge_number (pp, ',', &nbits, 0));
     if (nbits != 0)
       {
 	stabs_general_complaint ("bad structure-type format");
@@ -3187,7 +3188,7 @@ read_baseclasses (struct field_info *fip, char **pp, struct type *type,
 	   corresponding to this baseclass.  Always zero in the absence of
 	   multiple inheritance.  */
 
-	FIELD_BITPOS (new->field) = read_huge_number (pp, ',', &nbits, 0);
+	SET_FIELD_BITPOS (new->field, read_huge_number (pp, ',', &nbits, 0));
 	if (nbits != 0)
 	  return 0;
       }
@@ -3730,7 +3731,7 @@ read_enum_type (char **pp, struct type *type,
 
 	  SYMBOL_TYPE (xsym) = type;
 	  TYPE_FIELD_NAME (type, n) = SYMBOL_LINKAGE_NAME (xsym);
-	  SET_FIELD_BITPOS (TYPE_FIELD (type, n), SYMBOL_VALUE (xsym));
+	  SET_FIELD_ENUMVAL (TYPE_FIELD (type, n), SYMBOL_VALUE (xsym));
 	  TYPE_FIELD_BITSIZE (type, n) = 0;
 	}
       if (syms == osyms)

@@ -1029,6 +1029,7 @@ You can run @value{GDBN} in various alternative modes---for example, in
 batch mode or quiet mode.
 
 @table @code
+@anchor{-nx}
 @item -nx
 @itemx -n
 @cindex @code{--nx}
@@ -1257,6 +1258,7 @@ Here's the description of what @value{GDBN} does during session startup:
 Sets up the command interpreter as specified by the command line
 (@pxref{Mode Options, interpreter}).
 
+@anchor{Option -init-eval-command}
 @item
 Executes commands and command files specified by the @samp{-iex} and
 @samp{-ix} options in their specified order.  Usually you should use the
@@ -1271,6 +1273,7 @@ used when building @value{GDBN}; @pxref{System-wide configuration,
  ,System-wide configuration and settings}) and executes all the commands in
 that file.
 
+@anchor{Home Directory Init File}
 @item
 Reads the init file (if any) in your home directory@footnote{On
 DOS/Windows systems, the home directory is the one pointed to by the
@@ -1280,9 +1283,12 @@ that file.
 @item
 Processes command line options and operands.
 
+@anchor{Init File in the Current Directory during Startup}
 @item
 Reads and executes the commands from init file (if any) in the current
-working directory.  This is only done if the current directory is
+working directory as long as @samp{set auto-load local-gdbinit} is set to
+@samp{on} (@pxref{Init File in the Current Directory}).
+This is only done if the current directory is
 different from your home directory.  Thus, you can have more than one
 init file, one generic in your home directory, and another, specific
 to the program you are debugging, in the directory where you invoke
@@ -1298,7 +1304,7 @@ If you wish to disable the auto-loading during startup,
 you must do something like the following:
 
 @smallexample
-$ gdb -iex "set auto-load-scripts off" myprogram
+$ gdb -iex "set auto-load python-scripts off" myprogram
 @end smallexample
 
 Option @samp{-ex} does not work because the auto-loading is then turned
@@ -2885,6 +2891,7 @@ programs with multiple threads.
 @xref{Set Watchpoints,,Setting Watchpoints}, for information about
 watchpoints in programs with multiple threads.
 
+@anchor{set libthread-db-search-path}
 @table @code
 @kindex set libthread-db-search-path
 @cindex search path for @code{libthread_db}
@@ -2899,11 +2906,15 @@ macro.
 On @sc{gnu}/Linux and Solaris systems, @value{GDBN} uses a ``helper''
 @code{libthread_db} library to obtain information about threads in the
 inferior process.  @value{GDBN} will use @samp{libthread-db-search-path}
-to find @code{libthread_db}.
+to find @code{libthread_db}.  @value{GDBN} also consults first if inferior
+specific thread debugging library loading is enabled
+by @samp{set auto-load libthread-db} (@pxref{libthread_db.so.1 file}).
 
 A special entry @samp{$sdir} for @samp{libthread-db-search-path}
 refers to the default system directories that are
-normally searched for loading shared libraries.
+normally searched for loading shared libraries.  The @samp{$sdir} entry
+is the only kind not needing to be enabled by @samp{set auto-load libthread-db}
+(@pxref{libthread_db.so.1 file}).
 
 A special entry @samp{$pdir} for @samp{libthread-db-search-path}
 refers to the directory from which @code{libpthread}
@@ -12476,8 +12487,8 @@ being set automatically by @value{GDBN}.
 @node Supported Languages
 @section Supported Languages
 
-@value{GDBN} supports C, C@t{++}, D, Objective-C, Fortran, Java, OpenCL C, Pascal,
-assembly, Modula-2, and Ada.
+@value{GDBN} supports C, C@t{++}, D, Go, Objective-C, Fortran, Java,
+OpenCL C, Pascal, assembly, Modula-2, and Ada.
 @c This is false ...
 Some @value{GDBN} features may be used in expressions regardless of the
 language you use: the @value{GDBN} @code{@@} and @code{::} operators,
@@ -12496,6 +12507,7 @@ language reference or tutorial.
 @menu
 * C::                           C and C@t{++}
 * D::                           D
+* Go::                          Go
 * Objective-C::                 Objective-C
 * OpenCL C::                    OpenCL C
 * Fortran::                     Fortran
@@ -13047,6 +13059,55 @@ See @ref{PowerPC,,PowerPC} for more details.
 @value{GDBN} can be used to debug programs written in D and compiled with
 GDC, LDC or DMD compilers. Currently @value{GDBN} supports only one D
 specific feature --- dynamic arrays.
+
+@node Go
+@subsection Go
+
+@cindex Go (programming language)
+@value{GDBN} can be used to debug programs written in Go and compiled with
+@file{gccgo} or @file{6g} compilers.
+
+Here is a summary of the Go-specific features and restrictions:
+
+@table @code
+@cindex current Go package
+@item The current Go package
+The name of the current package does not need to be specified when
+specifying global variables and functions.
+
+For example, given the program:
+
+@example
+package main
+var myglob = "Shall we?"
+func main () @{
+  // ...
+@}
+@end example
+
+When stopped inside @code{main} either of these work:
+
+@example
+(gdb) p myglob
+(gdb) p main.myglob
+@end example
+
+@cindex builtin Go types
+@item Builtin Go types
+The @code{string} type is recognized by @value{GDBN} and is printed
+as a string.
+
+@cindex builtin Go functions
+@item Builtin Go functions
+The @value{GDBN} expression parser recognizes the @code{unsafe.Sizeof}
+function and handles it internally.
+
+@cindex restrictions on Go expressions
+@item Restrictions on Go expressions
+All Go operators are supported except @code{&^}.
+The Go @code{_} ``blank identifier'' is not supported.
+Automatic dereferencing of pointers is not supported.
+@end table
 
 @node Objective-C
 @subsection Objective-C
@@ -20411,6 +20472,7 @@ described here.
 * Screen Size::                 Screen size
 * Numbers::                     Numbers
 * ABI::                         Configuring the current ABI
+* Auto-loading::                Automatically loading associated files
 * Messages/Warnings::           Optional warnings and messages
 * Debugging Output::            Optional messages about internal happenings
 * Other Misc Settings::         Other Miscellaneous Settings
@@ -20834,6 +20896,374 @@ With no argument, show the list of supported C@t{++} ABI's.
 @item set cp-abi @var{abi}
 @itemx set cp-abi auto
 Set the current C@t{++} ABI to @var{abi}, or return to automatic detection.
+@end table
+
+@node Auto-loading
+@section Automatically loading associated files
+@cindex auto-loading
+
+@value{GDBN} sometimes reads files with commands and settings automatically,
+without being explicitly told so by the user.  We call this feature
+@dfn{auto-loading}.  While auto-loading is useful for automatically adapting
+@value{GDBN} to the needs of your project, it can sometimes produce unexpected
+results or introduce security risks (e.g., if the file comes from untrusted
+sources).
+
+For these reasons, @value{GDBN} includes commands and options to let you
+control when to auto-load files and which files should be auto-loaded.
+
+@table @code
+@anchor{set auto-load off}
+@kindex set auto-load off
+@item set auto-load off
+Globally disable loading of all auto-loaded files.
+You may want to use this command with the @samp{-iex} option
+(@pxref{Option -init-eval-command}) such as:
+@smallexample
+$ @kbd{gdb -iex "set auto-load off" untrusted-executable corefile}
+@end smallexample
+
+Be aware that system init file (@pxref{System-wide configuration})
+and init files from your home directory (@pxref{Home Directory Init File})
+still get read (as they come from generally trusted directories).
+To prevent @value{GDBN} from auto-loading even those init files, use the
+@option{-nx} option (@pxref{Mode Options}), in addition to
+@code{set auto-load no}.
+
+@anchor{show auto-load}
+@kindex show auto-load
+@item show auto-load
+Show whether auto-loading of each specific @samp{auto-load} file(s) is enabled
+or disabled.
+
+@smallexample
+(gdb) show auto-load
+gdb-scripts:  Auto-loading of canned sequences of commands scripts is on.
+libthread-db:  Auto-loading of inferior specific libthread_db is on.
+local-gdbinit:  Auto-loading of .gdbinit script from current directory is on.
+python-scripts:  Auto-loading of Python scripts is on.
+safe-path:  List of directories from which it is safe to auto-load files
+            is /usr/local.
+@end smallexample
+
+@anchor{info auto-load}
+@kindex info auto-load
+@item info auto-load
+Print whether each specific @samp{auto-load} file(s) have been auto-loaded or
+not.
+
+@smallexample
+(gdb) info auto-load
+gdb-scripts:
+Loaded  Script
+Yes     /home/user/gdb/gdb-gdb.gdb
+libthread-db:  No auto-loaded libthread-db.
+local-gdbinit:  Local .gdbinit file "/home/user/gdb/.gdbinit" has been loaded.
+python-scripts:
+Loaded  Script
+Yes     /home/user/gdb/gdb-gdb.py
+@end smallexample
+@end table
+
+These are various kinds of files @value{GDBN} can automatically load:
+
+@itemize @bullet
+@item
+@xref{objfile-gdb.py file}, controlled by @ref{set auto-load python-scripts}.
+@item
+@xref{objfile-gdb.gdb file}, controlled by @ref{set auto-load gdb-scripts}.
+@item
+@xref{dotdebug_gdb_scripts section},
+controlled by @ref{set auto-load python-scripts}.
+@item
+@xref{Init File in the Current Directory},
+controlled by @ref{set auto-load local-gdbinit}.
+@item
+@xref{libthread_db.so.1 file}, controlled by @ref{set auto-load libthread-db}.
+@end itemize
+
+These are @value{GDBN} control commands for the auto-loading:
+
+@multitable @columnfractions .5 .5
+@item @xref{set auto-load off}.
+@tab Disable auto-loading globally.
+@item @xref{show auto-load}.
+@tab Show setting of all kinds of files.
+@item @xref{info auto-load}.
+@tab Show state of all kinds of files.
+@item @xref{set auto-load gdb-scripts}.
+@tab Control for @value{GDBN} command scripts.
+@item @xref{show auto-load gdb-scripts}.
+@tab Show setting of @value{GDBN} command scripts.
+@item @xref{info auto-load gdb-scripts}.
+@tab Show state of @value{GDBN} command scripts.
+@item @xref{set auto-load python-scripts}.
+@tab Control for @value{GDBN} Python scripts.
+@item @xref{show auto-load python-scripts}.
+@tab Show setting of @value{GDBN} Python scripts.
+@item @xref{info auto-load python-scripts}.
+@tab Show state of @value{GDBN} Python scripts.
+@item @xref{set auto-load local-gdbinit}.
+@tab Control for init file in the current directory.
+@item @xref{show auto-load local-gdbinit}.
+@tab Show setting of init file in the current directory.
+@item @xref{info auto-load local-gdbinit}.
+@tab Show state of init file in the current directory.
+@item @xref{set auto-load libthread-db}.
+@tab Control for thread debugging library.
+@item @xref{show auto-load libthread-db}.
+@tab Show setting of thread debugging library.
+@item @xref{info auto-load libthread-db}.
+@tab Show state of thread debugging library.
+@item @xref{set auto-load safe-path}.
+@tab Control directories trusted for automatic loading.
+@item @xref{show auto-load safe-path}.
+@tab Show directories trusted for automatic loading.
+@item @xref{add-auto-load-safe-path}.
+@tab Add directory trusted for automatic loading.
+@end multitable
+
+@menu
+* Init File in the Current Directory:: @samp{set/show/info auto-load local-gdbinit}
+* libthread_db.so.1 file::             @samp{set/show/info auto-load libthread-db}
+* objfile-gdb.gdb file::               @samp{set/show/info auto-load gdb-script}
+* Auto-loading safe path::             @samp{set/show/info auto-load safe-path}
+* Auto-loading verbose mode::          @samp{set/show debug auto-load}
+@xref{Python Auto-loading}.
+@end menu
+
+@node Init File in the Current Directory
+@subsection Automatically loading init file in the current directory
+@cindex auto-loading init file in the current directory
+
+By default, @value{GDBN} reads and executes the canned sequences of commands
+from init file (if any) in the current working directory,
+see @ref{Init File in the Current Directory during Startup}.
+
+@table @code
+@anchor{set auto-load local-gdbinit}
+@kindex set auto-load local-gdbinit
+@item set auto-load local-gdbinit [on|off]
+Enable or disable the auto-loading of canned sequences of commands
+(@pxref{Sequences}) found in init file in the current directory.
+
+@anchor{show auto-load local-gdbinit}
+@kindex show auto-load local-gdbinit
+@item show auto-load local-gdbinit
+Show whether auto-loading of canned sequences of commands from init file in the
+current directory is enabled or disabled.
+
+@anchor{info auto-load local-gdbinit}
+@kindex info auto-load local-gdbinit
+@item info auto-load local-gdbinit
+Print whether canned sequences of commands from init file in the
+current directory have been auto-loaded.
+@end table
+
+@node libthread_db.so.1 file
+@subsection Automatically loading thread debugging library
+@cindex auto-loading libthread_db.so.1
+
+This feature is currently present only on @sc{gnu}/Linux native hosts.
+
+@value{GDBN} reads in some cases thread debugging library from places specific
+to the inferior (@pxref{set libthread-db-search-path}).
+
+The special @samp{libthread-db-search-path} entry @samp{$sdir} is processed
+without checking this @samp{set auto-load libthread-db} switch as system
+libraries have to be trusted in general.  In all other cases of
+@samp{libthread-db-search-path} entries @value{GDBN} checks first if @samp{set
+auto-load libthread-db} is enabled before trying to open such thread debugging
+library.
+
+@table @code
+@anchor{set auto-load libthread-db}
+@kindex set auto-load libthread-db
+@item set auto-load libthread-db [on|off]
+Enable or disable the auto-loading of inferior specific thread debugging library.
+
+@anchor{show auto-load libthread-db}
+@kindex show auto-load libthread-db
+@item show auto-load libthread-db
+Show whether auto-loading of inferior specific thread debugging library is
+enabled or disabled.
+
+@anchor{info auto-load libthread-db}
+@kindex info auto-load libthread-db
+@item info auto-load libthread-db
+Print the list of all loaded inferior specific thread debugging libraries and
+for each such library print list of inferior @var{pid}s using it.
+@end table
+
+@node objfile-gdb.gdb file
+@subsection The @file{@var{objfile}-gdb.gdb} file
+@cindex auto-loading @file{@var{objfile}-gdb.gdb}
+
+@value{GDBN} tries to load an @file{@var{objfile}-gdb.gdb} file containing
+canned sequences of commands (@pxref{Sequences}), as long as @samp{set
+auto-load gdb-scripts} is set to @samp{on}.
+
+For more background refer to the similar Python scripts auto-loading
+description (@pxref{objfile-gdb.py file}).
+
+@table @code
+@anchor{set auto-load gdb-scripts}
+@kindex set auto-load gdb-scripts
+@item set auto-load gdb-scripts [on|off]
+Enable or disable the auto-loading of canned sequences of commands scripts.
+
+@anchor{show auto-load gdb-scripts}
+@kindex show auto-load gdb-scripts
+@item show auto-load gdb-scripts
+Show whether auto-loading of canned sequences of commands scripts is enabled or
+disabled.
+
+@anchor{info auto-load gdb-scripts}
+@kindex info auto-load gdb-scripts
+@cindex print list of auto-loaded canned sequences of commands scripts
+@item info auto-load gdb-scripts [@var{regexp}]
+Print the list of all canned sequences of commands scripts that @value{GDBN}
+auto-loaded.
+@end table
+
+If @var{regexp} is supplied only canned sequences of commands scripts with
+matching names are printed.
+
+@node Auto-loading safe path
+@subsection Security restriction for auto-loading
+@cindex auto-loading safe-path
+
+As the files of inferior can come from untrusted source (such as submitted by
+an application user) @value{GDBN} does not always load any files automatically.
+@value{GDBN} provides the @samp{set auto-load safe-path} setting to list
+directories trusted for loading files not explicitly requested by user.
+
+If the path is not set properly you will see a warning and the file will not
+get loaded:
+
+@smallexample
+$ ./gdb -q ./gdb
+Reading symbols from /home/user/gdb/gdb...done.
+warning: File "/home/user/gdb/gdb-gdb.gdb" auto-loading has been
+         declined by your `auto-load safe-path' set to "/usr/local".
+warning: File "/home/user/gdb/gdb-gdb.py" auto-loading has been
+         declined by your `auto-load safe-path' set to "/usr/local".
+@end smallexample
+
+The list of trusted directories is controlled by the following commands:
+
+@table @code
+@anchor{set auto-load safe-path}
+@kindex set auto-load safe-path
+@item set auto-load safe-path @var{directories}
+Set the list of directories (and their subdirectories) trusted for automatic
+loading and execution of scripts.  You can also enter a specific trusted file.
+The list of directories uses directory separator (@samp{:} on GNU and Unix
+systems, @samp{;} on MS-Windows and MS-DOS) to separate directories, similarly
+to the @env{PATH} environment variable.
+
+@anchor{show auto-load safe-path}
+@kindex show auto-load safe-path
+@item show auto-load safe-path
+Show the list of directories trusted for automatic loading and execution of
+scripts.
+
+@anchor{add-auto-load-safe-path}
+@kindex add-auto-load-safe-path
+@item add-auto-load-safe-path
+Add an entry (or list of entries) the list of directories trusted for automatic
+loading and execution of scripts.  Multiple entries may be delimited by the
+host platform directory separator in use.
+@end table
+
+Setting this variable to an empty string disables this security protection.
+This variable is supposed to be set to the system directories writable by the
+system superuser only.  Users can add their source directories in init files in
+their home directories (@pxref{Home Directory Init File}).  See also deprecated
+init file in the current directory
+(@pxref{Init File in the Current Directory during Startup}).
+
+To force @value{GDBN} to load the files it declined to load in the previous
+example, you could use one of the following ways:
+
+@table @asis
+@item @file{~/.gdbinit}: @samp{add-auto-load-safe-path ~/src/gdb}
+Specify this trusted directory (or a file) as additional component of the list.
+You have to specify also any existing directories displayed by
+by @samp{show auto-load safe-path} (such as @samp{/usr:/bin} in this example).
+
+@item @kbd{gdb -iex "set auto-load safe-path /usr:/bin:~/src/gdb" @dots{}}
+Specify this directory as in the previous case but just for a single
+@value{GDBN} session.
+
+@item @kbd{gdb -iex "set auto-load safe-path" @dots{}}
+Disable auto-loading safety for a single @value{GDBN} session.
+This assumes all the files you debug during this @value{GDBN} session will come
+from trusted sources.
+
+@item @kbd{./configure --without-auto-load-safe-path}
+During compilation of @value{GDBN} you may disable any auto-loading safety.
+This assumes all the files you will ever debug with this @value{GDBN} come from
+trusted sources.
+@end table
+
+On the other hand you can also explicitly forbid automatic files loading which
+also suppresses any such warning messages:
+
+@table @asis
+@item @kbd{gdb -iex "set auto-load no" @dots{}}
+You can use @value{GDBN} command-line option for a single @value{GDBN} session.
+
+@item @file{~/.gdbinit}: @samp{set auto-load no}
+Disable auto-loading globally for the user
+(@pxref{Home Directory Init File}).  While it is improbable, you could also
+use system init file instead (@pxref{System-wide configuration}).
+@end table
+
+This setting applies to the file names as entered by user.  If no entry matches
+@value{GDBN} tries as a last resort to also resolve all the file names into
+their canonical form (typically resolving symbolic links) and compare the
+entries again.  @value{GDBN} already canonicalizes most of the filenames on its
+own before starting the comparison so a canonical form of directories is
+recommended to be entered.
+
+@node Auto-loading verbose mode
+@subsection Displaying files tried for auto-load
+@cindex auto-loading verbose mode
+
+For better visibility of all the file locations where you can place scripts to
+be auto-loaded with inferior --- or to protect yourself against accidental
+execution of untrusted scripts --- @value{GDBN} provides a feature for printing
+all the files attempted to be loaded.  Both existing and non-existing files may
+be printed.
+
+For example the list of directories from which it is safe to auto-load files
+(@pxref{Auto-loading safe path}) applies also to canonicalized filenames which
+may not be too obvious while setting it up.
+
+@smallexample
+(gdb) set debug auto-load on
+(gdb) file ~/src/t/true
+auto-load: Loading canned sequences of commands script "/tmp/true-gdb.gdb"
+           for objfile "/tmp/true".
+auto-load: Updating directories of "/usr:/opt".
+auto-load: Using directory "/usr".
+auto-load: Using directory "/opt".
+warning: File "/tmp/true-gdb.gdb" auto-loading has been declined
+         by your `auto-load safe-path' set to "/usr:/opt".
+@end smallexample
+
+@table @code
+@anchor{set debug auto-load}
+@kindex set debug auto-load
+@item set debug auto-load [on|off]
+Set whether to print the filenames attempted to be auto-loaded.
+
+@anchor{show debug auto-load}
+@kindex show debug auto-load
+@item show debug auto-load
+Show whether printing of the filenames attempted to be auto-loaded is turned
+on or off.
 @end table
 
 @node Messages/Warnings
@@ -21710,7 +22140,7 @@ automatically imported when @value{GDBN} starts.
 @menu
 * Python Commands::             Accessing Python from @value{GDBN}.
 * Python API::                  Accessing @value{GDBN} from Python.
-* Auto-loading::                Automatically loading Python code.
+* Python Auto-loading::         Automatically loading Python code.
 * Python modules::              Python modules provided by @value{GDBN}.
 @end menu
 
@@ -22952,7 +23382,7 @@ This practice will enable @value{GDBN} to load multiple versions of
 your pretty-printers at the same time, because they will have
 different names.
 
-You should write auto-loaded code (@pxref{Auto-loading}) such that it
+You should write auto-loaded code (@pxref{Python Auto-loading}) such that it
 can be evaluated multiple times without changing its meaning.  An
 ideal auto-load file will consist solely of @code{import}s of your
 printer modules, followed by a call to a register pretty-printers with
@@ -23922,7 +24352,7 @@ The following objfile-related functions are available in the
 
 @findex gdb.current_objfile
 @defun gdb.current_objfile ()
-When auto-loading a Python script (@pxref{Auto-loading}), @value{GDBN}
+When auto-loading a Python script (@pxref{Python Auto-loading}), @value{GDBN}
 sets the ``current objfile'' to the corresponding objfile.  This
 function returns the current objfile.  If there is no current objfile,
 this function returns @code{None}.
@@ -24855,9 +25285,9 @@ resolve this to the lazy string's character type, use the type's
 writable.
 @end defvar
 
-@node Auto-loading
-@subsection Auto-loading
-@cindex auto-loading, Python
+@node Python Auto-loading
+@subsection Python Auto-loading
+@cindex Python auto-loading
 
 When a new object file is read (for example, due to the @code{file}
 command, or because the inferior has loaded a shared library),
@@ -24873,36 +25303,39 @@ Auto-loading can be enabled or disabled,
 and the list of auto-loaded scripts can be printed.
 
 @table @code
-@kindex set auto-load-scripts
-@item set auto-load-scripts [yes|no]
+@anchor{set auto-load python-scripts}
+@kindex set auto-load python-scripts
+@item set auto-load python-scripts [on|off]
 Enable or disable the auto-loading of Python scripts.
 
-@kindex show auto-load-scripts
-@item show auto-load-scripts
+@anchor{show auto-load python-scripts}
+@kindex show auto-load python-scripts
+@item show auto-load python-scripts
 Show whether auto-loading of Python scripts is enabled or disabled.
 
-@kindex info auto-load-scripts
-@cindex print list of auto-loaded scripts
-@item info auto-load-scripts [@var{regexp}]
-Print the list of all scripts that @value{GDBN} auto-loaded.
+@anchor{info auto-load python-scripts}
+@kindex info auto-load python-scripts
+@cindex print list of auto-loaded Python scripts
+@item info auto-load python-scripts [@var{regexp}]
+Print the list of all Python scripts that @value{GDBN} auto-loaded.
 
-Also printed is the list of scripts that were mentioned in
+Also printed is the list of Python scripts that were mentioned in
 the @code{.debug_gdb_scripts} section and were not found
 (@pxref{dotdebug_gdb_scripts section}).
 This is useful because their names are not printed when @value{GDBN}
 tries to load them and fails.  There may be many of them, and printing
 an error message for each one is problematic.
 
-If @var{regexp} is supplied only scripts with matching names are printed.
+If @var{regexp} is supplied only Python scripts with matching names are printed.
 
 Example:
 
 @smallexample
-(gdb) info auto-load-scripts
-Loaded  Script
-Yes     py-section-script.py
-        full name: /tmp/py-section-script.py
-Missing my-foo-pretty-printers.py
+(gdb) info auto-load python-scripts
+Loaded Script
+Yes    py-section-script.py
+       full name: /tmp/py-section-script.py
+No     my-foo-pretty-printers.py
 @end smallexample
 @end table
 

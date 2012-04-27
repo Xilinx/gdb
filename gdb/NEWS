@@ -32,6 +32,10 @@
   ** A new method 'referenced_value' on gdb.Value objects which can
      dereference pointer as well as C++ reference values.
 
+* Go language support.
+  GDB now supports debugging programs written in the Go programming
+  language.
+
 * GDBserver now supports stdio connections.
   E.g. (gdb) target remote | ssh myhost gdbserver - hello
 
@@ -82,6 +86,9 @@
 
 * Ada support for GDB/MI Variable Objects has been added.
 
+* GDB can now support 'breakpoint always-inserted mode' in 'record'
+  target.
+
 * New commands
 
   ** "catch load" and "catch unload" can be used to stop when a shared
@@ -97,6 +104,19 @@
      can be used to reccursively explore values and types of
      expressions.  These commands are available only if GDB is
      configured with '--with-python'.
+
+  ** "info auto-load" shows status of all kinds of auto-loaded files,
+     "info auto-load gdb-scripts" shows status of auto-loading GDB canned
+     sequences of commands files, "info auto-load python-scripts"
+     shows status of auto-loading Python script files,
+     "info auto-load local-gdbinit" shows status of loading init file
+     (.gdbinit) from current directory and "info auto-load libthread-db" shows
+     status of inferior specific thread debugging shared library loading.
+
+  ** "info auto-load-scripts", "set auto-load-scripts on|off"
+     and "show auto-load-scripts" commands have been deprecated, use their
+     "info auto-load python-scripts", "set auto-load python-scripts on|off"
+     and "show auto-load python-scripts" counterparts instead.
 
 * New targets
 
@@ -118,6 +138,37 @@ show breakpoint condition-evaluation
   available mode.
   This option can improve debugger efficiency depending on the speed of the
   target.
+
+set auto-load off
+  Disable auto-loading globally.
+
+show auto-load
+  Show auto-loading setting of all kinds of auto-loaded files.
+
+set auto-load gdb-scripts on|off
+show auto-load gdb-scripts
+  Control auto-loading of GDB canned sequences of commands files.
+
+set auto-load python-scripts on|off
+show auto-load python-scripts
+  Control auto-loading of Python script files.
+
+set auto-load local-gdbinit on|off
+show auto-load local-gdbinit
+  Control loading of init file (.gdbinit) from current directory.
+
+set auto-load libthread-db on|off
+show auto-load libthread-db
+  Control auto-loading of inferior specific thread debugging shared library.
+
+set auto-load safe-path <dir1>[:<dir2>...]
+show auto-load safe-path
+  Set a list of directories from which it is safe to auto-load files.
+  The delimiter (':' above) may differ according to the host platform.
+
+set debug auto-load on|off
+show debug auto-load
+  Control display of debugging info for auto-loading the files above.
 
 * New remote packets
 

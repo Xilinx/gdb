@@ -1,3 +1,104 @@
+2012-04-24  Thiago Jung Bauermann  <thiago.bauermann@linaro.org>
+
+	* linux-low.h (PTRACE_ARG3_TYPE): Move macro from linux-low.c.
+	(PTRACE_ARG4_TYPE): Likewise.
+	(PTRACE_XFER_TYPE): Likewise.
+	* linux-arm-low.c (arm_prepare_to_resume): Cast third argument of
+	ptrace to PTRACE_ARG3_TYPE.
+	* linux-low.c (PTRACE_ARG3_TYPE): Move macro to linux-low.h.
+	(PTRACE_ARG4_TYPE): Likewise.
+	(PTRACE_XFER_TYPE): Likewise.
+	(linux_detach_one_lwp): Cast fourth argument of
+	ptrace to long then PTRACE_ARG4_TYPE.
+	(regsets_fetch_inferior_registers): Cast third argument of
+	ptrace to long then PTRACE_ARG3_TYPE.
+	(regsets_store_inferior_registers): Likewise.
+
+2012-04-20  Pedro Alves  <palves@redhat.com>
+
+	* configure: Regenerate.
+
+2012-04-19  Pedro Alves  <palves@redhat.com>
+
+        * Makefile.in (GNULIB_BUILDDIR): New.
+	(LIBGNU, INCGNU, GNULIB_H): Adjust.
+        (SUBDIRS, CLEANDIRS, REQUIRED_SUBDIRS): New.
+        (all, install-only, uninstall, clean-info, all-lib, clean): No
+        longer pass GNULIB_FLAGS_TO_PASS.  Use subdir_do.
+        (maintainer-clean realclean distclean): Use subdir_do.
+        (subdir_do): New.
+        (gnulib/import/Makefile): Adjust.  Replace gnulib/import with
+	$(GNULIB_BUILDDIR).  Don't pass argument to config.status.
+        * acinclude.m4: Include acx_configure_dir.m4.
+        * configure.ac: Remove gl_EARLY, gl_INIT, and AM_INIT_AUTOMAKE
+        calls.  Call AC_PROG_RANLIB.  Configure gnulib using
+        ACX_CONFIGURE_DIR.
+        (GNULIB): New.
+        (GNULIB_STDINT_H): Adjust.
+        (AC_OUTPUT): Don't output gnulib/Makefile anymore.
+        * gdbreplay.c: Include build-gnulib/config.h.
+        * server.h: Likewise.
+        * aclocal.m4: Regenerate.
+        * config.in: Regenerate.
+        * configure: Regenerate.
+
+2012-04-19  Pedro Alves  <palves@redhat.com>
+
+	* Makefile.in (LIBGNU, INCGNU): Adjust.
+	(GNULIB_FLAGS_TO_PASS, GNULIB_H): Adjust.
+	(all, install-only, uninstall, clean-info, all-lib, clean)
+	(maintainer-clean, Makefile, gnulib/Makefile): Adjust.
+	* configure.ac: Adjust AC_OUTPUT output.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+
+2012-04-19  Pedro Alves  <palves@redhat.com>
+
+	* Makefile.in (generated_files): New.
+	(server_h): Remove the explicit dependency on config.h, and depend
+	on $generated_files.
+
+2012-04-19  Pedro Alves  <palves@redhat.com>
+
+	* Makefile.in (INCGNU): Add -Ignulib.
+
+2012-04-19  Pedro Alves  <palves@redhat.com>
+
+	* Makefile.in (GNULIB_INCLUDE_DIR): Rename to ...
+	(INCGNU): ... this, and spell out -I here.
+	(GNULIB_LIB): Rename to ...
+	(LIBGNU): ... this.
+	(INCLUDE_CFLAGS, gdbserver$(EXEEXT), $(GNULIB_LIB) rule): Adjust.
+
+2012-04-19  Pedro Alves  <palves@redhat.com>
+
+	* config.in: Regenerate.
+
+2012-04-19  Pedro Alves  <palves@redhat.com>
+
+	* configure.ac: Remove AC_CHECK_DECLS check for memmem.
+	* server.h (memmem): Remove declaration.
+	* config.in: Regenerate.
+	* configure: Regenerate.
+
+2012-04-19  Yao Qi  <yao@codesourcery.com>
+
+	* Makefile.in (SFILES): Add common/vec.c.
+	(OBS): Add vec.o.
+	(vec.o): New rule.
+
+2012-04-19  Yao Qi  <yao@codesourcery.com>
+
+	* remote-utils.c (prepare_resume_reply): Replace with macro
+	target_core_of_thread.
+	* server.c (handle_qxfer_threads_proper): Likewise.
+	* target.h (traget_core_of_thread): New macro.
+
+2012-04-18  Pedro Alves  <palves@redhat.com>
+
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+
 2012-04-16  Yao Qi  <yao@codesourcery.com>
 
 	* tracepoint.c (cmd_qtstart): Download tracepoints even when they are

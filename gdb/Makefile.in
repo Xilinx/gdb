@@ -170,12 +170,13 @@ INTL_CFLAGS = @INCINTL@
 GDB_DATADIR = @GDB_DATADIR@
 
 # Helper code from gnulib.
-LIBGNU = gnulib/libgnu.a
-INCGNU = -I$(srcdir)/gnulib -Ignulib
+GNULIB_BUILDDIR = build-gnulib
+LIBGNU = $(GNULIB_BUILDDIR)/import/libgnu.a
+INCGNU = -I$(srcdir)/gnulib/import -I$(GNULIB_BUILDDIR)/import
 
 # Generated headers in the gnulib directory.  These must be listed
 # so that they are generated before other files are compiled.
-GNULIB_H = gnulib/string.h @GNULIB_STDINT_H@
+GNULIB_H = $(GNULIB_BUILDDIR)/import/string.h @GNULIB_STDINT_H@
 
 #
 # CLI sub directory definitons
@@ -683,14 +684,14 @@ TARGET_FLAGS_TO_PASS = \
 
 SFILES = ada-exp.y ada-lang.c ada-typeprint.c ada-valprint.c ada-tasks.c \
 	ada-varobj.c \
-	addrmap.c \
+	addrmap.c auto-load.c \
 	auxv.c ax-general.c ax-gdb.c \
 	agent.c \
 	bcache.c \
 	bfd-target.c \
 	block.c blockframe.c breakpoint.c buildsym.c \
 	c-exp.y c-lang.c c-typeprint.c c-valprint.c \
-	charset.c cli-out.c coffread.c coff-pe-read.c \
+	charset.c cleanups.c cli-out.c coffread.c coff-pe-read.c \
 	complaints.c completer.c continuations.c corefile.c corelow.c \
 	cp-abi.c cp-support.c cp-namespace.c cp-valprint.c \
 	d-lang.c d-valprint.c \
@@ -703,6 +704,7 @@ SFILES = ada-exp.y ada-lang.c ada-typeprint.c ada-valprint.c ada-tasks.c \
 	f-exp.y f-lang.c f-typeprint.c f-valprint.c filesystem.c \
 	findcmd.c findvar.c frame.c frame-base.c frame-unwind.c \
 	gdbarch.c arch-utils.c gdbtypes.c gnu-v2-abi.c gnu-v3-abi.c \
+	go-exp.y go-lang.c go-typeprint.c go-valprint.c \
 	inf-loop.c \
 	infcall.c \
 	infcmd.c inflow.c infrun.c \
@@ -733,7 +735,7 @@ SFILES = ada-exp.y ada-lang.c ada-typeprint.c ada-valprint.c ada-tasks.c \
 	typeprint.c \
 	ui-out.c utils.c ui-file.h ui-file.c \
 	user-regs.c \
-	valarith.c valops.c valprint.c value.c varobj.c vec.c \
+	valarith.c valops.c valprint.c value.c varobj.c common/vec.c \
 	xml-tdesc.c xml-support.c \
 	inferior.c gdb_usleep.c \
 	record.c gcore.c \
@@ -768,22 +770,22 @@ cli-out.h gdb_expat.h breakpoint.h infcall.h obsd-tdep.h \
 exec.h m32r-tdep.h osabi.h gdbcore.h solib-som.h amd64bsd-nat.h \
 i386bsd-nat.h xml-support.h xml-tdesc.h alphabsd-tdep.h gdb_obstack.h \
 ia64-tdep.h ada-lang.h ada-varobj.h varobj.h frv-tdep.h nto-tdep.h serial.h \
-c-lang.h d-lang.h frame.h event-loop.h block.h cli/cli-setshow.h	\
+c-lang.h d-lang.h golang.h frame.h event-loop.h block.h cli/cli-setshow.h \
 cli/cli-decode.h cli/cli-cmds.h cli/cli-dump.h cli/cli-utils.h \
-cli/cli-script.h macrotab.h symtab.h version.h gnulib/wchar.in.h \
-gnulib/string.in.h gnulib/str-two-way.h \
-gnulib/stdint.in.h remote.h gdb.h sparc-nat.h \
+cli/cli-script.h macrotab.h symtab.h version.h \
+gnulib/import/string.in.h gnulib/import/str-two-way.h \
+gnulib/import/stdint.in.h remote.h gdb.h sparc-nat.h \
 gdbthread.h dwarf2-frame.h dwarf2-frame-tailcall.h nbsd-nat.h dcache.h \
 amd64-nat.h s390-tdep.h arm-linux-tdep.h exceptions.h macroscope.h \
 gdbarch.h bsd-uthread.h gdb_stat.h memory-map.h	memrange.h \
 mdebugread.h m88k-tdep.h stabsread.h hppa-linux-offsets.h linux-fork.h \
 ser-unix.h inf-ptrace.h terminal.h ui-out.h frame-base.h \
 f-lang.h dwarf2loc.h value.h sparc-tdep.h defs.h target-descriptions.h \
-objfiles.h vec.h disasm.h mips-tdep.h ser-base.h \
+objfiles.h common/vec.h disasm.h mips-tdep.h ser-base.h \
 gdb_curses.h bfd-target.h memattr.h inferior.h ax.h dummy-frame.h \
 inflow.h fbsd-nat.h ia64-libunwind-tdep.h completer.h inf-ttrace.h \
 solib-target.h gdb_vfork.h alpha-tdep.h dwarf2expr.h \
-m2-lang.h stack.h charset.h addrmap.h command.h solist.h source.h \
+m2-lang.h stack.h charset.h cleanups.h addrmap.h command.h solist.h source.h \
 target.h prologue-value.h cp-abi.h tui/tui-hooks.h tui/tui.h \
 tui/tui-file.h tui/tui-command.h tui/tui-disasm.h tui/tui-wingeneral.h \
 tui/tui-windata.h tui/tui-data.h tui/tui-win.h tui/tui-stack.h \
@@ -820,10 +822,11 @@ i386-darwin-tdep.h i386-nat.h linux-record.h moxie-tdep.h \
 osdata.h procfs.h python/py-event.h python/py-events.h python/py-stopevent.h \
 python/python-internal.h python/python.h ravenscar-thread.h record.h \
 solib-darwin.h solib-ia64-hpux.h solib-spu.h windows-nat.h xcoffread.h \
-gnulib/extra/arg-nonnull.h gnulib/extra/c++defs.h gnulib/extra/warn-on-use.h \
-gnulib/stddef.in.h gnulib/inttypes.in.h inline-frame.h skip.h \
+gnulib/import/extra/snippet/arg-nonnull.h gnulib/import/extra/snippet/c++defs.h \
+gnulib/import/extra/snippet/warn-on-use.h \
+gnulib/import/stddef.in.h gnulib/import/inttypes.in.h inline-frame.h skip.h \
 common/common-utils.h common/xml-utils.h common/buffer.h common/ptid.h \
-common/linux-osdata.h gdb-dlfcn.h
+common/linux-osdata.h gdb-dlfcn.h auto-load.h
 
 # Header files that already have srcdir in them, or which are in objdir.
 
@@ -855,10 +858,10 @@ COMMON_OBS = $(DEPFILES) $(CONFIG_OBS) $(YYOBJ) \
 	version.o \
 	annotate.o \
 	addrmap.o \
-	auxv.o \
+	auto-load.o auxv.o \
 	agent.o \
 	bfd-target.o \
-	blockframe.o breakpoint.o findvar.o regcache.o \
+	blockframe.o breakpoint.o findvar.o regcache.o cleanups.o \
 	charset.o continuations.o corelow.o disasm.o dummy-frame.o dfp.o \
 	source.o value.o eval.o valops.o valarith.o valprint.o printcmd.o \
 	block.o symtab.o psymtab.o symfile.o symmisc.o linespec.o dictionary.o \
@@ -887,6 +890,7 @@ COMMON_OBS = $(DEPFILES) $(CONFIG_OBS) $(YYOBJ) \
 	ada-tasks.o ada-varobj.o \
 	ui-out.o cli-out.o \
 	varobj.o vec.o \
+	go-lang.o go-valprint.o go-typeprint.o \
 	jv-lang.o jv-valprint.o jv-typeprint.o \
 	m2-lang.o opencl-lang.o p-lang.o p-typeprint.o p-valprint.o \
 	sentinel-frame.o \
@@ -915,14 +919,14 @@ COMMON_OBS = $(DEPFILES) $(CONFIG_OBS) $(YYOBJ) \
 
 TSOBS = inflow.o
 
-SUBDIRS = doc @subdirs@ data-directory
-CLEANDIRS = $(SUBDIRS) gnulib 
+SUBDIRS = doc @subdirs@ data-directory $(GNULIB_BUILDDIR)
+CLEANDIRS = $(SUBDIRS)
 
 # List of subdirectories in the build tree that must exist.
 # This is used to force build failures in existing trees when
 # a new directory is added.
 # The format here is for the `case' shell command.
-REQUIRED_SUBDIRS = doc | testsuite | gnulib | data-directory
+REQUIRED_SUBDIRS = doc | testsuite | $(GNULIB_BUILDDIR) | data-directory
 
 # For now, shortcut the "configure GDB for fewer languages" stuff.
 YYFILES = c-exp.c \
@@ -931,13 +935,13 @@ YYFILES = c-exp.c \
 	ada-lex.c \
 	ada-exp.c \
 	jv-exp.c \
-	f-exp.c m2-exp.c p-exp.c
+	f-exp.c go-exp.c m2-exp.c p-exp.c
 YYOBJ = c-exp.o \
 	cp-name-parser.o \
 	objc-exp.o \
 	ada-exp.o \
 	jv-exp.o \
-	f-exp.o m2-exp.o p-exp.o
+	f-exp.o go-exp.o m2-exp.o p-exp.o
 
 # Things which need to be built when making a distribution.
 
@@ -1162,8 +1166,8 @@ gdb$(EXEEXT): gdb.o $(LIBGDB_OBS) $(ADD_DEPS) $(CDEPS) $(TDEPLIBS)
 
 # Convenience rule to handle recursion.
 $(LIBGNU) $(GNULIB_H): all-lib
-all-lib: gnulib/Makefile
-	@$(MAKE) $(FLAGS_TO_PASS) DO=all DODIRS=gnulib subdir_do
+all-lib: $(GNULIB_BUILDDIR)/Makefile
+	@$(MAKE) $(FLAGS_TO_PASS) DO=all DODIRS=$(GNULIB_BUILDDIR) subdir_do
 .PHONY: all-lib
 
 # Convenience rule to handle recursion.
@@ -1218,10 +1222,11 @@ clean mostlyclean: $(CONFIG_CLEAN)
 # always included in SUBDIRS.  Remove the gdbserver files explicitly.
 distclean: clean
 	@$(MAKE) $(FLAGS_TO_PASS) DO=distclean "DODIRS=$(CLEANDIRS)" subdir_do
+	rm -rf $(GNULIB_BUILDDIR)
 	rm -f gdbserver/config.status gdbserver/config.log
 	rm -f gdbserver/tm.h gdbserver/xm.h gdbserver/nm.h
 	rm -f gdbserver/Makefile gdbserver/config.cache
-	rm -f nm.h config.status config.h stamp-h .gdbinit jit-reader.h
+	rm -f nm.h config.status config.h stamp-h gdb-gdb.gdb jit-reader.h
 	rm -f y.output yacc.acts yacc.tmp y.tab.h
 	rm -f config.log config.cache
 	rm -f Makefile
@@ -1238,7 +1243,7 @@ local-maintainer-clean:
 		ada-lex.c ada-exp.c \
 	        objc-exp.c \
 		jv-exp.tab \
-		f-exp.c m2-exp.c p-exp.c
+		f-exp.c go-exp.c m2-exp.c p-exp.c
 	rm -f TAGS $(INFOFILES)
 	rm -f $(YYFILES)
 	rm -f nm.h config.status
@@ -1273,8 +1278,8 @@ Makefile: Makefile.in config.status @frags@
 	  CONFIG_HEADERS= \
 	  $(SHELL) config.status
 
-gnulib/Makefile: gnulib/Makefile.in config.status @frags@
-	CONFIG_FILES="gnulib/Makefile" \
+$(GNULIB_BUILDDIR)/Makefile: gnulib/Makefile.in config.status @frags@
+	@cd $(GNULIB_BUILDDIR); CONFIG_FILES="Makefile" \
 	  CONFIG_COMMANDS="depfiles" \
 	  CONFIG_HEADERS= \
 	  CONFIG_LINKS= \
@@ -1302,31 +1307,10 @@ config.status: $(srcdir)/configure configure.tgt configure.host
 	$(SHELL) config.status --recheck
 
 ACLOCAL = aclocal
-ACLOCAL_AMFLAGS = -I gnulib/m4 -I ../config
+ACLOCAL_AMFLAGS = -I ../config
 aclocal_m4_deps = \
 	configure.ac \
-	gnulib/m4/00gnulib.m4 \
-	gnulib/m4/extensions.m4 \
-	gnulib/m4/gnulib-cache.m4 \
-	gnulib/m4/gnulib-common.m4 \
-	gnulib/m4/gnulib-comp.m4 \
-	gnulib/m4/gnulib-tool.m4 \
-	gnulib/m4/include_next.m4 \
-	gnulib/m4/inttypes.m4 \
-	gnulib/m4/inttypes-pri.m4 \
-	gnulib/m4/longlong.m4 \
-	gnulib/m4/memchr.m4 \
-	gnulib/m4/memmem.m4 \
-	gnulib/m4/mmap-anon.m4 \
-	gnulib/m4/multiarch.m4 \
-	gnulib/m4/onceonly.m4 \
-	gnulib/m4/stddef_h.m4 \
-	gnulib/m4/stdint.m4 \
-	gnulib/m4/string_h.m4 \
-	gnulib/m4/warn-on-use.m4 \
-	gnulib/m4/wchar_h.m4 \
-	gnulib/m4/wchar_t.m4 \
-	gnulib/m4/wint_t.m4 \
+	acx_configure_dir.m4 \
 	../config/extensions.m4 \
 	../config/lead-dot.m4 \
 	../config/proginstall.m4 \
@@ -1940,6 +1924,10 @@ linux-ptrace.o: $(srcdir)/common/linux-ptrace.c
 
 common-agent.o: $(srcdir)/common/agent.c
 	$(COMPILE) $(srcdir)/common/agent.c
+	$(POSTCOMPILE)
+
+vec.o: ${srcdir}/common/vec.c
+	$(COMPILE) $(srcdir)/common/vec.c
 	$(POSTCOMPILE)
 
 #

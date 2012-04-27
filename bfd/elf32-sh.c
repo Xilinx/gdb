@@ -2406,7 +2406,7 @@ struct elf_sh_link_hash_entry
      and thus require fixups or relocations.  */
   bfd_signed_vma abs_funcdesc_refcount;
 
-  enum {
+  enum got_type {
     GOT_UNKNOWN = 0, GOT_NORMAL, GOT_TLS_GD, GOT_TLS_IE, GOT_FUNCDESC
   } got_type;
 };
@@ -3078,7 +3078,7 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
     {
       asection *s;
       bfd_boolean dyn;
-      int got_type = sh_elf_hash_entry (h)->got_type;
+      enum got_type got_type = sh_elf_hash_entry (h)->got_type;
 
       /* Make sure this symbol is output as a dynamic symbol.
 	 Undefined weak syms won't yet be marked as dynamic.  */
@@ -3104,6 +3104,9 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
 	      && (got_type == GOT_NORMAL || got_type == GOT_FUNCDESC))
 	    htab->srofixup->size += 4;
 	}
+      /* No dynamic relocations required when IE->LE conversion happens.  */
+      else if (got_type == GOT_TLS_IE && !h->def_dynamic && !info->shared)
+	;
       /* R_SH_TLS_IE_32 needs one dynamic relocation if dynamic,
 	 R_SH_TLS_GD needs one if local symbol and two if global.  */
       else if ((got_type == GOT_TLS_GD && h->dynindx == -1)
@@ -3977,7 +3980,7 @@ sh_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
       bfd_reloc_status_type r;
       int seen_stt_datalabel = 0;
       bfd_vma off;
-      int got_type;
+      enum got_type got_type;
       const char *symname = NULL;
 
       r_symndx = ELF32_R_SYM (rel->r_info);
@@ -4045,7 +4048,7 @@ sh_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 	      _("Unexpected STO_SH5_ISA32 on local symbol is not handled"),
 	      input_bfd, input_section, rel->r_offset));
 
-	  if (sec != NULL && elf_discarded_section (sec))
+	  if (sec != NULL && discarded_section (sec))
 	    /* Handled below.  */
 	    ;
 	  else if (info->relocatable)
@@ -4237,7 +4240,7 @@ sh_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 	    }
 	}
 
-      if (sec != NULL && elf_discarded_section (sec))
+      if (sec != NULL && discarded_section (sec))
 	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
 					 rel, relend, howto, contents);
 
@@ -6090,7 +6093,7 @@ sh_elf_check_relocs (bfd *abfd, struct bfd_link_info *info, asection *sec,
   const Elf_Internal_Rela *rel_end;
   asection *sreloc;
   unsigned int r_type;
-  int got_type, old_got_type;
+  enum got_type got_type, old_got_type;
 
   sreloc = NULL;
 

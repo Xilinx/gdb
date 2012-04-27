@@ -1131,6 +1131,10 @@ extern void delete_breakpoint (struct breakpoint *);
 
 extern void breakpoint_auto_delete (bpstat);
 
+typedef void (*walk_bp_location_callback) (struct bp_location *, void *);
+
+extern void iterate_over_bp_locations (walk_bp_location_callback);
+
 /* Return the chain of command lines to execute when this breakpoint
    is hit.  */
 extern struct command_line *breakpoint_commands (struct breakpoint *b);
@@ -1365,7 +1369,7 @@ extern void remove_thread_event_breakpoints (void);
 extern void disable_breakpoints_in_shlibs (void);
 
 /* This function returns TRUE if ep is a catchpoint.  */
-extern int ep_is_catchpoint (struct breakpoint *);
+extern int is_catchpoint (struct breakpoint *);
 
 /* Enable breakpoints and delete when hit.  Called with ARG == NULL
    deletes all breakpoints.  */

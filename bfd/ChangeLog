@@ -1,3 +1,84 @@
+2012-04-26  Andreas Schwab  <schwab@linux-m68k.org>
+
+	* elf32-m68k.c (elf_m68k_check_relocs): Mark non-GOT references
+	also when generating PIE.
+	(elf_m68k_discard_copies): Mark undefined weak symbols referenced
+	by relocations as dynamic.
+
+2012-04-26  Hans-Peter Nilsson  <hp@axis.com>
+
+	Provide a way for programs to recognize BFD_ASSERT calls.
+	* bfd.c (bfd_assert_handler_type): New API type.
+	(bfd_set_assert_handler, bfd_get_assert_handler): New API functions.
+	(_bfd_assert_handler): New variable.
+	(_bfd_default_assert_handler): New function.
+	(bfd_assert): Call _bfd_assert_handler, not _bfd_error_handler.
+	* libbfd-in.h (_bfd_assert_handler): Declare.
+	* libbfd.h, bfd-in2.h: Regenerate.
+
+2012-04-24  Hans-Peter Nilsson  <hp@axis.com>
+
+	PR ld/13990
+	* elf32-arm.c (elf32_arm_gc_sweep_hook): Handle a forced-local
+	symbol, where PLT refcount is set to -1.
+
+2012-04-24  Alan Modra  <amodra@gmail.com>
+
+	PR ld/13991
+	* bfd/elf-bfd.h (_bfd_elf_link_just_syms): Define as
+	_bfd_generic_link_just_syms.
+	* bfd/elflink.c (_bfd_elf_link_just_syms): Delete.
+	* bfd/linker.c (_bfd_generic_link_just_syms): Set sec_info_type.
+
+	* bfd/bfd-in.h (discarded_section): Renamed from elf_discarded_section.
+	* bfd/section.c (SEC_INFO_TYPE_NONE, SEC_INFO_TYPE_STABS,
+	SEC_INFO_TYPE_MERGE, SEC_INFO_TYPE_EH_FRAME,
+	SEC_INFO_TYPE_JUST_SYMS): Renamed from corresponding ELF_INFO_TYPE.
+	* bfd/elf-eh-frame.c, * bfd/elf-m10200.c, * bfd/elf-m10300.c,
+	* bfd/elf.c, * bfd/elf32-arm.c, * bfd/elf32-avr.c, * bfd/elf32-bfin.c,
+	* bfd/elf32-cr16.c, * bfd/elf32-cr16c.c, * bfd/elf32-cris.c,
+	* bfd/elf32-crx.c, * bfd/elf32-d10v.c, * bfd/elf32-epiphany.c,
+	* bfd/elf32-fr30.c, * bfd/elf32-frv.c, * bfd/elf32-h8300.c,
+	* bfd/elf32-hppa.c, * bfd/elf32-i370.c, * bfd/elf32-i386.c,
+	* bfd/elf32-i860.c, * bfd/elf32-ip2k.c, * bfd/elf32-iq2000.c,
+	* bfd/elf32-lm32.c, * bfd/elf32-m32c.c, * bfd/elf32-m32r.c,
+	* bfd/elf32-m68hc1x.c, * bfd/elf32-m68k.c, * bfd/elf32-mcore.c,
+	* bfd/elf32-mep.c, * bfd/elf32-moxie.c, * bfd/elf32-msp430.c,
+	* bfd/elf32-mt.c, * bfd/elf32-openrisc.c, * bfd/elf32-ppc.c,
+	* bfd/elf32-rl78.c, * bfd/elf32-rx.c, * bfd/elf32-s390.c,
+	* bfd/elf32-score.c, * bfd/elf32-score7.c, * bfd/elf32-sh.c,
+	* bfd/elf32-spu.c, * bfd/elf32-tic6x.c, * bfd/elf32-tilepro.c,
+	* bfd/elf32-v850.c, * bfd/elf32-vax.c, * bfd/elf32-xc16x.c,
+	* bfd/elf32-xstormy16.c, * bfd/elf32-xtensa.c, * bfd/elf64-alpha.c,
+	* bfd/elf64-hppa.c, * bfd/elf64-ia64-vms.c, * bfd/elf64-mmix.c,
+	* bfd/elf64-ppc.c, * bfd/elf64-s390.c, * bfd/elf64-sh64.c,
+	* bfd/elf64-x86-64.c, * bfd/elflink.c, * bfd/elfnn-ia64.c,
+	* bfd/elfxx-mips.c, * bfd/elfxx-sparc.c, * bfd/elfxx-tilegx.c,
+	* bfd/reloc.c: Update all references.
+	* bfd/bfd-in2.h: Regenerate.
+
+2012-04-20  Andreas Krebbel  <Andreas.Krebbel@de.ibm.com>
+
+	* elf32-s390.c (ELF_DYNAMIC_INTERPRETER): Set to the GCC default.
+	* elf64-s390.c (ELF_DYNAMIC_INTERPRETER): Set to the GCC default.
+
+2012-04-19  Thomas Schwinge  <thomas@codesourcery.com>
+
+	* elf32-sh.c (elf_sh_link_hash_entry): Specify an enum identifier for
+	got_type.
+	(allocate_dynrelocs, sh_elf_relocate_section, sh_elf_check_relocs): Use
+	it.
+
+2012-04-17  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+
+	* elf32-sh.c (allocate_dynrelocs): Don't allocate dynamic
+	relocations when LE conversion happens on the IE tls symbol.
+
+2012-04-17  Roland McGrath  <mcgrathr@google.com>
+
+	* elf64-x86-64.c (elf_x86_64_nacl_plt0_entry): Fix nop padding
+	so that 32-byte boundary is a proper instruction boundary.
+
 2012-04-17  Tristan Gingold  <gingold@adacore.com>
 
 	* vms-lib.c (_bfd_vms_lib_get_module): Append .obj extension to

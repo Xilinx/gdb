@@ -3143,7 +3143,7 @@ elf_x86_64_relocate_section (bfd *output_bfd,
 				   unresolved_reloc, warned);
 	}
 
-      if (sec != NULL && elf_discarded_section (sec))
+      if (sec != NULL && discarded_section (sec))
 	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
 					 rel, relend, howto, contents);
 
@@ -4715,8 +4715,7 @@ elf_x86_64_finish_dynamic_sections (bfd *output_bfd,
 			     htab->plt_eh_frame->contents
 			     + PLT_FDE_START_OFFSET);
 	}
-      if (htab->plt_eh_frame->sec_info_type
-	  == ELF_INFO_TYPE_EH_FRAME)
+      if (htab->plt_eh_frame->sec_info_type == SEC_INFO_TYPE_EH_FRAME)
 	{
 	  if (! _bfd_elf_write_section_eh_frame (output_bfd, info,
 						 htab->plt_eh_frame,
@@ -5134,13 +5133,16 @@ static const bfd_byte elf_x86_64_nacl_plt0_entry[NACL_PLT_ENTRY_SIZE] =
     0x4d, 0x01, 0xfb,             	/* add %r15, %r11		*/
     0x41, 0xff, 0xe3,             	/* jmpq *%r11			*/
 
-    /* 41 bytes of nop to pad out to the standard size.  */
+    /* 9-byte nop sequence to pad out to the next 32-byte boundary.  */
+    0x2e, 0x0f, 0x1f, 0x84, 0, 0, 0, 0, 0, /* nopl %cs:0x0(%rax,%rax,1)	*/
+
+    /* 32 bytes of nop to pad out to the standard size.  */
     0x66, 0x66, 0x66, 0x66, 0x66, 0x66,    /* excess data32 prefixes	*/
     0x2e, 0x0f, 0x1f, 0x84, 0, 0, 0, 0, 0, /* nopw %cs:0x0(%rax,%rax,1)	*/
     0x66, 0x66, 0x66, 0x66, 0x66, 0x66,    /* excess data32 prefixes	*/
     0x2e, 0x0f, 0x1f, 0x84, 0, 0, 0, 0, 0, /* nopw %cs:0x0(%rax,%rax,1)	*/
-    0x66, 0x66,                            /* excess data32 prefixes	*/
-    0x2e, 0x0f, 0x1f, 0x84, 0, 0, 0, 0, 0, /* nopw %cs:0x0(%rax,%rax,1)	*/
+    0x66,                                  /* excess data32 prefix	*/
+    0x90                                   /* nop */
   };
 
 static const bfd_byte elf_x86_64_nacl_plt_entry[NACL_PLT_ENTRY_SIZE] =

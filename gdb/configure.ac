@@ -25,7 +25,6 @@ AM_MAINTAINER_MODE
 
 AC_PROG_CC
 AC_USE_SYSTEM_EXTENSIONS
-gl_EARLY
 ACX_LARGEFILE
 AM_PROG_CC_STDC
 
@@ -46,6 +45,12 @@ case "`$MAKE --version 2>&1 | sed 1q`" in
 esac
 AM_CONDITIONAL(GMAKE, test "$MAKE_IS_GNU" = yes)
 AC_PROG_MAKE_SET
+
+# Configure gnulib.  We need to build gnulib under some other
+# directory not "gnulib", to avoid the problem of both GDB and
+# GDBserver wanting to build it in the same directory, when building
+# in the source dir.
+ACX_CONFIGURE_DIR(["gnulib"], ["build-gnulib"])
 
 dnl List of object files and targets accumulated by configure.
 
@@ -72,12 +77,12 @@ if test x"$USE_NLS" = xyes; then
    CONFIG_UNINSTALL="$CONFIG_UNINSTALL uninstall-po"
 fi
 
-gl_INIT
+GNULIB=build-gnulib/import
 
 # For Makefile dependencies.
 GNULIB_STDINT_H=
 if test x"$STDINT_H" != x; then
-  GNULIB_STDINT_H=gnulib/$STDINT_H
+  GNULIB_STDINT_H=$GNULIB/$STDINT_H
 fi
 AC_SUBST(GNULIB_STDINT_H)
 
@@ -105,10 +110,6 @@ if test x"$gdb_cv_have_makeinfo_click" = xyes; then
 fi
 AC_SUBST(MAKEINFO_EXTRA_FLAGS)
 
-# GDB does not use automake, but gnulib does.  This line lets us
-# generate its Makefile.in.
-AM_INIT_AUTOMAKE(gdb, UNUSED-VERSION, [no-define])
-
 GDB_AC_WITH_DIR(DEBUGDIR, separate-debug-dir,
     [look for global separate debug info in this path @<:@LIBDIR/debug@:>@],
     [${libdir}/debug])
@@ -133,6 +134,18 @@ AS_HELP_STRING([--with-relocated-sources=PATH], [automatically relocate this pat
  AC_DEFINE_DIR(RELOC_SRCDIR, reloc_srcdir,
               [Relocated directory for source files. ])
 ])
+
+AC_MSG_CHECKING([for default auto-load safe-path])
+AC_ARG_WITH(auto-load-safe-path,
+AS_HELP_STRING([--with-auto-load-safe-path=PATH], [directories safe to hold auto-loaded files])
+AS_HELP_STRING([--without-auto-load-safe-path], [do not restrict auto-loaded files locations]),
+[if test "$with_auto_load_safe_path" = "no"; then
+   with_auto_load_safe_path=""
+ fi],
+[with_auto_load_safe_path="$prefix"])
+AC_DEFINE_DIR(DEFAULT_AUTO_LOAD_SAFE_PATH, with_auto_load_safe_path,
+	      [Directories safe to hold auto-loaded files.])
+AC_MSG_RESULT([$with_auto_load_safe_path])
 
 AC_CONFIG_SUBDIRS(testsuite)
 
@@ -1670,7 +1683,7 @@ if test ${build} = ${host} -a ${host} = ${target} ; then
       if test $gdb_cv_have_aix_thread_debug = yes; then
          CONFIG_SRCS="${CONFIG_SRCS} aix-thread.c"
          CONFIG_OBS="${CONFIG_OBS} aix-thread.o"
-         CONFIG_LDFLAGS="${CONFIG_LDFLAGS} -lpthdebug"
+         LIBS="$LIBS -lpthdebug"
 
          # Older versions of AIX do not provide the declaration for
          # the getthrds function (it appears that it was introduced
@@ -2230,7 +2243,7 @@ dnl  At the moment, we just assume it's UTF-8.
 AC_DEFINE(GDB_DEFAULT_HOST_CHARSET, "UTF-8",
           [Define to be a string naming the default host character set.])
 
-AC_OUTPUT(Makefile .gdbinit:gdbinit.in doc/Makefile gnulib/Makefile data-directory/Makefile,
+AC_OUTPUT(Makefile gdb-gdb.gdb doc/Makefile data-directory/Makefile,
 [
 case x$CONFIG_HEADERS in
 xconfig.h:config.in)

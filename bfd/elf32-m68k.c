@@ -2827,7 +2827,7 @@ elf_m68k_check_relocs (abfd, info, sec, relocs)
 		 turns out to be a function defined by a dynamic object.  */
 	      h->plt.refcount++;
 
-	      if (!info->shared)
+	      if (info->executable)
 		/* This symbol needs a non-GOT reference.  */
 		h->non_got_ref = 1;
 	    }
@@ -3479,6 +3479,18 @@ elf_m68k_discard_copies (h, inf)
 	      }
 	}
 
+      /* Make sure undefined weak symbols are output as a dynamic symbol
+	 in PIEs.  */
+      if (h->non_got_ref
+	  && h->root.type == bfd_link_hash_undefweak
+	  && ELF_ST_VISIBILITY (h->other) == STV_DEFAULT
+	  && h->dynindx == -1
+	  && !h->forced_local)
+	{
+	  if (! bfd_elf_link_record_dynamic_symbol (info, h))
+	    return FALSE;
+	}
+
       return TRUE;
     }
 
@@ -3710,7 +3722,7 @@ elf_m68k_relocate_section (output_bfd, info, input_bfd, input_section,
 				   unresolved_reloc, warned);
 	}
 
-      if (sec != NULL && elf_discarded_section (sec))
+      if (sec != NULL && discarded_section (sec))
 	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
 					 rel, relend, howto, contents);
 

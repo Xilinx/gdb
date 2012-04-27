@@ -59,6 +59,7 @@
 
 #include "features/arm-with-m.c"
 #include "features/arm-with-m-fpa-layout.c"
+#include "features/arm-with-m-vfp-d16.c"
 #include "features/arm-with-iwmmxt.c"
 #include "features/arm-with-vfpv2.c"
 #include "features/arm-with-vfpv3.c"
@@ -9686,7 +9687,7 @@ arm_register_g_packet_guesses (struct gdbarch *gdbarch)
 	 cater for remote targets whose register set layout is the
 	 same as the FPA layout.  */
       register_remote_g_packet_guess (gdbarch,
-				      /* r0-r12,sp,lr,pc; f0-f7; fps,cpsr */
+				      /* r0-r12,sp,lr,pc; f0-f7; fps,xpsr */
 				      (16 * INT_REGISTER_SIZE)
 				      + (8 * FP_REGISTER_SIZE)
 				      + (2 * INT_REGISTER_SIZE),
@@ -9698,6 +9699,14 @@ arm_register_g_packet_guesses (struct gdbarch *gdbarch)
 				      (16 * INT_REGISTER_SIZE)
 				      + INT_REGISTER_SIZE,
 				      tdesc_arm_with_m);
+
+      /* M-profile plus M4F VFP.  */
+      register_remote_g_packet_guess (gdbarch,
+				      /* r0-r12,sp,lr,pc; d0-d15; fpscr,xpsr */
+				      (16 * INT_REGISTER_SIZE)
+				      + (16 * VFP_REGISTER_SIZE)
+				      + (2 * INT_REGISTER_SIZE),
+				      tdesc_arm_with_m_vfp_d16);
     }
 
   /* Otherwise we don't have a useful guess.  */
@@ -10333,6 +10342,7 @@ _initialize_arm_tdep (void)
   /* Initialize the standard target descriptions.  */
   initialize_tdesc_arm_with_m ();
   initialize_tdesc_arm_with_m_fpa_layout ();
+  initialize_tdesc_arm_with_m_vfp_d16 ();
   initialize_tdesc_arm_with_iwmmxt ();
   initialize_tdesc_arm_with_vfpv2 ();
   initialize_tdesc_arm_with_vfpv3 ();

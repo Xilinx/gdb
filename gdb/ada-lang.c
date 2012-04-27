@@ -690,7 +690,7 @@ ada_discrete_type_high_bound (struct type *type)
     case TYPE_CODE_RANGE:
       return TYPE_HIGH_BOUND (type);
     case TYPE_CODE_ENUM:
-      return TYPE_FIELD_BITPOS (type, TYPE_NFIELDS (type) - 1);
+      return TYPE_FIELD_ENUMVAL (type, TYPE_NFIELDS (type) - 1);
     case TYPE_CODE_BOOL:
       return 1;
     case TYPE_CODE_CHAR:
@@ -701,7 +701,7 @@ ada_discrete_type_high_bound (struct type *type)
     }
 }
 
-/* The largest value in the domain of TYPE, a discrete type, as an integer.  */
+/* The smallest value in the domain of TYPE, a discrete type, as an integer.  */
 LONGEST
 ada_discrete_type_low_bound (struct type *type)
 {
@@ -710,7 +710,7 @@ ada_discrete_type_low_bound (struct type *type)
     case TYPE_CODE_RANGE:
       return TYPE_LOW_BOUND (type);
     case TYPE_CODE_ENUM:
-      return TYPE_FIELD_BITPOS (type, 0);
+      return TYPE_FIELD_ENUMVAL (type, 0);
     case TYPE_CODE_BOOL:
       return 0;
     case TYPE_CODE_CHAR:
@@ -4479,7 +4479,7 @@ ada_identical_enum_types_p (struct type *type1, struct type *type2)
 
   /* All enums in the type should have an identical underlying value.  */
   for (i = 0; i < TYPE_NFIELDS (type1); i++)
-    if (TYPE_FIELD_BITPOS (type1, i) != TYPE_FIELD_BITPOS (type2, i))
+    if (TYPE_FIELD_ENUMVAL (type1, i) != TYPE_FIELD_ENUMVAL (type2, i))
       return 0;
 
   /* All enumerals should also have the same name (modulo any numerical
@@ -8298,7 +8298,7 @@ pos_atr (struct value *arg)
 
       for (i = 0; i < TYPE_NFIELDS (type); i += 1)
         {
-          if (v == TYPE_FIELD_BITPOS (type, i))
+          if (v == TYPE_FIELD_ENUMVAL (type, i))
             return i;
         }
       error (_("enumeration value is invalid: can't find 'POS"));
@@ -8329,7 +8329,7 @@ value_val_atr (struct type *type, struct value *arg)
 
       if (pos < 0 || pos >= TYPE_NFIELDS (type))
         error (_("argument to 'VAL out of range"));
-      return value_from_longest (type, TYPE_FIELD_BITPOS (type, pos));
+      return value_from_longest (type, TYPE_FIELD_ENUMVAL (type, pos));
     }
   else
     return value_from_longest (type, value_as_long (arg));
@@ -9717,8 +9717,25 @@ ada_evaluate_subexp (struct type *expect_type, struct expression *exp,
         {
         case TYPE_CODE_FUNC:
           if (noside == EVAL_AVOID_SIDE_EFFECTS)
-            return allocate_value (TYPE_TARGET_TYPE (type));
+	    {
+	      struct type *rtype = TYPE_TARGET_TYPE (type);
+
+	      if (TYPE_GNU_IFUNC (type))
+		return allocate_value (TYPE_TARGET_TYPE (rtype));
+	      return allocate_value (rtype);
+	    }
           return call_function_by_hand (argvec[0], nargs, argvec + 1);
+	case TYPE_CODE_INTERNAL_FUNCTION:
+	  if (noside == EVAL_AVOID_SIDE_EFFECTS)
+	    /* We don't know anything about what the internal
+	       function might return, but we have to return
+	       something.  */
+	    return value_zero (builtin_type (exp->gdbarch)->builtin_int,
+			       not_lval);
+	  else
+	    return call_internal_function (exp->gdbarch, exp->language_defn,
+					   argvec[0], nargs, argvec + 1);
+
         case TYPE_CODE_STRUCT:
           {
             int arity;

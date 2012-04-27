@@ -64,7 +64,6 @@
 #include "continuations.h"
 #include "stack.h"
 #include "skip.h"
-#include "record.h"
 #include "gdb_regex.h"
 #include "ax-gdb.h"
 
@@ -404,9 +403,8 @@ show_always_inserted_mode (struct ui_file *file, int from_tty,
 int
 breakpoints_always_inserted_mode (void)
 {
-  return ((always_inserted_mode == always_inserted_on
-	   || (always_inserted_mode == always_inserted_auto && non_stop))
-	  && !RECORD_IS_USED);
+  return (always_inserted_mode == always_inserted_on
+	  || (always_inserted_mode == always_inserted_auto && non_stop));
 }
 
 static const char condition_evaluation_both[] = "host or target";
@@ -2425,6 +2423,19 @@ insert_breakpoints (void)
     insert_breakpoint_locations ();
 }
 
+/* Invoke CALLBACK for each of bp_location.  */
+
+void
+iterate_over_bp_locations (walk_bp_location_callback callback)
+{
+  struct bp_location *loc, **loc_tmp;
+
+  ALL_BP_LOCATIONS (loc, loc_tmp)
+    {
+      callback (loc, NULL);
+    }
+}
+
 /* This is used when we need to synch breakpoint conditions between GDB and the
    target.  It is the case with deleting and disabling of breakpoints when using
    always-inserted mode.  */
@@ -3635,7 +3646,7 @@ breakpoint_thread_match (struct address_space *aspace, CORE_ADDR pc,
    in breakpoint.h.  */
 
 int
-ep_is_catchpoint (struct breakpoint *ep)
+is_catchpoint (struct breakpoint *ep)
 {
   return (ep->type == bp_catchpoint);
 }
@@ -5600,7 +5611,7 @@ print_one_breakpoint_location (struct breakpoint *b,
   if (!part_of_multiple && b->hit_count)
     {
       /* FIXME should make an annotation for this.  */
-      if (ep_is_catchpoint (b))
+      if (is_catchpoint (b))
 	ui_out_text (uiout, "\tcatchpoint");
       else if (is_tracepoint (b))
 	ui_out_text (uiout, "\ttracepoint");

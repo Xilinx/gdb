@@ -1,3 +1,814 @@
+2012-04-26  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix DW_AT_lower_bound defaults for DWARF-4+.
+	* dwarf2read.c (read_subrange_type): Remove initialization of low and
+	high.  New variable low_default_is_valid.  Implement DWARF-4+
+	DW_AT_lower_bound defaults.  Print complaint for DW_AT_lower_bound with
+	no default by the DWARF standard.
+
+2012-04-26  Maciej W. Rozycki  <macro@mips.com>
+            Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* infrun.c (handle_inferior_event): Move the check for return
+	trampolines ahead of the check for function trampolines.
+	* mips-tdep.h (MIPS_S2_REGNUM, MIPS_GP_REGNUM): New macros.
+	* mips-tdep.c (mips_str_mips16_call_stub): New variable.
+	(mips_str_mips16_ret_stub): Likewise.
+	(mips_str_call_fp_stub): Likewise.
+	(mips_str_call_stub): Likewise.
+	(mips_str_fn_stub): Likewise.
+	(mips_str_pic): Likewise.
+	(mips_in_frame_stub): New function.
+	(mips_unwind_pc): Return the return address rather than the PC
+	if the PC of an intermediate frame is inside a call thunk.
+	(mips_is_stub_suffix): New function.
+	(mips_is_stub_mode): Likewise.
+	(mips_get_mips16_fn_stub_pc): Likewise.
+	(mips_skip_mips16_trampoline_code): Update to handle all the
+	currently generated stub types.  Don't recurse into __fn_stub
+	thunks.  Remove heuristics to handle stubs beyond etext/_etext.
+	Use cooked register accesses.
+	(mips_in_return_stub): Reintroduce function.
+	(mips_skip_trampoline_code): Traverse trampolines recursively.
+	(mips_gdbarch_init): Handle MIPS16 return trampolines.
+
+2012-04-26  Joel Brobecker  <brobecker@adacore.com>
+
+	GDB 7.4.1 released.
+
+2012-04-26  Jonathan Larmour  <jifl@eCosCentric.com>
+
+	* arm-tdep.h (VFP_REGISTER_SIZE): Define.
+	* features/arm-with-m-vfp-d16.xml: New file. Describes
+	Cortex-M with VFPv4-sp-d16 FPU register layout.
+	* features/Makefile (WHICH): Add arm-with-m-vfp-d16.
+	* features/arm-with-m-vfp-d16.c: New. Generated from above.
+	* arm-tdep.c: Include arm-with-m-vfp-d16.c.
+	(arm-register_g_packet_guesses): Add vfp-d16 guess.
+	(_initialise_arm_tdep): Initialize arm-with-m-vfp-d16 tdesc.
+
+2012-04-25  Doug Evans  <dje@google.com>
+
+	* cli/cli-decode.c (print_doc_line): Use stream instead of
+	current_uiout.
+
+2012-04-25  Sergio Durigan Junior  <sergiodj@redhat.com>
+
+	* features/arm-with-iwmmxt.c: Regenerate.
+	* features/arm-with-m-fpa-layout.c: Likewise.
+	* features/arm-with-m.c: Likewise.
+	* features/arm-with-neon.c: Likewise.
+	* features/arm-with-vfpv2.c: Likewise.
+	* features/arm-with-vfpv3.c: Likewise.
+	* features/mips-dsp-linux.c: Likewise.
+	* features/mips-linux.c: Likewise.
+	* features/mips64-dsp-linux.c: Likewise.
+	* features/mips64-linux.c: Likewise.
+	* features/s390-linux32.c: Likewise.
+	* features/s390-linux32v1.c: Likewise.
+	* features/s390-linux32v2.c: Likewise.
+	* features/s390-linux64.c: Likewise.
+	* features/s390-linux64v1.c: Likewise.
+	* features/s390-linux64v2.c: Likewise.
+	* features/s390x-linux64.c: Likewise.
+	* features/s390x-linux64v1.c: Likewise.
+	* features/s390x-linux64v2.c: Likewise.
+	* features/tic6x-c62x-linux.c: Likewise.
+	* features/tic6x-c62x.c: Likewise.
+	* features/tic6x-c64x-linux.c: Likewise.
+	* features/tic6x-c64x.c: Likewise.
+	* features/tic6x-c64xp-linux.c: Likewise.
+	* features/tic6x-c64xp.c: Likewise.
+	* target-descriptions.c: Only generate `field_type' and `type'
+	variables when needed.
+
+2012-04-25  Fredrik Hederstierna  <fredrikh.hederstierna@securitas-direct.com>
+
+	* cli/cli-cmds.c (cd_command): Use memmove instead of strcpy.
+
+2012-04-25  Doug Evans  <dje@google.com>
+
+	Initial pass at Go language support.
+	* NEWS: Mention Go.
+	* Makefile.in (SFILES): Add go-exp.y, go-lang.c, go-typeprint.c,
+	go-valprint.c.
+	(COMMON_OBS): Add go-lang.o, go-val.print.o, go-typeprint.o.
+	(YYFILES): Add go-exp.c.
+	(YYOBJ): Add go-exp.o.
+	(local-maintainer-clean): Delete go-exp.c.
+	* defs.h (enum language): Add language_go.
+	* dwarf2read.c: #include "go-lang.h".
+	(fixup_go_packaging): New function.
+	(process_full_comp_unit): Call it when processing Go CUs.
+	(dwarf2_physname): Add Go support.
+	(read_file_scope): Handle missing language spec for GNU Go.
+	(set_cu_language): Handle DW_LANG_Go.
+	* go-exp.y: New file.
+	* go-lang.h: New file.
+	* go-lang.c: New file.
+	* go-typeprint.c: New file.
+	* go-valprint.c: New file.
+	* symtab.c: #include "go-lang.h".
+	(symbol_set_language): Handle language_go.
+	(symbol_find_demangled_name, symbol_set_names): Ditto.
+	(symbol_natural_name, demangle_for_lookup, find_main_name): Ditto.
+
+2012-04-24  Jim Meyering  <meyering@redhat.com>
+
+	avoid a few strncpy-induced buffer overruns
+	* procfs.c (procfs_make_note_section): Be sure to NUL-terminate
+	fname and psargs before trying to concatenate.
+	* tui/tui-stack.c (tui_get_function_from_frame): NUL-terminate
+	"name" before applying strchr.
+
+2012-04-25  Siva Chandra Reddy  <sivachandra@google.com>
+
+	* CONTRIBUTE: Use unified diff instead of context diff when
+	generating patches.
+
+2012-04-24  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* mips-tdep.c (mips_about_to_return): Remove dead MIPS16 support
+	code.  Handle JR.HB correctly.
+
+2012-04-24  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* mips-tdep.c
+	(is_mips16_addr, unmake_mips16_addr, make_mips16_addr): Group
+	with the other MIPS16 helpers.
+
+2012-04-24  Sergio Durigan Junior  <sergiodj@redhat.com>
+
+	* observer.sh: Conditionally declare `args', thus cleaning up
+	unused instances of this variable.
+
+2012-04-24  Yao Qi  <yao@codesourcery.com>
+
+	Revert this patch to allow breakpoint always-inserted
+	in record target.
+	2011-12-05  Pedro Alves  <pedro@codesourcery.com>
+        * breakpoint.c: Include record.h.
+        (breakpoints_always_inserted_mode): Return false when the record
+        target is in use.
+
+	* breakpoint.c (iterate_over_bp_locations): New.
+	* breakpoint.h: Declare.
+	New typedef walk_bp_location_callback.
+	* record.c (record_open): Call record_init_record_breakpoints.
+	(record_sync_record_breakpoints): New.
+	(record_init_record_breakpoints): New.
+	* NEWS: Mention supporting breakpoint always-inserted mode in
+	record target.
+
+2012-04-24  Marc Khouzam  <marc.khouzam@ericsson.com>
+
+	* mi/mi-main.c (mi_cmd_execute): Choose a live thread not just
+	any thread.
+
+2012-04-24  Yao Qi  <yao@codesourcery.com>
+
+	* breakpoint.c (ep_is_catchpoint): Renamed to ...
+	(is_catchpoint): ... it.
+	(print_one_breakpoint_location): Caller update.
+	* breakpoint.h: Update declaration.
+
+2012-04-23  David S. Miller  <davem@davemloft.net>
+
+	* configure.tgt (sparc-*-linux*): Set build_gdbserver to yes.
+
+2012-04-23  Tom Tromey  <tromey@redhat.com>
+
+	* buildsym.c (add_free_pendings): Remove.
+	* buildsym.h (add_free_pendings): Remove.
+
+2012-04-23  Doug Evans  <dje@google.com>
+
+	* dwarf2read.c (partial_die_full_name): Record DW_FORM_ref_addr in
+	attr.u.unsnd instead of attr.u.addr.
+	(read_attribute_value) Ditto for cases DW_FORM_ref_addr,
+	DW_FORM_ref1, DW_FORM_ref2, DW_FORM_ref4, DW_FORM_reg8,
+	DW_FORM_ref_udata.
+	(dump_die_shallow): Update cases DW_FORM_ref_addr,
+	DW_FORM_ref1, DW_FORM_ref2, DW_FORM_ref4.  Add cases DW_FORM_ref8,
+	DW_FORM_ref_udata.
+	(dwarf2_get_ref_die_offset): Use DW_UNSND for reference attributes.
+
+2012-04-23  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* mips-tdep.c (mips_n32n64_return_value): Fix coding style.
+	(mips_o32_return_value): Likewise.
+	(mips_o64_return_value): Likewise.
+
+2012-04-21  Paul Hilfinger  <hilfinger@adacore.com>
+
+	* ada-lang.c (ada_evaluate_subexp): Add cases for
+        TYPE_CODE_INTERNAL_FUNCTION and for TYPE_GNU_IFUNC, following
+        their treatment in eval.c.
+
+2012-04-21  David S. Miller  <davem@davemloft.net>
+
+	* sparc-tdep.c (X_DISP10): Define.
+	(sparc_analyze_control_transfer): Handle compare-and-branch.
+
+2012-04-21  Jonathan Larmour  <jifl@eCosCentric.com>
+
+	* features/Makefile (WHICH): Add arm-with-m and arm-with-m-fpa-layout.
+	* arm-tdep.c (arm_register_g_packet_guesses): Fix comment.
+
+2012-04-20  Nigel Stephens  <nigel@mips.com>
+            Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* mips-tdep.c (mips_float_register_p): New function.
+	(mips_convert_register_float_case_p): Use mips_float_register_p.
+	(mips_register_type): Likewise.
+	(mips_print_register): Likewise.
+	(print_gp_register_row): Likewise.
+	(mips_print_registers_info): Likewise.
+
+2012-04-20  Shun-Yen Lu  <dark.asparagus@gmail.com>
+
+	* mips-tdep.c (mips_elf_make_msymbol_special): Fix identification
+	of mips16 symbols.
+
+2012-04-20  Andrew Pinski  <apinski@cavium.com>
+
+	* MAINTAINERS (Write After Approval): Add myself to the list.
+
+2012-04-20  Sergio Durigan Junior  <sergiodj@redhat.com>
+
+	* MAINTAINERS: Update my e-mail address.
+
+2012-04-20  Pedro Alves  <palves@redhat.com>
+
+	* acx_configure_dir.m4 (ACX_CONFIGURE_DIR): Handle absolute
+	$srcdir.
+	* configure: Regenerate.
+
+2012-04-20  Sergio Durigan Junior  <sergiodj@redhat.com>
+
+	* cp-support.h: Include `gdb_vecs.h'.  Delete `const_char_ptr' VEC
+	declaration.
+	* gdb_vecs.h: Declare `const_char_ptr' VEC.
+
+2012-04-20  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix compilation compatibility with python-2.4
+	* python/py-type.c (convert_field): Cast ADDRSTRING for
+	PyObject_SetAttrString as non-const.  New comment.
+
+2012-04-19  Tom Tromey  <tromey@redhat.com>
+
+	* top.c (quit_target): Use all_cleanups.
+	* main.c (captured_command_loop): Use all_cleanups.
+	* exceptions.c (throw_exception): Use all_cleanups.
+
+2012-04-19  Pedro Alves  <palves@redhat.com>
+
+	* Makefile.in (GNULIB_BUILDDIR): New.
+	(LIBGNU, INCGNU, GNULIB_H): Adjust.
+	(SUBDIRS): Add $(GNULIB_BUILDDIR).
+	(CLEANDIRS). Remove gnulib/import.
+	(REQUIRED_SUBDIRS): Replace gnulib/import with $(GNULIB_BUILDDIR).
+	(all-lib): Ditto.
+	(distclean): Remove the $(GNULIB_BUILDDIR) directory.
+	(gnulib/import/Makefile): Replace gnulib/import with
+	$(GNULIB_BUILDDIR).  Set CONFIG_FILES to just Makefile.
+	(ACLOCAL_AMFLAGS): Remove '-I gnulib/import/m4'.
+	(aclocal_m4_deps): Remove the gnulib dependencies.  Add
+	acx_configure_dir.m4.
+	* acinclude.m4: Include acx_configure_dir.m4.
+	* acx_configure_dir.m4: New file.
+	* aclocal.m4: Regenerate.
+	* configure.ac: Remove gl_EARLY, gl_INIT and AM_INIT_AUTOMAKE
+	calls.	Configure gnulib using ACX_CONFIGURE_DIR.
+	(GNULIB): New variable.
+	(GNULIB_STDINT_H): Adjust.
+	(AC_OUTPUT): Don't output gnulib/Makefile.
+	* gdb/defs.h: Include build-gnulib/config.h.
+	* aclocal.m4: Regenerate.
+	* config.in: Regenerate.
+	* configure: Regenerate.
+
+	* gnulib/Makefile.in: New file.
+	* gnulib/configure.ac: New file.
+	* gnulib/aclocal.m4: New file.
+	* gnulib/config.in: New file.
+	* gnulib/configure: New file.
+	* gnulib/: Re-run gnulib-tool to adjust.
+
+2012-04-19  Doug Evans  <dje@google.com>
+
+	* cleanups.h (struct cleanup): Move to cleanups.c.
+	(make_cleanup_dtor_ftype): New typedef.
+	(make_cleanup_dtor): Use it.
+	(ALL_CLEANUPS): Replace with ...
+	(all_cleanups): ... this.  Declare.  All uses updated.
+	* cleanups.c: #include "gdb_assert.h".
+	(sentinel_cleanup): New static global.
+	(SENTINEL_CLEANUP): Define.
+	(cleanup_chain, final_cleanup_chain): Initialize to SENTINEL_CLEANUP.
+	(make_my_cleanup2): Assert result is non-NULL.
+	(all_cleanups): New function.
+	(save_my_cleanups): Initialize new chain to SENTINEL_CLEANUP instead
+	of NULL.
+
+2012-04-19  Pedro Alves  <palves@redhat.com>
+
+	* Makefile.in (HFILES_NO_SRCDIR): Remove gnulib/wchar.in.h.
+	Adjust paths to gnulib imported files.
+
+2012-04-19  Pedro Alves  <palves@redhat.com>
+
+	* gnulib/: Move whole directory ...
+	* gnulib/import/: ... here, and re-rerun gnulib-tool to adjust.
+	* Makefile.in (LIBGNU, INCGNU, GNULIB_H, CLEANDIRS)
+	(REQUIRED_SUBDIRS, all-lib, gnulib/Makefile, ACLOCAL_AMFLAGS)
+	(aclocal_m4_deps): Adjust.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+	* configure.ac: Adjust AC_OUTPUT output.
+
+2012-04-19  Yao Qi  <yao@codesourcery.com>
+
+	* Makefile.in (SFILES): Add common/vec.c and remove vec.c.
+	(vec.o): New rule.
+	* vec.c: Move it ...
+	* common/vec.c: ... here.
+	* vec.h: Move it ...
+	* common/vec.h: ... here.
+
+2012-04-19  Yao Qi  <yao@codesourcery.com>
+
+	* gdb-code-style.el: New.
+
+2012-04-18  Pedro Alves  <palves@redhat.com>
+
+	Update gnulib from latest git.
+	(639ea5ae15e39fe48d43e04864b2997301e4b969)
+
+	* gnulib/Makefile.am: Update.
+	* gnulib/dummy.c: Update.
+	* gnulib/extra/arg-nonnull.h: Update.
+	* gnulib/extra/c++defs.h: Update.
+	* gnulib/extra/update-copyright: Update.
+	* gnulib/extra/warn-on-use.h: Update.
+	* gnulib/inttypes.in.h: Update.
+	* gnulib/m4/00gnulib.m4: Update.
+	* gnulib/m4/extensions.m4: Update.
+	* gnulib/m4/gnulib-cache.m4: Update.
+	* gnulib/m4/gnulib-common.m4: Update.
+	* gnulib/m4/gnulib-comp.m4: Update.
+	* gnulib/m4/gnulib-tool.m4: Update.
+	* gnulib/m4/include_next.m4: Update.
+	* gnulib/m4/inttypes-pri.m4: Update.
+	* gnulib/m4/inttypes.m4: Update.
+	* gnulib/m4/longlong.m4: Update.
+	* gnulib/m4/memchr.m4: Update.
+	* gnulib/m4/memmem.m4: Update.
+	* gnulib/m4/mmap-anon.m4: Update.
+	* gnulib/m4/multiarch.m4: Update.
+	* gnulib/m4/onceonly.m4: Update.
+	* gnulib/m4/stddef_h.m4: Update.
+	* gnulib/m4/stdint.m4: Update.
+	* gnulib/m4/string_h.m4: Update.
+	* gnulib/m4/warn-on-use.m4: Update.
+	* gnulib/m4/wchar_h.m4: Update.
+	* gnulib/m4/wchar_t.m4: Update.
+	* gnulib/m4/wint_t.m4: Update.
+	* gnulib/memchr.c: Update.
+	* gnulib/memmem.c: Update.
+	* gnulib/stddef.in.h: Update.
+	* gnulib/stdint.in.h: Update.
+	* gnulib/str-two-way.h: Update.
+	* gnulib/string.in.h: Update.
+	* gnulib/wchar.in.h: Update.
+
+	* gnulib/extra/arg-nonnull.h: Delete.
+	* gnulib/extra/c++defs.h: Delete.
+	* gnulib/extra/warn-on-use.h: Delete.
+	* gnulib/m4/wchar_h.m4: Delete.
+	* gnulib/m4/wint_t.m4: Delete.
+	* gnulib/wchar.in.h: Delete.
+
+	* gnulib/extra/snippets/arg-nonnull.h: New.
+	* gnulib/extra/snippets/c++defs.h: New.
+	* gnulib/extra/snippets/warn-on-use.h: New.
+
+	* aclocal.m4: Regenerate.
+	* config.in: Regenerate.
+	* configure: Regenerate.
+	* gnulib/Makefile.in: Regenerate.
+
+2012-04-18  Pedro Alves  <palves@redhat.com>
+
+	Reimport the update-copyright module from gnulib
+	(250b80067c1e1d8faa0c42fb572f721975b929c5).
+
+	* configure: Regenerate.
+	* gnulib/Makefile.am: Update.
+	* gnulib/Makefile.in: Regenerate.
+	* gnulib/extra/update-copyright: Update.
+	* gnulib/m4/gnulib-cache.m4: Update.
+	* gnulib/m4/gnulib-comp.m4: Update.
+
+2012-04-18  Tristan Gingold  <gingold@adacore.com>
+
+	* configure.ac (aix): Put -lpthread into libs.
+	* configure: Regenerate.
+
+2012-04-18  Tom Tromey  <tromey@redhat.com>
+
+	* linespec.c (convert_linespec_to_sals): Don't use
+	SYMBOL_OBJ_SECTION.
+	(compare_msymbols): Arguments are minsym_and_objfile, not
+	minimal_symbol*.  Don't use SYMBOL_OBJ_SECTION.
+
+2012-04-18  Pedro Alves  <palves@redhat.com>
+
+	Revert gnulib/ part of:
+	2011-01-01  Joel Brobecker  <brobecker@adacore.com>
+	Copyright year update in most files (performed by copyright.sh).
+
+2012-04-18  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix 64-bit constants on 32-bit hosts.
+	* dwarf2read.c (read_unsigned_leb128): Change declaration return type
+	from unsigned long to ULONGEST.
+	(read_signed_leb128): Change declaration return type from long to
+	LONGEST.
+	(dwarf2_const_value_attr): Change declaration parameter value from long
+	to LONGEST.
+	(dwarf2_compute_name): Change variable value from long to LONGEST.
+	(read_unsigned_leb128): Change return type, variable result and some
+	casts from unsigned long to ULONGEST.
+	(read_signed_leb128): Change return type, variable result and some
+	casts from long to LONGEST.
+	(dwarf2_const_value_data, dwarf2_const_value_attr): Change parameter
+	value from long to LONGEST.
+	(dwarf2_const_value): Change variable value from long to LONGEST.
+	* symmisc.c (print_symbol): Change SYMBOL_VALUE format strings to use
+	plongest and hex_string.
+	* symtab.h (struct general_symbol_info): Change ivalue from long to
+	LONGEST, remove the comment.
+	* tracepoint.c (validate_actionline, collect_symbol, scope_info):
+	Change SYMBOL_VALUE format strings to use plongest and hex_string.
+
+2012-04-18  Siddhesh Poyarekar  <siddhesh@redhat.com>
+
+	PR symtab/7259:
+	* ada-exp.y (convert_char_literal): Use TYPE_FIELD_ENUMVAL.
+	* ada-lang.c (ada_discrete_type_high_bound)
+	(ada_discrete_type_low_bound): Fix function comment.  Use
+	TYPE_FIELD_ENUMVAL for TYPE_CODE_ENUM.
+	(ada_identical_enum_types_p): Use TYPE_FIELD_ENUMVAL.
+	(pos_atr, value_val_atr): Use TYPE_FIELD_ENUMVAL for TYPE_CODE_ENUM.
+	* ada-typeprint.c (print_enum_type): Change variable lastval to LONGEST.
+	Use TYPE_FIELD_ENUMVAL.
+	* ada-valprint.c (print_optional_low_bound, ada_print_scalar)
+	(ada_val_print_1): Use TYPE_FIELD_ENUMVAL for TYPE_CODE_ENUM.
+	* c-typeprint.c (c_type_print_base): Move variable lastval to inner
+	block, change it to LONGEST.  Use TYPE_FIELD_ENUMVAL for
+	TYPE_CODE_ENUM.
+	* coffread.c (coff_read_enum_type): Use SET_FIELD_ENUMVAL.
+	* dwarf2read.c (process_enumeration_scope): Likewise.
+	* gdb-gdb.py (TypeFlagsPrinter): Use field.enumval instead of
+	field.bitpos.
+	(class StructMainTypePrettyPrinter): Support also
+	FIELD_LOC_KIND_ENUMVAL.
+	* gdbtypes.c (get_discrete_bounds): Use TYPE_FIELD_ENUMVAL for
+	TYPE_CODE_ENUM.
+	(recursive_dump_type): Use TYPE_FIELD_ENUMVAL for TYPE_CODE_ENUM.
+	(copy_type_recursive): Support also FIELD_LOC_KIND_ENUMVAL.
+	* gdbtypes.h (enum field_loc_kind): New FIELD_LOC_KIND_ENUMVAL.
+	(struct main_type.flds_bnds.fields.loc): Adjust bitpos comment.  New
+	field enumval.
+	(struct main_type.flds_bnds.bields): Adjust loc_kind and bitsize to
+	accommodate enumval.
+	(struct call_site): Adjust loc_kind to accommodate enumval.
+	(FIELD_ENUMVAL, FIELD_ENUMVAL_LVAL, SET_FIELD_ENUMVAL)
+	(TYPE_FIELD_ENUMVAL): New macros.
+	* m2-typeprint.c (m2_enum): Use TYPE_FIELD_ENUMVAL.
+	* mdebugread.c (parse_symbol): Use TYPE_FIELD_ENUMVAL for
+	TYPE_CODE_ENUM.
+	* p-typeprint.c (pascal_type_print_base): Likewise.
+	* python/lib/gdb/printing.py (class FlagEnumerationPrinter): Use
+	enumval.
+	* python/lib/gdb/types.py (make_enum_dict): Likewise.
+	* python/py-type.c (convert_field): New variable addrstring.  Use
+	TYPE_FIELD_ENUMVAL for TYPE_CODE_ENUM.
+	(check_types_equal): Support also FIELD_LOC_KIND_ENUMVAL.
+	* stabsread.c (read_enum_type): Use SET_FIELD_ENUMVAL.
+	* typepint.c (print_type_scalar): Use TYPE_FIELD_ENUMVAL for
+	TYPE_CODE_ENUM.
+	* valprint.c (generic_val_print): Likewise.
+
+2012-04-17  Doug Evans  <dje@google.com>
+
+	* dwarf2read.c (lookup_signatured_type): Return NULL instead of 0.
+
+	* dwarf2read.c: Whitespace fixes.
+	(lookup_signatured_type): Tweak comment.
+	(get_die_type_at_offset): Fix comment.
+
+2012-04-17  Joel Brobecker  <brobecker@adacore.com>
+
+	* xcoffread.c (xcoff_secnum_to_sections): New function.
+	(secnum_to_section, secnum_to_bfd_section): Reimplement
+	using xcoff_secnum_to_sections.  Rename "secnum" parameter
+	into "n_scnum".
+	(RECORD_MINIMAL_SYMBOL): Delete.
+	(record_minimal_symbol): New function.
+	(scan_xcoff_symtab): Replace uses of RECORD_MINIMAL_SYMBOL
+	by call to record_minimal_symbol and set misc_func_recorded
+	to 1.  Set last_csect_sec to the XCOFF section index instead
+	of GDB's section_offset index.  Update calls to
+	prim_record_minimal_symbol_and_info to pass the BFD section
+	as well.
+
+2012-04-17  Joel Brobecker  <brobecker@adacore.com>
+
+	* xcoffread.c (read_xcoff_symtab): Delete variables
+	last_csect_val and last_csect_sec and associated code.
+
+2012-04-17  Doug Evans  <dje@google.com>
+
+	* cleanups.c (make_my_cleanup,make_my_cleanup2): Make static.
+	(discard_my_cleanups,save_my_cleanups,restore_my_cleanups): Ditto.
+	* cleanups.h (make_my_cleanup,make_my_cleanup2): Delete
+	(discard_my_cleanups,save_my_cleanups,restore_my_cleanups): Delete.
+
+	* cleanups.h: New file.
+	* cleanups.c: New file.
+	* Makefile.in (SFILES): Add cleanups.c.
+	(HFILES_NO_SRCDIR): Add cleanups.h.
+	(COMMON_OBS): Add cleanups.o.
+	* defs.h (struct cleanup): Moved to cleanups.h.
+	(do_cleanups,do_final_cleanups): Ditto.
+	(discard_cleanups,discard_final_cleanups): Ditto
+	(make_cleanup,make_cleanup_dtor,make_final_cleanup): Ditto.
+	(save_cleanups,save_final_cleanups): Ditto.
+	(restore_cleanups,restore_final_cleanups): Ditto.
+	(null_cleanup): Ditto.
+	(make_my_cleanup,make_my_cleanup2): Ditto.
+	(discard_my_cleanups,save_my_cleanups,restore_my_cleanups): Ditto.
+	* utils.c (cleanup_chain,final_cleanup_chain): Moved to cleanups.c.
+	(do_cleanups,do_final_cleanups): Ditto.
+	(discard_cleanups,discard_final_cleanups): Ditto
+	(make_cleanup,make_cleanup_dtor,make_final_cleanup): Ditto.
+	(save_cleanups,save_final_cleanups): Ditto.
+	(restore_cleanups,restore_final_cleanups): Ditto.
+	(null_cleanup): Ditto.
+	(make_my_cleanup,make_my_cleanup2): Ditto.
+	(discard_my_cleanups,save_my_cleanups,restore_my_cleanups): Ditto.
+
+	* utils.c (make_cleanup_freeargv): Use make_cleanup instead of
+	make_my_cleanup.
+	(make_cleanup_dyn_string_delete): Ditto.
+	(make_cleanup_ui_file_delete): Ditto.
+	(make_cleanup_ui_out_redirect_pop): Ditto.
+	(make_cleanup_free_section_addr_info): Ditto.
+	(make_cleanup_restore_integer): Ditto.
+	(make_cleanup_unpush_target): Ditto.
+	(make_cleanup_value_free_to_mark): Ditto.
+	(make_cleanup_value_free): Ditto.
+	(make_cleanup_free_so): Ditto.
+
+2012-04-17  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	New option "set debug auto-load".
+	* NEWS: New commands "set debug auto-load" and "show debug auto-load".
+	* auto-load.c (debug_auto_load, show_debug_auto_load: New.
+	(auto_load_safe_path_vec_update)
+	(filename_is_in_auto_load_safe_path_vec): Call fprintf_unfiltered
+	if DEBUG_AUTO_LOAD.
+	(file_is_auto_load_safe): New parameters debug_fmt and ....
+	Call fprintf_unfiltered if DEBUG_AUTO_LOAD.
+	(source_gdb_script_for_objfile): Extend the file_is_auto_load_safe
+	caller by explanatory string.
+	(_initialize_auto_load): Register "set debug auto-load".
+	* auto-load.h (file_is_auto_load_safe): New parameters debug_fmt
+	and ....
+	* linux-thread-db.c (try_thread_db_load_from_pdir_1)
+	(try_thread_db_load_from_dir): Extend the file_is_auto_load_safe caller
+	by explanatory string.
+	* main.c (captured_main): Likewise.
+	* python/py-auto-load.c (gdbpy_load_auto_script_for_objfile)
+	(source_section_scripts): Likewise.
+
+2012-04-17  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	New option "set auto-load safe-path".
+	* NEWS: New commands "set auto-load safe-path"
+	and "show auto-load safe-path".
+	* auto-load.c: Include gdb_vecs.h, readline/tilde.h and completer.h.
+	(auto_load_safe_path, auto_load_safe_path_vec)
+	(auto_load_safe_path_vec_update, set_auto_load_safe_path)
+	(show_auto_load_safe_path, add_auto_load_safe_path, filename_is_in_dir)
+	(filename_is_in_auto_load_safe_path_vec, file_is_auto_load_safe): New.
+	(source_gdb_script_for_objfile): New variable is_safe.  Call
+	file_is_auto_load_safe.  Return if it is not.
+	(struct loaded_script): New field loaded.
+	(maybe_add_script): Add parameter loaded.  Initialize SLOT with it.
+	(print_script): Use LOADED indicator instead of FULL_PATH.  Change
+	output "Missing" to "No".
+	(_initialize_auto_load): New variable cmd.  Initialize
+	auto_load_safe_path.  Register "set auto-load safe-path",
+	"show auto-load safe-path" and "add-auto-load-safe-path".
+	* auto-load.h (maybe_add_script): Add parameter loaded.
+	(file_is_auto_load_safe): New declaration.
+	* config.in: Regenerate.
+	* configure: Regenerate.
+	* configure.ac: New parameters --with-auto-load-safe-path
+	and --without-auto-load-safe-path.
+	* linux-thread-db.c (try_thread_db_load_from_pdir_1)
+	(try_thread_db_load_from_dir): Check file_is_auto_load_safe first.
+	* main.c (captured_main): Check file_is_auto_load_safe for
+	LOCAL_GDBINIT.
+	* python/py-auto-load.c (gdbpy_load_auto_script_for_objfile): New
+	variable is_safe.  Call file_is_auto_load_safe.  Return if it is not.
+	(source_section_scripts): Call file_is_auto_load_safe.  Return if it is
+	not.
+
+2012-04-17  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	auto-load: Implementation.
+	* NEWS: New descriptions for "info auto-load",
+	"info auto-load gdb-scripts", "info auto-load python-scripts",
+	"info auto-load local-gdbinit" and "info auto-load libthread-db".
+	Deprecate "info auto-load-scripts", "set auto-load-scripts on|off"
+	and "show auto-load-scripts".  New description for "set auto-load",
+	"show auto-load", "set auto-load gdb-scripts",
+	"show auto-load gdb-scripts", "set auto-load python-scripts",
+	"show auto-load python-scripts", "set auto-load local-gdbinit",
+	"show auto-load local-gdbinit", "set auto-load libthread-db" and
+	"show auto-load libthread-db".
+	* auto-load.c: Remove include python/python-internal.h.  Add includes
+	exceptions.h, cli/cli-script.h, gdbcmd.h, cli/cli-decode.h and
+	cli/cli-setshow.h.
+	(GDB_AUTO_FILE_NAME, source_gdb_script_for_objfile)
+	(auto_load_gdb_scripts, show_auto_load_gdb_scripts): New.
+	(gdbpy_global_auto_load): Rename to ...
+	(global_auto_load): ... here.
+	(auto_load_local_gdbinit, auto_load_local_gdbinit_pathname)
+	(auto_load_local_gdbinit_loaded, show_auto_load_local_gdbinit)
+	(script_language_gdb, source_gdb_script_for_objfile): New.
+	(struct loaded_script): New field language.
+	(hash_loaded_script_entry, eq_loaded_script_entry): Calculate also
+	LANGUAGE.
+	(maybe_add_script): Add parameter language.  Drop redundant
+	entry.full_path initialization.  Initialize entry.language and
+	(*slot)->language.
+	(auto_load_objfile_script): Change parameter suffix to language.
+	Remove the call of maybe_add_script.
+	Call language->source_script_for_objfile.
+	(load_auto_scripts_for_objfile, struct collect_matching_scripts_data):
+	New.
+	(collect_matching_scripts): Adjust it for
+	struct collect_matching_scripts_data.
+	(auto_load_info_scripts_pattern_nl): New variable.
+	(info_auto_load_scripts): Rename to ...
+	(auto_load_info_scripts): ... here, add parameter language.  Adjust it
+	for struct collect_matching_scripts_data.
+	(info_auto_load_gdb_scripts, info_auto_load_local_gdbinit)
+	(set_auto_load_cmd, auto_load_set_cmdlist_get, show_auto_load_cmd)
+	(auto_load_show_cmdlist_get, info_auto_load_cmd)
+	(auto_load_info_cmdlist_get): New.
+	(_initialize_auto_load): Move add_info of "auto-load-scripts" to
+	python/py-auto-load.c.  New installment for "set auto-load gdb-scripts",
+	"info auto-load gdb-scripts", "set auto-load local-gdbinit" and
+	"info auto-load local-gdbinit".
+	* auto-load.h (struct script_language): New.
+	(gdbpy_global_auto_load): Rename to ...
+	(global_auto_load): ... here.
+	(auto_load_local_gdbinit, auto_load_local_gdbinit_pathname)
+	(auto_load_local_gdbinit_loaded): New declarations.
+	(maybe_add_script): New parameter language.
+	(auto_load_objfile_script): Change parameter suffix to language.
+	(load_auto_scripts_for_objfile, auto_load_info_scripts_pattern_nl)
+	(auto_load_info_scripts, auto_load_set_cmdlist_get)
+	(auto_load_show_cmdlist_get, auto_load_info_cmdlist_get): New
+	declarations.
+	* linux-thread-db.c: Include auto-load.h and ctype.h.
+	(auto_load_thread_db, show_auto_load_thread_db): New.
+	(struct thread_db_info): New field filename.
+	(delete_thread_db_info): Call xfree for FILENAME.
+	(try_thread_db_load): Initialize FILENAME.
+	(try_thread_db_load_from_pdir, try_thread_db_load_from_dir): Return
+	if !AUTO_LOAD_THREAD_DB.
+	(info_auto_load_libthread_db_compare, info_auto_load_libthread_db): New.
+	(_initialize_thread_db): Install auto_load_thread_db
+	as "set auto-load libthread-db" and install info_auto_load_libthread_db
+	as "info auto-load libthread-db".
+	* main.c (captured_main): Rename gdbpy_global_auto_load to
+	global_auto_load.  Initialize AUTO_LOAD_LOCAL_GDBINIT_PATHNAME and
+	AUTO_LOAD_LOCAL_GDBINIT_LOADED.
+	(print_gdb_help): Extend the help for 'local init file'.
+	* python/py-auto-load.c: Remove a comment about gdb scripts extension.
+	(GDBPY_AUTO_SECTION_NAME): Extend the comment it is Python specific.
+	(auto_load_scripts): Rename to ...
+	(auto_load_python_scripts): ... here, update the comment.
+	(gdbpy_load_auto_script_for_objfile): New declaration.
+	(show_auto_load_python_scripts, script_language_python)
+	(gdbpy_load_auto_script_for_objfile): New.
+	(source_section_scripts): Refactor the code.
+	(load_auto_scripts_for_objfile): Rename to ...
+	(gdbpy_load_auto_scripts_for_objfile): ... here, update the
+	auto_load_objfile_script caller, drop GDBPY_GLOBAL_AUTO_LOAD checking.
+	(info_auto_load_python_scripts): New.
+	(gdbpy_initialize_auto_load): New variables cmd and cmd_name.
+	Rename "set auto-load-scripts" to "set auto-load python-scripts".
+	Register "set auto-load-scripts" as its deprecated alias.  Register
+	"info auto-load python-scripts".  Register "info auto-load-scripts" as
+	its deprecated alias.
+	(load_auto_scripts_for_objfile): Rename to ...
+	(gdbpy_load_auto_scripts_for_objfile): ... here.
+	* python/python.h (load_auto_scripts_for_objfile): Rename to ...
+	(gdbpy_load_auto_scripts_for_objfile): ... here.
+
+2012-04-17  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	auto-load: Move files.
+	* Makefile.in (SFILES): Add auto-load.c.
+	(HFILES_NO_SRCDIR): Add auto-load.h.
+	(COMMON_OBS): Add auto-load.o.
+	(distclean): Change .gdbinit for gdb-gdb.gdb.
+	* auto-load.c: New file, with parts from python/py-auto-load.c.
+	* auto-load.h: New file, with parts from python/python.h.
+	* configure: Regenerate.
+	* configure.ac (AC_OUTPUT): Change .gdbinit for gdb-gdb.gdb.
+	* gdb-gdb.gdb.in: New file, renamed from gdbinit.in.
+	* gdbinit.in: Remove file, rename it to gdb-gdb.gdb.in.
+	* main.c: Include auto-load.h.
+	* python/py-auto-load.c: Move include filenames.h, gdb_regex.h,
+	command.h, observer.h and progspace.h to auto-load.c.  Add include
+	auto-load.h.
+	(gdbpy_global_auto_load, struct auto_load_pspace_info)
+	(struct loaded_script, auto_load_pspace_data)
+	(auto_load_pspace_data_cleanup, get_auto_load_pspace_data)
+	(hash_loaded_script_entry, eq_loaded_script_entry)
+	(init_loaded_scripts_info, get_auto_load_pspace_data_for_loading)
+	(maybe_add_script): Move to auto-load.c.
+	(source_section_scripts): Change maybe_add_script parameters passing,
+	use script_not_found_warning_print.
+	(clear_section_scripts, auto_load_objfile_script)
+	(auto_load_new_objfile, loaded_script_ptr)
+	(DEF_VEC_P (loaded_script_ptr), collect_matching_scripts, print_script)
+	(sort_scripts_by_name, info_auto_load_scripts): Move to auto-load.c.
+	(gdbpy_initialize_auto_load): Move auto_load_pspace_data,
+	auto_load_new_objfile and info_auto_load_scripts initizations to
+	auto-load.c.
+	* python/python.h (gdbpy_global_auto_load): Move to auto-load.h.
+
+2012-04-17  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Code cleanup.
+	* charset.c (find_charset_names): Remove variables ix and elt.
+	Use free_char_ptr_vec.
+	* elfread.c (build_id_to_debug_filename): New variables debugdir_vec,
+	back_to and ix.  Use dirnames_to_char_ptr_vec.  Remove variable
+	debugdir_end.  New variable debugdir_len.
+	* gdb_vecs.h (free_char_ptr_vec, make_cleanup_free_char_ptr_vec)
+	(dirnames_to_char_ptr_vec_append, dirnames_to_char_ptr_vec): New
+	declarations.
+	* progspace.c (clear_program_space_solib_cache): Remove variables ix
+	and elt.  Use free_char_ptr_vec.
+	* source.c (add_path): Remove variables argv, arg and argv_index.
+	New variables dir_vec, back_to, ix and name.
+	Use dirnames_to_char_ptr_vec_append.  Use freeargv instead of
+	make_cleanup_freeargv.  Remove variable separator.  Simplify the code
+	no longer expecting DIRNAME_SEPARATOR.
+	(openp): Remove variable p, p1 and len.  New variables dir_vec,
+	back_to, ix and dir.  Use dirnames_to_char_ptr_vec.  Simplify the code
+	no longer expecting DIRNAME_SEPARATOR.
+	* symfile.c (find_separate_debug_file): New variables debugdir_vec,
+	back_to and ix.  Use dirnames_to_char_ptr_vec.  Remove variable
+	debugdir_end.
+	* utils.c (free_char_ptr_vec, do_free_char_ptr_vec)
+	(make_cleanup_free_char_ptr_vec, dirnames_to_char_ptr_vec_append)
+	(dirnames_to_char_ptr_vec): New functions.
+
+2012-04-17  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Code cleanup.
+	* source.c (add_path): Remove always true conditional 'p == 0' and
+	unindent its code block.
+
+2012-04-17  Pedro Alves  <palves@redhat.com>
+
+	* gdbtypes.h (FIELD_BITPOS): Rename to ...
+	(FIELD_BITPOS_LVAL): ... this.
+	(FIELD_BITPOS): New.
+	(SET_FIELD_BITPOS): Adjust to use FIELD_BITPOS_LVAL.
+	* dwarf2read.c (dwarf2_add_field): Use SET_FIELD_BITPOS.
+	* gdbtypes.c (append_composite_type_field_aligned): Adjust to use
+	SET_FIELD_BITPOS.
+	* gnu-v3-abi.c (build_gdb_vtable_type): Adjust to use
+	SET_FIELD_BITPOS.
+	* stabsread.c (read_cpp_abbrev, read_one_struct_field)
+	(read_baseclasses): Adjust to use SET_FIELD_BITPOS.
+	* target-descriptions.c (tdesc_gdb_type): Adjust to use
+	SET_FIELD_BITPOS.
+
 2012-04-17  Jan Kratochvil  <jan.kratochvil@redhat.com>
 
 	Do not rely on FIELD_LOC_KIND_BITPOS being zero.
@@ -28,11 +839,11 @@
 	objects.
 	(update_dynamic_varobj_children): Updated for install_dynamic_child
 	change.  All callers updated.
-	(varobj_update): Support for MI variable object type change if 
+	(varobj_update): Support for MI variable object type change if
 	the value changed and RTTI is used to determine the type.
 	(create_child_with_value): Call value_actual_type instead of
 	value_type.
-	(adjust_value_for_child_access): Extended with a new parameter which 
+	(adjust_value_for_child_access): Extended with a new parameter which
 	specify whether the given value should be casted to enclosing type.
 	All callers updated.
 
@@ -41,7 +852,8 @@
 	Import gnulib module inttypes from git
 	(250b80067c1e1d8faa0c42fb572f721975b929c5)
 	* Makefile.in (HFILES_NO_SRCDIR): Add gnulib/inttypes.in.h.
-	(aclocal_m4_deps): Add gnulib/m4/inttypes.m4 and gnulib/m4/inttypes-pri.m4
+	(aclocal_m4_deps): Add gnulib/m4/inttypes.m4 and
+	gnulib/m4/inttypes-pri.m4
 	* aclocal.m4, config.in, configure: Regenerated.
 	* gnulib/Makefile.am: Update.
 	* gnulib/Makefile.in: Update.
@@ -49,7 +861,7 @@
 	* gnulib/m4/gnulib-comp.m4: Update.
 	* gnulib/inttypes.in.h: New.
 	* gnulib/m4/inttypes-pri.m4: New.
- 	* gnulib/m4/inttypes.m4: New.
+	* gnulib/m4/inttypes.m4: New.
 
 2012-04-13  Luis Machado  <lgustavo@codesourcery.com>
 
@@ -122,7 +934,7 @@
 	* NEWS: Add an entry about the new 'explore' command.
 	* data-directory/Makefile.in: Add gdb/command/explore.py
 	* python/lib/gdb/command/explore.py: Implemention of the 'explore'
-	command using the GDB Python API. 
+	command using the GDB Python API.
 
 2012-04-10  Maciej W. Rozycki  <macro@codesourcery.com>
 
@@ -189,7 +1001,7 @@
 	defines.
 	* c-exp.y (yyss, yysslim, yyssp, yystacksize, yyvs, yyvsp): New
 	defines.
-	* cp-name-parser.y (yyss, yysslim, yyssp, yystacksize, yyvs) 
+	* cp-name-parser.y (yyss, yysslim, yyssp, yystacksize, yyvs)
 	(yyvsp): New defines.
 	* f-exp.y (yyss, yysslim, yyssp, yystacksize, yyvs, yyvsp): New
 	defines.
@@ -204,7 +1016,7 @@
 
 2012-04-09  Mark Kettenis  <kettenis@gnu.org>
 
-	* sparc64-tdep.c (sparc64_store_arguments) 
+	* sparc64-tdep.c (sparc64_store_arguments)
 	(sparc64_store_arguments): Fix coding style.
 
 2012-04-07  Mark Kettenis  <kettenis@gnu.org>
@@ -476,7 +1288,7 @@
 	(v850_register_name): Add the mpu and fpu register names.
 	(v850e_register_name): Add the mpu and fpu register names.
 	(v850e2_register_name): New function.
-	(v850_gdbarch_init): Add case for bfd_mach_v850e2 and 
+	(v850_gdbarch_init): Add case for bfd_mach_v850e2 and
 	bfd_mach_v850e2v3.
 
 2012-03-28  Joel Brobecker  <brobecker@adacore.com>
@@ -1612,9 +2424,9 @@
 	(mips32_instruction_has_delay_slot): Likewise.
 
 2012-03-01  Maciej W. Rozycki  <macro@mips.com>
-            Chris Dearman  <chris@mips.com>
-            Maciej W. Rozycki  <macro@codesourcery.com>
-            Joseph Myers  <joseph@codesourcery.com>
+	    Chris Dearman  <chris@mips.com>
+	    Maciej W. Rozycki  <macro@codesourcery.com>
+	    Joseph Myers  <joseph@codesourcery.com>
 
 	* features/mips-dsp.xml: New file.
 	* features/mips64-dsp.xml: New file.
@@ -2100,8 +2912,8 @@
 	uninitialized BUF for size 2.
 
 2012-02-27  Chris Dearman  <chris@mips.com>
-            Nathan Froyd  <froydnj@codesourcery.com>
-            Maciej W. Rozycki  <macro@codesourcery.com>
+	    Nathan Froyd  <froydnj@codesourcery.com>
+	    Maciej W. Rozycki  <macro@codesourcery.com>
 
 	* mips-tdep.c (mips32_instruction_has_delay_slot): New function.
 	(mips16_instruction_has_delay_slot): Likewise.
@@ -2110,7 +2922,7 @@
 	(mips_gdbarch_init): Use mips_adjust_breakpoint_address.
 
 2012-02-27  Maciej W. Rozycki  <macro@mips.com>
-            Maciej W. Rozycki  <macro@codesourcery.com>
+	    Maciej W. Rozycki  <macro@codesourcery.com>
 
 	* infrun.c (handle_inferior_event): Don't proceed through
 	shared library trampolines if stepping at the machine
@@ -2267,15 +3079,15 @@
 
 2012-02-23  Tristan Gingold  <gingold@adacore.com>
 
-       * ada-tasks.c (struct ada_tasks_inferior_data): Add
-        known_tasks_element and known_tasks_length fields.
-        (read_known_tasks_array): Change argument type.  Use pointer type
-        and number of elements from DATA.  Adjust.
-        (read_known_tasks_list): Likewise.
-        (get_known_tasks_addr): Remove.
-        (ada_set_current_inferior_known_tasks_addr): Renamed to ...
-        (ada_tasks_inferior_data_sniffer): ... this.  Use symtab for element
-        type and array length.  Merge former get_known_tasks_addr code.
+	* ada-tasks.c (struct ada_tasks_inferior_data): Add
+	known_tasks_element and known_tasks_length fields.
+	(read_known_tasks_array): Change argument type.  Use pointer type
+	and number of elements from DATA.  Adjust.
+	(read_known_tasks_list): Likewise.
+	(get_known_tasks_addr): Remove.
+	(ada_set_current_inferior_known_tasks_addr): Renamed to ...
+	(ada_tasks_inferior_data_sniffer): ... this.  Use symtab for element
+	type and array length.	Merge former get_known_tasks_addr code.
 
 2012-02-23  Jan Kratochvil  <jan.kratochvil@redhat.com>
 
