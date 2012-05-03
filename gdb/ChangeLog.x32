@@ -1,3 +1,9 @@
+2012-05-04  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-tdep.c (amd64_analyze_stack_align): Add an argumet
+	to indicate x32 and add x32 support.
+	(amd64_analyze_prologue): Update amd64_analyze_stack_align call.
+
 2012-04-12  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* amd64-linux-nat.c (amd64_linux_siginfo_fixup): Assert sizeof

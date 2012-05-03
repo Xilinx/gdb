@@ -1738,7 +1738,7 @@ amd64_alloc_frame_cache (void)
 
 static CORE_ADDR
 amd64_analyze_stack_align (CORE_ADDR pc, CORE_ADDR current_pc,
-			   struct amd64_frame_cache *cache)
+			   struct amd64_frame_cache *cache, int is_x32)
 {
   /* There are 2 code sequences to re-align stack before the frame
      gets set up:
@@ -1749,6 +1749,12 @@ amd64_analyze_stack_align (CORE_ADDR pc, CORE_ADDR current_pc,
 		andq  $-XXX, %rsp
 		pushq -8(%reg)
 
+	   For x32, it can be
+
+		[addr32] leal  8(%rsp), %reg
+		andl  $-XXX, %esp
+		[addr32] pushq -8(%reg)
+
 	2. Use a callee-saved saved register:
 
 		pushq %reg
@@ -1756,56 +1762,72 @@ amd64_analyze_stack_align (CORE_ADDR pc, CORE_ADDR current_pc,
 		andq  $-XXX, %rsp
 		pushq -8(%reg)
 
+	   For x32, it can be
+
+		pushq %reg
+		[addr32] leal  16(%rsp), %reg
+		andl  $-XXX, %esp
+		[addr32] pushq -8(%reg)
+
      "andq $-XXX, %rsp" can be either 4 bytes or 7 bytes:
      
      	0x48 0x83 0xe4 0xf0			andq $-16, %rsp
      	0x48 0x81 0xe4 0x00 0xff 0xff 0xff	andq $-256, %rsp
+
+     "andl $-XXX, %esp" can be either 3 bytes or 6 bytes:
+     
+     	0x83 0xe4 0xf0			andl $-16, %esp
+     	0x81 0xe4 0x00 0xff 0xff 0xff	andl $-256, %esp
    */
 
-  gdb_byte buf[18];
+  gdb_byte buf[19];
   int reg, r;
   int offset, offset_and;
 
   if (target_read_memory (pc, buf, sizeof buf))
     return pc;
 
+  /* Skip optional addr32 prefix for x32.  */
+  offset = 0;
+  if (is_x32 && buf[0] == 0x67)
+    offset++;
+
   /* Check caller-saved saved register.  The first instruction has
-     to be "leaq 8(%rsp), %reg".  */
-  if ((buf[0] & 0xfb) == 0x48
-      && buf[1] == 0x8d
-      && buf[3] == 0x24
-      && buf[4] == 0x8)
+     to be "leaq 8(%rsp), %reg" or "leal 8(%rsp), %reg".  */
+  if (((buf[offset] & 0xfb) == 0x48
+       || (is_x32 && (buf[offset] & 0xfb) == 0x40))
+      && buf[offset + 1] == 0x8d
+      && buf[offset + 3] == 0x24
+      && buf[offset + 4] == 0x8)
     {
       /* MOD must be binary 10 and R/M must be binary 100.  */
-      if ((buf[2] & 0xc7) != 0x44)
+      if ((buf[offset + 2] & 0xc7) != 0x44)
 	return pc;
 
       /* REG has register number.  */
-      reg = (buf[2] >> 3) & 7;
+      reg = (buf[offset + 2] >> 3) & 7;
 
       /* Check the REX.R bit.  */
-      if (buf[0] == 0x4c)
+      if ((buf[offset] & 0x4) != 0)
 	reg += 8;
 
-      offset = 5;
+      offset += 5;
     }
   else
     {
       /* Check callee-saved saved register.  The first instruction
 	 has to be "pushq %reg".  */
       reg = 0;
-      if ((buf[0] & 0xf8) == 0x50)
-	offset = 0;
-      else if ((buf[0] & 0xf6) == 0x40
-	       && (buf[1] & 0xf8) == 0x50)
+      if ((buf[offset] & 0xf6) == 0x40
+	       && (buf[offset + 1] & 0xf8) == 0x50)
 	{
 	  /* Check the REX.B bit.  */
-	  if ((buf[0] & 1) != 0)
+	  if ((buf[offset] & 1) != 0)
 	    reg = 8;
 
-	  offset = 1;
+	  offset += 1;
 	}
-      else
+      else if ((buf[offset] & 0xf8) != 0x50)
 	return pc;
 
       /* Get register.  */
@@ -1813,8 +1835,14 @@ amd64_analyze_stack_align (CORE_ADDR pc, CORE_ADDR current_pc,
 
       offset++;
 
-      /* The next instruction has to be "leaq 16(%rsp), %reg".  */
-      if ((buf[offset] & 0xfb) != 0x48
+      /* Skip optional addr32 prefix for x32.  */
+      if (is_x32 && buf[offset] == 0x67)
+	offset++;
+
+      /* The next instruction has to be "leaq 16(%rsp), %reg" or
+	 "leal 16(%rsp), %reg".  */
+      if (((buf[offset] & 0xfb) != 0x48
+	   && (!is_x32 || (buf[offset] & 0xfb) != 0x40))
 	  || buf[offset + 1] != 0x8d
 	  || buf[offset + 3] != 0x24
 	  || buf[offset + 4] != 0x10)
@@ -1828,7 +1856,7 @@ amd64_analyze_stack_align (CORE_ADDR pc, CORE_ADDR current_pc,
       r = (buf[offset + 2] >> 3) & 7;
 
       /* Check the REX.R bit.  */
-      if (buf[offset] == 0x4c)
+      if ((buf[offset] & 0x4) != 0)
 	r += 8;
 
       /* Registers in pushq and leaq have to be the same.  */
@@ -1843,13 +1871,24 @@ amd64_analyze_stack_align (CORE_ADDR pc, CORE_ADDR current_pc,
     return pc;
 
   /* The next instruction has to be "andq $-XXX, %rsp".  */
-  if (buf[offset] != 0x48
-      || buf[offset + 2] != 0xe4
+  if (buf[offset] != 0x48)
+    {
+      if (!is_x32)
+	return pc;
+      /* X32 may have "andl $-XXX, %esp".  */
+      offset--;
+    }
+
+  if (buf[offset + 2] != 0xe4
       || (buf[offset + 1] != 0x81 && buf[offset + 1] != 0x83))
     return pc;
 
   offset_and = offset;
   offset += buf[offset + 1] == 0x81 ? 7 : 4;
+
+  /* Skip optional addr32 prefix for x32.  */
+  if (is_x32 && buf[offset] == 0x67)
+    offset++;
 
   /* The next instruction has to be "pushq -8(%reg)".  */
   r = 0;
@@ -1912,7 +1951,8 @@ amd64_analyze_prologue (struct gdbarch *gdbarch,
   if (current_pc <= pc)
     return current_pc;
 
-  pc = amd64_analyze_stack_align (pc, current_pc, cache);
+  pc = amd64_analyze_stack_align (pc, current_pc, cache,
+				  gdbarch_ptr_bit (gdbarch) == 32);
 
   op = read_memory_unsigned_integer (pc, 1, byte_order);
 
