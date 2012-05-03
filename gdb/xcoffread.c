@@ -162,6 +162,7 @@ static const struct dwarf2_debug_sections dwarf2_xcoff_names = {
   { ".dwstr", NULL },
   { ".dwrnges", NULL },
   { NULL, NULL }, /* debug_types */
+  { NULL, NULL }, /* debug_addr */
   { ".dwframe", NULL },
   { NULL, NULL }, /* eh_frame */
   { NULL, NULL }, /* gdb_index */
@@ -3136,6 +3137,7 @@ static const struct sym_fns xcoff_sym_fns =
   default_symfile_segments,	/* Get segment information from a file.  */
   aix_process_linenos,
   default_symfile_relocate,	/* Relocate a debug section.  */
+  NULL,				/* sym_probe_fns */
   &psym_functions
 };
 

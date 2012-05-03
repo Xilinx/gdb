@@ -52,6 +52,7 @@
 #include "memrange.h"
 #include "exceptions.h"
 #include "cli/cli-utils.h"
+#include "probe.h"
 
 /* readline include files */
 #include "readline/readline.h"
@@ -1717,6 +1718,7 @@ start_tracing (char *notes)
   for (ix = 0; VEC_iterate (breakpoint_p, tp_vec, ix, b); ix++)
     {
       struct tracepoint *t = (struct tracepoint *) b;
+      struct bp_location *loc;
 
       if (b->enable_state == bp_enabled)
 	any_enabled = 1;
@@ -1779,6 +1781,10 @@ start_tracing (char *notes)
 	}
 
       t->number_on_target = b->number;
+
+      for (loc = b->loc; loc; loc = loc->next)
+	if (loc->probe != NULL)
+	  loc->probe->pops->set_semaphore (loc->probe, loc->gdbarch);
     }
   VEC_free (breakpoint_p, tp_vec);
 
@@ -1851,8 +1857,34 @@ void
 stop_tracing (char *note)
 {
   int ret;
+  VEC(breakpoint_p) *tp_vec = NULL;
+  int ix;
+  struct breakpoint *t;
 
   target_trace_stop ();
+
+  tp_vec = all_tracepoints ();
+  for (ix = 0; VEC_iterate (breakpoint_p, tp_vec, ix, t); ix++)
+    {
+      struct bp_location *loc;
+
+      if ((t->type == bp_fast_tracepoint
+	   ? !may_insert_fast_tracepoints
+	   : !may_insert_tracepoints))
+	continue;
+
+      for (loc = t->loc; loc; loc = loc->next)
+	{
+	  /* GDB can be totally absent in some disconnected trace scenarios,
+	     but we don't really care if this semaphore goes out of sync.
+	     That's why we are decrementing it here, but not taking care
+	     in other places.  */
+	  if (loc->probe != NULL)
+	    loc->probe->pops->clear_semaphore (loc->probe, loc->gdbarch);
+	}
+    }
+
+  VEC_free (breakpoint_p, tp_vec);
 
   if (!note)
     note = trace_stop_notes;
@@ -4944,7 +4976,8 @@ info_static_tracepoint_markers_command (char *arg, int from_tty)
    available.  */
 
 static struct value *
-sdata_make_value (struct gdbarch *gdbarch, struct internalvar *var)
+sdata_make_value (struct gdbarch *gdbarch, struct internalvar *var,
+		  void *ignore)
 {
   LONGEST size;
   gdb_byte *buf;
@@ -5123,6 +5156,15 @@ traceframe_available_memory (VEC(mem_range_s) **result,
   return 0;
 }
 
+/* Implementation of `sdata' variable.  */
+
+static const struct internalvar_funcs sdata_funcs =
+{
+  sdata_make_value,
+  NULL,
+  NULL
+};
+
 /* module initialization */
 void
 _initialize_tracepoint (void)
@@ -5133,7 +5175,7 @@ _initialize_tracepoint (void)
      value with a void typed value, and when we get here, gdbarch
      isn't initialized yet.  At this point, we're quite sure there
      isn't another convenience variable of the same name.  */
-  create_internalvar_type_lazy ("_sdata", sdata_make_value);
+  create_internalvar_type_lazy ("_sdata", &sdata_funcs, NULL);
 
   traceframe_number = -1;
   tracepoint_number = -1;

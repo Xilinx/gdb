@@ -1,3 +1,476 @@
+2012-05-02  Joel Brobecker  <brobecker@adacore.com>
+
+	* sol-thread.c (solaris_pid_to_str): Make static.
+	(_initialize_sol_thread): Add prototype.
+
+2012-05-02  Joel Brobecker  <brobecker@adacore.com>
+
+	* sol-thread.c (procfs_pid_to_str): Delete extern declaration.
+
+2012-05-02  Christopher Faylor  <me.cygwin2012@cgf.cx>
+
+	* MAINTAINERS: Remove myself.
+
+2012-05-02  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix --without-auto-load-safe-path for MS-Windows host platform.
+	* auto-load.c (filename_is_in_dir): Return 1 for DIR_LEN 0.
+
+2012-05-02  Eli Zaretskii  <eliz@gnu.org>
+
+	* gdb_curses.h: Undefine KEY_EVENT before including curses
+	headers.  Move "#undef MOUSE_MOVED" before any curses header
+	inclusion.
+
+2012-05-02  Sergio Durigan Junior  <sergiodj@gmail.com>
+
+	* features/i386/i386-mmx-linux.c: Regenerate.
+	* features/rs6000/powerpc-32.c: Likewise.
+	* features/rs6000/powerpc-32l.c: Likewise.
+	* features/rs6000/powerpc-403.c: Likewise.
+	* features/rs6000/powerpc-403gc.c: Likewise.
+	* features/rs6000/powerpc-405.c: Likewise.
+	* features/rs6000/powerpc-505.c: Likewise.
+	* features/rs6000/powerpc-601.c: Likewise.
+	* features/rs6000/powerpc-602.c: Likewise.
+	* features/rs6000/powerpc-603.c: Likewise.
+	* features/rs6000/powerpc-604.c: Likewise.
+	* features/rs6000/powerpc-64.c: Likewise.
+	* features/rs6000/powerpc-64l.c: Likewise.
+	* features/rs6000/powerpc-750.c: Likewise.
+	* features/rs6000/powerpc-860.c: Likewise.
+	* features/rs6000/powerpc-e500.c: Likewise.
+	* features/rs6000/powerpc-e500l.c: Likewise.
+	* features/rs6000/powerpc-isa205-32l.c: Likewise.
+	* features/rs6000/powerpc-isa205-64l.c: Likewise.
+	* features/rs6000/rs6000.c: Likewise.
+
+2012-05-02  Sergio Durigan Junior  <sergiodj@gmail.com>
+
+	* i386-tdep.c (i386_stap_parse_special_token) <s>: Remove unused
+	variable.
+	* stap-probe.c (stap_parse_single_operand) <reg_suffix,
+	reg_ind_suffix, reg_suffix_len, reg_ind_suffix_len>: Likewise.
+	(stap_parse_argument) <e>: Likewise.
+	(handle_stap_probe) <byte_order>: Likewise.
+
+2012-04-30  Doug Evans  <dje@google.com>
+
+	* dwarf2read.c (init_cutu_and_read_dies): Renamed from
+	init_and_read_dies_worker.  All callers updated.
+	(init_cu_and_read_dies, init_tu_and_read_dies): Delete.  All calls
+	replaced with init_cutu_and_read_dies.
+	(load_partial_comp_unit): Pass 1 for use_existing_cu.
+	(find_partial_die): Remove FIXME.  Don't free current CU.
+
+2012-04-30  Sterling Augustine  <saugustine@google.com>
+
+	* contrib: New directory.
+	* contrib/test_pubnames_and_indexes.py: New file.
+
+2012-04-30  Doug Evans  <dje@google.com>
+
+	* dwarf2read.c (dwarf_decode_macros): New arg section_name.
+	All callers updated.
+	(init_cu_die_reader): Verify the section is non-empty.
+	(dwarf_decode_line_header): Don't dereference section->asection
+	until we know the section is present.
+
+2012-04-29  Sergio Durigan Junior  <sergiodj@redhat.com>
+
+	* tracepoint.c (start_tracing, stop_tracing): Checking for NULL
+	probes.
+
+2012-04-29  Yao Qi  <yao@codesourcery.com>
+
+	* gdb-code-style.el: New hook gdb-markup-hook
+	and gdb-comment-hook.
+
+2012-04-28  Doug Evans  <dje@google.com>
+
+	Initial support for Fission.  http://gcc.gnu.org/wiki/DebugFission
+	* symfile.c (default_symfile_relocate): Use sectp->owner instead of
+	objfile->obfd.
+	* symfile.h (dwarf2_debug_sections): New member addr.
+	* dwarf2expr.c (execute_stack_op): New case DW_OP_GNU_addr_index.
+	(ctx_no_get_addr_index): New function.
+	* dwarf2expr.h (dwarf_expr_context_funcs): New member get_addr_index.
+	(ctx_no_get_addr_index): Declare.
+	* dwarf2-frame.c (dwarf2_frame_ctx_funcs): Update.
+	* dwarf2loc.c (dwarf_expr_get_addr_index): New function.
+	(dwarf_expr_ctx_funcs): Update.
+	(needs_get_addr_index): New function.
+	(needs_frame_ctx_funcs): Update.
+	* dwarf2loc.h (dwarf2_read_addr_index): Declare.
+	* dwarf2read.c: #include "gdbcore.h".
+	(dwarf2_per_objfile): New members addr, dwo_files.
+	(dwarf2_elf_names): Add entry for addr.
+	(struct dwo_section_names): New type.
+	(dwo_section_names): New static global.
+	(dwarf2_cu): New members dwo_unit, addr_base, have_addr_base.
+	(dwarf2_per_cu_data): New member is_debug_types, all boolean uses of
+	old debug_types_section member updated to use this.
+	Rename member debug_types_section to info_or_types_section,
+	all uses updated.
+	(signatured_type): Rename member type_offset to type_offset_in_tu,
+	all uses updated.  New member type_offset_in_section.
+	(struct dwo_sections): New type.
+	(struct dwo_unit): New type.
+	(struct dwo_file): New type.
+	(die_reader_specs): New member dwo_file.
+	(dwarf2_locate_sections): Watch for .debug_addr.
+	(zlib_decompress_section): Use sectp->owner instead of objfile->obfd.
+	(dwarf2_read_section): Get bfd of section from bfd's asection,
+	instead of objfile.
+	(create_cus_from_index): Initialize the_cu->info_or_types_section.
+	(create_signatured_type_table_from_index): Initialize
+	sig_type->info_or_types_section.
+	(dw2_get_file_names): Statement lists for type units with DWO files
+	live in the DWO file.
+	(create_debug_types_hash_table): New function.
+	(create_all_type_units): Rewrite.
+	(init_cu_die_reader): New arg dwo_file, all callers updated.
+	(init_and_read_dies_worker): Get section from
+	this_cu->info_or_types_section.  Set sig_type->type_offset_in_section.
+	Watch for DW_AT_GNU_dwo_name and if present lookup the file and
+	continue reading the CU/TU from there.
+	(init_cutu_and_read_dies_no_follow): New arg dwo_file, all callers
+	updated.  Get section from this_cu->info_or_types_section.
+	(create_all_comp_units): Initialize this_cu->info_or_types_section.
+	(skip_one_die): New cases DW_FORM_GNU_addr_index,
+	DW_FORM_GNU_str_index.
+	(hash_dwo_file, eq_dwo_file): New functions.
+	(allocate_dwo_file_hash_table): New function.
+	(hash_dwo_unit, eq_dwo_unit): New functions.
+	(allocate_dwo_unit_table): New function.
+	(dwarf2_locate_dwo_sections): New function.
+	(struct create_dwo_info_table_data): New type.
+	(create_debug_info_hash_table_reader): New function.
+	(create_debug_info_hash_table): New function.
+	(try_open_dwo_file, open_dwo_file, init_dwo_file): New function.
+	(lookup_dwo_file): New function.
+	(lookup_dwo_comp_unit, lookup_dwo_type_unit): New functions.
+	(free_dwo_file, free_dwo_file_cleanup): New functions.
+	(free_dwo_file_from_slot, free_dwo_files): New functions.
+	(dwarf2_get_pc_bounds): Handle DW_FORM_GNU_addr_index.
+	(dwarf2_record_block_ranges): Ditto.
+	(read_partial_die): Ditto.
+	(process_enumeration_scope): Update to use type_offset_in_section.
+	(read_full_die_1): New function.
+	(read_full_die): Rewrite.
+	(read_attribute_value): New cases DW_FORM_GNU_addr_index,
+	DW_FORM_GNU_str_index.
+	(read_addr_index_1, read_addr_index): New functions.
+	(read_addr_index_from_leb128): New function.
+	(struct dwarf2_read_addr_index_data): New type.
+	(dwarf2_read_addr_index_reader): New function.
+	(dwarf2_read_addr_index): New function.
+	(read_str_index): New function.
+	(leb128_size): New function.
+	(dwarf_decode_line_header): Delete arg abfd, all callers updated.
+	If processing a type unit from a DWO file, get the line section
+	from the DWO file.
+	(var_decode_location): Watch for DW_OP_GNU_addr_index.
+	(dwarf2_const_value_attr): New cases DW_FORM_GNU_addr_index,
+	DW_FORM_GNU_str_index.
+	(lookup_die_type): Check whether section offset of type's die is
+	known before looking it up.  Remove assert.  Condition can
+	legimately happen for inter-cu type references.
+	(dwarf_attr_name): Handle Fission attributes.
+	(dwarf_form_name): Handle Fission forms.
+	(dump_die_shallow): New cases DW_FORM_GNU_addr_index,
+	DW_FORM_GNU_str_index.
+	(follow_die_sig): Update to use type_offset_in_section.
+	(decode_locdesc): New case DW_OP_GNU_addr_index.
+	(skip_form_bytes): New cases DW_FORM_GNU_addr_index,
+	DW_FORM_GNU_str_index.
+	(cu_debug_loc_section): New function.
+	(fill_in_loclist_baton, dwarf2_symbol_mark_computed): Call it.
+	(dwarf2_per_objfile_free): Unmap .debug_addr section.
+	Free DWO files if present.
+	* xcoffread.c (dwarf2_xcoff_names): Add .debug_addr.
+
+	Refactor DIE reading.
+	* dwarf2read.c (dwarf2_per_objfile): Replace members
+	debug_info_type_hash and debug_types_type_hash with die_type_hash.
+	(die_reader_specs): New member "die_section".  Temporarily make
+	member "buffer" non-const, pending constifying all info_ptr uses.
+	(die_reader_func_ftype): New typedef.
+	(dw2_get_file_names_reader): New function.
+	(dw2_get_file_names): Rewrite.
+	(read_and_check_type_unit_head): Rename arg type_offset to
+	type_offset_in_tu.
+	(create_all_type_units): Improve debugging message.
+	Improve dummy type unit check.
+	(init_cu_die_reader): New arg "section".  All callers updated.
+	(init_and_read_dies_worker): New function.
+	(init_cu_and_read_dies, init_tu_and_read_dies): New functions.
+	(init_cutu_and_read_dies_no_follow): New function.
+	(init_cutu_and_read_dies_simple): New function.
+	(process_psymtab_comp_unit_reader): New function.
+	(process_psymtab_comp_unit): Delete args section,
+	is_debug_types_section.  Rewrite.  All callers updated.
+	(process_psymtab_type_unit): Renamed from process_type_comp_unit.
+	All callers updated.  Rewrite.
+	(load_partial_comp_unit_reader): New function.
+	(load_partial_comp_unit): Rewrite.
+	(skip_children): New arg reader.  Delete args buffer, cu.
+	All callers updated.
+	(skip_one_die): New arg reader.  Delete args buffer, cu.
+	All callers updated.
+	(locate_pdi_sibling): New arg reader.  Delete args buffer, abfd, cu.
+	All callers updated.
+	(load_full_comp_unit_reader): New function.
+	(load_full_comp_unit): Rewrite.
+	(read_comp_unit): Delete.
+	(read_die_and_children_1): Delete, contents moved ...
+	(read_die_and_children): ... here.
+	(dwarf2_read_abbrevs): New arg abbrev_section.  All callers updated.
+	(load_partial_dies): New arg reader.  Delete args abfd, buffer, cu.
+	All callers updated.
+	(read_partial_die): New arg reader.  Delete args abfd, buffer, cu.
+	All callers updated.
+	(find_partial_die): Rewrite load_all_dies support.
+	(read_attribute_value): New arg reader.  Delete args abfd, cu.
+	All callers updated.
+	(read_attribute): New arg reader.  Delete args abfd, cu.
+	All callers updated.
+	(load_full_type_unit): Add assert.
+	(read_signatured_type_reader): New function.
+	(read_signatured_type): Rewrite.
+	(free_stack_comp_unit): Remove call to age_cached_comp_units.
+	(free_one_cached_comp_unit): Change target_cu arg to target_per_cu.
+	All callers updated.  Set per_cu->cu = NULL after freeing it.
+	(dwarf2_per_cu_offset_and_type): Renamed from dwarf2_offset_and_type.
+	(per_cu_offset_and_type_hash): Renamed from offset_and_type_hash.
+	(per_cu_offset_and_type_eq): Renamed from offset_and_type_eq.
+	(set_die_type): Update.
+	(get_die_type_at_offset): Update.
+	(read_file_scope): Call prepare_one_comp_unit.
+	(read_type_unit_scope): Ditto.
+	(prepare_one_comp_unit): Set producer if present.
+
+2012-04-28  Sergio Durigan Junior  <sergiodj@redhat.com>
+
+	* probe.c (compile_rx_or_error): Silence ARI warning about missing
+	 gettext function on `error'.
+
+2012-04-27  Doug Evans  <dje@google.com>
+
+	* dwarf2read.c (dwarf2_read_index): Don't use index if symbol table
+	is empty.
+
+2012-04-27  Sergio Durigan Junior  <sergiodj@redhat.com>
+	    Tom Tromey  <tromey@redhat.com>
+
+	* breakpoint.c (struct breakpoint_objfile_data)
+	<longjmp_searched>,<longjmp_probes>,<exception_searched>,
+	<exception_probes>: New fields.
+	(free_breakpoint_probes): New function.
+	(create_longjmp_master_breakpoint): Prefer SystemTap probe over
+	`_Unwind_DebugHook'.
+	(create_exception_master_breakpoint): Likewise.
+	(_initialize_breakpoint): Registering cleanup for SystemTap probes.
+	* infrun.c: Including necessary header files for handling SystemTap
+	probes.
+	(handle_inferior_event): Handling longjmp breakpoint and exceptions
+	via SystemTap probes.
+	(check_exception_resume): Remove `func' argument.  Handle exception
+	unwinding breakpoint set via a SystemTap probe.
+	(insert_exception_resume_from_probe): New function.
+
+2012-04-27  Sergio Durigan Junior  <sergiodj@redhat.com>
+	    Tom Tromey  <tromey@redhat.com>
+	    Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* Makefile.in (SFILES): Add `probe' and `stap-probe'.
+	(COMMON_OBS): Likewise.
+	(HFILES_NO_SRCDIR): Add `probe'.
+	* NEWS: Mention support for static and SystemTap probes.
+	* amd64-tdep.c (amd64_init_abi): Initializing proper fields used by
+	SystemTap probes' arguments parser.
+	* arm-linux-tdep.c: Including headers needed to perform the parsing
+	of SystemTap probes' arguments.
+	(arm_stap_is_single_operand): New function.
+	(arm_stap_parse_special_token): Likewise.
+	(arm_linux_init_abi): Initializing proper fields used by SystemTap
+	probes' arguments parser.
+	* ax-gdb.c (require_rvalue): Removing static declaration.
+	(gen_expr): Likewise.
+	* ax-gdb.h (gen_expr): Declaring function.
+	(require_rvalue): Likewise.
+	* breakpoint.c: Include `gdb_regex.h' and `probe.h'.
+	(bkpt_probe_breakpoint_ops): New variable.
+	(momentary_breakpoint_from_master): Set the `probe' value.
+	(add_location_to_breakpoint): Likewise.
+	(break_command_1): Using proper breakpoint_ops according to the
+	argument passed by the user in the command line.
+	(bkpt_probe_insert_location): New function.
+	(bkpt_probe_remove_location): Likewise.
+	(bkpt_probe_create_sals_from_address): Likewise.
+	(bkpt_probe_decode_linespec): Likewise.
+	(tracepoint_probe_create_sals_from_address): Likewise.
+	(tracepoint_probe_decode_linespec): Likewise.
+	(tracepoint_probe_breakpoint_ops): New variable.
+	(trace_command): Using proper breakpoint_ops according to the
+	argument passed by the user in the command line.
+	(initialize_breakpoint_ops): Initializing breakpoint_ops for
+	static probes on breakpoints and tracepoints.
+	* breakpoint.h (struct bp_location) <probe>: New field.
+	* cli-utils.c (skip_spaces_const): New function.
+	(extract_arg): Likewise.
+	* cli-utils.h (skip_spaces_const): Likewise.
+	(extract_arg): Likewise.
+	* coffread.c (coff_sym_fns): Add `sym_probe_fns' value.
+	* configure.ac: Append `stap-probe.o' to be generated when ELF
+	support is present.
+	* configure: Regenerate.
+	* dbxread.c (aout_sym_fns): Add `sym_probe_fns' value.
+	* elfread.c: Include `probe.h' and `arch-utils.h'.
+	(probe_key): New variable.
+	(elf_get_probes): New function.
+	(elf_get_probe_argument_count): Likewise.
+	(elf_evaluate_probe_argument): Likewise.
+	(elf_compile_to_ax): Likewise.
+	(elf_symfile_relocate_probe): Likewise.
+	(stap_probe_key_free): Likewise.
+	(elf_probe_fns): New variable.
+	(elf_sym_fns): Add `sym_probe_fns' value.
+	(elf_sym_fns_lazy_psyms): Likewise.
+	(elf_sym_fns_gdb_index): Likewise.
+	(_initialize_elfread): Initialize objfile cache for static
+	probes.
+	* gdb_vecs.h (struct probe): New forward declaration.
+	(probe_p): New VEC declaration.
+	* gdbarch.c: Regenerate.
+	* gdbarch.h: Regenerate.
+	* gdbarch.sh (stap_integer_prefix): New variable.
+	(stap_integer_suffix): Likewise.
+	(stap_register_prefix): Likewise.
+	(stap_register_suffix): Likewise.
+	(stap_register_indirection_prefix): Likewise.
+	(stap_register_indirection_suffix): Likewise.
+	(stap_gdb_register_prefix): Likewise.
+	(stap_gdb_register_suffix): Likewise.
+	(stap_is_single_operand): New function.
+	(stap_parse_special_token): Likewise.
+	(struct stap_parse_info): Forward declaration.
+	* i386-tdep.c: Including headers needed to perform the parsing
+	of SystemTap probes' arguments.
+	(i386_stap_is_single_operand): New function.
+	(i386_stap_parse_special_token): Likewise.
+	(i386_elf_init_abi): Initializing proper fields used by SystemTap
+	probes' arguments parser.
+	* i386-tdep.h (i386_stap_is_single_operand): New function.
+	(i386_stap_parse_special_token): Likewise.
+	* machoread.c (macho_sym_fns): Add `sym_probe_fns' value.
+	* mipsread.c (ecoff_sym_fns): Likewise.
+	* objfiles.c (objfile_relocate1): Support relocation for static
+	probes.
+	* parse.c (prefixify_expression): Remove static declaration.
+	(initialize_expout): Likewise.
+	(reallocate_expout): Likewise.
+	* parser-defs.h (initialize_expout): Declare function.
+	(reallocate_expout): Likewise.
+	(prefixify_expression): Likewise.
+	* ppc-linux-tdep.c: Including headers needed to perform the parsing
+	of SystemTap probes' arguments.
+	(ppc_stap_is_single_operand): New function.
+	(ppc_stap_parse_special_token): Likewise.
+	(ppc_linux_init_abi): Initializing proper fields used by SystemTap
+	probes' arguments parser.
+	* probe.c: New file, for generic statically defined probe support.
+	* probe.h: Likewise.
+	* s390-tdep.c: Including headers needed to perform the parsing of
+	SystemTap probes' arguments.
+	(s390_stap_is_single_operand): New function.
+	(s390_gdbarch_init): Initializing proper fields used by SystemTap
+	probes' arguments parser.
+	* somread.c (som_sym_fns): Add `sym_probe_fns' value.
+	* stap-probe.c: New file, for SystemTap probe support.
+	* stap-probe.h: Likewise.
+	* symfile.h: Include `gdb_vecs.h'.
+	(struct sym_probe_fns): New struct.
+	(struct sym_fns) <sym_probe_fns>: New field.
+	* symtab.c (init_sal): Initialize `probe' field.
+	* symtab.h (struct probe): Forward declaration.
+	(struct symtab_and_line) <probe>: New field.
+	* tracepoint.c (start_tracing): Adjust semaphore on breakpoints
+	locations.
+	(stop_tracing): Likewise.
+	* xcoffread.c (xcoff_sym_fns): Add `sym_probe_fns' value.
+
+2012-04-27  Sergio Durigan Junior  <sergiodj@redhat.com>
+	    Tom Tromey  <tromey@redhat.com>
+
+	* ax-gdb.c (gen_expr): Clean up code to handle internal variables
+	and to compile agent expressions.
+	* infrun.c (siginfo_make_value): New argument `ignore'.
+	(siginfo_funcs): New struct.
+	(_initialize_infrun): New argument when calling
+	`create_internalvar_type_lazy'.
+	* thread.c (thread_id_make_value): New argument `ignore'.
+	(thread_funcs): New struct.
+	(_initialize_thread): New argument when calling
+	`create_internalvar_type_lazy'.
+	* tracepoint.c (sdata_make_value): New argument `ignore'.
+	(sdata_funcs): New struct.
+	(_initialize_tracepoint): New argument when calling
+	`create_internalvar_type_lazy'.
+	* value.c (make_value): New struct.
+	(create_internalvar_type_lazy): New argument `data'.
+	(compile_internalvar_to_ax): New function.
+	(value_of_internalvar): Properly handling `make_value' case.
+	(clear_internalvar): Likewise.
+	(show_convenience): Adding `TRY_CATCH' block.
+	* value.h (internalvar_make_value): Delete, replace by...
+	(struct internalvar_funcs): ... this.
+	(create_internalvar_type_lazy) <fun>: Delete argument.
+	(create_internalvar_type_lazy) <funcs>, <data>: New arguments.
+	(compile_internalvar_to_ax): New function.
+	* windows-tdep.c (tlb_make_value): New argument `ignore'.
+	(tlb_funcs): New struct.
+	(_initialize_windows_tdep): New argument when calling
+	`create_internalvar_type_lazy'.
+
+2012-04-27  Mark Wielaard  <mjw@redhat.com>
+
+	* dwarf2read.c (dwarf2_get_pc_bounds): Check DW_AT_high_pc form to
+	see whether it is an address or a constant offset from DW_AT_low_pc.
+	(dwarf2_record_block_ranges): Likewise.
+	(read_partial_die): Likewise.
+
+2012-04-26  Mark Wielaard  <mjw@redhat.com>
+
+	* MAINTAINERS (Write After Approval): Add myself to the list.
+
+2012-04-26  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* proc-utils.h (proc_prettyprint_signalset): New prototype.
+	(proc_prettyprint_signal): Likewise.
+	(proc_prettyprint_faultset): Likewise.
+	(proc_prettyprint_fault): Likewise.
+	(proc_prettyprint_actionset): Likewise.
+	(proc_prettyprint_flags): Move to new proc-flags.c section.
+	(proc_prettyfprint_flags): New prototype.
+	* procfs.c (proc_nsysarg, proc_sysargs): Add prototypes.
+	(proc_syscall, proc_cursig): Likewise.
+	(proc_set_kill_on_last_close): Likewise.
+	(proc_unset_kill_on_last_close): Likewise.
+	(proc_set_watchpoint): Make static.
+	(proc_delete_dead_threads): Likewise.
+	(procfs_set_watchpoint): Likewise.
+	(_initialize_procfs): Add prototype.
+	* proc-events.c: Include proc-utils.h.
+	(init_syscall_table): Make static.
+	* proc-api.c (_initialize_proc_api): Add prototype.
+	* proc-flags.c: Include proc-utils.h.
+
+2012-04-26  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* configure.ac: Add AC_ARG_PROGRAM.
+	* configure: Regenerate.
+
 2012-04-26  Jan Kratochvil  <jan.kratochvil@redhat.com>
 
 	Fix DW_AT_lower_bound defaults for DWARF-4+.

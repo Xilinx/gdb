@@ -1,3 +1,20 @@
+2012-05-02  Siva Chandra Reddy  <sivachandra@google.com>
+
+	* gdb.texinfo (Blocks In Python): Add a note saying that future
+	improvements to GDB and its infrastructure can move symbols
+	across blocks within a symbol table.
+
+2012-04-29  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.texinfo (Architectures): Remove menu entry `A29K'.
+	(A29K): Remove.
+
+2012-04-27  Sergio Durigan Junior  <sergiodj@redhat.com>
+	    Tom Tromey  <tromey@redhat.com>
+
+	* gdb.texinfo (Static Probe Points): New entry, explaining SystemTap
+	and generic static probe support on GDB.
+
 2012-04-25  Doug Evans  <dje@google.com>
 
 	* gdb.texinfo (Go): Fix thinko.
