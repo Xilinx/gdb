@@ -24,6 +24,8 @@
 #include "linux-low.h"
 
 #include <asm/ptrace.h>
+#include <sys/procfs.h>
+#include <sys/ptrace.h>
 
 #include "gdb_proc_service.h"
 
@@ -97,6 +99,40 @@ microblaze_breakpoint_at (CORE_ADDR where)
   return 0;
 }
 
+static CORE_ADDR
+microblaze_reinsert_addr (struct regcache *regcache)
+{
+  unsigned long pc;
+  collect_register_by_name (regcache, "r15", &pc);
+  return pc;
+}
+
+#ifdef HAVE_PTRACE_GETREGS
+
+static void
+microblaze_collect_ptrace_register (struct regcache *regcache, int regno, char *buf)
+{
+  int size = register_size (regno);
+
+  memset (buf, 0, sizeof (long));
+
+  if (size < sizeof (long))
+    collect_register (regcache, regno, buf + sizeof (long) - size);
+  else
+    collect_register (regcache, regno, buf);
+}
+
+static void
+microblaze_supply_ptrace_register (struct regcache *regcache,
+			    int regno, const char *buf)
+{
+  int size = register_size (regno);
+  if (size < sizeof (long))
+    supply_register (regcache, regno, buf + sizeof (long) - size);
+  else
+    supply_register (regcache, regno, buf);
+}
+
 /* Provide only a fill function for the general register set.  ps_lgetregs
    will use this for NPTL support.  */
 
@@ -105,16 +141,27 @@ static void microblaze_fill_gregset (struct regcache *regcache, void *buf)
   int i;
 
   for (i = 0; i < 32; i++)
-    collect_register (regcache, i, (char *) buf + microblaze_regmap[i]);
+    microblaze_collect_ptrace_register (regcache, i, (char *) buf + microblaze_regmap[i]);
 }
 
-static CORE_ADDR
-microblaze_reinsert_addr (struct regcache *regcache)
+static void
+microblaze_store_gregset (struct regcache *regcache, const void *buf)
 {
-  unsigned long pc;
-  collect_register_by_name (regcache, "r15", &pc);
-  return pc;
+  int i;
+
+  for (i = 0; i < 32; i++)
+    supply_register (regcache, i, (char *) buf + microblaze_regmap[i]);
 }
+
+#endif /* HAVE_PTRACE_GETREGS */
+
+struct regset_info target_regsets[] = {
+#ifdef HAVE_PTRACE_GETREGS
+  { PTRACE_GETREGS, PTRACE_SETREGS, 0, sizeof (elf_gregset_t), GENERAL_REGS, microblaze_fill_gregset, microblaze_store_gregset },
+  { 0, 0, 0, -1, -1, NULL, NULL },
+#endif /* HAVE_PTRACE_GETREGS */
+  { 0, 0, 0, -1, -1, NULL, NULL }
+};
 
 struct linux_target_ops the_low_target = {
   init_registers_microblaze,
@@ -131,4 +178,10 @@ struct linux_target_ops the_low_target = {
   microblaze_reinsert_addr,
   0,
   microblaze_breakpoint_at,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  microblaze_collect_ptrace_register,
+  microblaze_supply_ptrace_register,
 };
