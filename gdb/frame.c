@@ -1051,12 +1051,19 @@ frame_unwind_register_value (struct frame_info *frame, int regnum)
 	  else
 	    {
 	      int i;
-	      const gdb_byte *buf = value_contents (value);
+	      const gdb_byte *buf = NULL;
+	      if (value_entirely_available(value)) {
+	        buf = value_contents (value);
+	      }
 
 	      fprintf_unfiltered (gdb_stdlog, " bytes=");
 	      fprintf_unfiltered (gdb_stdlog, "[");
-	      for (i = 0; i < register_size (gdbarch, regnum); i++)
-		fprintf_unfiltered (gdb_stdlog, "%02x", buf[i]);
+	      if (buf != NULL) {
+	        for (i = 0; i < register_size (gdbarch, regnum); i++)
+		  fprintf_unfiltered (gdb_stdlog, "%02x", buf[i]);
+	      } else {
+	        fprintf_unfiltered (gdb_stdlog, "unavailable");
+	      }
 	      fprintf_unfiltered (gdb_stdlog, "]");
 	    }
 	}
