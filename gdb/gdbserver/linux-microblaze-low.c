@@ -30,7 +30,7 @@
 #include "gdb_proc_service.h"
 
 static int microblaze_regmap[] =
- {       -1,     PT_GPR(1),     PT_GPR(2),     PT_GPR(3),
+ {PT_GPR(0),     PT_GPR(1),     PT_GPR(2),     PT_GPR(3),
   PT_GPR(4),     PT_GPR(5),     PT_GPR(6),     PT_GPR(7),
   PT_GPR(8),     PT_GPR(9),     PT_GPR(10),    PT_GPR(11),
   PT_GPR(12),    PT_GPR(13),    PT_GPR(14),    PT_GPR(15),
@@ -44,13 +44,29 @@ static int microblaze_regmap[] =
 
 #define microblaze_num_regs (sizeof microblaze_regmap / sizeof microblaze_regmap[0])
 
+static int microblaze_debug_flag = 1;
+
+static void
+microblaze_debug (const char *fmt, ...)
+{ 
+  if (microblaze_debug_flag)
+    {
+       va_list args;
+
+       va_start (args, fmt);
+       printf_unfiltered ("MICROBLAZE: ");
+       vprintf_unfiltered (fmt, args);
+       va_end (args);
+    }
+}
+
 /* Defined in auto-generated file reg-microblaze.c.  */
 void init_registers_microblaze (void);
 
 static int
 microblaze_cannot_store_register (int regno)
 {
-  if (microblaze_regmap[regno] == -1)
+  if (microblaze_regmap[regno] == -1 || regno == 0)
     return 1;
 
   return 0;
@@ -59,8 +75,6 @@ microblaze_cannot_store_register (int regno)
 static int
 microblaze_cannot_fetch_register (int regno)
 {
-  if (find_regno ("r0") == regno)
-    return 1;
   return 0;
 }
 
@@ -127,10 +141,17 @@ microblaze_supply_ptrace_register (struct regcache *regcache,
 			    int regno, const char *buf)
 {
   int size = register_size (regno);
-  if (size < sizeof (long))
-    supply_register (regcache, regno, buf + sizeof (long) - size);
-  else
-    supply_register (regcache, regno, buf);
+  
+  if (regno == 0) {
+    unsigned long regbuf_0 = 0;
+    microblaze_debug("clobbering r0 value to 0\n");
+    supply_register (regcache, regno, (const char*)&regbuf_0);
+  } else {
+      if (size < sizeof (long))
+        supply_register (regcache, regno, buf + sizeof (long) - size);
+      else
+        supply_register (regcache, regno, buf);
+  }
 }
 
 /* Provide only a fill function for the general register set.  ps_lgetregs
