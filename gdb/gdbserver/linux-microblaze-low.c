@@ -44,22 +44,6 @@ static int microblaze_regmap[] =
 
 #define microblaze_num_regs (sizeof microblaze_regmap / sizeof microblaze_regmap[0])
 
-static int microblaze_debug_flag = 1;
-
-static void
-microblaze_debug (const char *fmt, ...)
-{ 
-  if (microblaze_debug_flag)
-    {
-       va_list args;
-
-       va_start (args, fmt);
-       printf_unfiltered ("MICROBLAZE: ");
-       vprintf_unfiltered (fmt, args);
-       va_end (args);
-    }
-}
-
 /* Defined in auto-generated file reg-microblaze.c.  */
 void init_registers_microblaze (void);
 
@@ -144,7 +128,7 @@ microblaze_supply_ptrace_register (struct regcache *regcache,
   
   if (regno == 0) {
     unsigned long regbuf_0 = 0;
-    microblaze_debug("clobbering r0 value to 0\n");
+    /* clobbering r0 so that it is always 0 as enforced by hardware */
     supply_register (regcache, regno, (const char*)&regbuf_0);
   } else {
       if (size < sizeof (long))
