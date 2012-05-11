@@ -1,3 +1,23 @@
+2012-05-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.texinfo (Auto-loading): Wrap too long lines in @smallexample.
+	Twice.
+
+	* gdb.texinfo (Separate Debug Files, Auto-loading safe path): Replace
+	directory separator by path separator.
+
+2012-05-06  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.texinfo (Auto-loading safe path): Make 'directories'
+	for 'set auto-load safe-path' optional.  Mention if it is omitted.
+	Change disabling security protection condition to "/", twice.
+
+2012-05-03  Siva Chandra Reddy  <sivachandra@google.com>
+
+	* gdb.texinfo (Symbol Tables In Python): Add documentation about
+	the new methods global_block and static_block on gdb.Symtab
+	objects.
+
 2012-05-02  Siva Chandra Reddy  <sivachandra@google.com>
 
 	* gdb.texinfo (Blocks In Python): Add a note saying that future

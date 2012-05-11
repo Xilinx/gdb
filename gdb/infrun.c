@@ -1545,7 +1545,7 @@ displaced_step_fixup (ptid_t event_ptid, enum target_signal signal)
 
 	  if (debug_displaced)
 	    fprintf_unfiltered (gdb_stdlog,
-				"breakpoint is gone %s: step(%d)\n",
+				"displaced: breakpoint is gone: %s, step(%d)\n",
 				target_pid_to_str (tp->ptid), step);
 
 	  target_resume (ptid, step, TARGET_SIGNAL_0);
@@ -5620,7 +5620,7 @@ check_exception_resume (struct execution_control_state *ecs,
   TRY_CATCH (e, RETURN_MASK_ERROR)
     {
       struct block *b;
-      struct dict_iterator iter;
+      struct block_iterator iter;
       struct symbol *sym;
       int argno = 0;
 

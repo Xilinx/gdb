@@ -1,3 +1,166 @@
+2012-05-10  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf64-x86-64.c (elf_x86_64_relocate_section): Use int in x32
+	addend overflow check.
+
+2012-05-10  DJ Delorie  <dj@redhat.com>
+
+	* elf32-rx.c (rx_elf_object_p): Ignore empty segments.
+
+2012-05-10  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf64-x86-64.c (elf_x86_64_relocate_section): Display signed
+	hex number in x32 addend overflow check.
+
+2012-05-10  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf64-x86-64.c (elf_x86_64_reloc_type_class): Handle
+	R_X86_64_RELATIVE64.
+
+2012-05-09  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf64-x86-64.c (elf_x86_64_relocate_section): Check addend
+	overflow for R_X86_64_RELATIVE64.
+
+2012-05-08  Ben Cheng  <bccheng@google.com>
+
+	* bfd/elf.c: Preserve the original p_align and p_flags if they are
+	valid.
+
+2012-05-07  Alan Modra  <amodra@gmail.com>
+
+	* elf64-ia64-vms.c (elf64_ia64_relocate_section): Update
+	RELOC_AGAINST_DISCARDED_SECTION invocation.
+
+2012-05-07  Hans-Peter Nilsson  <hp@axis.com>
+
+	* elf-bfd.h (RELOC_AGAINST_DISCARDED_SECTION): Declare and use
+	local variable i_ instead of assuming and using a variable i.
+
+2012-05-07  Maciej W. Rozycki  <macro@linux-mips.org>
+
+	* elf-bfd.h (RELOC_AGAINST_DISCARDED_SECTION): Handle compound
+	relocations.
+	* elfxx-mips.c (mips_reloc_against_discarded_section): New
+	function.
+	(_bfd_mips_elf_relocate_section): Call it, in place of
+	RELOC_AGAINST_DISCARDED_SECTION.
+	* elf-m10200.c (mn10200_elf_relocate_section): Update arguments
+	to RELOC_AGAINST_DISCARDED_SECTION.
+	* elf-m10300.c (mn10300_elf_relocate_section): Likewise.
+	* elf32-arm.c (elf32_arm_relocate_section): Likewise.
+	* elf32-avr.c (elf32_avr_relocate_section): Likewise.
+	* elf32-bfin.c (bfin_relocate_section): Likewise.
+	(bfinfdpic_relocate_section): Likewise.
+	* elf32-cr16.c (elf32_cr16_relocate_section): Likewise.
+	* elf32-cr16c.c (elf32_cr16c_relocate_section): Likewise.
+	* elf32-cris.c (cris_elf_relocate_section): Likewise.
+	* elf32-crx.c (elf32_crx_relocate_section): Likewise.
+	* elf32-d10v.c (elf32_d10v_relocate_section): Likewise.
+	* elf32-epiphany.c (epiphany_elf_relocate_section): Likewise.
+	* elf32-fr30.c (fr30_elf_relocate_section): Likewise.
+	* elf32-frv.c (elf32_frv_relocate_section): Likewise.
+	* elf32-h8300.c (elf32_h8_relocate_section): Likewise.
+	* elf32-hppa.c (elf32_hppa_relocate_section): Likewise.
+	* elf32-i370.c (i370_elf_relocate_section): Likewise.
+	* elf32-i386.c (elf_i386_relocate_section): Likewise.
+	* elf32-i860.c (elf32_i860_relocate_section): Likewise.
+	* elf32-ip2k.c (ip2k_elf_relocate_section): Likewise.
+	* elf32-iq2000.c (iq2000_elf_relocate_section): Likewise.
+	* elf32-lm32.c (lm32_elf_relocate_section): Likewise.
+	* elf32-m32c.c (m32c_elf_relocate_section): Likewise.
+	* elf32-m32r.c (m32r_elf_relocate_section): Likewise.
+	* elf32-m68hc1x.c (elf32_m68hc11_relocate_section): Likewise.
+	* elf32-m68k.c (elf_m68k_relocate_section): Likewise.
+	* elf32-mcore.c (mcore_elf_relocate_section): Likewise.
+	* elf32-mep.c (mep_elf_relocate_section): Likewise.
+	* elf32-moxie.c (moxie_elf_relocate_section): Likewise.
+	* elf32-msp430.c (elf32_msp430_relocate_section): Likewise.
+	* elf32-mt.c (mt_elf_relocate_section): Likewise.
+	* elf32-openrisc.c (openrisc_elf_relocate_section): Likewise.
+	* elf32-ppc.c (ppc_elf_relocate_section): Likewise.
+	* elf32-rl78.c (rl78_elf_relocate_section): Likewise.
+	* elf32-rx.c (rx_elf_relocate_section): Likewise.
+	* elf32-s390.c (elf_s390_relocate_section): Likewise.
+	* elf32-score.c (s3_bfd_score_elf_relocate_section): Likewise.
+	* elf32-score7.c (s7_bfd_score_elf_relocate_section): Likewise.
+	* elf32-sh.c (sh_elf_relocate_section): Likewise.
+	* elf32-spu.c (spu_elf_relocate_section): Likewise.
+	* elf32-tic6x.c (elf32_tic6x_relocate_section): Likewise.
+	* elf32-tilepro.c (tilepro_elf_relocate_section): Likewise.
+	* elf32-v850.c (v850_elf_relocate_section): Likewise.
+	* elf32-vax.c (elf_vax_relocate_section): Likewise.
+	* elf32-xc16x.c (elf32_xc16x_relocate_section): Likewise.
+	* elf32-xstormy16.c (xstormy16_elf_relocate_section): Likewise.
+	* elf32-xtensa.c (elf_xtensa_relocate_section): Likewise.
+	* elf64-alpha.c (elf64_alpha_relocate_section_r): Likewise.
+	(elf64_alpha_relocate_section): Likewise.
+	* elf64-hppa.c (elf64_hppa_relocate_section): Likewise.
+	* elf64-mmix.c (mmix_elf_relocate_section): Likewise.
+	* elf64-ppc.c (ppc64_elf_relocate_section): Likewise.
+	* elf64-s390.c (elf_s390_relocate_section): Likewise.
+	* elf64-sh64.c (sh_elf64_relocate_section): Likewise.
+	* elf64-x86-64.c (elf_x86_64_relocate_section): Likewise.
+	* elfnn-ia64.c (elfNN_ia64_relocate_section): Likewise.
+	* elfxx-sparc.c (_bfd_sparc_elf_relocate_section): Likewise.
+	* elfxx-tilegx.c (tilegx_elf_relocate_section): Likewise.
+
+2012-05-05  Alan Modra  <amodra@gmail.com>
+
+	PR ld/14052
+	PR ld/13621
+	* linker.c (_bfd_nearby_section): Revert 2012-02-13 change.
+
+2012-05-05  Alan Modra  <amodra@gmail.com>
+
+	* aout-arm.c: Replace all uses of bfd_abs_section, bfd_com_section,
+	bfd_und_section and bfd_ind_section with their _ptr variants, or
+	use corresponding bfd_is_* macros.
+	* aout-ns32k.c: Likewise.
+	* aout-tic30.c: Likewise.
+	* coff-arm.c: Likewise.
+	* coff-tic54x.c: Likewise.
+	* cpu-ns32k.c: Likewise.
+	* elf-attrs.c: Likewise.
+	* elfcode.h: Likewise.
+	* peicode.h: Likewise.
+	* reloc.c: Likewise.
+	* riscix.c: Likewise.
+	* versados.c: Likewise.
+	* section.c: Likewise.
+	(bfd_abs_section, bfd_ind_section, bfd_com_section,
+	bfd_ind_section): Delete.
+	(std_section): New array replacing above.
+	(bfd_abs_section_ptr, bfd_ind_section_ptr, bfd_com_section_ptr,
+	bfd_ind_section_ptr, STD_SECTION): Update.
+	(BFD_FAKE_SECTION, GLOBAL_SYM_INIT): Remove unnecessary casts.
+	* bfd-in2.h: Regenerate.
+
+2012-05-03  Sean Keys  <skeys@ipdatasys.com>
+
+	* cpu-xgate.c: New file. Added XGATE support.
+	* archures.c (bfd_architecture): Add XGATE architecture.
+	(bfd_archures_list): Add reference to XGATE architecture info.
+	* elf-bfd.h (prep_headers): Handle bfd_arch_xgate.
+	* reloc.c: Add various XGATE relocation enums.
+	* targets.c (bfd_elf32_xgate_vec): Declare and add to target vector
+	list.
+	* Makefile.am: Add support for XGATE elf.
+	* configure.in: Ditto.
+	* config.bfd: Ditto.
+	* Makefile.in: Regenerate.
+	* configure: Ditto.
+	* bfd-in2.h: Ditto.
+	* libbfd.h: Ditto.
+	Added files for XGATE relocations.
+	* elf32-xgate.c: Created minimal relocation file.
+	* elf32-xgate.h: Created minimal header file for elf32-xgate.
+
+2012-05-03  Tristan Gingold  <gingold@adacore.com>
+
+	* dwarf2.c (decode_line_info): Ignore
+	DW_LNE_HP_source_file_correlation.
+
 2012-05-01  Nick Clifton  <nickc@redhat.com>
 
 	PR binutils/13121

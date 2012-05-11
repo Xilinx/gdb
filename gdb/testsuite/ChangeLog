@@ -1,3 +1,54 @@
+2012-05-10  Joel Brobecker  <brobecker@adacore.com>
+
+	* config/djgpp/fnchange.lst: Add entries for print-file-var-lib1.c,
+	print-file-var-lib2.c, print-file-var-main.c and
+	print-file-var.exp (located in gdb/testsuite/gdb.base).
+
+2012-05-10  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.base/ctxobj-f.c, gdb.base/ctxobj-m.c, gdb.base/ctxobj-v.c,
+	gdb.base/ctxobj.exp: New files.
+
+2012-05-09  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.trace/strace.exp: Add 'quiet' to compiler flags.
+
+2012-05-09  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* lib/gdb.exp (gdb_test_multiple): Correct formatting.
+
+2012-05-08  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* gdb.mi/mi-var-display.exp: Check for the existence of $fp
+	before using it.
+
+2012-05-04  Tristan Gingold  <gingold@adacore.com>
+
+	* gdb.base/set-noassign.exp: New test.
+
+2012-05-03  Siva Chandra Reddy  <sivachandra@google.com>
+
+	* gdb.python/py-symbol.exp: Add tests to test the new methods
+	gdb.Symtab.global_block() and gdb.Symtab.static_block().
+	* gdb.python/py-symbol.c: Add new struct to help test
+	gdb.Symtab.static_block().
+
+2012-05-03  Doug Evans  <dje@google.com>
+
+	* gdb.dwarf2/pr13961.S: Add file and source location, but leave
+	commented out.
+
+2012-05-03  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.base/catch-syscall.exp: Skip it before compilation if target
+	doesn't support.
+	* gdb.base/foll-exec.exp, gdb.base/foll-fork.exp: Likewise.
+	* gdb.base/foll-vfork.exp, gdb.multi/bkpt-multi-exec.exp: Likewise.
+
+2012-05-03  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.mi/mi-solib.exp: Setup kfail for gdb/13860.
+
 2012-04-30  Doug Evans  <dje@google.com>
 
 	PR testsuite/13961

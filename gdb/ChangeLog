@@ -1,3 +1,356 @@
+2012-05-10  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2read.c (recursively_write_psymbols): New function.
+	(write_psymtabs_to_index): Use it.
+
+	* dwarf2read.c (struct dwarf2_queue_item) <pretend_language>: New
+	field.
+	(load_cu, dw2_do_instantiate_symtab, process_psymtab_comp_unit)
+	(load_partial_comp_unit): Update.
+	(queue_comp_unit): Add argument 'pretend_language'.
+	(process_queue): Update.
+	(psymtab_to_symtab_1): Skip dependencies that have a user.
+	(load_partial_comp_unit_reader): Give meaning to the 'data'
+	argument.
+	(load_full_comp_unit): Add 'pretend_language' argument.
+	(process_full_comp_unit): Add 'pretend_language' argument.  Set
+	language on CU.
+	(process_imported_unit_die, read_file_scope, read_type_unit_scope):
+	Update.
+	(maybe_queue_comp_unit): Add 'pretend_language' argument.
+	(follow_die_offset, follow_die_sig, read_signatured_type_reader):
+	Update.
+	(prepare_one_comp_unit): Add 'pretend_language' argument.
+
+	* dwarf2read.c: (dwarf2_per_cu_ptr): New typedef.
+	(struct dwarf2_per_objfile) <just_read_cus>: New field.
+	(struct dwarf2_per_cu_data) <imported_symtabs>: New field.
+	(dw2_do_instantiate_symtab): Check whether symtab was read in
+	before queueing.
+	(dw2_instantiate_symtab): Add assertion.  Call
+	process_cu_includes.
+	(process_psymtab_comp_unit): Compute 'dependencies' for psymtab.
+	(partial_symtab_p): New typedef.
+	(set_partial_user): New function.
+	(dwarf2_build_psymtabs_hard): Use set_partial_user.
+	(scan_partial_symbols): Add imported CU to imported_symtabs.
+	(dwarf2_psymtab_to_symtab): Call process_cu_includes.
+	(psymtab_to_symtab_1): Do nothing if psymtab is readin.
+	(get_symtab, recursively_compute_inclusions)
+	(compute_symtab_includes, process_cu_includes)
+	(process_imported_unit_die): New functions.
+	(process_die) <DW_TAG_imported_unit>: New case.
+	(dwarf2_per_objfile_free): Free 'imported_symtabs'.
+
+	* dwarf2read.c (struct dwarf2_per_cu_data) <psymtab>: Update
+	comment.
+	(struct partial_die_info) <locdesc>: Remove.
+	<d>: New field.
+	(process_psymtab_comp_unit): Add 'read_partial' argument.
+	Update.
+	(process_type_comp_unit, dwarf2_build_psymtabs_hard): Update.
+	(scan_partial_symbols): Handle DW_TAG_imported_unit.
+	(add_partial_symbol): Update.
+	(process_die): Handle DW_TAG_partial_unit.
+	(read_file_scope): Update comment.
+	(load_partial_dies): Handle DW_TAG_imported_unit.
+	(read_partial_die): Handle DW_TAG_partial_unit, DW_AT_import.
+	(determine_prefix, dwarf2_name): Handle DW_TAG_partial_unit.
+
+2012-05-10  Tom Tromey  <tromey@redhat.com>
+
+	* cc-with-dwz.sh: New file.
+
+2012-05-10  Tom Tromey  <tromey@redhat.com>
+
+	* symtab.h (struct symtab) <includes, user>: New fields.
+	* block.h (struct block_iterator) <d, idx, which>: New fields.
+	* block.c (initialize_block_iterator, find_iterator_symtab)
+	(block_iterator_step, block_iter_name_step)
+	(block_iter_match_step): New functions.
+	(block_iterator_first, block_iterator_next)
+	(block_iter_name_first, block_iter_name_next)
+	(block_iter_match_first, block_iter_match_next): Rewrite.
+	(get_block_symtab): New function.
+
+2012-05-10  Tom Tromey  <tromey@redhat.com>
+
+	* jv-lang.c (get_java_class_symtab): Use allocate_global_block,
+	set_block_symtab.
+	* jit.c (finalize_symtab): Use allocate_global_block,
+	set_block_symtab.
+	* buildsym.c (finish_block_internal): New function, from old
+	finish_block.
+	(finish_block): Rewrite.
+	(end_symtab): Use finish_block_internal, set_block_symtab.
+	* block.h (struct global_block): New.
+	(allocate_global_block, set_block_symtab): Declare.
+	* block.c (allocate_global_block, set_block_symtab): New
+	functions.
+
+2012-05-10  Tom Tromey  <tromey@redhat.com>
+
+	* psymtab.c (partial_map_expand_apply): Add assertion.
+	(partial_map_symtabs_matching_filename): Skip included psymtabs.
+	(psymtab_to_symtab): Find unshared psymtab.
+	(dump_psymtab): Print including psymtabs.
+	(recursively_search_psymtabs): New function.
+	(expand_symtabs_matching_via_partial): Use it.
+	* psympriv.h (struct partial_symtab) <user, searched_flag>: New
+	fields.
+	(enum psymtab_search_status): New.
+
+2012-05-10  Tom Tromey  <tromey@redhat.com>
+
+	* tracepoint.c (scope_info): Update.
+	* symtab.c (lookup_block_symbol, iterate_over_symbols)
+	(find_pc_sect_symtab, search_symbols)
+	(default_make_symbol_completion_list_break_on)
+	(make_file_symbol_completion_list): Update.
+	* symmisc.c (dump_symtab_1): Update.
+	* stack.c (print_frame_args, iterate_over_block_locals)
+	(print_frame_labels, iterate_over_block_arg_vars): Update.
+	* python/py-block.c (block_object) <dict>: Remove.
+	<block>: New field.
+	<iter>: Change type.
+	(blpy_iter): Update.
+	(blpy_block_syms_iternext): Update.
+	* psymtab.c (map_block): Use block iterators.
+	* objfiles.c (objfile_relocate1): Use ALL_DICT_SYMBOLS.
+	* mi/mi-cmd-stack.c (list_args_or_locals): Update.
+	* mdebugread.c (parse_symbol, mylookup_symbol): Update.
+	* infrun.c (check_exception_resume): Update.
+	* cp-support.c (make_symbol_overload_list_block): Update.
+	* coffread.c (patch_opaque_types): Update.
+	* buildsym.c (finish_block, end_symtab): Use ALL_DICT_SYMBOLS.
+	* block.h (struct block_iterator): New.
+	(block_iterator_first, block_iterator_next, block_iter_name_first)
+	(block_iter_name_next, block_iter_match_first)
+	(block_iter_match_next): Declare.
+	(ALL_BLOCK_SYMBOLS): Redefine.
+	* block.c (block_iterator_first, block_iterator_next)
+	(block_iter_name_first, block_iter_name_next)
+	(block_iter_match_first, block_iter_match_next): New functions.
+	* ada-lang.c (ada_add_block_symbols)
+	(ada_make_symbol_completion_list): Use block iterator.
+
+2012-05-10  Tom Tromey  <tromey@redhat.com>
+
+	* psymtab.c (PSYMTAB_TO_SYMTAB): Remove.
+	(find_pc_sect_symtab_from_partial, lookup_symbol_aux_psymtabs)
+	(lookup_partial_symbol, find_last_source_symtab_from_partial)
+	(read_psymtabs_with_filename, map_matching_symbols_psymtab)
+	(expand_symtabs_matching_via_partial, maintenance_check_symtabs):
+	Update.
+
+2012-05-10  Joel Brobecker  <brobecker@adacore.com>
+
+	* config/djgpp/fnchange.lst: Add entries for print-file-var-lib1.c,
+	print-file-var-lib2.c, print-file-var-main.c and
+	print-file-var.exp (located in gdb/testsuite/gdb.base).
+
+2012-05-10  Joel Brobecker  <brobecker@adacore.com>
+
+	* findvar.c (default_read_var_value): For LOC_UNRESOLVED symbols,
+	try locating the symbol in the symbol's own objfile first, before
+	extending the search to all objfiles.
+	* symtab.c (lookup_symbol_aux_objfile): New function, extracted
+	out of lookup_symbol_aux_symtabs.
+	(lookup_symbol_aux_symtabs): Add new parameter "exclude_objfile".
+	Replace extracted-out code by call to lookup_symbol_aux_objfile.
+	Do not search EXCLUDE_OBJFILE.
+	(lookup_static_symbol_aux): Update call to lookup_symbol_aux_symtabs.
+	(lookup_symbol_global): Search for matches in the block's objfile
+	first, before searching all other objfiles.
+
+2012-05-10  Tristan Gingold  <gingold@adacore.com>
+
+	* printcmd.c (set_command): Add pre/post inc/dec.
+
+2012-05-09  Frank Ch. Eigler  <fche@redhat.com>
+
+	* gdb.1: Document -ex option.
+
+2012-05-09  Joel Brobecker  <brobecker@adacore.com>
+
+	* infcall.c (call_function_by_hand): Remove AT_SYMBOL handling.
+	* inferior.h (AT_SYMBOL): Delete.
+
+2012-05-09  Joel Brobecker  <brobecker@adacore.com>
+
+	* mips-tdep.c (mips_push_dummy_code): New function.
+	(mips_gdbarch_init): Set the gdbarch call_dummy_location to
+	ON_STACK and install mips_push_dummy_code as our gdbarch
+	push_dummy_code routine.
+
+2012-05-09  Pedro Alves  <palves@redhat.com>
+
+	* target.c (set_maintenance_target_async_permitted): Rename to ...
+	(set_target_async_command): ... this.
+	(show_maintenance_target_async_permitted): Rename to ...
+	(show_target_async_command): ... this.
+	(initialize_targets): Adjust.
+
+2012-05-08  Doug Evans  <dje@google.com>
+
+	* go-exp.y (classify_name): Add missing assignment of fields of
+	yylval.ssym.
+
+2012-05-08  Eli Zaretskii  <eliz@gnu.org>
+
+	Display the ">" prompt in interactive mode while reading canned
+	commands, even when the current interpreter is MI.
+
+	* interps.c (interp_set_temp): New function.
+
+	* interps.h (interp_set_temp): Add prototype.
+
+	* cli/cli-script.c (restore_interp): New cleanup function.
+	(read_command_lines): Temporarily override the current interpreter
+	with CLI and arrange for restoring the original one.
+
+2012-05-12  Joel Sherrill <joel.sherrill@oarcorp.com>
+
+	* microblaze-rom.c (_initialize_picobug_rom): Add prototype.
+
+2012-05-07  Sergio Durigan Junior  <sergiodj@redhat.com>
+
+	* probe.c (parse_probes): Move conditional to check for
+	debuginfo files from here...
+	* stap-probe.c (stap_get_probes): ... to here.
+
+2012-05-07  Mark Kettenis  <kettenis@gnu.org>
+	    H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-tdep.c (amd64_analyze_prologue): Additionally check for
+	`movl %esp, %ebp' for the X32 ABI.
+
+2012-05-07  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2read.c (dwarf_tag_name): Return const char *.  Use
+	get_DW_TAG_name.
+	(dwarf_attr_name): Return const char *.  Use get_DW_AT_name.
+	(dwarf_form_name): Return const char *.  Use get_DW_FORM_name.
+	(dwarf_stack_op_name): Remove.
+	(dwarf_cfi_name): Return const char *.  Use get_DW_ATE_name.
+	(decode_locdesc): Use get_DW_OP_name.
+	* dwarf2loc.c (unimplemented): Use get_DW_OP_name.
+	(dwarf2_compile_expr_to_ax): Likewise.
+	(disassemble_dwarf_expression): Likewise.
+	* dwarf2expr.h: (dwarf_stack_op_name): Remove.
+
+2012-05-07  Chung-Lin Tang  <cltang@codesourcery.com>
+
+	* sh-linux-tdep.c: Include trad-frame.h and tramp-frame.h.
+	(sh_linux_sigtramp_cache): New function.
+	(sh_linux_sigreturn_init): New function.
+	(sh_linux_rt_sigreturn_init): New function.
+	(SH_MOVW,SH_TRAP,SH_OR_R0_R0): New symbols for instruction
+	patterns.
+	(SH_NR_SIGRETURN,SH_NR_RT_SIGRETURN): New symbols for sigreturn
+	syscall codes.
+	(sh_linux_sigreturn_tramp_frame): New tramp_frame definition.
+	(sh_linux_rt_sigreturn_tramp_frame): Likewise.
+	(sh_linux_init_abi): Add init calls to register new tramp_frame
+	definitions under 32-bit SH, update comments.
+
+2012-05-07  Pedro Alves  <palves@redhat.com>
+
+	PR gdb/10952
+
+	* amd64-linux-tdep.c: Include glibc-tdep.h.
+	(amd64_linux_init_abi): Install glibc_skip_solib_resolver as
+	gdbarch_skip_solib_resolver callback.
+
+2012-05-06  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* auto-load.c (set_auto_load_safe_path): Reset AUTO_LOAD_SAFE_PATH
+	back to DEFAULT_AUTO_LOAD_SAFE_PATH if it is being set to "".
+	(show_auto_load_safe_path): Check any-directory by comparison with "/".
+	(add_auto_load_safe_path): Change the error message.
+	(_initialize_auto_load): Change the "safe-path" help text.
+	* configure: Regenerate
+	* configure.ac (--without-auto-load-safe-path): Set
+	WITH_AUTO_LOAD_SAFE_PATH to /.
+
+2012-05-05  Sergio Durigan Junior  <sergiodj@redhat.com>
+
+	* stap-probe.h: Do not include unecessary `probe.h'.
+
+2012-05-05  Alan Modra  <amodra@gmail.com>
+
+	* elfread.c (elf_symtab_read): Use bfd_abs_section_ptr and
+	bfd_und_section_ptr.
+	* machoread.c (macho_symtab_add_minsym): Use bfd_abs_section_ptr
+	and bfd_com_section_ptr.
+
+2012-05-04  Joel Brobecker  <brobecker@adacore.com>
+
+	* MAINTAINERS (Past Maintainers): Add Chris Faylor.
+
+2012-05-04  Joel Brobecker  <brobecker@adacore.com>
+
+	* windows-nat.h (segment_register_p_ftype): New typedef.
+	(windows_set_segment_register_p): Add declaration.
+	* windows-nat.c (segment_register_p): New static global.
+	(windows_set_segment_register_p): New function.
+	(do_windows_fetch_inferior_registers): Add special handling
+	for segment registers.
+	* amd64-windows-nat.c: #include "amd64-tdep.h".
+	(amd64_windows_segment_register_p): New function.
+	(_initialize_amd64_windows_nat): Call windows_set_segment_register_p.
+	* i386-windows-nat.c: #include "i386-tdep.h".
+	(i386_windows_segment_register_p): New function.
+	(_initialize_i386_windows_nat): Call windows_set_segment_register_p.
+
+2012-05-04  Tristan Gingold  <gingold@adacore.com>
+
+	* printcmd.c (set_command): Emit a warning if the expression is not
+	an assignment.
+
+2012-05-03  Joel Brobecker  <brobecker@adacore.com>
+
+	* nto-procfs.c (procfs_find_new_threads, procfs_pid_to_str):
+	Make static.
+
+2012-05-03  Sergio Durigan Junior  <sergiodj@redhat.com>
+
+	* stap-probe.c (stap_is_operator): Change declaration.
+	(stap_get_opcode): Change return value.
+	(stap_parse_argument_1): Update calls to `stap_get_opcode' and
+	`stap_parse_argument_1'.
+
+2012-05-03  Pedro Alves  <pedro@codesourcery.com>
+
+	* infrun.c (displaced_step_fixup): Add "displaced:" prefix to
+	debug log.
+
+2012-05-03  Siva Chandra Reddy  <sivachandra@google.com>
+
+	Add two new methods global_block and static_block to gdb.Symtab
+	objects.
+	* NEWS (Python scripting): Add entry about the new methods.
+	* python/py-symtab.c (stpy_global_block): New function which
+	implements the gdb.Symtab.global_block() method.
+	(stpy_static_block): New function which implements the
+	gdb.Symtab.static_block() method.
+	(symtab_object_methods): Add entries for the two new methods.
+
+2012-05-03  Doug Evans  <dje@google.com>
+
+	* dwarf2read.c (dw2_find_symbol_file): Don't crash if there are no
+	files.
+
+2012-05-03  Yao Qi  <yao@codesourcery.com>
+
+	* i386-tdep.c (i386_fetch_pointer_argument): Remove extra
+	space.
+	(i386_process_record): Ditto.
+
+2012-05-02  Joel Brobecker  <brobecker@adacore.com>
+
+	* infcall.c (unwind_on_signal_p): Make static.
+
 2012-05-02  Joel Brobecker  <brobecker@adacore.com>
 
 	* sol-thread.c (solaris_pid_to_str): Make static.

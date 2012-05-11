@@ -1542,28 +1542,25 @@ struct relax_table {
 
 /* These sections are global, and are managed by BFD.  The application
    and target back end are not permitted to change the values in
-   these sections.  New code should use the section_ptr macros rather
-   than referring directly to the const sections.  The const sections
-   may eventually vanish.  */
+   these sections.  */
+extern asection std_section[4];
+
 #define BFD_ABS_SECTION_NAME "*ABS*"
 #define BFD_UND_SECTION_NAME "*UND*"
 #define BFD_COM_SECTION_NAME "*COM*"
 #define BFD_IND_SECTION_NAME "*IND*"
 
-/* The absolute section.  */
-extern asection bfd_abs_section;
-#define bfd_abs_section_ptr ((asection *) &bfd_abs_section)
-#define bfd_is_abs_section(sec) ((sec) == bfd_abs_section_ptr)
-/* Pointer to the undefined section.  */
-extern asection bfd_und_section;
-#define bfd_und_section_ptr ((asection *) &bfd_und_section)
-#define bfd_is_und_section(sec) ((sec) == bfd_und_section_ptr)
 /* Pointer to the common section.  */
-extern asection bfd_com_section;
-#define bfd_com_section_ptr ((asection *) &bfd_com_section)
+#define bfd_com_section_ptr (&std_section[0])
+/* Pointer to the undefined section.  */
+#define bfd_und_section_ptr (&std_section[1])
+/* Pointer to the absolute section.  */
+#define bfd_abs_section_ptr (&std_section[2])
 /* Pointer to the indirect section.  */
-extern asection bfd_ind_section;
-#define bfd_ind_section_ptr ((asection *) &bfd_ind_section)
+#define bfd_ind_section_ptr (&std_section[3])
+
+#define bfd_is_und_section(sec) ((sec) == bfd_und_section_ptr)
+#define bfd_is_abs_section(sec) ((sec) == bfd_abs_section_ptr)
 #define bfd_is_ind_section(sec) ((sec) == bfd_ind_section_ptr)
 
 #define bfd_is_const_section(SEC)              \
@@ -1678,8 +1675,8 @@ extern asection bfd_ind_section;
   /* vma, lma, size, rawsize, compressed_size, relax, relax_count, */  \
      0,   0,   0,    0,       0,               0,     0,               \
                                                                        \
-  /* output_offset, output_section,              alignment_power,  */  \
-     0,             (struct bfd_section *) &SEC, 0,                    \
+  /* output_offset, output_section, alignment_power,               */  \
+     0,             &SEC,           0,                                 \
                                                                        \
   /* relocation, orelocation, reloc_count, filepos, rel_filepos,   */  \
      NULL,       NULL,        0,           0,       0,                 \
@@ -2141,7 +2138,9 @@ enum bfd_architecture
   bfd_arch_xc16x,     /* Infineon's XC16X Series.               */
 #define bfd_mach_xc16x         1
 #define bfd_mach_xc16xl        2
-#define bfd_mach_xc16xs         3
+#define bfd_mach_xc16xs        3
+  bfd_arch_xgate,   /* Freescale XGATE */
+#define bfd_mach_xgate         1
   bfd_arch_xtensa,    /* Tensilica's Xtensa cores.  */
 #define bfd_mach_xtensa        1
   bfd_arch_z80,
@@ -4471,6 +4470,57 @@ to follow the 16K memory bank of 68HC12 (seen as mapped in the window).  */
 /* Motorola 68HC12 reloc.
 This is the 5 bits of a value.  */
   BFD_RELOC_M68HC12_5B,
+
+/* Freescale XGATE reloc.
+This reloc marks the beginning of a bra/jal instruction.  */
+  BFD_RELOC_XGATE_RL_JUMP,
+
+/* Freescale XGATE reloc.
+This reloc marks a group of several instructions that gcc generates
+and for which the linker relaxation pass can modify and/or remove
+some of them.  */
+  BFD_RELOC_XGATE_RL_GROUP,
+
+/* Freescale XGATE reloc.
+This is the 16-bit lower part of an address.  It is used for the '16-bit'
+instructions.  */
+  BFD_RELOC_XGATE_LO16,
+
+/* Freescale XGATE reloc.  */
+  BFD_RELOC_XGATE_GPAGE,
+
+/* Freescale XGATE reloc.  */
+  BFD_RELOC_XGATE_24,
+
+/* Freescale XGATE reloc.
+This is a 9-bit pc-relative reloc.  */
+  BFD_RELOC_XGATE_PCREL_9,
+
+/* Freescale XGATE reloc.
+This is a 10-bit pc-relative reloc.  */
+  BFD_RELOC_XGATE_PCREL_10,
+
+/* Freescale XGATE reloc.
+This is the 16-bit lower part of an address.  It is used for the '16-bit'
+instructions.  */
+  BFD_RELOC_XGATE_IMM8_LO,
+
+/* Freescale XGATE reloc.
+This is the 16-bit higher part of an address.  It is used for the '16-bit'
+instructions.  */
+  BFD_RELOC_XGATE_IMM8_HI,
+
+/* Freescale XGATE reloc.
+This is a 3-bit pc-relative reloc.  */
+  BFD_RELOC_XGATE_IMM3,
+
+/* Freescale XGATE reloc.
+This is a 4-bit pc-relative reloc.  */
+  BFD_RELOC_XGATE_IMM4,
+
+/* Freescale XGATE reloc.
+This is a 5-bit pc-relative reloc.  */
+  BFD_RELOC_XGATE_IMM5,
 
 /* NS CR16C Relocations.  */
   BFD_RELOC_16C_NUM08,

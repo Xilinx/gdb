@@ -148,6 +148,9 @@ struct mapped_index
   const char *constant_pool;
 };
 
+typedef struct dwarf2_per_cu_data *dwarf2_per_cu_ptr;
+DEF_VEC_P (dwarf2_per_cu_ptr);
+
 /* Collection of data recorded per objfile.
    This hangs off of dwarf2_objfile_data_key.  */
 
@@ -221,6 +224,9 @@ struct dwarf2_per_objfile
      This is NULL if not allocated yet.
      The mapping is done via (CU/TU signature + DIE offset) -> type.  */
   htab_t die_type_hash;
+
+  /* The CUs we recently read.  */
+  VEC (dwarf2_per_cu_ptr) *just_read_cus;
 };
 
 static struct dwarf2_per_objfile *dwarf2_per_objfile;
@@ -483,13 +489,18 @@ struct dwarf2_per_cu_data
   union
   {
     /* The partial symbol table associated with this compilation unit,
-       or NULL for partial units (which do not have an associated
-       symtab).  */
+       or NULL for unread partial units.  */
     struct partial_symtab *psymtab;
 
     /* Data needed by the "quick" functions.  */
     struct dwarf2_per_cu_quick_data *quick;
   } v;
+
+  /* The CUs we import using DW_TAG_imported_unit.  This is filled in
+     while reading psymtabs, used to compute the psymtab dependencies,
+     and then cleared.  Then it is filled in again while reading full
+     symbols, and only deleted when the objfile is destroyed.  */
+  VEC (dwarf2_per_cu_ptr) *imported_symtabs;
 };
 
 /* Entry in the signatured_types hash table.  */
@@ -695,8 +706,15 @@ struct partial_die_info
        when this compilation unit leaves the cache.  */
     char *scope;
 
-    /* The location description associated with this DIE, if any.  */
-    struct dwarf_block *locdesc;
+    /* Some data associated with the partial DIE.  The tag determines
+       which field is live.  */
+    union
+    {
+      /* The location description associated with this DIE, if any.  */
+      struct dwarf_block *locdesc;
+      /* The offset of an import, for DW_TAG_imported_unit.  */
+      sect_offset offset;
+    } d;
 
     /* If HAS_PC_INFO, the PC range associated with this DIE.  */
     CORE_ADDR lowpc;
@@ -887,6 +905,7 @@ struct field_info
 struct dwarf2_queue_item
 {
   struct dwarf2_per_cu_data *per_cu;
+  enum language pretend_language;
   struct dwarf2_queue_item *next;
 };
 
@@ -1252,19 +1271,15 @@ static const char *dwarf2_full_name (char *name,
 static struct die_info *dwarf2_extension (struct die_info *die,
 					  struct dwarf2_cu **);
 
-static char *dwarf_tag_name (unsigned int);
+static const char *dwarf_tag_name (unsigned int);
 
-static char *dwarf_attr_name (unsigned int);
+static const char *dwarf_attr_name (unsigned int);
 
-static char *dwarf_form_name (unsigned int);
+static const char *dwarf_form_name (unsigned int);
 
 static char *dwarf_bool_name (unsigned int);
 
-static char *dwarf_type_encoding_name (unsigned int);
-
-#if 0
-static char *dwarf_cfi_name (unsigned int);
-#endif
+static const char *dwarf_type_encoding_name (unsigned int);
 
 static struct die_info *sibling_die (struct die_info *);
 
@@ -1350,7 +1365,8 @@ static void init_one_comp_unit (struct dwarf2_cu *cu,
 				struct dwarf2_per_cu_data *per_cu);
 
 static void prepare_one_comp_unit (struct dwarf2_cu *cu,
-				   struct die_info *comp_unit_die);
+				   struct die_info *comp_unit_die,
+				   enum language pretend_language);
 
 static void free_heap_comp_unit (void *);
 
@@ -1367,9 +1383,11 @@ static void create_all_comp_units (struct objfile *);
 
 static int create_all_type_units (struct objfile *);
 
-static void load_full_comp_unit (struct dwarf2_per_cu_data *);
+static void load_full_comp_unit (struct dwarf2_per_cu_data *,
+				 enum language);
 
-static void process_full_comp_unit (struct dwarf2_per_cu_data *);
+static void process_full_comp_unit (struct dwarf2_per_cu_data *,
+				    enum language);
 
 static void dwarf2_add_dependence (struct dwarf2_cu *,
 				   struct dwarf2_per_cu_data *);
@@ -1385,7 +1403,12 @@ static struct type *get_die_type (struct die_info *die, struct dwarf2_cu *cu);
 
 static void dwarf2_release_queue (void *dummy);
 
-static void queue_comp_unit (struct dwarf2_per_cu_data *per_cu);
+static void queue_comp_unit (struct dwarf2_per_cu_data *per_cu,
+			     enum language pretend_language);
+
+static int maybe_queue_comp_unit (struct dwarf2_cu *this_cu,
+				  struct dwarf2_per_cu_data *per_cu,
+				  enum language pretend_language);
 
 static void process_queue (void);
 
@@ -1411,7 +1434,7 @@ static void init_cutu_and_read_dies_simple
 
 static htab_t allocate_signatured_type_table (struct objfile *objfile);
 
-static void process_psymtab_comp_unit (struct dwarf2_per_cu_data *);
+static void process_psymtab_comp_unit (struct dwarf2_per_cu_data *, int);
 
 static htab_t allocate_dwo_unit_table (struct objfile *objfile);
 
@@ -1424,6 +1447,8 @@ static struct dwo_unit *lookup_dwo_type_unit
 static void free_dwo_file_cleanup (void *);
 
 static void munmap_section_buffer (struct dwarf2_section_info *);
+
+static void process_cu_includes (void);
 
 #if WORDS_BIGENDIAN
 
@@ -1930,7 +1955,7 @@ load_cu (struct dwarf2_per_cu_data *per_cu)
   if (per_cu->is_debug_types)
     load_full_type_unit (per_cu);
   else
-    load_full_comp_unit (per_cu);
+    load_full_comp_unit (per_cu, language_minimal);
 
   gdb_assert (per_cu->cu != NULL);
 
@@ -1946,9 +1971,13 @@ dw2_do_instantiate_symtab (struct dwarf2_per_cu_data *per_cu)
 
   back_to = make_cleanup (dwarf2_release_queue, NULL);
 
-  queue_comp_unit (per_cu);
-
-  load_cu (per_cu);
+  if (dwarf2_per_objfile->using_index
+      ? per_cu->v.quick->symtab == NULL
+      : (per_cu->v.psymtab == NULL || !per_cu->v.psymtab->readin))
+    {
+      queue_comp_unit (per_cu, language_minimal);
+      load_cu (per_cu);
+    }
 
   process_queue ();
 
@@ -1966,11 +1995,13 @@ dw2_do_instantiate_symtab (struct dwarf2_per_cu_data *per_cu)
 static struct symtab *
 dw2_instantiate_symtab (struct dwarf2_per_cu_data *per_cu)
 {
+  gdb_assert (dwarf2_per_objfile->using_index);
   if (!per_cu->v.quick->symtab)
     {
       struct cleanup *back_to = make_cleanup (free_cached_comp_units, NULL);
       increment_reading_symtab ();
       dw2_do_instantiate_symtab (per_cu);
+      process_cu_includes ();
       do_cleanups (back_to);
     }
   return per_cu->v.quick->symtab;
@@ -2833,7 +2864,8 @@ dw2_find_symbol_file (struct objfile *objfile, const char *name)
   per_cu = dw2_get_cu (MAYBE_SWAP (vec[1]));
 
   file_data = dw2_get_file_names (objfile, per_cu);
-  if (file_data == NULL)
+  if (file_data == NULL
+      || file_data->num_file_names == 0)
     return NULL;
 
   return file_data->file_names[file_data->num_file_names - 1];
@@ -4017,11 +4049,14 @@ process_psymtab_comp_unit_reader (const struct die_reader_specs *reader,
   struct partial_symtab *pst;
   int has_pc_info;
   const char *filename;
+  int *want_partial_unit_ptr = data;
 
-  if (comp_unit_die->tag == DW_TAG_partial_unit)
+  if (comp_unit_die->tag == DW_TAG_partial_unit
+      && (want_partial_unit_ptr == NULL
+	  || !*want_partial_unit_ptr))
     return;
 
-  prepare_one_comp_unit (cu, comp_unit_die);
+  prepare_one_comp_unit (cu, comp_unit_die, language_minimal);
 
   cu->list_in_scope = &file_symbols;
 
@@ -4103,6 +4138,26 @@ process_psymtab_comp_unit_reader (const struct die_reader_specs *reader,
     (objfile->static_psymbols.list + pst->statics_offset);
   sort_pst_symbols (pst);
 
+  if (!VEC_empty (dwarf2_per_cu_ptr, cu->per_cu->imported_symtabs))
+    {
+      int i;
+      int len = VEC_length (dwarf2_per_cu_ptr, cu->per_cu->imported_symtabs);
+      struct dwarf2_per_cu_data *iter;
+
+      /* Fill in 'dependencies' here; we fill in 'users' in a
+	 post-pass.  */
+      pst->number_of_dependencies = len;
+      pst->dependencies = obstack_alloc (&objfile->objfile_obstack,
+					 len * sizeof (struct symtab *));
+      for (i = 0;
+	   VEC_iterate (dwarf2_per_cu_ptr, cu->per_cu->imported_symtabs,
+			i, iter);
+	   ++i)
+	pst->dependencies[i] = iter->v.psymtab;
+
+      VEC_free (dwarf2_per_cu_ptr, cu->per_cu->imported_symtabs);
+    }
+
   if (per_cu->is_debug_types)
     {
       /* It's not clear we want to do anything with stmt lists here.
@@ -4120,7 +4175,8 @@ process_psymtab_comp_unit_reader (const struct die_reader_specs *reader,
    Process compilation unit THIS_CU for a psymtab.  */
 
 static void
-process_psymtab_comp_unit (struct dwarf2_per_cu_data *this_cu)
+process_psymtab_comp_unit (struct dwarf2_per_cu_data *this_cu,
+			   int want_partial_unit)
 {
   /* If this compilation unit was already read in, free the
      cached copy in order to read it in again.	This is
@@ -4132,7 +4188,7 @@ process_psymtab_comp_unit (struct dwarf2_per_cu_data *this_cu)
 
   gdb_assert (! this_cu->is_debug_types);
   init_cutu_and_read_dies (this_cu, 0, 0, process_psymtab_comp_unit_reader,
-			   NULL);
+			   &want_partial_unit);
 
   /* Age out any secondary CUs.  */
   age_cached_comp_units ();
@@ -4190,6 +4246,28 @@ psymtabs_addrmap_cleanup (void *o)
   objfile->psymtabs_addrmap = NULL;
 }
 
+/* Compute the 'user' field for each psymtab in OBJFILE.  */
+
+static void
+set_partial_user (struct objfile *objfile)
+{
+  int i;
+
+  for (i = 0; i < dwarf2_per_objfile->n_comp_units; ++i)
+    {
+      struct dwarf2_per_cu_data *per_cu = dw2_get_cu (i);
+      struct partial_symtab *pst = per_cu->v.psymtab;
+      int j;
+
+      for (j = 0; j < pst->number_of_dependencies; ++j)
+	{
+	  /* Set the 'user' field only if it is not already set.  */
+	  if (pst->dependencies[j]->user == NULL)
+	    pst->dependencies[j]->user = pst;
+	}
+    }
+}
+
 /* Build the partial symbol table by doing a quick pass through the
    .debug_info and .debug_abbrev sections.  */
 
@@ -4223,8 +4301,10 @@ dwarf2_build_psymtabs_hard (struct objfile *objfile)
     {
       struct dwarf2_per_cu_data *per_cu = dw2_get_cu (i);
 
-      process_psymtab_comp_unit (per_cu);
+      process_psymtab_comp_unit (per_cu, 0);
     }
+
+  set_partial_user (objfile);
 
   objfile->psymtabs_addrmap = addrmap_create_fixed (objfile->psymtabs_addrmap,
 						    &objfile->objfile_obstack);
@@ -4244,7 +4324,7 @@ load_partial_comp_unit_reader (const struct die_reader_specs *reader,
 {
   struct dwarf2_cu *cu = reader->cu;
 
-  prepare_one_comp_unit (cu, comp_unit_die);
+  prepare_one_comp_unit (cu, comp_unit_die, language_minimal);
 
   /* Check if comp unit has_children.
      If so, read the rest of the partial symbols from this comp unit.
@@ -4353,7 +4433,8 @@ scan_partial_symbols (struct partial_die_info *first_die, CORE_ADDR *lowpc,
 	 enums.  */
 
       if (pdi->name != NULL || pdi->tag == DW_TAG_namespace
-	  || pdi->tag == DW_TAG_module || pdi->tag == DW_TAG_enumeration_type)
+	  || pdi->tag == DW_TAG_module || pdi->tag == DW_TAG_enumeration_type
+	  || pdi->tag == DW_TAG_imported_unit)
 	{
 	  switch (pdi->tag)
 	    {
@@ -4392,6 +4473,21 @@ scan_partial_symbols (struct partial_die_info *first_die, CORE_ADDR *lowpc,
 	      break;
 	    case DW_TAG_module:
 	      add_partial_module (pdi, lowpc, highpc, need_pc, cu);
+	      break;
+	    case DW_TAG_imported_unit:
+	      {
+		struct dwarf2_per_cu_data *per_cu;
+
+		per_cu = dwarf2_find_containing_comp_unit (pdi->d.offset,
+							   cu->objfile);
+
+		/* Go read the partial unit, if needed.  */
+		if (per_cu->v.psymtab == NULL)
+		  process_psymtab_comp_unit (per_cu, 1);
+
+		VEC_safe_push (dwarf2_per_cu_ptr, cu->per_cu->imported_symtabs,
+			       per_cu);
+	      }
 	      break;
 	    default:
 	      break;
@@ -4601,10 +4697,10 @@ add_partial_symbol (struct partial_die_info *pdi, struct dwarf2_cu *cu)
       }
       break;
     case DW_TAG_variable:
-      if (pdi->locdesc)
-	addr = decode_locdesc (pdi->locdesc, cu);
+      if (pdi->d.locdesc)
+	addr = decode_locdesc (pdi->d.locdesc, cu);
 
-      if (pdi->locdesc
+      if (pdi->d.locdesc
 	  && addr == 0
 	  && !dwarf2_per_objfile->has_section_at_zero)
 	{
@@ -4628,7 +4724,7 @@ add_partial_symbol (struct partial_die_info *pdi, struct dwarf2_cu *cu)
 	     used by GDB, but it comes in handy for debugging partial symbol
 	     table building.  */
 
-	  if (pdi->locdesc || pdi->has_type)
+	  if (pdi->d.locdesc || pdi->has_type)
 	    add_psymbol_to_list (actual_name, strlen (actual_name),
 				 built_actual_name,
 				 VAR_DOMAIN, LOC_STATIC,
@@ -4639,7 +4735,7 @@ add_partial_symbol (struct partial_die_info *pdi, struct dwarf2_cu *cu)
       else
 	{
 	  /* Static Variable.  Skip symbols without location descriptors.  */
-	  if (pdi->locdesc == NULL)
+	  if (pdi->d.locdesc == NULL)
 	    {
 	      if (built_actual_name)
 		xfree (actual_name);
@@ -5082,6 +5178,8 @@ dwarf2_psymtab_to_symtab (struct partial_symtab *pst)
 	    printf_filtered (_("done.\n"));
 	}
     }
+
+  process_cu_includes ();
 }
 
 /* Reading in full CUs.  */
@@ -5089,13 +5187,15 @@ dwarf2_psymtab_to_symtab (struct partial_symtab *pst)
 /* Add PER_CU to the queue.  */
 
 static void
-queue_comp_unit (struct dwarf2_per_cu_data *per_cu)
+queue_comp_unit (struct dwarf2_per_cu_data *per_cu,
+		 enum language pretend_language)
 {
   struct dwarf2_queue_item *item;
 
   per_cu->queued = 1;
   item = xmalloc (sizeof (*item));
   item->per_cu = per_cu;
+  item->pretend_language = pretend_language;
   item->next = NULL;
 
   if (dwarf2_queue == NULL)
@@ -5120,7 +5220,7 @@ process_queue (void)
       if (dwarf2_per_objfile->using_index
 	  ? !item->per_cu->v.quick->symtab
 	  : (item->per_cu->v.psymtab && !item->per_cu->v.psymtab->readin))
-	process_full_comp_unit (item->per_cu);
+	process_full_comp_unit (item->per_cu, item->pretend_language);
 
       item->per_cu->queued = 0;
       next_item = item->next;
@@ -5168,8 +5268,12 @@ psymtab_to_symtab_1 (struct partial_symtab *pst)
   struct cleanup *back_to;
   int i;
 
+  if (pst->readin)
+    return;
+
   for (i = 0; i < pst->number_of_dependencies; i++)
-    if (!pst->dependencies[i]->readin)
+    if (!pst->dependencies[i]->readin
+	&& pst->dependencies[i]->user == NULL)
       {
         /* Inform about additional files that need to be read in.  */
         if (info_verbose)
@@ -5235,6 +5339,7 @@ load_full_comp_unit_reader (const struct die_reader_specs *reader,
 {
   struct dwarf2_cu *cu = reader->cu;
   struct attribute *attr;
+  enum language *language_ptr = data;
 
   gdb_assert (cu->die_hash == NULL);
   cu->die_hash =
@@ -5258,17 +5363,19 @@ load_full_comp_unit_reader (const struct die_reader_specs *reader,
      or we won't be able to build types correctly.
      Similarly, if we do not read the producer, we can not apply
      producer-specific interpretation.  */
-  prepare_one_comp_unit (cu, cu->dies);
+  prepare_one_comp_unit (cu, cu->dies, *language_ptr);
 }
 
 /* Load the DIEs associated with PER_CU into memory.  */
 
 static void
-load_full_comp_unit (struct dwarf2_per_cu_data *this_cu)
+load_full_comp_unit (struct dwarf2_per_cu_data *this_cu,
+		     enum language pretend_language)
 {
   gdb_assert (! this_cu->is_debug_types);
 
-  init_cutu_and_read_dies (this_cu, 1, 1, load_full_comp_unit_reader, NULL);
+  init_cutu_and_read_dies (this_cu, 1, 1, load_full_comp_unit_reader,
+			   &pretend_language);
 }
 
 /* Add a DIE to the delayed physname list.  */
@@ -5393,11 +5500,117 @@ fixup_go_packaging (struct dwarf2_cu *cu)
     }
 }
 
+static void compute_symtab_includes (struct dwarf2_per_cu_data *per_cu);
+
+/* Return the symtab for PER_CU.  This works properly regardless of
+   whether we're using the index or psymtabs.  */
+
+static struct symtab *
+get_symtab (struct dwarf2_per_cu_data *per_cu)
+{
+  return (dwarf2_per_objfile->using_index
+	  ? per_cu->v.quick->symtab
+	  : per_cu->v.psymtab->symtab);
+}
+
+/* A helper function for computing the list of all symbol tables
+   included by PER_CU.  */
+
+static void
+recursively_compute_inclusions (VEC (dwarf2_per_cu_ptr) **result,
+				htab_t all_children,
+				struct dwarf2_per_cu_data *per_cu)
+{
+  void **slot;
+  int ix;
+  struct dwarf2_per_cu_data *iter;
+
+  slot = htab_find_slot (all_children, per_cu, INSERT);
+  if (*slot != NULL)
+    {
+      /* This inclusion and its children have been processed.  */
+      return;
+    }
+
+  *slot = per_cu;
+  /* Only add a CU if it has a symbol table.  */
+  if (get_symtab (per_cu) != NULL)
+    VEC_safe_push (dwarf2_per_cu_ptr, *result, per_cu);
+
+  for (ix = 0;
+       VEC_iterate (dwarf2_per_cu_ptr, per_cu->imported_symtabs, ix, iter);
+       ++ix)
+    recursively_compute_inclusions (result, all_children, iter);
+}
+
+/* Compute the symtab 'includes' fields for the symtab related to
+   PER_CU.  */
+
+static void
+compute_symtab_includes (struct dwarf2_per_cu_data *per_cu)
+{
+  if (!VEC_empty (dwarf2_per_cu_ptr, per_cu->imported_symtabs))
+    {
+      int ix, len;
+      struct dwarf2_per_cu_data *iter;
+      VEC (dwarf2_per_cu_ptr) *result_children = NULL;
+      htab_t all_children;
+      struct symtab *symtab = get_symtab (per_cu);
+
+      /* If we don't have a symtab, we can just skip this case.  */
+      if (symtab == NULL)
+	return;
+
+      all_children = htab_create_alloc (1, htab_hash_pointer, htab_eq_pointer,
+					NULL, xcalloc, xfree);
+
+      for (ix = 0;
+	   VEC_iterate (dwarf2_per_cu_ptr, per_cu->imported_symtabs,
+			ix, iter);
+	   ++ix)
+	recursively_compute_inclusions (&result_children, all_children, iter);
+
+      /* Now we have a transitive closure of all the included CUs, so
+	 we can convert it to a list of symtabs.  */
+      len = VEC_length (dwarf2_per_cu_ptr, result_children);
+      symtab->includes
+	= obstack_alloc (&dwarf2_per_objfile->objfile->objfile_obstack,
+			 (len + 1) * sizeof (struct symtab *));
+      for (ix = 0;
+	   VEC_iterate (dwarf2_per_cu_ptr, result_children, ix, iter);
+	   ++ix)
+	symtab->includes[ix] = get_symtab (iter);
+      symtab->includes[len] = NULL;
+
+      VEC_free (dwarf2_per_cu_ptr, result_children);
+      htab_delete (all_children);
+    }
+}
+
+/* Compute the 'includes' field for the symtabs of all the CUs we just
+   read.  */
+
+static void
+process_cu_includes (void)
+{
+  int ix;
+  struct dwarf2_per_cu_data *iter;
+
+  for (ix = 0;
+       VEC_iterate (dwarf2_per_cu_ptr, dwarf2_per_objfile->just_read_cus,
+		    ix, iter);
+       ++ix)
+    compute_symtab_includes (iter);
+
+  VEC_free (dwarf2_per_cu_ptr, dwarf2_per_objfile->just_read_cus);
+}
+
 /* Generate full symbol information for PER_CU, whose DIEs have
    already been loaded into memory.  */
 
 static void
-process_full_comp_unit (struct dwarf2_per_cu_data *per_cu)
+process_full_comp_unit (struct dwarf2_per_cu_data *per_cu,
+			enum language pretend_language)
 {
   struct dwarf2_cu *cu = per_cu->cu;
   struct objfile *objfile = per_cu->objfile;
@@ -5413,6 +5626,9 @@ process_full_comp_unit (struct dwarf2_per_cu_data *per_cu)
   delayed_list_cleanup = make_cleanup (free_delayed_list, cu);
 
   cu->list_in_scope = &file_symbols;
+
+  cu->language = pretend_language;
+  cu->language_defn = language_def (cu->language);
 
   /* Do line number decoding in read_file_scope () */
   process_die (cu->dies, cu);
@@ -5474,7 +5690,36 @@ process_full_comp_unit (struct dwarf2_per_cu_data *per_cu)
       pst->readin = 1;
     }
 
+  /* Push it for inclusion processing later.  */
+  VEC_safe_push (dwarf2_per_cu_ptr, dwarf2_per_objfile->just_read_cus, per_cu);
+
   do_cleanups (back_to);
+}
+
+/* Process an imported unit DIE.  */
+
+static void
+process_imported_unit_die (struct die_info *die, struct dwarf2_cu *cu)
+{
+  struct attribute *attr;
+
+  attr = dwarf2_attr (die, DW_AT_import, cu);
+  if (attr != NULL)
+    {
+      struct dwarf2_per_cu_data *per_cu;
+      struct symtab *imported_symtab;
+      sect_offset offset;
+
+      offset = dwarf2_get_ref_die_offset (attr);
+      per_cu = dwarf2_find_containing_comp_unit (offset, cu->objfile);
+
+      /* Queue the unit, if needed.  */
+      if (maybe_queue_comp_unit (cu, per_cu, cu->language))
+	load_full_comp_unit (per_cu, cu->language);
+
+      VEC_safe_push (dwarf2_per_cu_ptr, cu->per_cu->imported_symtabs,
+		     per_cu);
+    }
 }
 
 /* Process a die and its children.  */
@@ -5487,6 +5732,7 @@ process_die (struct die_info *die, struct dwarf2_cu *cu)
     case DW_TAG_padding:
       break;
     case DW_TAG_compile_unit:
+    case DW_TAG_partial_unit:
       read_file_scope (die, cu);
       break;
     case DW_TAG_type_unit:
@@ -5555,6 +5801,11 @@ process_die (struct die_info *die, struct dwarf2_cu *cu)
 		   dwarf_tag_name (die->tag));
       read_import_statement (die, cu);
       break;
+
+    case DW_TAG_imported_unit:
+      process_imported_unit_die (die, cu);
+      break;
+
     default:
       new_symbol (die, NULL, cu);
       break;
@@ -6229,7 +6480,7 @@ handle_DW_AT_stmt_list (struct die_info *die, struct dwarf2_cu *cu,
     }
 }
 
-/* Process DW_TAG_compile_unit.  */
+/* Process DW_TAG_compile_unit or DW_TAG_partial_unit.  */
 
 static void
 read_file_scope (struct die_info *die, struct dwarf2_cu *cu)
@@ -6258,7 +6509,7 @@ read_file_scope (struct die_info *die, struct dwarf2_cu *cu)
 
   find_file_and_directory (die, cu, &name, &comp_dir);
 
-  prepare_one_comp_unit (cu, die);
+  prepare_one_comp_unit (cu, die, cu->language);
 
   /* The XLCL doesn't generate DW_LANG_OpenCL because this attribute is not
      standardised yet.  As a workaround for the language detection we fall
@@ -6368,7 +6619,7 @@ read_type_unit_scope (struct die_info *die, struct dwarf2_cu *cu)
   if (name == NULL)
     name = "<unknown>";
 
-  prepare_one_comp_unit (cu, die);
+  prepare_one_comp_unit (cu, die, language_minimal);
 
   /* We assume that we're processing GCC output.  */
   processing_gcc_compilation = 2;
@@ -10691,7 +10942,8 @@ load_partial_dies (const struct die_reader_specs *reader,
 	  && abbrev->tag != DW_TAG_variable
 	  && abbrev->tag != DW_TAG_namespace
 	  && abbrev->tag != DW_TAG_module
-	  && abbrev->tag != DW_TAG_member)
+	  && abbrev->tag != DW_TAG_member
+	  && abbrev->tag != DW_TAG_imported_unit)
 	{
 	  /* Otherwise we skip to the next sibling, if any.  */
 	  info_ptr = skip_one_die (reader, info_ptr + bytes_read, abbrev);
@@ -10909,6 +11161,7 @@ read_partial_die (const struct die_reader_specs *reader,
 	  switch (part_die->tag)
 	    {
 	    case DW_TAG_compile_unit:
+	    case DW_TAG_partial_unit:
 	    case DW_TAG_type_unit:
 	      /* Compilation units have a DW_AT_name that is a filename, not
 		 a source language identifier.  */
@@ -10953,7 +11206,7 @@ read_partial_die (const struct die_reader_specs *reader,
           /* Support the .debug_loc offsets.  */
           if (attr_form_is_block (&attr))
             {
-	       part_die->locdesc = DW_BLOCK (&attr);
+	       part_die->d.locdesc = DW_BLOCK (&attr);
             }
           else if (attr_form_is_section_offset (&attr))
             {
@@ -11022,6 +11275,12 @@ read_partial_die (const struct die_reader_specs *reader,
 	      || DW_UNSND (&attr) == DW_INL_declared_inlined)
 	    part_die->may_be_inlined = 1;
 	  break;
+
+	case DW_AT_import:
+	  if (part_die->tag == DW_TAG_imported_unit)
+	    part_die->d.offset = dwarf2_get_ref_die_offset (&attr);
+	  break;
+
 	default:
 	  break;
 	}
@@ -14024,6 +14283,7 @@ determine_prefix (struct die_info *die, struct dwarf2_cu *cu)
 	     So it does not need a prefix.  */
 	  return "";
       case DW_TAG_compile_unit:
+      case DW_TAG_partial_unit:
 	/* gcc-4.5 -gdwarf-4 can drop the enclosing namespace.  Cope.  */
 	if (cu->language == language_cplus
 	    && !VEC_empty (dwarf2_section_info_def, dwarf2_per_objfile->types)
@@ -14144,6 +14404,7 @@ dwarf2_name (struct die_info *die, struct dwarf2_cu *cu)
   switch (die->tag)
     {
     case DW_TAG_compile_unit:
+    case DW_TAG_partial_unit:
       /* Compilation units have a DW_AT_name that is a filename, not
 	 a source language identifier.  */
     case DW_TAG_enumeration_type:
@@ -14177,7 +14438,8 @@ dwarf2_name (struct die_info *die, struct dwarf2_cu *cu)
 	      if (die->tag == DW_TAG_class_type)
 		return dwarf2_name (die, cu);
 	    }
-	  while (die->tag != DW_TAG_compile_unit);
+	  while (die->tag != DW_TAG_compile_unit
+		 && die->tag != DW_TAG_partial_unit);
 	}
       break;
 
@@ -14265,862 +14527,51 @@ dwarf2_extension (struct die_info *die, struct dwarf2_cu **ext_cu)
 
 /* Convert a DIE tag into its string name.  */
 
-static char *
+static const char *
 dwarf_tag_name (unsigned tag)
 {
-  switch (tag)
-    {
-    case DW_TAG_padding:
-      return "DW_TAG_padding";
-    case DW_TAG_array_type:
-      return "DW_TAG_array_type";
-    case DW_TAG_class_type:
-      return "DW_TAG_class_type";
-    case DW_TAG_entry_point:
-      return "DW_TAG_entry_point";
-    case DW_TAG_enumeration_type:
-      return "DW_TAG_enumeration_type";
-    case DW_TAG_formal_parameter:
-      return "DW_TAG_formal_parameter";
-    case DW_TAG_imported_declaration:
-      return "DW_TAG_imported_declaration";
-    case DW_TAG_label:
-      return "DW_TAG_label";
-    case DW_TAG_lexical_block:
-      return "DW_TAG_lexical_block";
-    case DW_TAG_member:
-      return "DW_TAG_member";
-    case DW_TAG_pointer_type:
-      return "DW_TAG_pointer_type";
-    case DW_TAG_reference_type:
-      return "DW_TAG_reference_type";
-    case DW_TAG_compile_unit:
-      return "DW_TAG_compile_unit";
-    case DW_TAG_string_type:
-      return "DW_TAG_string_type";
-    case DW_TAG_structure_type:
-      return "DW_TAG_structure_type";
-    case DW_TAG_subroutine_type:
-      return "DW_TAG_subroutine_type";
-    case DW_TAG_typedef:
-      return "DW_TAG_typedef";
-    case DW_TAG_union_type:
-      return "DW_TAG_union_type";
-    case DW_TAG_unspecified_parameters:
-      return "DW_TAG_unspecified_parameters";
-    case DW_TAG_variant:
-      return "DW_TAG_variant";
-    case DW_TAG_common_block:
-      return "DW_TAG_common_block";
-    case DW_TAG_common_inclusion:
-      return "DW_TAG_common_inclusion";
-    case DW_TAG_inheritance:
-      return "DW_TAG_inheritance";
-    case DW_TAG_inlined_subroutine:
-      return "DW_TAG_inlined_subroutine";
-    case DW_TAG_module:
-      return "DW_TAG_module";
-    case DW_TAG_ptr_to_member_type:
-      return "DW_TAG_ptr_to_member_type";
-    case DW_TAG_set_type:
-      return "DW_TAG_set_type";
-    case DW_TAG_subrange_type:
-      return "DW_TAG_subrange_type";
-    case DW_TAG_with_stmt:
-      return "DW_TAG_with_stmt";
-    case DW_TAG_access_declaration:
-      return "DW_TAG_access_declaration";
-    case DW_TAG_base_type:
-      return "DW_TAG_base_type";
-    case DW_TAG_catch_block:
-      return "DW_TAG_catch_block";
-    case DW_TAG_const_type:
-      return "DW_TAG_const_type";
-    case DW_TAG_constant:
-      return "DW_TAG_constant";
-    case DW_TAG_enumerator:
-      return "DW_TAG_enumerator";
-    case DW_TAG_file_type:
-      return "DW_TAG_file_type";
-    case DW_TAG_friend:
-      return "DW_TAG_friend";
-    case DW_TAG_namelist:
-      return "DW_TAG_namelist";
-    case DW_TAG_namelist_item:
-      return "DW_TAG_namelist_item";
-    case DW_TAG_packed_type:
-      return "DW_TAG_packed_type";
-    case DW_TAG_subprogram:
-      return "DW_TAG_subprogram";
-    case DW_TAG_template_type_param:
-      return "DW_TAG_template_type_param";
-    case DW_TAG_template_value_param:
-      return "DW_TAG_template_value_param";
-    case DW_TAG_thrown_type:
-      return "DW_TAG_thrown_type";
-    case DW_TAG_try_block:
-      return "DW_TAG_try_block";
-    case DW_TAG_variant_part:
-      return "DW_TAG_variant_part";
-    case DW_TAG_variable:
-      return "DW_TAG_variable";
-    case DW_TAG_volatile_type:
-      return "DW_TAG_volatile_type";
-    case DW_TAG_dwarf_procedure:
-      return "DW_TAG_dwarf_procedure";
-    case DW_TAG_restrict_type:
-      return "DW_TAG_restrict_type";
-    case DW_TAG_interface_type:
-      return "DW_TAG_interface_type";
-    case DW_TAG_namespace:
-      return "DW_TAG_namespace";
-    case DW_TAG_imported_module:
-      return "DW_TAG_imported_module";
-    case DW_TAG_unspecified_type:
-      return "DW_TAG_unspecified_type";
-    case DW_TAG_partial_unit:
-      return "DW_TAG_partial_unit";
-    case DW_TAG_imported_unit:
-      return "DW_TAG_imported_unit";
-    case DW_TAG_condition:
-      return "DW_TAG_condition";
-    case DW_TAG_shared_type:
-      return "DW_TAG_shared_type";
-    case DW_TAG_type_unit:
-      return "DW_TAG_type_unit";
-    case DW_TAG_MIPS_loop:
-      return "DW_TAG_MIPS_loop";
-    case DW_TAG_HP_array_descriptor:
-      return "DW_TAG_HP_array_descriptor";
-    case DW_TAG_format_label:
-      return "DW_TAG_format_label";
-    case DW_TAG_function_template:
-      return "DW_TAG_function_template";
-    case DW_TAG_class_template:
-      return "DW_TAG_class_template";
-    case DW_TAG_GNU_BINCL:
-      return "DW_TAG_GNU_BINCL";
-    case DW_TAG_GNU_EINCL:
-      return "DW_TAG_GNU_EINCL";
-    case DW_TAG_upc_shared_type:
-      return "DW_TAG_upc_shared_type";
-    case DW_TAG_upc_strict_type:
-      return "DW_TAG_upc_strict_type";
-    case DW_TAG_upc_relaxed_type:
-      return "DW_TAG_upc_relaxed_type";
-    case DW_TAG_PGI_kanji_type:
-      return "DW_TAG_PGI_kanji_type";
-    case DW_TAG_PGI_interface_block:
-      return "DW_TAG_PGI_interface_block";
-    case DW_TAG_GNU_call_site:
-      return "DW_TAG_GNU_call_site";
-    default:
-      return "DW_TAG_<unknown>";
-    }
+  const char *name = get_DW_TAG_name (tag);
+
+  if (name == NULL)
+    return "DW_TAG_<unknown>";
+
+  return name;
 }
 
 /* Convert a DWARF attribute code into its string name.  */
 
-static char *
+static const char *
 dwarf_attr_name (unsigned attr)
 {
-  switch (attr)
-    {
-    case DW_AT_sibling:
-      return "DW_AT_sibling";
-    case DW_AT_location:
-      return "DW_AT_location";
-    case DW_AT_name:
-      return "DW_AT_name";
-    case DW_AT_ordering:
-      return "DW_AT_ordering";
-    case DW_AT_subscr_data:
-      return "DW_AT_subscr_data";
-    case DW_AT_byte_size:
-      return "DW_AT_byte_size";
-    case DW_AT_bit_offset:
-      return "DW_AT_bit_offset";
-    case DW_AT_bit_size:
-      return "DW_AT_bit_size";
-    case DW_AT_element_list:
-      return "DW_AT_element_list";
-    case DW_AT_stmt_list:
-      return "DW_AT_stmt_list";
-    case DW_AT_low_pc:
-      return "DW_AT_low_pc";
-    case DW_AT_high_pc:
-      return "DW_AT_high_pc";
-    case DW_AT_language:
-      return "DW_AT_language";
-    case DW_AT_member:
-      return "DW_AT_member";
-    case DW_AT_discr:
-      return "DW_AT_discr";
-    case DW_AT_discr_value:
-      return "DW_AT_discr_value";
-    case DW_AT_visibility:
-      return "DW_AT_visibility";
-    case DW_AT_import:
-      return "DW_AT_import";
-    case DW_AT_string_length:
-      return "DW_AT_string_length";
-    case DW_AT_common_reference:
-      return "DW_AT_common_reference";
-    case DW_AT_comp_dir:
-      return "DW_AT_comp_dir";
-    case DW_AT_const_value:
-      return "DW_AT_const_value";
-    case DW_AT_containing_type:
-      return "DW_AT_containing_type";
-    case DW_AT_default_value:
-      return "DW_AT_default_value";
-    case DW_AT_inline:
-      return "DW_AT_inline";
-    case DW_AT_is_optional:
-      return "DW_AT_is_optional";
-    case DW_AT_lower_bound:
-      return "DW_AT_lower_bound";
-    case DW_AT_producer:
-      return "DW_AT_producer";
-    case DW_AT_prototyped:
-      return "DW_AT_prototyped";
-    case DW_AT_return_addr:
-      return "DW_AT_return_addr";
-    case DW_AT_start_scope:
-      return "DW_AT_start_scope";
-    case DW_AT_bit_stride:
-      return "DW_AT_bit_stride";
-    case DW_AT_upper_bound:
-      return "DW_AT_upper_bound";
-    case DW_AT_abstract_origin:
-      return "DW_AT_abstract_origin";
-    case DW_AT_accessibility:
-      return "DW_AT_accessibility";
-    case DW_AT_address_class:
-      return "DW_AT_address_class";
-    case DW_AT_artificial:
-      return "DW_AT_artificial";
-    case DW_AT_base_types:
-      return "DW_AT_base_types";
-    case DW_AT_calling_convention:
-      return "DW_AT_calling_convention";
-    case DW_AT_count:
-      return "DW_AT_count";
-    case DW_AT_data_member_location:
-      return "DW_AT_data_member_location";
-    case DW_AT_decl_column:
-      return "DW_AT_decl_column";
-    case DW_AT_decl_file:
-      return "DW_AT_decl_file";
-    case DW_AT_decl_line:
-      return "DW_AT_decl_line";
-    case DW_AT_declaration:
-      return "DW_AT_declaration";
-    case DW_AT_discr_list:
-      return "DW_AT_discr_list";
-    case DW_AT_encoding:
-      return "DW_AT_encoding";
-    case DW_AT_external:
-      return "DW_AT_external";
-    case DW_AT_frame_base:
-      return "DW_AT_frame_base";
-    case DW_AT_friend:
-      return "DW_AT_friend";
-    case DW_AT_identifier_case:
-      return "DW_AT_identifier_case";
-    case DW_AT_macro_info:
-      return "DW_AT_macro_info";
-    case DW_AT_namelist_items:
-      return "DW_AT_namelist_items";
-    case DW_AT_priority:
-      return "DW_AT_priority";
-    case DW_AT_segment:
-      return "DW_AT_segment";
-    case DW_AT_specification:
-      return "DW_AT_specification";
-    case DW_AT_static_link:
-      return "DW_AT_static_link";
-    case DW_AT_type:
-      return "DW_AT_type";
-    case DW_AT_use_location:
-      return "DW_AT_use_location";
-    case DW_AT_variable_parameter:
-      return "DW_AT_variable_parameter";
-    case DW_AT_virtuality:
-      return "DW_AT_virtuality";
-    case DW_AT_vtable_elem_location:
-      return "DW_AT_vtable_elem_location";
-    /* DWARF 3 values.  */
-    case DW_AT_allocated:
-      return "DW_AT_allocated";
-    case DW_AT_associated:
-      return "DW_AT_associated";
-    case DW_AT_data_location:
-      return "DW_AT_data_location";
-    case DW_AT_byte_stride:
-      return "DW_AT_byte_stride";
-    case DW_AT_entry_pc:
-      return "DW_AT_entry_pc";
-    case DW_AT_use_UTF8:
-      return "DW_AT_use_UTF8";
-    case DW_AT_extension:
-      return "DW_AT_extension";
-    case DW_AT_ranges:
-      return "DW_AT_ranges";
-    case DW_AT_trampoline:
-      return "DW_AT_trampoline";
-    case DW_AT_call_column:
-      return "DW_AT_call_column";
-    case DW_AT_call_file:
-      return "DW_AT_call_file";
-    case DW_AT_call_line:
-      return "DW_AT_call_line";
-    case DW_AT_description:
-      return "DW_AT_description";
-    case DW_AT_binary_scale:
-      return "DW_AT_binary_scale";
-    case DW_AT_decimal_scale:
-      return "DW_AT_decimal_scale";
-    case DW_AT_small:
-      return "DW_AT_small";
-    case DW_AT_decimal_sign:
-      return "DW_AT_decimal_sign";
-    case DW_AT_digit_count:
-      return "DW_AT_digit_count";
-    case DW_AT_picture_string:
-      return "DW_AT_picture_string";
-    case DW_AT_mutable:
-      return "DW_AT_mutable";
-    case DW_AT_threads_scaled:
-      return "DW_AT_threads_scaled";
-    case DW_AT_explicit:
-      return "DW_AT_explicit";
-    case DW_AT_object_pointer:
-      return "DW_AT_object_pointer";
-    case DW_AT_endianity:
-      return "DW_AT_endianity";
-    case DW_AT_elemental:
-      return "DW_AT_elemental";
-    case DW_AT_pure:
-      return "DW_AT_pure";
-    case DW_AT_recursive:
-      return "DW_AT_recursive";
-    /* DWARF 4 values.  */
-    case DW_AT_signature:
-      return "DW_AT_signature";
-    case DW_AT_linkage_name:
-      return "DW_AT_linkage_name";
-    /* Tentative Fission values.  */
-    case DW_AT_GNU_dwo_name:
-      return "DW_AT_GNU_dwo_name";
-    case DW_AT_GNU_dwo_id:
-      return "DW_AT_GNU_dwo_id";
-    case DW_AT_GNU_addr_base:
-      return "DW_AT_GNU_addr_base";
-    case DW_AT_GNU_pubnames:
-      return "DW_AT_GNU_pubnames";
-    case DW_AT_GNU_pubtypes:
-      return "DW_AT_GNU_pubtypes";
-    /* SGI/MIPS extensions.  */
+  const char *name;
+
 #ifdef MIPS /* collides with DW_AT_HP_block_index */
-    case DW_AT_MIPS_fde:
-      return "DW_AT_MIPS_fde";
+  if (attr == DW_AT_MIPS_fde)
+    return "DW_AT_MIPS_fde";
+#else
+  if (attr == DW_AT_HP_block_index)
+    return "DW_AT_HP_block_index";
 #endif
-    case DW_AT_MIPS_loop_begin:
-      return "DW_AT_MIPS_loop_begin";
-    case DW_AT_MIPS_tail_loop_begin:
-      return "DW_AT_MIPS_tail_loop_begin";
-    case DW_AT_MIPS_epilog_begin:
-      return "DW_AT_MIPS_epilog_begin";
-    case DW_AT_MIPS_loop_unroll_factor:
-      return "DW_AT_MIPS_loop_unroll_factor";
-    case DW_AT_MIPS_software_pipeline_depth:
-      return "DW_AT_MIPS_software_pipeline_depth";
-    case DW_AT_MIPS_linkage_name:
-      return "DW_AT_MIPS_linkage_name";
-    case DW_AT_MIPS_stride:
-      return "DW_AT_MIPS_stride";
-    case DW_AT_MIPS_abstract_name:
-      return "DW_AT_MIPS_abstract_name";
-    case DW_AT_MIPS_clone_origin:
-      return "DW_AT_MIPS_clone_origin";
-    case DW_AT_MIPS_has_inlines:
-      return "DW_AT_MIPS_has_inlines";
-    /* HP extensions.  */
-#ifndef MIPS /* collides with DW_AT_MIPS_fde */
-    case DW_AT_HP_block_index:
-      return "DW_AT_HP_block_index";
-#endif
-    case DW_AT_HP_unmodifiable:
-      return "DW_AT_HP_unmodifiable";
-    case DW_AT_HP_actuals_stmt_list:
-      return "DW_AT_HP_actuals_stmt_list";
-    case DW_AT_HP_proc_per_section:
-      return "DW_AT_HP_proc_per_section";
-    case DW_AT_HP_raw_data_ptr:
-      return "DW_AT_HP_raw_data_ptr";
-    case DW_AT_HP_pass_by_reference:
-      return "DW_AT_HP_pass_by_reference";
-    case DW_AT_HP_opt_level:
-      return "DW_AT_HP_opt_level";
-    case DW_AT_HP_prof_version_id:
-      return "DW_AT_HP_prof_version_id";
-    case DW_AT_HP_opt_flags:
-      return "DW_AT_HP_opt_flags";
-    case DW_AT_HP_cold_region_low_pc:
-      return "DW_AT_HP_cold_region_low_pc";
-    case DW_AT_HP_cold_region_high_pc:
-      return "DW_AT_HP_cold_region_high_pc";
-    case DW_AT_HP_all_variables_modifiable:
-      return "DW_AT_HP_all_variables_modifiable";
-    case DW_AT_HP_linkage_name:
-      return "DW_AT_HP_linkage_name";
-    case DW_AT_HP_prof_flags:
-      return "DW_AT_HP_prof_flags";
-    /* GNU extensions.  */
-    case DW_AT_sf_names:
-      return "DW_AT_sf_names";
-    case DW_AT_src_info:
-      return "DW_AT_src_info";
-    case DW_AT_mac_info:
-      return "DW_AT_mac_info";
-    case DW_AT_src_coords:
-      return "DW_AT_src_coords";
-    case DW_AT_body_begin:
-      return "DW_AT_body_begin";
-    case DW_AT_body_end:
-      return "DW_AT_body_end";
-    case DW_AT_GNU_vector:
-      return "DW_AT_GNU_vector";
-    case DW_AT_GNU_odr_signature:
-      return "DW_AT_GNU_odr_signature";
-    /* VMS extensions.  */
-    case DW_AT_VMS_rtnbeg_pd_address:
-      return "DW_AT_VMS_rtnbeg_pd_address";
-    /* UPC extension.  */
-    case DW_AT_upc_threads_scaled:
-      return "DW_AT_upc_threads_scaled";
-    /* PGI (STMicroelectronics) extensions.  */
-    case DW_AT_PGI_lbase:
-      return "DW_AT_PGI_lbase";
-    case DW_AT_PGI_soffset:
-      return "DW_AT_PGI_soffset";
-    case DW_AT_PGI_lstride:
-      return "DW_AT_PGI_lstride";
-    default:
-      return "DW_AT_<unknown>";
-    }
+
+  name = get_DW_AT_name (attr);
+
+  if (name == NULL)
+    return "DW_AT_<unknown>";
+
+  return name;
 }
 
 /* Convert a DWARF value form code into its string name.  */
 
-static char *
+static const char *
 dwarf_form_name (unsigned form)
 {
-  switch (form)
-    {
-    case DW_FORM_addr:
-      return "DW_FORM_addr";
-    case DW_FORM_block2:
-      return "DW_FORM_block2";
-    case DW_FORM_block4:
-      return "DW_FORM_block4";
-    case DW_FORM_data2:
-      return "DW_FORM_data2";
-    case DW_FORM_data4:
-      return "DW_FORM_data4";
-    case DW_FORM_data8:
-      return "DW_FORM_data8";
-    case DW_FORM_string:
-      return "DW_FORM_string";
-    case DW_FORM_block:
-      return "DW_FORM_block";
-    case DW_FORM_block1:
-      return "DW_FORM_block1";
-    case DW_FORM_data1:
-      return "DW_FORM_data1";
-    case DW_FORM_flag:
-      return "DW_FORM_flag";
-    case DW_FORM_sdata:
-      return "DW_FORM_sdata";
-    case DW_FORM_strp:
-      return "DW_FORM_strp";
-    case DW_FORM_udata:
-      return "DW_FORM_udata";
-    case DW_FORM_ref_addr:
-      return "DW_FORM_ref_addr";
-    case DW_FORM_ref1:
-      return "DW_FORM_ref1";
-    case DW_FORM_ref2:
-      return "DW_FORM_ref2";
-    case DW_FORM_ref4:
-      return "DW_FORM_ref4";
-    case DW_FORM_ref8:
-      return "DW_FORM_ref8";
-    case DW_FORM_ref_udata:
-      return "DW_FORM_ref_udata";
-    case DW_FORM_indirect:
-      return "DW_FORM_indirect";
-    case DW_FORM_sec_offset:
-      return "DW_FORM_sec_offset";
-    case DW_FORM_exprloc:
-      return "DW_FORM_exprloc";
-    case DW_FORM_flag_present:
-      return "DW_FORM_flag_present";
-    case DW_FORM_ref_sig8:
-      return "DW_FORM_ref_sig8";
-    case DW_FORM_GNU_addr_index:
-      return "DW_FORM_GNU_addr_index";
-    case DW_FORM_GNU_str_index:
-      return "DW_FORM_GNU_str_index";
-    default:
-      return "DW_FORM_<unknown>";
-    }
-}
+  const char *name = get_DW_FORM_name (form);
 
-/* Convert a DWARF stack opcode into its string name.  */
+  if (name == NULL)
+    return "DW_FORM_<unknown>";
 
-const char *
-dwarf_stack_op_name (unsigned op)
-{
-  switch (op)
-    {
-    case DW_OP_addr:
-      return "DW_OP_addr";
-    case DW_OP_deref:
-      return "DW_OP_deref";
-    case DW_OP_const1u:
-      return "DW_OP_const1u";
-    case DW_OP_const1s:
-      return "DW_OP_const1s";
-    case DW_OP_const2u:
-      return "DW_OP_const2u";
-    case DW_OP_const2s:
-      return "DW_OP_const2s";
-    case DW_OP_const4u:
-      return "DW_OP_const4u";
-    case DW_OP_const4s:
-      return "DW_OP_const4s";
-    case DW_OP_const8u:
-      return "DW_OP_const8u";
-    case DW_OP_const8s:
-      return "DW_OP_const8s";
-    case DW_OP_constu:
-      return "DW_OP_constu";
-    case DW_OP_consts:
-      return "DW_OP_consts";
-    case DW_OP_dup:
-      return "DW_OP_dup";
-    case DW_OP_drop:
-      return "DW_OP_drop";
-    case DW_OP_over:
-      return "DW_OP_over";
-    case DW_OP_pick:
-      return "DW_OP_pick";
-    case DW_OP_swap:
-      return "DW_OP_swap";
-    case DW_OP_rot:
-      return "DW_OP_rot";
-    case DW_OP_xderef:
-      return "DW_OP_xderef";
-    case DW_OP_abs:
-      return "DW_OP_abs";
-    case DW_OP_and:
-      return "DW_OP_and";
-    case DW_OP_div:
-      return "DW_OP_div";
-    case DW_OP_minus:
-      return "DW_OP_minus";
-    case DW_OP_mod:
-      return "DW_OP_mod";
-    case DW_OP_mul:
-      return "DW_OP_mul";
-    case DW_OP_neg:
-      return "DW_OP_neg";
-    case DW_OP_not:
-      return "DW_OP_not";
-    case DW_OP_or:
-      return "DW_OP_or";
-    case DW_OP_plus:
-      return "DW_OP_plus";
-    case DW_OP_plus_uconst:
-      return "DW_OP_plus_uconst";
-    case DW_OP_shl:
-      return "DW_OP_shl";
-    case DW_OP_shr:
-      return "DW_OP_shr";
-    case DW_OP_shra:
-      return "DW_OP_shra";
-    case DW_OP_xor:
-      return "DW_OP_xor";
-    case DW_OP_bra:
-      return "DW_OP_bra";
-    case DW_OP_eq:
-      return "DW_OP_eq";
-    case DW_OP_ge:
-      return "DW_OP_ge";
-    case DW_OP_gt:
-      return "DW_OP_gt";
-    case DW_OP_le:
-      return "DW_OP_le";
-    case DW_OP_lt:
-      return "DW_OP_lt";
-    case DW_OP_ne:
-      return "DW_OP_ne";
-    case DW_OP_skip:
-      return "DW_OP_skip";
-    case DW_OP_lit0:
-      return "DW_OP_lit0";
-    case DW_OP_lit1:
-      return "DW_OP_lit1";
-    case DW_OP_lit2:
-      return "DW_OP_lit2";
-    case DW_OP_lit3:
-      return "DW_OP_lit3";
-    case DW_OP_lit4:
-      return "DW_OP_lit4";
-    case DW_OP_lit5:
-      return "DW_OP_lit5";
-    case DW_OP_lit6:
-      return "DW_OP_lit6";
-    case DW_OP_lit7:
-      return "DW_OP_lit7";
-    case DW_OP_lit8:
-      return "DW_OP_lit8";
-    case DW_OP_lit9:
-      return "DW_OP_lit9";
-    case DW_OP_lit10:
-      return "DW_OP_lit10";
-    case DW_OP_lit11:
-      return "DW_OP_lit11";
-    case DW_OP_lit12:
-      return "DW_OP_lit12";
-    case DW_OP_lit13:
-      return "DW_OP_lit13";
-    case DW_OP_lit14:
-      return "DW_OP_lit14";
-    case DW_OP_lit15:
-      return "DW_OP_lit15";
-    case DW_OP_lit16:
-      return "DW_OP_lit16";
-    case DW_OP_lit17:
-      return "DW_OP_lit17";
-    case DW_OP_lit18:
-      return "DW_OP_lit18";
-    case DW_OP_lit19:
-      return "DW_OP_lit19";
-    case DW_OP_lit20:
-      return "DW_OP_lit20";
-    case DW_OP_lit21:
-      return "DW_OP_lit21";
-    case DW_OP_lit22:
-      return "DW_OP_lit22";
-    case DW_OP_lit23:
-      return "DW_OP_lit23";
-    case DW_OP_lit24:
-      return "DW_OP_lit24";
-    case DW_OP_lit25:
-      return "DW_OP_lit25";
-    case DW_OP_lit26:
-      return "DW_OP_lit26";
-    case DW_OP_lit27:
-      return "DW_OP_lit27";
-    case DW_OP_lit28:
-      return "DW_OP_lit28";
-    case DW_OP_lit29:
-      return "DW_OP_lit29";
-    case DW_OP_lit30:
-      return "DW_OP_lit30";
-    case DW_OP_lit31:
-      return "DW_OP_lit31";
-    case DW_OP_reg0:
-      return "DW_OP_reg0";
-    case DW_OP_reg1:
-      return "DW_OP_reg1";
-    case DW_OP_reg2:
-      return "DW_OP_reg2";
-    case DW_OP_reg3:
-      return "DW_OP_reg3";
-    case DW_OP_reg4:
-      return "DW_OP_reg4";
-    case DW_OP_reg5:
-      return "DW_OP_reg5";
-    case DW_OP_reg6:
-      return "DW_OP_reg6";
-    case DW_OP_reg7:
-      return "DW_OP_reg7";
-    case DW_OP_reg8:
-      return "DW_OP_reg8";
-    case DW_OP_reg9:
-      return "DW_OP_reg9";
-    case DW_OP_reg10:
-      return "DW_OP_reg10";
-    case DW_OP_reg11:
-      return "DW_OP_reg11";
-    case DW_OP_reg12:
-      return "DW_OP_reg12";
-    case DW_OP_reg13:
-      return "DW_OP_reg13";
-    case DW_OP_reg14:
-      return "DW_OP_reg14";
-    case DW_OP_reg15:
-      return "DW_OP_reg15";
-    case DW_OP_reg16:
-      return "DW_OP_reg16";
-    case DW_OP_reg17:
-      return "DW_OP_reg17";
-    case DW_OP_reg18:
-      return "DW_OP_reg18";
-    case DW_OP_reg19:
-      return "DW_OP_reg19";
-    case DW_OP_reg20:
-      return "DW_OP_reg20";
-    case DW_OP_reg21:
-      return "DW_OP_reg21";
-    case DW_OP_reg22:
-      return "DW_OP_reg22";
-    case DW_OP_reg23:
-      return "DW_OP_reg23";
-    case DW_OP_reg24:
-      return "DW_OP_reg24";
-    case DW_OP_reg25:
-      return "DW_OP_reg25";
-    case DW_OP_reg26:
-      return "DW_OP_reg26";
-    case DW_OP_reg27:
-      return "DW_OP_reg27";
-    case DW_OP_reg28:
-      return "DW_OP_reg28";
-    case DW_OP_reg29:
-      return "DW_OP_reg29";
-    case DW_OP_reg30:
-      return "DW_OP_reg30";
-    case DW_OP_reg31:
-      return "DW_OP_reg31";
-    case DW_OP_breg0:
-      return "DW_OP_breg0";
-    case DW_OP_breg1:
-      return "DW_OP_breg1";
-    case DW_OP_breg2:
-      return "DW_OP_breg2";
-    case DW_OP_breg3:
-      return "DW_OP_breg3";
-    case DW_OP_breg4:
-      return "DW_OP_breg4";
-    case DW_OP_breg5:
-      return "DW_OP_breg5";
-    case DW_OP_breg6:
-      return "DW_OP_breg6";
-    case DW_OP_breg7:
-      return "DW_OP_breg7";
-    case DW_OP_breg8:
-      return "DW_OP_breg8";
-    case DW_OP_breg9:
-      return "DW_OP_breg9";
-    case DW_OP_breg10:
-      return "DW_OP_breg10";
-    case DW_OP_breg11:
-      return "DW_OP_breg11";
-    case DW_OP_breg12:
-      return "DW_OP_breg12";
-    case DW_OP_breg13:
-      return "DW_OP_breg13";
-    case DW_OP_breg14:
-      return "DW_OP_breg14";
-    case DW_OP_breg15:
-      return "DW_OP_breg15";
-    case DW_OP_breg16:
-      return "DW_OP_breg16";
-    case DW_OP_breg17:
-      return "DW_OP_breg17";
-    case DW_OP_breg18:
-      return "DW_OP_breg18";
-    case DW_OP_breg19:
-      return "DW_OP_breg19";
-    case DW_OP_breg20:
-      return "DW_OP_breg20";
-    case DW_OP_breg21:
-      return "DW_OP_breg21";
-    case DW_OP_breg22:
-      return "DW_OP_breg22";
-    case DW_OP_breg23:
-      return "DW_OP_breg23";
-    case DW_OP_breg24:
-      return "DW_OP_breg24";
-    case DW_OP_breg25:
-      return "DW_OP_breg25";
-    case DW_OP_breg26:
-      return "DW_OP_breg26";
-    case DW_OP_breg27:
-      return "DW_OP_breg27";
-    case DW_OP_breg28:
-      return "DW_OP_breg28";
-    case DW_OP_breg29:
-      return "DW_OP_breg29";
-    case DW_OP_breg30:
-      return "DW_OP_breg30";
-    case DW_OP_breg31:
-      return "DW_OP_breg31";
-    case DW_OP_regx:
-      return "DW_OP_regx";
-    case DW_OP_fbreg:
-      return "DW_OP_fbreg";
-    case DW_OP_bregx:
-      return "DW_OP_bregx";
-    case DW_OP_piece:
-      return "DW_OP_piece";
-    case DW_OP_deref_size:
-      return "DW_OP_deref_size";
-    case DW_OP_xderef_size:
-      return "DW_OP_xderef_size";
-    case DW_OP_nop:
-      return "DW_OP_nop";
-    /* DWARF 3 extensions.  */
-    case DW_OP_push_object_address:
-      return "DW_OP_push_object_address";
-    case DW_OP_call2:
-      return "DW_OP_call2";
-    case DW_OP_call4:
-      return "DW_OP_call4";
-    case DW_OP_call_ref:
-      return "DW_OP_call_ref";
-    case DW_OP_form_tls_address:
-      return "DW_OP_form_tls_address";
-    case DW_OP_call_frame_cfa:
-      return "DW_OP_call_frame_cfa";
-    case DW_OP_bit_piece:
-      return "DW_OP_bit_piece";
-    /* DWARF 4 extensions.  */
-    case DW_OP_implicit_value:
-      return "DW_OP_implicit_value";
-    case DW_OP_stack_value:
-      return "DW_OP_stack_value";
-    /* GNU extensions.  */
-    case DW_OP_GNU_push_tls_address:
-      return "DW_OP_GNU_push_tls_address";
-    case DW_OP_GNU_uninit:
-      return "DW_OP_GNU_uninit";
-    case DW_OP_GNU_encoded_addr:
-      return "DW_OP_GNU_encoded_addr";
-    case DW_OP_GNU_implicit_pointer:
-      return "DW_OP_GNU_implicit_pointer";
-    case DW_OP_GNU_entry_value:
-      return "DW_OP_GNU_entry_value";
-    case DW_OP_GNU_const_type:
-      return "DW_OP_GNU_const_type";
-    case DW_OP_GNU_regval_type:
-      return "DW_OP_GNU_regval_type";
-    case DW_OP_GNU_deref_type:
-      return "DW_OP_GNU_deref_type";
-    case DW_OP_GNU_convert:
-      return "DW_OP_GNU_convert";
-    case DW_OP_GNU_reinterpret:
-      return "DW_OP_GNU_reinterpret";
-    case DW_OP_GNU_parameter_ref:
-      return "DW_OP_GNU_parameter_ref";
-    default:
-      return NULL;
-    }
+  return name;
 }
 
 static char *
@@ -15134,143 +14585,16 @@ dwarf_bool_name (unsigned mybool)
 
 /* Convert a DWARF type code into its string name.  */
 
-static char *
+static const char *
 dwarf_type_encoding_name (unsigned enc)
 {
-  switch (enc)
-    {
-    case DW_ATE_void:
-      return "DW_ATE_void";
-    case DW_ATE_address:
-      return "DW_ATE_address";
-    case DW_ATE_boolean:
-      return "DW_ATE_boolean";
-    case DW_ATE_complex_float:
-      return "DW_ATE_complex_float";
-    case DW_ATE_float:
-      return "DW_ATE_float";
-    case DW_ATE_signed:
-      return "DW_ATE_signed";
-    case DW_ATE_signed_char:
-      return "DW_ATE_signed_char";
-    case DW_ATE_unsigned:
-      return "DW_ATE_unsigned";
-    case DW_ATE_unsigned_char:
-      return "DW_ATE_unsigned_char";
-    /* DWARF 3.  */
-    case DW_ATE_imaginary_float:
-      return "DW_ATE_imaginary_float";
-    case DW_ATE_packed_decimal:
-      return "DW_ATE_packed_decimal";
-    case DW_ATE_numeric_string:
-      return "DW_ATE_numeric_string";
-    case DW_ATE_edited:
-      return "DW_ATE_edited";
-    case DW_ATE_signed_fixed:
-      return "DW_ATE_signed_fixed";
-    case DW_ATE_unsigned_fixed:
-      return "DW_ATE_unsigned_fixed";
-    case DW_ATE_decimal_float:
-      return "DW_ATE_decimal_float";
-    /* DWARF 4.  */
-    case DW_ATE_UTF:
-      return "DW_ATE_UTF";
-    /* HP extensions.  */
-    case DW_ATE_HP_float80:
-      return "DW_ATE_HP_float80";
-    case DW_ATE_HP_complex_float80:
-      return "DW_ATE_HP_complex_float80";
-    case DW_ATE_HP_float128:
-      return "DW_ATE_HP_float128";
-    case DW_ATE_HP_complex_float128:
-      return "DW_ATE_HP_complex_float128";
-    case DW_ATE_HP_floathpintel:
-      return "DW_ATE_HP_floathpintel";
-    case DW_ATE_HP_imaginary_float80:
-      return "DW_ATE_HP_imaginary_float80";
-    case DW_ATE_HP_imaginary_float128:
-      return "DW_ATE_HP_imaginary_float128";
-    default:
-      return "DW_ATE_<unknown>";
-    }
-}
+  const char *name = get_DW_ATE_name (enc);
 
-/* Convert a DWARF call frame info operation to its string name.  */
+  if (name == NULL)
+    return "DW_ATE_<unknown>";
 
-#if 0
-static char *
-dwarf_cfi_name (unsigned cfi_opc)
-{
-  switch (cfi_opc)
-    {
-    case DW_CFA_advance_loc:
-      return "DW_CFA_advance_loc";
-    case DW_CFA_offset:
-      return "DW_CFA_offset";
-    case DW_CFA_restore:
-      return "DW_CFA_restore";
-    case DW_CFA_nop:
-      return "DW_CFA_nop";
-    case DW_CFA_set_loc:
-      return "DW_CFA_set_loc";
-    case DW_CFA_advance_loc1:
-      return "DW_CFA_advance_loc1";
-    case DW_CFA_advance_loc2:
-      return "DW_CFA_advance_loc2";
-    case DW_CFA_advance_loc4:
-      return "DW_CFA_advance_loc4";
-    case DW_CFA_offset_extended:
-      return "DW_CFA_offset_extended";
-    case DW_CFA_restore_extended:
-      return "DW_CFA_restore_extended";
-    case DW_CFA_undefined:
-      return "DW_CFA_undefined";
-    case DW_CFA_same_value:
-      return "DW_CFA_same_value";
-    case DW_CFA_register:
-      return "DW_CFA_register";
-    case DW_CFA_remember_state:
-      return "DW_CFA_remember_state";
-    case DW_CFA_restore_state:
-      return "DW_CFA_restore_state";
-    case DW_CFA_def_cfa:
-      return "DW_CFA_def_cfa";
-    case DW_CFA_def_cfa_register:
-      return "DW_CFA_def_cfa_register";
-    case DW_CFA_def_cfa_offset:
-      return "DW_CFA_def_cfa_offset";
-    /* DWARF 3.  */
-    case DW_CFA_def_cfa_expression:
-      return "DW_CFA_def_cfa_expression";
-    case DW_CFA_expression:
-      return "DW_CFA_expression";
-    case DW_CFA_offset_extended_sf:
-      return "DW_CFA_offset_extended_sf";
-    case DW_CFA_def_cfa_sf:
-      return "DW_CFA_def_cfa_sf";
-    case DW_CFA_def_cfa_offset_sf:
-      return "DW_CFA_def_cfa_offset_sf";
-    case DW_CFA_val_offset:
-      return "DW_CFA_val_offset";
-    case DW_CFA_val_offset_sf:
-      return "DW_CFA_val_offset_sf";
-    case DW_CFA_val_expression:
-      return "DW_CFA_val_expression";
-    /* SGI/MIPS specific.  */
-    case DW_CFA_MIPS_advance_loc8:
-      return "DW_CFA_MIPS_advance_loc8";
-    /* GNU extensions.  */
-    case DW_CFA_GNU_window_save:
-      return "DW_CFA_GNU_window_save";
-    case DW_CFA_GNU_args_size:
-      return "DW_CFA_GNU_args_size";
-    case DW_CFA_GNU_negative_offset_extended:
-      return "DW_CFA_GNU_negative_offset_extended";
-    default:
-      return "DW_CFA_<unknown>";
-    }
+  return name;
 }
-#endif
 
 static void
 dump_die_shallow (struct ui_file *f, int indent, struct die_info *die)
@@ -15512,7 +14836,8 @@ dwarf2_get_attr_constant_value (struct attribute *attr, int default_value)
 
 static int
 maybe_queue_comp_unit (struct dwarf2_cu *this_cu,
-		       struct dwarf2_per_cu_data *per_cu)
+		       struct dwarf2_per_cu_data *per_cu,
+		       enum language pretend_language)
 {
   /* We may arrive here during partial symbol reading, if we need full
      DIEs to process an unusual case (e.g. template arguments).  Do
@@ -15541,7 +14866,7 @@ maybe_queue_comp_unit (struct dwarf2_cu *this_cu,
     }
 
   /* Add it to the queue.  */
-  queue_comp_unit (per_cu);
+  queue_comp_unit (per_cu, pretend_language);
 
   return 1;
 }
@@ -15600,8 +14925,8 @@ follow_die_offset (sect_offset offset, struct dwarf2_cu **ref_cu)
       per_cu = dwarf2_find_containing_comp_unit (offset, cu->objfile);
 
       /* If necessary, add it to the queue and load its DIEs.  */
-      if (maybe_queue_comp_unit (cu, per_cu))
-	load_full_comp_unit (per_cu);
+      if (maybe_queue_comp_unit (cu, per_cu, cu->language))
+	load_full_comp_unit (per_cu, cu->language);
 
       target_cu = per_cu->cu;
     }
@@ -15609,7 +14934,7 @@ follow_die_offset (sect_offset offset, struct dwarf2_cu **ref_cu)
     {
       /* We're loading full DIEs during partial symbol reading.  */
       gdb_assert (dwarf2_per_objfile->reading_partial_symbols);
-      load_full_comp_unit (cu->per_cu);
+      load_full_comp_unit (cu->per_cu, language_minimal);
     }
 
   *ref_cu = target_cu;
@@ -15741,7 +15066,7 @@ follow_die_sig (struct die_info *src_die, struct attribute *attr,
 
   /* If necessary, add it to the queue and load its DIEs.  */
 
-  if (maybe_queue_comp_unit (*ref_cu, &sig_type->per_cu))
+  if (maybe_queue_comp_unit (*ref_cu, &sig_type->per_cu, language_minimal))
     read_signatured_type (sig_type);
 
   gdb_assert (sig_type->per_cu.cu != NULL);
@@ -15854,7 +15179,7 @@ read_signatured_type_reader (const struct die_reader_specs *reader,
      or we won't be able to build types correctly.
      Similarly, if we do not read the producer, we can not apply
      producer-specific interpretation.  */
-  prepare_one_comp_unit (cu, cu->dies);
+  prepare_one_comp_unit (cu, cu->dies, language_minimal);
 }
 
 /* Read in a signatured type and build its CU and DIEs.
@@ -16102,7 +15427,7 @@ decode_locdesc (struct dwarf_block *blk, struct dwarf2_cu *cu)
 
 	default:
 	  {
-	    const char *name = dwarf_stack_op_name (op);
+	    const char *name = get_DW_OP_name (op);
 
 	    if (name)
 	      complaint (&symfile_complaints, _("unsupported stack op: '%s'"),
@@ -17320,7 +16645,8 @@ init_one_comp_unit (struct dwarf2_cu *cu, struct dwarf2_per_cu_data *per_cu)
 /* Initialize basic fields of dwarf_cu CU according to DIE COMP_UNIT_DIE.  */
 
 static void
-prepare_one_comp_unit (struct dwarf2_cu *cu, struct die_info *comp_unit_die)
+prepare_one_comp_unit (struct dwarf2_cu *cu, struct die_info *comp_unit_die,
+		       enum language pretend_language)
 {
   struct attribute *attr;
 
@@ -17330,7 +16656,7 @@ prepare_one_comp_unit (struct dwarf2_cu *cu, struct die_info *comp_unit_die)
     set_cu_language (DW_UNSND (attr), cu);
   else
     {
-      cu->language = language_minimal;
+      cu->language = pretend_language;
       cu->language_defn = language_def (cu->language);
     }
 
@@ -17773,6 +17099,10 @@ dwarf2_per_objfile_free (struct objfile *objfile, void *d)
        VEC_iterate (dwarf2_section_info_def, data->types, ix, section);
        ++ix)
     munmap_section_buffer (section);
+
+  for (ix = 0; ix < dwarf2_per_objfile->n_comp_units; ++ix)
+    VEC_free (dwarf2_per_cu_ptr,
+	      dwarf2_per_objfile->all_comp_units[ix]->imported_symtabs);
 
   VEC_free (dwarf2_section_info_def, data->types);
 
@@ -18334,6 +17664,35 @@ write_one_signatured_type (void **slot, void *d)
   return 1;
 }
 
+/* Recurse into all "included" dependencies and write their symbols as
+   if they appeared in this psymtab.  */
+
+static void
+recursively_write_psymbols (struct objfile *objfile,
+			    struct partial_symtab *psymtab,
+			    struct mapped_symtab *symtab,
+			    htab_t psyms_seen,
+			    offset_type cu_index)
+{
+  int i;
+
+  for (i = 0; i < psymtab->number_of_dependencies; ++i)
+    if (psymtab->dependencies[i]->user != NULL)
+      recursively_write_psymbols (objfile, psymtab->dependencies[i],
+				  symtab, psyms_seen, cu_index);
+
+  write_psymbols (symtab,
+		  psyms_seen,
+		  objfile->global_psymbols.list + psymtab->globals_offset,
+		  psymtab->n_global_syms, cu_index,
+		  0);
+  write_psymbols (symtab,
+		  psyms_seen,
+		  objfile->static_psymbols.list + psymtab->statics_offset,
+		  psymtab->n_static_syms, cu_index,
+		  1);
+}
+
 /* Create an index file for OBJFILE in the directory DIR.  */
 
 static void
@@ -18418,16 +17777,8 @@ write_psymtabs_to_index (struct objfile *objfile, const char *dir)
       struct psymtab_cu_index_map *map;
       void **slot;
 
-      write_psymbols (symtab,
-		      psyms_seen,
-		      objfile->global_psymbols.list + psymtab->globals_offset,
-		      psymtab->n_global_syms, i,
-		      0);
-      write_psymbols (symtab,
-		      psyms_seen,
-		      objfile->static_psymbols.list + psymtab->statics_offset,
-		      psymtab->n_static_syms, i,
-		      1);
+      if (psymtab->user == NULL)
+	recursively_write_psymbols (objfile, psymtab, symtab, psyms_seen, i);
 
       map = &psymtab_cu_index_map[i];
       map->psymtab = psymtab;
