@@ -1,3 +1,8 @@
+2012-05-11  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-tdep.c (amd64_analyze_prologue): Update x32 support
+	from Mark Kettenis <kettenis@gnu.org>.
+
 2012-05-04  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* amd64-tdep.c (amd64_analyze_stack_align): Add an argumet
