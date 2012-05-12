@@ -1303,7 +1303,9 @@ amd64_linux_core_read_description (struct gdbarch *gdbarch,
 }
 
 static void
-amd64_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
+amd64_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch,
+		      const struct target_desc *amd64_linux_tdesc,
+		      struct link_map_offsets *(*fetch_func) (void))
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   const struct target_desc *tdesc = info.target_desc;
@@ -1325,13 +1327,7 @@ amd64_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   set_gdbarch_num_regs (gdbarch, AMD64_LINUX_NUM_REGS);
 
   if (! tdesc_has_registers (tdesc))
-    {
-      if (info.abfd != NULL
-	  && (info.bfd_arch_info->mach & bfd_mach_x64_32))
-	tdesc = tdesc_x32_linux;
-      else
-	tdesc = tdesc_amd64_linux;
-    }
+    tdesc = amd64_linux_tdesc;
   tdep->tdesc = tdesc;
 
   feature = tdesc_find_feature (tdesc, "org.gnu.gdb.i386.linux");
@@ -1352,12 +1348,7 @@ amd64_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   tdep->xsave_xcr0_offset = I386_LINUX_XSAVE_XCR0_OFFSET;
 
   /* GNU/Linux uses SVR4-style shared libraries.  */
-  if (tdesc_architecture (tdesc)->mach & bfd_mach_x64_32)
-    set_solib_svr4_fetch_link_map_offsets
-      (gdbarch, svr4_ilp32_fetch_link_map_offsets);
-  else
-    set_solib_svr4_fetch_link_map_offsets
-      (gdbarch, svr4_lp64_fetch_link_map_offsets);
+  set_solib_svr4_fetch_link_map_offsets (gdbarch, fetch_func);
 
   /* Add the %orig_rax register used for syscall restarting.  */
   set_gdbarch_write_pc (gdbarch, amd64_linux_write_pc);
@@ -1568,6 +1559,22 @@ amd64_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 
   tdep->i386_syscall_record = amd64_linux_syscall_record;
 }
+
+static void
+amd64_lp64_linux_init_abi (struct gdbarch_info info,
+			   struct gdbarch *gdbarch)
+{
+  amd64_linux_init_abi (info, gdbarch, tdesc_amd64_linux,
+			svr4_lp64_fetch_link_map_offsets);
+}
+
+static void
+amd64_ilp32_linux_init_abi (struct gdbarch_info info,
+			   struct gdbarch *gdbarch)
+{
+  amd64_linux_init_abi (info, gdbarch, tdesc_x32_linux,
+			svr4_ilp32_fetch_link_map_offsets);
+}
 
 
 /* Provide a prototype to silence -Wmissing-prototypes.  */
@@ -1577,9 +1584,9 @@ void
 _initialize_amd64_linux_tdep (void)
 {
   gdbarch_register_osabi (bfd_arch_i386, bfd_mach_x86_64,
-			  GDB_OSABI_LINUX, amd64_linux_init_abi);
+			  GDB_OSABI_LINUX, amd64_lp64_linux_init_abi);
   gdbarch_register_osabi (bfd_arch_i386, bfd_mach_x64_32,
-			  GDB_OSABI_LINUX, amd64_linux_init_abi);
+			  GDB_OSABI_LINUX, amd64_ilp32_linux_init_abi);
 
   /* Initialize the Linux target description.  */
   initialize_tdesc_amd64_linux ();
