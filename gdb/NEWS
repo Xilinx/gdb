@@ -3,6 +3,16 @@
 
 *** Changes since GDB 7.4
 
+* The "info os" command on GNU/Linux can now display information on
+  several new classes of objects managed by the operating system:
+    "info os procgroups" lists process groups
+    "info os files" lists file descriptors
+    "info os sockets" lists internet-domain sockets
+    "info os shm" lists shared-memory regions
+    "info os semaphores" lists semaphores
+    "info os msg" lists message queues
+    "info os modules" lists loaded kernel modules
+
 * GDB now has support for SDT (Static Defined Tracing) probes.  Currently,
   the only implemented backend is for SystemTap probes (<sys/sdt.h>).  You
   can set a breakpoint using the new "-probe, "-pstap" or "-probe-stap"
@@ -172,6 +182,12 @@ set auto-load libthread-db on|off
 show auto-load libthread-db
   Control auto-loading of inferior specific thread debugging shared library.
 
+set auto-load scripts-directory <dir1>[:<dir2>...]
+  Set a list of directories from which to load auto-loaded scripts.
+  Automatically loaded Python scripts and GDB scripts are located in one
+  of the directories listed by this option.
+  The delimiter (':' above) may differ according to the host platform.
+
 set auto-load safe-path <dir1>[:<dir2>...]
 show auto-load safe-path
   Set a list of directories from which it is safe to auto-load files.
@@ -180,6 +196,21 @@ show auto-load safe-path
 set debug auto-load on|off
 show debug auto-load
   Control display of debugging info for auto-loading the files above.
+
+* New configure options
+
+--with-auto-load-dir
+  Configure default value for the 'set auto-load scripts-directory'
+  setting above.  It defaults to '$ddir/auto-load', $ddir representing
+  GDB's data directory (available via show data-directory).
+
+--with-auto-load-safe-path
+  Configure default value for the 'set auto-load safe-path' setting
+  above.  It defaults to the --with-auto-load-dir setting.
+
+--without-auto-load-safe-path
+  Set 'set auto-load safe-path' to '/', effectively disabling this
+  security feature.
 
 * New remote packets
 

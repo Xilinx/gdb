@@ -1,3 +1,37 @@
+2012-05-11  Stan Shebs  <stan@codesourcery.com>
+	    Kwok Cheung Yeung  <kcy@codesourcery.com>
+
+	* gdb.texinfo (Operating System Auxiliary Information): Document new
+	'info os' subcommands.
+
+2012-05-11  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.texinfo (Auto-loading, Init File in the Current Directory)
+	(libthread_db.so.1 file, objfile-gdb.gdb file, objfile-gdb.py file)
+	(dotdebug_gdb_scripts section): Add reference
+	to 'Auto-loading safe path'.
+
+2012-05-11  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Implement multi-component --with-auto-load-dir.
+	* gdb.texinfo (Auto-loading): New references
+	for 'set auto-load scripts-directory'
+	and 'show auto-load scripts-directory'.
+	(Auto-loading safe path): Describe the new default.  Move $ddir
+	substituation reference to 'objfile-gdb.py file'.
+	(objfile-gdb.py file): Describe script-name alias.  Change real-name to
+	script-name.  Describe new 'set auto-load scripts-directory'
+	and 'show auto-load scripts-directory'.
+
+2012-05-11  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Provide $ddir substitution for --with-auto-load-safe-path.
+	* gdb.texinfo (Auto-loading): Replace /usr/local by $ddir/auto-load.
+	(Auto-loading safe path): Likewise.  Mention the default value,
+	$ddir substitution, --with-auto-load-safe-path and
+	--without-auto-load-safe-path.
+	* observer.texi (gdb_datadir_changed): New.
+
 2012-05-09  Jan Kratochvil  <jan.kratochvil@redhat.com>
 
 	* gdb.texinfo (Auto-loading): Wrap too long lines in @smallexample.

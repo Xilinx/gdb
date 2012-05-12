@@ -9409,23 +9409,109 @@ most appropriate form for a recognized tag, and in hexadecimal for
 an unrecognized tag.
 @end table
 
-On some targets, @value{GDBN} can access operating-system-specific information
-and display it to user, without interpretation.  For remote targets,
-this functionality depends on the remote stub's support of the 
+On some targets, @value{GDBN} can access operating system-specific
+information and show it to you.  The types of information available
+will differ depending on the type of operating system running on the
+target.  The mechanism used to fetch the data is described in
+@ref{Operating System Information}.  For remote targets, this
+functionality depends on the remote stub's support of the
 @samp{qXfer:osdata:read} packet, see @ref{qXfer osdata read}.
 
 @table @code
 @kindex info os
-@item info os
-List the types of OS information available for the target.  If the
-target does not return a list of possible types, this command will
-report an error.
+@item info os @var{infotype}
 
+Display OS information of the requested type.
+
+On @sc{gnu}/Linux, the following values of @var{infotype} are valid:
+
+@anchor{linux info os infotypes}
+@table @code
 @kindex info os processes
-@item info os processes
+@item processes
 Display the list of processes on the target.  For each process,
-@value{GDBN} prints the process identifier, the name of the user, and
-the command corresponding to the process.
+@value{GDBN} prints the process identifier, the name of the user, the
+command corresponding to the process, and the list of processor cores
+that the process is currently running on.  (To understand what these
+properties mean, for this and the following info types, please consult
+the general @sc{gnu}/Linux documentation.)
+
+@kindex info os procgroups
+@item procgroups
+Display the list of process groups on the target.  For each process,
+@value{GDBN} prints the identifier of the process group that it belongs
+to, the command corresponding to the process group leader, the process
+identifier, and the command line of the process.  The list is sorted
+first by the process group identifier, then by the process identifier,
+so that processes belonging to the same process group are grouped together
+and the process group leader is listed first.
+
+@kindex info os threads
+@item threads
+Display the list of threads running on the target.  For each thread,
+@value{GDBN} prints the identifier of the process that the thread
+belongs to, the command of the process, the thread identifier, and the
+processor core that it is currently running on.  The main thread of a
+process is not listed.
+
+@kindex info os files
+@item files
+Display the list of open file descriptors on the target.  For each
+file descriptor, @value{GDBN} prints the identifier of the process
+owning the descriptor, the command of the owning process, the value
+of the descriptor, and the target of the descriptor.
+
+@kindex info os sockets
+@item sockets
+Display the list of Internet-domain sockets on the target.  For each
+socket, @value{GDBN} prints the address and port of the local and
+remote endpoints, the current state of the connection, the creator of
+the socket, the IP address family of the socket, and the type of the
+connection.
+
+@kindex info os shm
+@item shm
+Display the list of all System V shared-memory regions on the target.
+For each shared-memory region, @value{GDBN} prints the region key,
+the shared-memory identifier, the access permissions, the size of the
+region, the process that created the region, the process that last
+attached to or detached from the region, the current number of live
+attaches to the region, and the times at which the region was last
+attached to, detach from, and changed.
+
+@kindex info os semaphores
+@item semaphores
+Display the list of all System V semaphore sets on the target.  For each
+semaphore set, @value{GDBN} prints the semaphore set key, the semaphore
+set identifier, the access permissions, the number of semaphores in the
+set, the user and group of the owner and creator of the semaphore set,
+and the times at which the semaphore set was operated upon and changed.
+
+@kindex info os msg
+@item msg
+Display the list of all System V message queues on the target.  For each
+message queue, @value{GDBN} prints the message queue key, the message
+queue identifier, the access permissions, the current number of bytes
+on the queue, the current number of messages on the queue, the processes
+that last sent and received a message on the queue, the user and group
+of the owner and creator of the message queue, the times at which a
+message was last sent and received on the queue, and the time at which
+the message queue was last changed.
+
+@kindex info os modules
+@item modules
+Display the list of all loaded kernel modules on the target.  For each
+module, @value{GDBN} prints the module name, the size of the module in
+bytes, the number of times the module is used, the dependencies of the
+module, the status of the module, and the address of the loaded module
+in memory.
+@end table
+
+@item info os
+If @var{infotype} is omitted, then list the possible values for
+@var{infotype} and the kind of OS information available for each
+@var{infotype}.  If the target does not return a list of possible
+types, this command will report an error.
 @end table
 
 @node Memory Region Attributes
@@ -20973,6 +21059,10 @@ without being explicitly told so by the user.  We call this feature
 results or introduce security risks (e.g., if the file comes from untrusted
 sources).
 
+Note that loading of these associated files (including the local @file{.gdbinit}
+file) requires accordingly configured @code{auto-load safe-path}
+(@pxref{Auto-loading safe path}).
+
 For these reasons, @value{GDBN} includes commands and options to let you
 control when to auto-load files and which files should be auto-loaded.
 
@@ -21008,7 +21098,9 @@ local-gdbinit:  Auto-loading of .gdbinit script from current directory
                 is on.
 python-scripts:  Auto-loading of Python scripts is on.
 safe-path:  List of directories from which it is safe to auto-load files
-            is /usr/local.
+            is $ddir/auto-load.
+scripts-directory:  List of directories from which to load auto-loaded scripts
+                    is $ddir/auto-load.
 @end smallexample
 
 @anchor{info auto-load}
@@ -21069,6 +21161,10 @@ These are @value{GDBN} control commands for the auto-loading:
 @tab Show setting of @value{GDBN} Python scripts.
 @item @xref{info auto-load python-scripts}.
 @tab Show state of @value{GDBN} Python scripts.
+@item @xref{set auto-load scripts-directory}.
+@tab Control for @value{GDBN} auto-loaded scripts location.
+@item @xref{show auto-load scripts-directory}.
+@tab Show @value{GDBN} auto-loaded scripts location.
 @item @xref{set auto-load local-gdbinit}.
 @tab Control for init file in the current directory.
 @item @xref{show auto-load local-gdbinit}.
@@ -21106,6 +21202,9 @@ By default, @value{GDBN} reads and executes the canned sequences of commands
 from init file (if any) in the current working directory,
 see @ref{Init File in the Current Directory during Startup}.
 
+Note that loading of this local @file{.gdbinit} file also requires accordingly
+configured @code{auto-load safe-path} (@pxref{Auto-loading safe path}).
+
 @table @code
 @anchor{set auto-load local-gdbinit}
 @kindex set auto-load local-gdbinit
@@ -21142,6 +21241,9 @@ libraries have to be trusted in general.  In all other cases of
 auto-load libthread-db} is enabled before trying to open such thread debugging
 library.
 
+Note that loading of this debugging library also requires accordingly configured
+@code{auto-load safe-path} (@pxref{Auto-loading safe path}).
+
 @table @code
 @anchor{set auto-load libthread-db}
 @kindex set auto-load libthread-db
@@ -21168,6 +21270,9 @@ for each such library print list of inferior @var{pid}s using it.
 @value{GDBN} tries to load an @file{@var{objfile}-gdb.gdb} file containing
 canned sequences of commands (@pxref{Sequences}), as long as @samp{set
 auto-load gdb-scripts} is set to @samp{on}.
+
+Note that loading of this script file also requires accordingly configured
+@code{auto-load safe-path} (@pxref{Auto-loading safe path}).
 
 For more background refer to the similar Python scripts auto-loading
 description (@pxref{objfile-gdb.py file}).
@@ -21211,9 +21316,9 @@ get loaded:
 $ ./gdb -q ./gdb
 Reading symbols from /home/user/gdb/gdb...done.
 warning: File "/home/user/gdb/gdb-gdb.gdb" auto-loading has been
-         declined by your `auto-load safe-path' set to "/usr/local".
+         declined by your `auto-load safe-path' set to "$ddir/auto-load".
 warning: File "/home/user/gdb/gdb-gdb.py" auto-loading has been
-         declined by your `auto-load safe-path' set to "/usr/local".
+         declined by your `auto-load safe-path' set to "$ddir/auto-load".
 @end smallexample
 
 The list of trusted directories is controlled by the following commands:
@@ -21245,7 +21350,16 @@ loading and execution of scripts.  Multiple entries may be delimited by the
 host platform path separator in use.
 @end table
 
-Setting this variable to @file{/} disables this security protection.
+This variable defaults to what @code{--with-auto-load-dir} has been configured
+to (@pxref{with-auto-load-dir}).  @file{$ddir} substituation applies the same
+as for @xref{set auto-load scripts-directory}.
+The default @code{set
+auto-load safe-path} value can be also overriden by @value{GDBN} configuration
+option @option{--with-auto-load-safe-path}.
+
+Setting this variable to @file{/} disables this security protection,
+corresponding @value{GDBN} configuration option is
+@option{--without-auto-load-safe-path}.
 This variable is supposed to be set to the system directories writable by the
 system superuser only.  Users can add their source directories in init files in
 their home directories (@pxref{Home Directory Init File}).  See also deprecated
@@ -25438,7 +25552,7 @@ registering objfile-specific pretty-printers.
 @cindex @file{@var{objfile}-gdb.py}
 
 When a new object file is read, @value{GDBN} looks for
-a file named @file{@var{objfile}-gdb.py},
+a file named @file{@var{objfile}-gdb.py} (we call it @var{script-name} below),
 where @var{objfile} is the object file's real name, formed by ensuring
 that the file name is absolute, following all symlinks, and resolving
 @code{.} and @code{..} components.  If this file exists and is
@@ -25446,14 +25560,45 @@ readable, @value{GDBN} will evaluate it as a Python script.
 
 If this file does not exist, and if the parameter
 @code{debug-file-directory} is set (@pxref{Separate Debug Files}),
-then @value{GDBN} will look for @var{real-name} in all of the
+then @value{GDBN} will look for @var{script-name} in all of the
 directories mentioned in the value of @code{debug-file-directory}.
 
 Finally, if this file does not exist, then @value{GDBN} will look for
-a file named @file{@var{data-directory}/auto-load/@var{real-name}}, where
-@var{data-directory} is @value{GDBN}'s data directory (available via
-@code{show data-directory}, @pxref{Data Files}), and @var{real-name}
-is the object file's real name, as described above.
+@var{script-name} file in all of the directories as specified below.
+
+Note that loading of this script file also requires accordingly configured
+@code{auto-load safe-path} (@pxref{Auto-loading safe path}).
+
+@table @code
+@anchor{set auto-load scripts-directory}
+@kindex set auto-load scripts-directory
+@item set auto-load scripts-directory @r{[}@var{directories}@r{]}
+Control @value{GDBN} auto-loaded scripts location.  Multiple directory entries
+may be delimited by the host platform path separator in use
+(@samp{:} on Unix, @samp{;} on MS-Windows and MS-DOS).
+
+Each entry here needs to be covered also by the security setting
+@code{set auto-load safe-path} (@pxref{set auto-load safe-path}).
+
+@anchor{with-auto-load-dir}
+This variable defaults to @file{$ddir/auto-load}.  The default @code{set
+auto-load safe-path} value can be also overriden by @value{GDBN} configuration
+option @option{--with-auto-load-dir}.
+
+Any used string @file{$ddir} will get replaced by @var{data-directory} which is
+determined at @value{GDBN} startup (@pxref{Data Files}).  @file{$ddir} must be
+be placed as a directory component --- either alone or delimited by @file{/} or
+@file{\} directory separators, depending on the host platform.
+
+The list of directories uses path separator (@samp{:} on GNU and Unix
+systems, @samp{;} on MS-Windows and MS-DOS) to separate directories, similarly
+to the @env{PATH} environment variable.
+
+@anchor{show auto-load scripts-directory}
+@kindex show auto-load scripts-directory
+@item show auto-load scripts-directory
+Show @value{GDBN} auto-loaded scripts location.
+@end table
 
 @value{GDBN} does not track which files it has already auto-loaded this way.
 @value{GDBN} will load the associated script every time the corresponding
@@ -25498,6 +25643,9 @@ DEFINE_GDB_SCRIPT ("my-app-scripts.py")
 @end example
 
 The script name may include directories if desired.
+
+Note that loading of this script file also requires accordingly configured
+@code{auto-load safe-path} (@pxref{Auto-loading safe path}).
 
 If the macro is put in a header, any application or library
 using this header will get a reference to the specified script.
