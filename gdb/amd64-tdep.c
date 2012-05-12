@@ -2682,13 +2682,7 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   tdep->sizeof_fpregset = I387_SIZEOF_FXSAVE;
 
   if (! tdesc_has_registers (tdesc))
-    {
-      if (info.abfd != NULL
-	  && (info.bfd_arch_info->mach & bfd_mach_x64_32))
-	tdesc = tdesc_x32;
-      else
-	tdesc = tdesc_amd64;
-    }
+    tdesc = tdesc_amd64;
   tdep->tdesc = tdesc;
 
   tdep->num_core_regs = AMD64_NUM_GREGS + I387_NUM_REGS;
@@ -2720,20 +2714,9 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   tdep->num_xmm_regs = 16;
 
   /* This is what all the fuss is about.  */
-  if (tdesc_architecture (tdesc)->mach & bfd_mach_x64_32)
-    {
-      set_gdbarch_long_bit (gdbarch, 32);
-      set_gdbarch_ptr_bit (gdbarch, 32);
-      tdep->sp_regnum_from_eax = AMD64_RSP_REGNUM;
-      tdep->pc_regnum_from_eax = AMD64_RIP_REGNUM;
-    }
-  else
-    {
-      set_gdbarch_long_bit (gdbarch, 64);
-      set_gdbarch_ptr_bit (gdbarch, 64);
-    }
-
+  set_gdbarch_long_bit (gdbarch, 64);
   set_gdbarch_long_long_bit (gdbarch, 64);
+  set_gdbarch_ptr_bit (gdbarch, 64);
 
   /* In contrast to the i386, on AMD64 a `long double' actually takes
      up 128 bits, even though it's still based on the i387 extended

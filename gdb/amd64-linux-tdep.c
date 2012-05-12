@@ -1572,8 +1572,13 @@ static void
 amd64_ilp32_linux_init_abi (struct gdbarch_info info,
 			   struct gdbarch *gdbarch)
 {
+  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   amd64_linux_init_abi (info, gdbarch, tdesc_x32_linux,
 			svr4_ilp32_fetch_link_map_offsets);
+  set_gdbarch_long_bit (gdbarch, 32);
+  set_gdbarch_ptr_bit (gdbarch, 32);
+  tdep->sp_regnum_from_eax = AMD64_RSP_REGNUM;
+  tdep->pc_regnum_from_eax = AMD64_RIP_REGNUM;
 }
 
 

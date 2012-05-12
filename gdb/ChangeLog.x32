@@ -1,5 +1,14 @@
 2012-05-11  H.J. Lu  <hongjiu.lu@intel.com>
 
+	* amd64-linux-tdep.c (amd64_ilp32_linux_init_abi): Set long and
+	ptr to 32 bits.  Set sp_regnum_from_eax to AMD64_RSP_REGNUM and
+	pc_regnum_from_eax to AMD64_RIP_REGNUM.
+
+	* amd64-tdep.c (amd64_init_abi): Don't check bfd_mach_x64_32
+	here.
+
+2012-05-11  H.J. Lu  <hongjiu.lu@intel.com>
+
 	* amd64-linux-tdep.c (amd64_linux_init_abi): Add 2 arguments,
 	amd64_linux_tdesc and fetch_func.  Set tdesc with amd64_linux_tdesc
 	and set solib_svr4_fetch_link_map_offsets with fetch_func.
