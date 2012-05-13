@@ -1,3 +1,11 @@
+2012-05-13  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-linux-nat.c (compat_x32_clock_t): Use struct of 2 ints.
+	(compat_x32_siginfo_t): Remove attribute.
+	(compat_x32_siginfo_from_siginfo): Use memcpy on cpt_si_utime
+	and cpt_si_stime.
+	(siginfo_from_compat_x32_siginfo): Likewise.
+
 2012-05-11  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* amd64-linux-tdep.c (amd64_ilp32_linux_init_abi): Set long and

@@ -592,7 +592,11 @@ typedef struct compat_siginfo
 } compat_siginfo_t;
 
 /* For x32, clock_t in _sigchld is 64bit aligned at 4 bytes.  */
-typedef long __attribute__ ((__aligned__ (4))) compat_x32_clock_t;
+typedef struct compat_x32_clock
+{
+  int lower;
+  int upper;
+} compat_x32_clock_t;
 
 typedef struct compat_x32_siginfo
 {
@@ -650,7 +654,7 @@ typedef struct compat_x32_siginfo
       int _fd;
     } _sigpoll;
   } _sifields;
-} compat_x32_siginfo_t __attribute__ ((__aligned__ (8)));
+} compat_x32_siginfo_t;
 
 #define cpt_si_pid _sifields._kill._pid
 #define cpt_si_uid _sifields._kill._uid
@@ -820,8 +824,10 @@ compat_x32_siginfo_from_siginfo (compat_x32_siginfo_t *to,
 	  to->cpt_si_pid = from->si_pid;
 	  to->cpt_si_uid = from->si_uid;
 	  to->cpt_si_status = from->si_status;
-	  to->cpt_si_utime = from->si_utime;
-	  to->cpt_si_stime = from->si_stime;
+	  memcpy (&to->cpt_si_utime, &from->si_utime,
+		  sizeof (to->cpt_si_utime));
+	  memcpy (&to->cpt_si_stime, &from->si_stime,
+		  sizeof (to->cpt_si_stime));
 	  break;
 	case SIGILL:
 	case SIGFPE:
@@ -877,8 +883,10 @@ siginfo_from_compat_x32_siginfo (siginfo_t *to,
 	  to->si_pid = from->cpt_si_pid;
 	  to->si_uid = from->cpt_si_uid;
 	  to->si_status = from->cpt_si_status;
-	  to->si_utime = from->cpt_si_utime;
-	  to->si_stime = from->cpt_si_stime;
+	  memcpy (&to->si_utime, &from->cpt_si_utime,
+		  sizeof (to->si_utime));
+	  memcpy (&to->si_stime, &from->cpt_si_stime,
+		  sizeof (to->si_stime));
 	  break;
 	case SIGILL:
 	case SIGFPE:
