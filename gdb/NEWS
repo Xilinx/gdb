@@ -142,6 +142,11 @@
      "info auto-load python-scripts", "set auto-load python-scripts on|off"
      and "show auto-load python-scripts" counterparts instead.
 
+  ** "dprintf location,format,args..." creates a dynamic printf, which
+     is basically a breakpoint that does a printf and immediately
+     resumes your program's execution, so it is like a printf that you
+     can insert dynamically at runtime instead of at compiletime.
+
 * New targets
 
 Renesas RL78			rl78-*-elf
@@ -186,6 +191,7 @@ show auto-load libthread-db
   Control auto-loading of inferior specific thread debugging shared library.
 
 set auto-load scripts-directory <dir1>[:<dir2>...]
+show auto-load scripts-directory
   Set a list of directories from which to load auto-loaded scripts.
   Automatically loaded Python scripts and GDB scripts are located in one
   of the directories listed by this option.
@@ -199,6 +205,19 @@ show auto-load safe-path
 set debug auto-load on|off
 show debug auto-load
   Control display of debugging info for auto-loading the files above.
+
+set dprintf-style gdb|call
+show dprintf-style
+  Control the way in which a dynamic printf is performed; "gdb" requests
+  a GDB printf command, while "call" causes dprintf to call a function
+  in the inferior.
+
+set dprintf-function <expr>
+show dprintf-function
+set dprintf-channel <expr>
+show dprintf-channel
+  Set the function and optional first argument to the call when using
+  the "call" style of dynamic printf.
 
 * New configure options
 
