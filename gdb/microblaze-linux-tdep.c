@@ -32,6 +32,7 @@
 #include "regset.h"
 #include "solib-svr4.h"
 #include "microblaze-tdep.h"
+#include "glibc-tdep.h"
 #include "trad-frame.h"
 #include "frame-unwind.h"
 #include "tramp-frame.h"
@@ -139,12 +140,53 @@ static struct tramp_frame microblaze_linux_sighandler_tramp_frame =
   microblaze_linux_sighandler_cache_init
 };
 
+const struct microblaze_gregset microblaze_linux_core_gregset;
+
+static void
+microblaze_linux_supply_core_gregset (const struct regset *regset,
+                                   struct regcache *regcache,
+                                   int regnum, const void *gregs, size_t len)
+{
+  microblaze_supply_gregset (&microblaze_linux_core_gregset, regcache,
+                             regnum, gregs);
+}
+
+static void
+microblaze_linux_collect_core_gregset (const struct regset *regset,
+                                    const struct regcache *regcache,
+                                    int regnum, void *gregs, size_t len)
+{
+  microblaze_collect_gregset (&microblaze_linux_core_gregset, regcache,
+                              regnum, gregs);
+}
+
+static void
+microblaze_linux_supply_core_fpregset (const struct regset *regset,
+                                    struct regcache *regcache,
+                                    int regnum, const void *fpregs, size_t len)
+{
+  /* FIXME.  */
+  microblaze_supply_fpregset (regcache, regnum, fpregs);
+}
+
+static void
+microblaze_linux_collect_core_fpregset (const struct regset *regset,
+                                     const struct regcache *regcache,
+                                     int regnum, void *fpregs, size_t len)
+{
+  /* FIXME.  */
+  microblaze_collect_fpregset (regcache, regnum, fpregs);
+}
 
 static void
 microblaze_linux_init_abi (struct gdbarch_info info,
 			   struct gdbarch *gdbarch)
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+
+  tdep->gregset = regset_alloc (gdbarch, microblaze_linux_supply_core_gregset,
+                                microblaze_linux_collect_core_gregset);
+  tdep->sizeof_gregset = 200;
 
   linux_init_abi (info, gdbarch);
 
@@ -158,6 +200,20 @@ microblaze_linux_init_abi (struct gdbarch_info info,
   /* Trampolines.  */
   tramp_frame_prepend_unwinder (gdbarch,
 				&microblaze_linux_sighandler_tramp_frame);
+
+  /* BFD target for core files.  */
+  if (gdbarch_byte_order (gdbarch) == BFD_ENDIAN_BIG)
+    set_gdbarch_gcore_bfd_target (gdbarch, "elf32-microblaze");
+  else
+    set_gdbarch_gcore_bfd_target (gdbarch, "elf32-microblazeel");
+
+
+  /* Shared library handling.  */
+  set_gdbarch_skip_trampoline_code (gdbarch, find_solib_trampoline_target);
+  set_gdbarch_skip_solib_resolver (gdbarch, glibc_skip_solib_resolver);
+
+  set_gdbarch_regset_from_core_section (gdbarch,
+					microblaze_regset_from_core_section);
 
   /* Enable TLS support.  */
   set_gdbarch_fetch_tls_load_module_address (gdbarch,
