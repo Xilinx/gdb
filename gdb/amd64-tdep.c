@@ -258,7 +258,7 @@ static const char *amd64_word_names[] =
 static const char *amd64_dword_names[] =
 {
   "eax", "ebx", "ecx", "edx", "esi", "edi", "ebp", "esp", 
-  "r8d", "r9d", "r10d", "r11d", "r12d", "r13d", "r14d", "r15d", "eip"
+  "r8d", "r9d", "r10d", "r11d", "r12d", "r13d", "r14d", "r15d"
 };
 
 /* Return the GDB type object for the "standard" data type of data in
@@ -299,7 +299,12 @@ amd64_pseudo_register_name (struct gdbarch *gdbarch, int regnum)
   else if (i386_word_regnum_p (gdbarch, regnum))
     return amd64_word_names[regnum - tdep->ax_regnum];
   else if (i386_dword_regnum_p (gdbarch, regnum))
-    return amd64_dword_names[regnum - tdep->eax_regnum];
+    {
+      regnum -= tdep->eax_regnum;
+      if (regnum == AMD64_RIP_REGNUM)
+	return gdbarch_ptr_bit (gdbarch) == 32 ? "eip" : "";
+      return amd64_dword_names[regnum];
+    }
   else
     return i386_pseudo_register_name (gdbarch, regnum);
 }

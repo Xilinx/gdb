@@ -1,3 +1,8 @@
+2012-05-20  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-tdep.c (amd64_word_names): Remove "eip".
+	(amd64_pseudo_register_name): Return "eip" only for x32.
+
 2012-05-13  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* amd64-linux-nat.c (compat_x32_clock_t): Use struct of 2 ints.
