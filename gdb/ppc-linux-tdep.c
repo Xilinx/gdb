@@ -241,7 +241,7 @@ ppc_linux_memory_remove_breakpoint (struct gdbarch *gdbarch,
    which were added later, do get returned in a register though.  */
 
 static enum return_value_convention
-ppc_linux_return_value (struct gdbarch *gdbarch, struct type *func_type,
+ppc_linux_return_value (struct gdbarch *gdbarch, struct value *function,
 			struct type *valtype, struct regcache *regcache,
 			gdb_byte *readbuf, const gdb_byte *writebuf)
 {  
@@ -251,7 +251,7 @@ ppc_linux_return_value (struct gdbarch *gdbarch, struct type *func_type,
 	   && TYPE_VECTOR (valtype)))
     return RETURN_VALUE_STRUCT_CONVENTION;
   else
-    return ppc_sysv_abi_return_value (gdbarch, func_type, valtype, regcache,
+    return ppc_sysv_abi_return_value (gdbarch, function, valtype, regcache,
 				      readbuf, writebuf);
 }
 
@@ -639,7 +639,6 @@ static struct insn_pattern powerpc32_plt_stub_so[] =
 static int
 powerpc_linux_in_dynsym_resolve_code (CORE_ADDR pc)
 {
-  struct objfile *objfile;
   struct minimal_symbol *sym;
 
   /* Check whether PC is in the dynamic linker.  This also checks

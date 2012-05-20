@@ -1,3 +1,493 @@
+2012-05-18  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* mips-tdep.c (mips_reg3_to_reg): Optimize storage.
+
+2012-05-18  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* NEWS: Add microMIPS support and "set mips compression",
+	"show mips compression" commands.
+	* mips-tdep.h (mips_isa): New enum.
+	(gdbarch_tdep): Add mips_isa.
+	(mips_pc_is_mips16): Update prototype.
+	(mips_pc_is_mips, mips_pc_is_micromips): New prototypes.
+	* mips-tdep.c (mips_compression_mips16): New variable.
+	(mips_compression_micromips): Likewise.
+	(mips_compression_strings): Likewise.
+	(mips_compression_string): Likewise.
+	(is_mips16_isa, is_micromips_isa): New functions.
+	(is_mips16_addr): Rename to...
+	(is_compact_addr): ... this.
+	(unmake_mips16_addr): Likewise to...
+	(unmake_compact_addr): ... this.
+	(make_mips16_addr): Likewise to...
+	(make_compact_addr): ... this.
+	(is_mips_addr, is_mips16_addr, is_micromips_addr): New
+	functions.
+	(mips_elf_make_msymbol_special): Handle microMIPS code.
+	(msymbol_is_special): Rename to...
+	(msymbol_is_mips16): ... this.
+	(mips_make_symbol_special, mips_pc_is_mips16): Update
+	accordingly.
+	(msymbol_is_mips, msymbol_is_micromips): New functions.
+	(mips16_to_32_reg): Rename to...
+	(mips_reg3_to_reg): ... this.
+	(mips_pc_is_mips, mips_pc_is_micromips): New functions.
+	(mips_pc_isa): Likewise.
+	(mips_read_pc, mips_unwind_pc, mips_write_pc): Handle microMIPS
+	code.
+	(mips_fetch_instruction): Pass return status instead of printing
+	an error message if requested.  Handle microMIPS code.  Bail out
+	on an invalid ISA.
+	(micromips_op): New macro.
+	(b0s4_imm, b0s5_imm, b0s5_reg, b0s7_imm, b0s10_imm): Likewise.
+	(b1s9_imm, b2s3_cc, b4s2_regl, b5s5_op, b5s5_reg): Likewise.
+	(b6s4_op, b7s3_reg): Likewise.
+	(b0s6_op, b0s11_op, b0s12_imm, b0s16_imm, b0s26_imm): Likewise.
+	(b6s10_ext, b11s5_reg, b12s4_op): Likewise.
+	(mips_insn_size): New function.
+	(mips32_next_pc): Update mips_fetch_instruction call.
+	(micromips_relative_offset7): New function.
+	(micromips_relative_offset10): Likewise.
+	(micromips_relative_offset16): Likewise.
+	(micromips_pc_insn_size): Likewise.
+	(micromips_bc1_pc): Likewise.
+	(micromips_next_pc): Likewise.
+	(unpack_mips16): Update mips_fetch_instruction call.
+	(extended_mips16_next_pc): Update according to change to
+	mips16_to_32_reg.
+	(mips_next_pc): Update mips_pc_is_mips16 call.  Handle microMIPS
+	code.
+	(mips16_scan_prologue): Update mips_fetch_instruction call.
+	Update according to change to mips16_to_32_reg.
+	(mips_insn16_frame_sniffer): Update mips_pc_is_mips16 call.
+	(mips_insn16_frame_base_sniffer): Likewise.
+	(micromips_decode_imm9): New function.
+	(micromips_scan_prologue): Likewise.
+	(mips_micro_frame_cache): Likewise.
+	(mips_micro_frame_this_id): Likewise.
+	(mips_micro_frame_prev_register): Likewise.
+	(mips_micro_frame_sniffer): Likewise.
+	(mips_micro_frame_unwind): New variable.
+	(mips_micro_frame_base_address): New function.
+	(mips_micro_frame_base): New variable.
+	(mips_micro_frame_base_sniffer): New function.
+	(mips32_scan_prologue): Update mips_fetch_instruction call.
+	(mips_insn32_frame_sniffer): Check for the standard MIPS ISA
+	rather than for MIPS16.
+	(mips_insn32_frame_base_sniffer): Likewise.
+	(mips_addr_bits_remove): Handle microMIPS code.
+	(deal_with_atomic_sequence): Rename to...
+	(mips_deal_with_atomic_sequence): ... this.  Update the type
+	of the variable used to hold an instruction.  Remove the ISA bit
+	check.  Update mips_fetch_instruction call.
+	(micromips_deal_with_atomic_sequence): New function.
+	(deal_with_atomic_sequence): Likewise.
+	(mips_about_to_return): Handle microMIPS code.  Update
+	mips_fetch_instruction call.
+	(heuristic_proc_start): Check for the standard MIPS ISA rather
+	than for MIPS16.  Update mips_pc_is_mips16 and
+	mips_fetch_instruction calls.  Handle microMIPS code.
+	(mips_push_dummy_code): Handle microMIPS code.
+	(mips_eabi_push_dummy_call): Likewise.
+	(mips_o32_return_value): Update mips_pc_is_mips16 call.
+	(mips_o64_push_dummy_call): Handle microMIPS code.
+	(mips_o64_return_value): Update mips_pc_is_mips16 call.
+	(is_delayed): Remove function.
+	(mips_single_step_through_delay): Replace the call to is_delayed
+	with mips32_instruction_has_delay_slot.  Correct MIPS16 handling.
+	Handle microMIPS code.
+	(mips_skip_prologue): Update mips_pc_is_mips16 call.  Handle
+	microMIPS code.
+	(mips32_in_function_epilogue_p): Update mips_fetch_instruction
+	call.
+	(micromips_in_function_epilogue_p): New function.
+	(mips16_in_function_epilogue_p): Update mips_fetch_instruction
+	call.
+	(mips_in_function_epilogue_p): Update mips_pc_is_mips16 call.
+	Handle microMIPS.
+	(gdb_print_insn_mips): Likewise.
+	(mips_breakpoint_from_pc): Likewise.
+	(mips_remote_breakpoint_from_pc): New function.
+	(mips32_instruction_has_delay_slot): Simplify making use of the
+	updated mips_fetch_instruction interface.
+	(micromips_instruction_has_delay_slot): New function.
+	(mips16_instruction_has_delay_slot): Simplify making use of the
+	updated mips_fetch_instruction interface.
+	(mips_adjust_breakpoint_address): Check for the standard MIPS
+	ISA rather than for MIPS16 ISA.  Update for unmake_compact_addr 
+	calls.  Handle microMIPS code.
+	(mips_get_mips16_fn_stub_pc): Update mips_fetch_instruction call.
+	(mips_skip_trampoline_code): Handle microMIPS code.
+	(global_mips_compression): New function.
+	(mips_gdbarch_init): Handle the compressed ISA setting from ELF
+	file flags.  Register the microMIPS remote breakpoint handler
+	and heuristic frame unwinder.
+	(show_mips_compression): New function.
+	(_initialize_mips_tdep): Add the "set mips compression" and
+	"show mips compression" commands.
+
+2012-05-18  Sergio Durigan Junior  <sergiodj@redhat.com>
+
+	* ada-lang.c:
+	* ada-tasks.c:
+	* ada-varobj.c:
+	* amd64-darwin-tdep.c:
+	* arm-symbian-tdep.c:
+	* arm-tdep.c:
+	* avr-tdep.c:
+	* ax-gdb.c:
+	* bfin-linux-tdep.c:
+	* breakpoint.c:
+	* c-valprint.c:
+	* cli/cli-cmds.c:
+	* coffread.c:
+	* cp-support.c:
+	* cris-tdep.c:
+	* dwarf2-frame-tailcall.c:
+	* dwarf2-frame.c:
+	* dwarf2expr.c:
+	* dwarf2loc.c:
+	* dwarf2read.c:
+	* elfread.c:
+	* eval.c:
+	* expprint.c:
+	* f-valprint.c:
+	* frv-tdep.c:
+	* h8300-tdep.c:
+	* hppa-hpux-tdep.c:
+	* hppa-tdep.c:
+	* hppanbsd-tdep.c:
+	* i386-nto-tdep.c:
+	* i386-tdep.c:
+	* i387-tdep.c:
+	* ia64-tdep.c:
+	* jit.c:
+	* linespec.c:
+	* linux-tdep.c:
+	* lm32-tdep.c:
+	* m2-valprint.c:
+	* m32c-tdep.c:
+	* m32r-rom.c:
+	* m32r-tdep.c:
+	* m68k-tdep.c:
+	* m68klinux-tdep.c:
+	* mi/mi-main.c:
+	* microblaze-tdep.c:
+	* mips-linux-tdep.c:
+	* mips-tdep.c:
+	* mn10300-tdep.c:
+	* p-valprint.c:
+	* parse.c:
+	* ppc-linux-tdep.c:
+	* ppc-sysv-tdep.c:
+	* printcmd.c:
+	* python/py-finishbreakpoint.c:
+	* python/py-inferior.c:
+	* python/py-infthread.c:
+	* python/py-type.c:
+	* python/python.c:
+	* remote-fileio.c:
+	* remote-m32r-sdi.c:
+	* remote-mips.c:
+	* reverse.c:
+	* rl78-tdep.c:
+	* rs6000-aix-tdep.c:
+	* rs6000-tdep.c:
+	* s390-tdep.c:
+	* score-tdep.c:
+	* sh64-tdep.c:
+	* skip.c:
+	* solib-darwin.c:
+	* solib-dsbt.c:
+	* solib-frv.c:
+	* sparc-tdep.c:
+	* spu-multiarch.c:
+	* spu-tdep.c:
+	* stack.c:
+	* symfile.c:
+	* symtab.c:
+	* tic6x-tdep.c:
+	* tracepoint.c:
+	* v850-tdep.c:
+	* valarith.c:
+	* valprint.c:
+	* value.c:
+	* xcoffread.c:
+	* xtensa-tdep.c:
+	* ada-lang.c:
+	* ada-tasks.c:
+	* ada-varobj.c:
+	* amd64-darwin-tdep.c:
+	* arm-symbian-tdep.c:
+	* arm-tdep.c: Delete unused variables.
+
+2012-05-18  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Rename $ddir to $datadir.
+	* NEWS (--with-auto-load-dir): Rename $ddir to $datadir.
+	* auto-load.c (auto_load_safe_path_vec_update)
+	(auto_load_gdb_datadir_changed, auto_load_objfile_script): Likewise.
+	* configure: Regenerate.
+	* configure.ac (--with-auto-load-dir, --with-auto-load-safe-path):
+	Likewise.  Remove the 'use $ddir' help string.
+
+2012-05-18  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* auto-load.c (show_auto_load_safe_path): Accept any combination of
+	DIRNAME_SEPARATOR and IS_DIR_SEPARATOR for wild-match.
+
+2012-05-18  Tom Tromey  <tromey@redhat.com>
+
+	PR exp/13907:
+	* valprint.h (struct value_print_options) <symbol_print>: New
+	field.
+	* valprint.c (user_print_options): Add default for symbol_print.
+	(show_symbol_print): New function.
+	(generic_val_print): Respect symbol_print.
+	(_initialize_valprint): Add "print symbol" setting.
+	* f-valprint.c (f_val_print): Respect symbol_print.
+	* c-valprint.c (c_val_print): Respect symbol_print.
+	* NEWS: Update.
+	* printcmd.c (print_address_symbolic): Return int.  Ignore some
+	zero-size symbols.
+	(print_address_demangle): Return int.
+	* defs.h: (print_address_symbolic): Return int.
+	* value.h (print_address_demangle): Return int.
+
+2012-05-18  Tom Tromey  <tromey@redhat.com>
+
+	* valprint.c (val_print_string): Don't print leading space.
+	* p-valprint.c (pascal_val_print) <TYPE_CODE_PTR>: Optionally
+	print space before string or vtbl.
+	* m2-valprint.c (print_unpacked_pointer): Optionally print space
+	before string.
+	* jv-valprint.c (java_value_print): Print space before string.
+	* go-valprint.c (print_go_string): Print space before string.
+	* f-valprint.c (f_val_print) <TYPE_CODE_PTR>: Optionally print
+	space before string.
+	* c-valprint.c (c_val_print) <TYPE_CODE_PTR>: Optionally print
+	space before string or vtbl.
+	* auxv.c (fprint_target_auxv): Print space after address.
+
+2012-05-18  Tom Tromey  <tromey@redhat.com>
+
+	* printcmd.c (print_address_demangle): Remove special case for 0.
+
+2012-05-18  Tom Tromey  <tromey@redhat.com>
+
+	* printcmd.c (print_address_demangle): Add 'opts' argument.
+	* p-valprint.c (pascal_val_print): Update.
+	* jv-valprint.c (java_val_print): Update.
+	* value.h: Update.
+	* valprint.c (generic_val_print): Update.
+	(print_function_pointer_address): Add 'options' argument.  Remove
+	'addressprint' argument.  Update.
+	* m2-valprint.c (print_unpacked_pointer): Update.
+	* gnu-v3-abi.c (print_one_vtable): Update.
+	(gnuv3_print_method_ptr): Update.
+	* f-valprint.c (f_val_print): Update.
+	* cp-valprint.c (cp_print_value_fields): Update.
+	* valprint.h (print_function_pointer_address): Update.
+	* c-valprint.c (c_val_print): Update.
+
+2012-05-18  Tom Tromey  <tromey@redhat.com>
+
+	* psymtab.c (find_pc_sect_symtab_from_partial): Return the symtab
+	directly corresponding to the found psymtab.
+	* dwarf2read.c (recursively_find_pc_sect_symtab): New function.
+	(dw2_find_pc_sect_symtab): Use it.
+	* block.h (blockvector_contains_pc): Declare.
+	* block.c (find_block_in_blockvector): New function.
+	(blockvector_for_pc_sect): Use it.
+	(blockvector_contains_pc): New function.
+
+2012-05-18  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* mips-tdep.h (mips_write_pc): New prototype.
+	* mips-tdep.c (mips_write_pc): Make external, add description.
+	* mips-linux-tdep.c (mips_linux_write_pc): Use mips_write_pc,
+	add description.
+
+2012-05-18  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* mips-tdep.c (mips_read_pc): Use gdbarch_pc_regnum instead of
+	mips_regnum->pc.
+	(mips_unwind_pc, mips_write_pc): Likewise.
+	(mips_gdbarch_init): Remove a comment on gdbarch_pc_regnum and
+	gdbarch_read_pc.
+
+2012-05-17  Joel Brobecker  <brobecker@adacore.com>
+
+	* procfs.c (procfs_find_new_threads, procfs_pid_to_str,
+	proc_warn, proc_error, proc_get_status, proc_flags,
+	proc_why, proc_what, proc_nsysarg, proc_sysargs,
+	proc_set_run_on_last_close, proc_unset_run_on_last_close,
+	proc_unset_inherit_on_fork, proc_set_async, proc_unset_async,
+	proc_stop_process, proc_wait_for_stop, proc_run_process,
+	proc_set_traced_signals, proc_set_traced_faults,
+	proc_set_traced_sysentry, proc_set_traced_sysexit,
+	proc_set_held_signals, proc_get_held_signals,
+	proc_get_traced_signals, proc_get_traced_faults,
+	proc_get_traced_sysentry, proc_get_traced_sysexit,
+	proc_clear_current_fault, proc_set_current_signal,
+	proc_clear_current_signal, proc_get_gregs, proc_get_fpregs,
+	proc_set_gregs, proc_set_fpregs, proc_kill, proc_parent_pid,
+	proc_get_nthreads, proc_get_nthreads, proc_get_nthreads,
+	proc_get_current_thread, proc_get_current_thread,
+	proc_get_current_thread, proc_update_threads,
+	proc_update_threads, proc_update_threads, proc_update_threads,
+	proc_iterate_over_threads, procfs_find_new_threads,
+	procfs_pid_to_str): Make static.  Remove advance declaration.
+	(proc_cursig): Make static.  Conditionalized defintion on
+	PROCFS_DONT_PIOCSSIG_CURSIG being defined.
+	(proc_syscall, proc_set_kill_on_last_close,
+	proc_unset_kill_on_last_close, proc_set_inherit_on_fork,
+	proc_get_pending_signals, proc_get_signal_actions,
+	proc_trace_signal, proc_ignore_signal): Delete.
+
+2012-05-16  Sergio Durigan Junior  <sergiodj@redhat.com>
+
+	* coffread.c (cs_section_address): Passing proper argument for
+	`bfd_get_section_vma'.
+	* dwarf2read.c (dwarf2_locate_sections): Likewise, for
+	`bfd_get_section_flags'.
+	* remote.c (remote_trace_set_readonly_regions): Likewise, for
+	`bfd_get_section_vma'.
+
+2012-05-16  Tom Tromey  <tromey@redhat.com>
+
+	PR macros/13205:
+	* macrotab.h: (macro_define_special): Declare.
+	(enum macro_special_kind): New.
+	(struct macro_definition) <argc, replacement>: Update comments.
+	* macrotab.c (new_macro_definition): Unconditionally set 'argc'.
+	(macro_define_object_internal): New function.
+	(macro_define_object): Use it.
+	(macro_define_special): New function.
+	(fixup_definition): New function.
+	(macro_lookup_definition, foreach_macro_in_scope)
+	(foreach_macro): Use fixup_definition.
+	* macroexp.h (macro_stringify): Declare.
+	* macroexp.c (free_buffer_return_text): New function.
+	(stringify): Constify "arg".
+	(macro_stringify): New function.
+	* dwarf2read.c (macro_start_file): Call macro_define_special.
+
+2012-05-16  Maciej W. Rozycki  <macro@codesourcery.com>
+            Maciej W. Rozycki  <macro@mips.com>
+
+	* breakpoint.h (bp_location): Add related_address member.
+	* inferior.h (get_return_value): Take a pointer to struct value
+	instead of struct type for the function requested.
+	* value.h (using_struct_return): Likewise.
+	* gdbarch.sh (return_value): Take a pointer to struct value
+	instead of struct type for the function requested.
+	* breakpoint.c (set_breakpoint_location_function): Initialize
+	related_address for bp_gnu_ifunc_resolver breakpoints.
+	* elfread.c (elf_gnu_ifunc_resolver_return_stop): Pass the
+	requested function's address to gdbarch_return_value.
+	* eval.c (evaluate_subexp_standard): Pass the requested
+	function's address to using_struct_return.
+	* infcall.c (call_function_by_hand): Pass the requested
+	function's address to using_struct_return and
+	gdbarch_return_value.
+	* infcmd.c (get_return_value): Take a pointer to struct value
+	instead of struct type for the function requested.
+	(print_return_value): Update accordingly.
+	(finish_command_continuation): Likewise.
+	* stack.c (return_command): Pass the requested function's
+	address to using_struct_return and gdbarch_return_value.
+	* value.c (using_struct_return): Take a pointer to struct value
+	instead of struct type for the function requested.  Pass the
+	requested function's address to gdbarch_return_value.
+	* python/py-finishbreakpoint.c (finish_breakpoint_object):
+	New function_value member, replacing function_type.
+	(bpfinishpy_dealloc): Update accordingly.
+	(bpfinishpy_pre_stop_hook): Likewise.
+	(bpfinishpy_init): Likewise.  Record the requested function's
+	address.
+	* mips-tdep.c (mips_fval_reg): New enum.
+	(mips_o32_push_dummy_call): For MIPS16 FP doubles do not swap
+	words put in GP registers.
+	(mips_o64_push_dummy_call): Update a comment.
+	(mips_o32_return_value): Take a pointer to struct value instead
+	of struct type for the function requested and use it to check if
+	using the MIPS16 calling convention.  Return the designated
+	general purpose registers for floating-point values returned in
+	MIPS16 mode.
+	(mips_o64_return_value): Likewise.
+	* ppc-tdep.h (ppc_sysv_abi_return_value): Update prototype.
+	(ppc_sysv_abi_broken_return_value): Likewise.
+	(ppc64_sysv_abi_return_value): Likewise.
+	* alpha-tdep.c (alpha_return_value): Take a pointer to struct
+	value instead of struct type for the function requested.
+	* amd64-tdep.c (amd64_return_value): Likewise.
+	* amd64-windows-tdep.c (amd64_windows_return_value): Likewise.
+	* arm-tdep.c (arm_return_value): Likewise.
+	* avr-tdep.c (avr_return_value): Likewise.
+	* bfin-tdep.c (bfin_return_value): Likewise.
+	* cris-tdep.c (cris_return_value): Likewise.
+	* frv-tdep.c (frv_return_value): Likewise.
+	* h8300-tdep.c (h8300_return_value): Likewise.
+	(h8300h_return_value): Likewise.
+	* hppa-tdep.c (hppa32_return_value): Likewise.
+	(hppa64_return_value): Likewise.
+	* i386-tdep.c (i386_return_value): Likewise.
+	* ia64-tdep.c (ia64_return_value): Likewise.
+	* iq2000-tdep.c (iq2000_return_value): Likewise.
+	* lm32-tdep.c (lm32_return_value): Likewise.
+	* m32c-tdep.c (m32c_return_value): Likewise.
+	* m32r-tdep.c (m32r_return_value): Likewise.
+	* m68hc11-tdep.c (m68hc11_return_value): Likewise.
+	* m68k-tdep.c (m68k_return_value): Likewise.
+	(m68k_svr4_return_value): Likewise.
+	* m88k-tdep.c (m88k_return_value): Likewise.
+	* mep-tdep.c (mep_return_value): Likewise.
+	* microblaze-tdep.c (microblaze_return_value): Likewise.
+	* mn10300-tdep.c (mn10300_return_value): Likewise.
+	* moxie-tdep.c (moxie_return_value): Likewise.
+	* mt-tdep.c (mt_return_value): Likewise.
+	* ppc-linux-tdep.c (ppc_linux_return_value): Likewise.
+	* ppc-sysv-tdep.c (ppc_sysv_abi_return_value): Likewise.
+	(ppc_sysv_abi_broken_return_value): Likewise.
+	(ppc64_sysv_abi_return_value): Likewise.
+	* ppcnbsd-tdep.c (ppcnbsd_return_value): Likewise.
+	* rl78-tdep.c (rl78_return_value): Likewise.
+	* rs6000-aix-tdep.c (rs6000_return_value): Likewise.
+	* rx-tdep.c (rx_return_value): Likewise.
+	* s390-tdep.c (s390_return_value): Likewise.
+	* score-tdep.c (score_return_value): Likewise.
+	* sh-tdep.c (sh_return_value_nofpu): Likewise.
+	(sh_return_value_fpu): Likewise.
+	* sh64-tdep.c (sh64_return_value): Likewise.
+	* sparc-tdep.c (sparc32_return_value): Likewise.
+	* sparc64-tdep.c (sparc64_return_value): Likewise.
+	* spu-tdep.c (spu_return_value): Likewise.
+	* tic6x-tdep.c (tic6x_return_value): Likewise.
+	* v850-tdep.c (v850_return_value): Likewise.
+	* vax-tdep.c (vax_return_value): Likewise.
+	* xstormy16-tdep.c (xstormy16_return_value): Likewise.
+	* xtensa-tdep.c (xtensa_return_value): Likewise.
+	* gdbarch.c: Regenerate.
+	* gdbarch.h: Regenerate.
+
+2012-05-15  Tom Tromey  <tromey@redhat.com>
+
+	* python/python.c (gdbpy_find_pc_line): Use gdb_py_ulongest.
+
+2012-05-15  Joel Brobecker  <brobecker@adacore.com>
+
+	* breakpoint.c (init_breakpoint_sal): Add quotes around part
+	of command in two error message.
+
+2012-05-15  Joel Brobecker  <brobecker@adacore.com>
+
+	* breakpoint.c (init_breakpoint_sal): Remove trailing spaces.
+
+2012-05-15  Joel Brobecker  <brobecker@adacore.com>
+
+	* breakpoint.c (find_condition_and_thread): Minor reformatting.
+
 2012-05-15  Jan Kratochvil  <jan.kratochvil@redhat.com>
 
 	* NEWS (show auto-load scripts-directory): Add forgotten command.

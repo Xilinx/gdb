@@ -301,7 +301,6 @@ tic6x_analyze_prologue (struct gdbarch *gdbarch, const CORE_ADDR start_pc,
 static CORE_ADDR
 tic6x_skip_prologue (struct gdbarch *gdbarch, CORE_ADDR start_pc)
 {
-  CORE_ADDR limit_pc;
   CORE_ADDR func_addr;
   struct tic6x_unwind_cache cache;
 
@@ -405,7 +404,6 @@ tic6x_frame_unwind_cache (struct frame_info *this_frame,
   struct gdbarch *gdbarch = get_frame_arch (this_frame);
   CORE_ADDR current_pc;
   struct tic6x_unwind_cache *cache;
-  int i;
 
   if (*this_prologue_cache)
     return *this_prologue_cache;
@@ -606,7 +604,6 @@ tic6x_get_next_pc (struct frame_info *frame, CORE_ADDR pc)
 {
   struct gdbarch *gdbarch = get_frame_arch (frame);
   unsigned long inst;
-  int offset;
   int register_number;
   int last = 0;
 
@@ -821,7 +818,7 @@ tic6x_store_return_value (struct type *valtype, struct regcache *regcache,
 /* This is the implementation of gdbarch method return_value.  */
 
 static enum return_value_convention
-tic6x_return_value (struct gdbarch *gdbarch, struct type *func_type,
+tic6x_return_value (struct gdbarch *gdbarch, struct value *function,
 		    struct type *type, struct regcache *regcache,
 		    gdb_byte *readbuf, const gdb_byte *writebuf)
 {

@@ -1166,7 +1166,6 @@ s390_load (struct s390_prologue_data *data,
 	   
 {
   pv_t addr = s390_addr (data, d2, x2, b2);
-  pv_t offset;
 
   /* If it's a load from an in-line constant pool, then we can
      simulate that, under the assumption that the code isn't
@@ -2818,7 +2817,7 @@ s390_return_value_convention (struct gdbarch *gdbarch, struct type *type)
 }
 
 static enum return_value_convention
-s390_return_value (struct gdbarch *gdbarch, struct type *func_type,
+s390_return_value (struct gdbarch *gdbarch, struct value *function,
 		   struct type *type, struct regcache *regcache,
 		   gdb_byte *out, const gdb_byte *in)
 {

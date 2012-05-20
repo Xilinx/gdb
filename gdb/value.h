@@ -491,8 +491,9 @@ extern void read_value_memory (struct value *val, int embedded_offset,
 struct frame_info;
 struct fn_field;
 
-extern void print_address_demangle (struct gdbarch *, CORE_ADDR,
-				    struct ui_file *, int);
+extern int print_address_demangle (const struct value_print_options *,
+				   struct gdbarch *, CORE_ADDR,
+				   struct ui_file *, int);
 
 extern LONGEST value_as_long (struct value *val);
 extern DOUBLEST value_as_double (struct value *val);
@@ -698,7 +699,7 @@ extern int value_bit_index (struct type *type, const gdb_byte *addr,
 			    int index);
 
 extern int using_struct_return (struct gdbarch *gdbarch,
-				struct type *func_type,
+				struct value *function,
 				struct type *value_type);
 
 extern struct value *evaluate_expression (struct expression *exp);

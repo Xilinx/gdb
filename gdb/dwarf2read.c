@@ -1582,7 +1582,7 @@ dwarf2_locate_sections (bfd *abfd, asection *sectp, void *vnames)
     }
   else if (section_is_p (sectp->name, &names->eh_frame))
     {
-      flagword aflag = bfd_get_section_flags (ignore_abfd, sectp);
+      flagword aflag = bfd_get_section_flags (abfd, sectp);
 
       if (aflag & SEC_HAS_CONTENTS)
         {
@@ -2432,7 +2432,6 @@ dw2_get_file_names_reader (const struct die_reader_specs *reader,
   struct line_header *lh;
   struct attribute *attr;
   int i;
-  unsigned int bytes_read;
   char *name, *comp_dir;
   void **slot;
   struct quick_file_names *qfn;
@@ -2992,6 +2991,30 @@ dw2_expand_symtabs_matching
     }
 }
 
+/* A helper for dw2_find_pc_sect_symtab which finds the most specific
+   symtab.  */
+
+static struct symtab *
+recursively_find_pc_sect_symtab (struct symtab *symtab, CORE_ADDR pc)
+{
+  int i;
+
+  if (BLOCKVECTOR (symtab) != NULL
+      && blockvector_contains_pc (BLOCKVECTOR (symtab), pc))
+    return symtab;
+
+  for (i = 0; symtab->includes[i]; ++i)
+    {
+      struct symtab *s;
+
+      s = recursively_find_pc_sect_symtab (s, pc);
+      if (s != NULL)
+	return s;
+    }
+
+  return NULL;
+}
+
 static struct symtab *
 dw2_find_pc_sect_symtab (struct objfile *objfile,
 			 struct minimal_symbol *msymbol,
@@ -3000,6 +3023,7 @@ dw2_find_pc_sect_symtab (struct objfile *objfile,
 			 int warn_if_readin)
 {
   struct dwarf2_per_cu_data *data;
+  struct symtab *result;
 
   dw2_setup (objfile);
 
@@ -3014,7 +3038,9 @@ dw2_find_pc_sect_symtab (struct objfile *objfile,
     warning (_("(Internal error: pc %s in read in CU, but not in symtab.)"),
 	     paddress (get_objfile_arch (objfile), pc));
 
-  return dw2_instantiate_symtab (data);
+  result = recursively_find_pc_sect_symtab (dw2_instantiate_symtab (data), pc);
+  gdb_assert (result != NULL);
+  return result;
 }
 
 static void
@@ -4042,7 +4068,6 @@ process_psymtab_comp_unit_reader (const struct die_reader_specs *reader,
   struct dwarf2_cu *cu = reader->cu;
   struct objfile *objfile = cu->objfile;
   struct dwarf2_per_cu_data *per_cu = cu->per_cu;
-  bfd *abfd = objfile->obfd;
   struct attribute *attr;
   CORE_ADDR baseaddr;
   CORE_ADDR best_lowpc = 0, best_highpc = 0;
@@ -5265,7 +5290,6 @@ static void
 psymtab_to_symtab_1 (struct partial_symtab *pst)
 {
   struct dwarf2_per_cu_data *per_cu;
-  struct cleanup *back_to;
   int i;
 
   if (pst->readin)
@@ -5338,7 +5362,6 @@ load_full_comp_unit_reader (const struct die_reader_specs *reader,
 			    void *data)
 {
   struct dwarf2_cu *cu = reader->cu;
-  struct attribute *attr;
   enum language *language_ptr = data;
 
   gdb_assert (cu->die_hash == NULL);
@@ -6915,7 +6938,6 @@ try_open_dwo_file (const char *file_name)
   bfd *sym_bfd;
   int desc;
   char *absolute_name;
-  char *name;
 
   desc = openp (debug_file_directory, OPF_TRY_CWD_FIRST, file_name,
 		O_RDONLY | O_BINARY, &absolute_name);
@@ -6955,7 +6977,6 @@ static bfd *
 open_dwo_file (const char *dwo_name, const char *comp_dir)
 {
   bfd *abfd;
-  char *path_to_try, *debug_dir;
 
   if (IS_ABSOLUTE_PATH (dwo_name))
     return try_open_dwo_file (dwo_name);
@@ -7095,7 +7116,6 @@ lookup_dwo_type_unit (struct signatured_type *this_tu,
 {
   struct objfile *objfile = dwarf2_per_objfile->objfile;
   struct dwo_file *dwo_file;
-  struct dwo_unit find_dwo_tu, *dwo_tu;
 
   dwo_file = lookup_dwo_file (dwo_name, comp_dir);
   if (dwo_file == NULL)
@@ -7744,7 +7764,6 @@ read_call_site_scope (struct die_info *die, struct dwarf2_cu *cu)
        child_die && child_die->tag;
        child_die = sibling_die (child_die))
     {
-      struct dwarf2_locexpr_baton *dlbaton;
       struct call_site_parameter *parameter;
 
       if (child_die->tag != DW_TAG_GNU_call_site_parameter)
@@ -15155,7 +15174,6 @@ read_signatured_type_reader (const struct die_reader_specs *reader,
 			     void *data)
 {
   struct dwarf2_cu *cu = reader->cu;
-  struct attribute *attr;
 
   gdb_assert (cu->die_hash == NULL);
   cu->die_hash =
@@ -15572,9 +15590,12 @@ macro_start_file (int file, int line,
                                       objfile->macro_cache);
 
   if (! current_file)
-    /* If we have no current file, then this must be the start_file
-       directive for the compilation unit's main source file.  */
-    current_file = macro_set_main (pending_macros, full_name);
+    {
+      /* If we have no current file, then this must be the start_file
+	 directive for the compilation unit's main source file.  */
+      current_file = macro_set_main (pending_macros, full_name);
+      macro_define_special (pending_macros);
+    }
   else
     current_file = macro_include (current_file, line, full_name);
 
@@ -17497,8 +17518,6 @@ add_address_entry_worker (void *datap, CORE_ADDR start_addr, void *obj)
 {
   struct addrmap_index_data *data = datap;
   struct partial_symtab *pst = obj;
-  offset_type cu_index;
-  void **slot;
 
   if (data->previous_valid)
     add_address_entry (data->objfile, data->addr_obstack,
@@ -17707,7 +17726,6 @@ write_psymtabs_to_index (struct objfile *objfile, const char *dir)
   struct mapped_symtab *symtab;
   offset_type val, size_of_contents, total_len;
   struct stat st;
-  char buf[8];
   htab_t psyms_seen;
   htab_t cu_index_htab;
   struct psymtab_cu_index_map *psymtab_cu_index_map;

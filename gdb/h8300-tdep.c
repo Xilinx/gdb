@@ -430,7 +430,6 @@ h8300_frame_cache (struct frame_info *this_frame, void **this_cache)
 {
   struct gdbarch *gdbarch = get_frame_arch (this_frame);
   struct h8300_frame_cache *cache;
-  char buf[4];
   int i;
   CORE_ADDR current_pc;
 
@@ -783,7 +782,7 @@ h8300h_extract_return_value (struct type *type, struct regcache *regcache,
   struct gdbarch *gdbarch = get_regcache_arch (regcache);
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   int len = TYPE_LENGTH (type);
-  ULONGEST c, addr;
+  ULONGEST c;
 
   switch (len)
     {
@@ -901,7 +900,7 @@ h8300h_store_return_value (struct type *type, struct regcache *regcache,
 }
 
 static enum return_value_convention
-h8300_return_value (struct gdbarch *gdbarch, struct type *func_type,
+h8300_return_value (struct gdbarch *gdbarch, struct value *function,
 		    struct type *type, struct regcache *regcache,
 		    gdb_byte *readbuf, const gdb_byte *writebuf)
 {
@@ -915,7 +914,7 @@ h8300_return_value (struct gdbarch *gdbarch, struct type *func_type,
 }
 
 static enum return_value_convention
-h8300h_return_value (struct gdbarch *gdbarch, struct type *func_type,
+h8300h_return_value (struct gdbarch *gdbarch, struct value *function,
 		     struct type *type, struct regcache *regcache,
 		     gdb_byte *readbuf, const gdb_byte *writebuf)
 {

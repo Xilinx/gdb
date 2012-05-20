@@ -1,3 +1,33 @@
+2012-05-19  Eli Zaretskii  <eliz@gnu.org>
+
+	* gdb.texinfo (Continuing and Stepping, Selection, Byte Order)
+	(MIPS Embedded, MIPS, MIPS Register packet Format)
+	(Target Descriptions, MIPS Features): Use @acronym{MIPS} where
+	appropriate.
+
+2012-05-18  Sandra Loosemore  <sandra@codesourcery.com>
+            Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* gdb.texinfo (MIPS): Document "set mips compression" and "show
+	mips compression".
+	(MIPS Breakpoint Kinds): New subsubsection.
+
+2012-05-18  Eli Zaretskii  <eliz@gnu.org>
+
+	* gdb.texinfo (Architecture-Specific Protocol Details): Define
+	nodes for subsections.  Add @acronym mark-ups and adjust
+	formatting.
+
+2012-05-18  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Rename $ddir to $datadir.
+	* gdb.texinfo (Auto-loading, Auto-loading safe path)
+	(objfile-gdb.py file): Rename $ddir to $datadir.
+
+2012-05-18  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.texinfo (Print Settings): Document 'set print symbol'.
+
 2012-05-14  Stan Shebs  <stan@codesourcery.com>
 
 	* gdb.texinfo (Dynamic Printf): New subsection.

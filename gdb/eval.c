@@ -793,7 +793,7 @@ evaluate_subexp_standard (struct type *expect_type,
   struct type *type;
   int nargs;
   struct value **argvec;
-  int upper, lower;
+  int lower;
   int code;
   int ix;
   long mem_offset;
@@ -1358,8 +1358,7 @@ evaluate_subexp_standard (struct type *expect_type,
 		  val_type = expect_type;
 	      }
 
-	    struct_return = using_struct_return (exp->gdbarch,
-						 value_type (method),
+	    struct_return = using_struct_return (exp->gdbarch, method,
 						 val_type);
 	  }
 	else if (expect_type != NULL)

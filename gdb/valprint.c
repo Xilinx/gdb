@@ -85,7 +85,8 @@ struct value_print_options user_print_options =
   1,				/* static_field_print */
   1,				/* pascal_static_field_print */
   0,				/* raw */
-  0				/* summary */
+  0,				/* summary */
+  1				/* symbol_print */
 };
 
 /* Initialize *OPTS to be a copy of the user print options.  */
@@ -219,6 +220,16 @@ show_addressprint (struct ui_file *file, int from_tty,
 {
   fprintf_filtered (file, _("Printing of addresses is %s.\n"), value);
 }
+
+static void
+show_symbol_print (struct ui_file *file, int from_tty,
+		   struct cmd_list_element *c, const char *value)
+{
+  fprintf_filtered (file,
+		    _("Printing of symbols when printing pointers is %s.\n"),
+		    value);
+}
+
 
 
 /* A helper function for val_print.  When printing in "summary" mode,
@@ -329,7 +340,6 @@ generic_val_print (struct type *type, const gdb_byte *valaddr,
   unsigned len;
   struct type *elttype, *unresolved_elttype;
   struct type *unresolved_type = type;
-  unsigned eltlen;
   LONGEST val;
   CORE_ADDR addr;
 
@@ -384,12 +394,13 @@ generic_val_print (struct type *type, const gdb_byte *valaddr,
 	  if (TYPE_CODE (elttype) == TYPE_CODE_FUNC)
 	    {
 	      /* Try to print what function it points to.  */
-	      print_function_pointer_address (gdbarch, addr, stream,
-					      options->addressprint);
+	      print_function_pointer_address (options, gdbarch, addr, stream);
 	      return;
 	    }
 
-	  if (options->addressprint)
+	  if (options->symbol_print)
+	    print_address_demangle (options, gdbarch, addr, stream, demangle);
+	  else if (options->addressprint)
 	    fputs_filtered (paddress (gdbarch, addr), stream);
 	}
       break;
@@ -515,7 +526,7 @@ generic_val_print (struct type *type, const gdb_byte *valaddr,
       type_print (type, "", stream, -1);
       fprintf_filtered (stream, "} ");
       /* Try to print what function it points to, and its address.  */
-      print_address_demangle (gdbarch, address, stream, demangle);
+      print_address_demangle (options, gdbarch, address, stream, demangle);
       break;
 
     case TYPE_CODE_BOOL:
@@ -1501,10 +1512,10 @@ print_char_chars (struct ui_file *stream, struct type *type,
    stream STREAM.  */
 
 void
-print_function_pointer_address (struct gdbarch *gdbarch,
+print_function_pointer_address (const struct value_print_options *options,
+				struct gdbarch *gdbarch,
 				CORE_ADDR address,
-				struct ui_file *stream,
-				int addressprint)
+				struct ui_file *stream)
 {
   CORE_ADDR func_addr
     = gdbarch_convert_from_func_ptr_addr (gdbarch, address,
@@ -1512,13 +1523,13 @@ print_function_pointer_address (struct gdbarch *gdbarch,
 
   /* If the function pointer is represented by a description, print
      the address of the description.  */
-  if (addressprint && func_addr != address)
+  if (options->addressprint && func_addr != address)
     {
       fputs_filtered ("@", stream);
       fputs_filtered (paddress (gdbarch, address), stream);
       fputs_filtered (": ", stream);
     }
-  print_address_demangle (gdbarch, func_addr, stream, demangle);
+  print_address_demangle (options, gdbarch, func_addr, stream, demangle);
 }
 
 
@@ -2352,10 +2363,6 @@ val_print_string (struct type *elttype, const char *encoding,
      and then the error message.  */
   if (errcode == 0 || bytes_read > 0)
     {
-      if (options->addressprint)
-	{
-	  fputs_filtered (" ", stream);
-	}
       LA_PRINT_STRING (stream, elttype, buffer, bytes_read / width,
 		       encoding, force_ellipsis, options);
     }
@@ -2364,13 +2371,13 @@ val_print_string (struct type *elttype, const char *encoding,
     {
       if (errcode == EIO)
 	{
-	  fprintf_filtered (stream, " <Address ");
+	  fprintf_filtered (stream, "<Address ");
 	  fputs_filtered (paddress (gdbarch, addr), stream);
 	  fprintf_filtered (stream, " out of bounds>");
 	}
       else
 	{
-	  fprintf_filtered (stream, " <Error reading address ");
+	  fprintf_filtered (stream, "<Error reading address ");
 	  fputs_filtered (paddress (gdbarch, addr), stream);
 	  fprintf_filtered (stream, ": %s>", safe_strerror (errcode));
 	}
@@ -2603,6 +2610,14 @@ Set printing of addresses."), _("\
 Show printing of addresses."), NULL,
 			   NULL,
 			   show_addressprint,
+			   &setprintlist, &showprintlist);
+
+  add_setshow_boolean_cmd ("symbol", class_support,
+			   &user_print_options.symbol_print, _("\
+Set printing of symbol names when printing pointers."), _("\
+Show printing of symbol names when printing pointers."),
+			   NULL, NULL,
+			   show_symbol_print,
 			   &setprintlist, &showprintlist);
 
   add_setshow_zuinteger_cmd ("input-radix", class_support, &input_radix_1,

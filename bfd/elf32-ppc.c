@@ -2094,26 +2094,6 @@ struct ppc_elf_obj_tdata
   (bfd_get_flavour (bfd) == bfd_target_elf_flavour \
    && elf_object_id (bfd) == PPC32_ELF_DATA)
 
-/* Rename some of the generic section flags to better document how they
-   are used for ppc32.  */
-
-/* Nonzero if this section has TLS related relocations.  */
-#define has_tls_reloc sec_flg0
-
-/* Nonzero if this section has a call to __tls_get_addr.  */
-#define has_tls_get_addr_call sec_flg1
-
-/* Nonzero if this secs_tls_get_addr_calltion has the VLE bit set.  */
-#define has_vle_insns sec_flg2
-
-bfd_boolean
-is_ppc_vle (asection *sec)
-{
-  return (sec->owner != NULL
-	  && is_ppc_elf (sec->owner)
-	  && sec->has_vle_insns);
-}
-
 /* Override the generic function because we store some extras.  */
 
 static bfd_boolean
@@ -2266,15 +2246,6 @@ ppc_elf_write_core_note (bfd *abfd, char *buf, int *bufsiz, int note_type, ...)
     }
 }
 
-static bfd_boolean
-ppc_elf_section_flags (flagword *flags ATTRIBUTE_UNUSED,
-		       const Elf_Internal_Shdr *hdr)
-{
-  if (hdr->sh_flags & SHF_PPC_VLE)
-    hdr->bfd_section->has_vle_insns = 1;
-  return TRUE;
-}
-
 static flagword
 ppc_elf_lookup_section_flags (char *flag_name) 
 {
@@ -2392,16 +2363,16 @@ ppc_elf_modify_segment_map (bfd *abfd,
       if (m->count == 0)
 	continue;
 
-      sect0_vle = is_ppc_vle (m->sections[0]);
+      sect0_vle = (elf_section_flags (m->sections[0]) & SHF_PPC_VLE) != 0;
       for (j = 1; j < m->count; ++j)
 	{
-	  if (is_ppc_vle (m->sections[j]) != sect0_vle)
+	  sectj_vle = (elf_section_flags (m->sections[j]) & SHF_PPC_VLE) != 0;
+
+	  if (sectj_vle != sect0_vle)
 	    break;
         }
       if (j >= m->count)
 	continue;
-
-      sectj_vle = is_ppc_vle (m->sections[j]);
 
       /* sections 0..j-1 stay in this (current) segment,
 	 the remainder are put in a new segment.
@@ -3139,6 +3110,15 @@ struct ppc_elf_link_hash_table
   /* Small local sym cache.  */
   struct sym_cache sym_cache;
 };
+
+/* Rename some of the generic section flags to better document how they
+   are used for ppc32.  The flags are only valid for ppc32 elf objects.  */
+
+/* Nonzero if this section has TLS related relocations.  */
+#define has_tls_reloc sec_flg0
+
+/* Nonzero if this section has a call to __tls_get_addr.  */
+#define has_tls_get_addr_call sec_flg1
 
 /* Get the PPC ELF linker hash table from a link_info structure.  */
 
@@ -6309,7 +6289,8 @@ ppc_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 	{
 	  /* Strip these too.  */
 	}
-      else if (CONST_STRNEQ (bfd_get_section_name (dynobj, s), ".rela"))
+      else if (CONST_STRNEQ (bfd_get_section_name (htab->elf.dynobj, s),
+			     ".rela"))
 	{
 	  if (s->size != 0)
 	    {
@@ -8331,8 +8312,10 @@ ppc_elf_relocate_section (bfd *output_bfd,
 	      unresolved_reloc = TRUE;
 	      break;
 	    }
-	  BFD_ASSERT (strcmp (bfd_get_section_name (abfd, sec), ".got") == 0
-		      || strcmp (bfd_get_section_name (abfd, sec), ".cgot") == 0);
+	  BFD_ASSERT (strcmp (bfd_get_section_name (sec->owner, sec),
+			      ".got") == 0
+		      || strcmp (bfd_get_section_name (sec->owner, sec),
+				 ".cgot") == 0);
 
 	  addend -= sec->output_section->vma + sec->output_offset + 0x8000;
 	  break;
@@ -8382,7 +8365,7 @@ ppc_elf_relocate_section (bfd *output_bfd,
 	      }
 	    addend -= SYM_VAL (sda);
 
-	    name = bfd_get_section_name (abfd, sec->output_section);
+	    name = bfd_get_section_name (output_bfd, sec->output_section);
 	    if (! ((CONST_STRNEQ (name, ".sdata")
 		    && (name[6] == 0 || name[6] == '.'))
 		   || (CONST_STRNEQ (name, ".sbss")
@@ -8414,7 +8397,7 @@ ppc_elf_relocate_section (bfd *output_bfd,
 	      }
 	    addend -= SYM_VAL (sda);
 
-	    name = bfd_get_section_name (abfd, sec->output_section);
+	    name = bfd_get_section_name (output_bfd, sec->output_section);
 	    if (! (CONST_STRNEQ (name, ".sdata2")
 		   || CONST_STRNEQ (name, ".sbss2")))
 	      {
@@ -8487,7 +8470,7 @@ ppc_elf_relocate_section (bfd *output_bfd,
 		break;
 	      }
 
-	    name = bfd_get_section_name (abfd, sec->output_section);
+	    name = bfd_get_section_name (output_bfd, sec->output_section);
 	    if (((CONST_STRNEQ (name, ".sdata")
 		  && (name[6] == 0 || name[6] == '.'))
 		 || (CONST_STRNEQ (name, ".sbss")
@@ -8579,7 +8562,7 @@ ppc_elf_relocate_section (bfd *output_bfd,
 		break;
 	      }
 
-	    name = bfd_get_section_name (abfd, sec->output_section);
+	    name = bfd_get_section_name (output_bfd, sec->output_section);
 	    if (((CONST_STRNEQ (name, ".sdata")
 		  && (name[6] == 0 || name[6] == '.'))
 		 || (CONST_STRNEQ (name, ".sbss")
@@ -9156,14 +9139,6 @@ ppc_elf_finish_dynamic_symbol (bfd *output_bfd,
   fprintf (stderr, "\n");
 #endif
 
-  /* Mark some specially defined symbols as absolute.  */
-  if (strcmp (h->root.root.string, "_DYNAMIC") == 0
-      || (!htab->is_vxworks
-	  && (h == htab->elf.hgot
-	      || strcmp (h->root.root.string,
-			 "_PROCEDURE_LINKAGE_TABLE_") == 0)))
-    sym->st_shndx = SHN_ABS;
-
   return TRUE;
 }
 
@@ -9735,7 +9710,6 @@ ppc_elf_finish_dynamic_sections (bfd *output_bfd,
 #define elf_backend_init_index_section		_bfd_elf_init_1_index_section
 #define elf_backend_post_process_headers	_bfd_elf_set_osabi
 #define elf_backend_lookup_section_flags_hook	ppc_elf_lookup_section_flags
-#define elf_backend_section_flags		ppc_elf_section_flags
 #define elf_backend_section_processing		ppc_elf_section_processing
 
 #include "elf32-target.h"

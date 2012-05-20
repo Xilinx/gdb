@@ -4405,10 +4405,10 @@ ENUMDOC
   This is a 8 bit reloc for the AVR that stores bits 8..15 of a symbol
   in .byte hi8(symbol)
 ENUM
-  BFD_RELOC_AVR_8_HHI
+  BFD_RELOC_AVR_8_HLO
 ENUMDOC
   This is a 8 bit reloc for the AVR that stores bits 16..23 of a symbol
-  in .byte hhi8(symbol)
+  in .byte hlo8(symbol)
 
 ENUM
   BFD_RELOC_RL78_NEG8
@@ -5091,6 +5091,38 @@ ENUM
 ENUMDOC
   Freescale XGATE reloc.
   This is a 5-bit pc-relative reloc.
+ENUM
+  BFD_RELOC_M68HC12_9B
+ENUMDOC
+  Motorola 68HC12 reloc.
+  This is the 9 bits of a value.
+ENUM
+  BFD_RELOC_M68HC12_16B
+ENUMDOC
+  Motorola 68HC12 reloc.
+  This is the 16 bits of a value.
+ENUM
+  BFD_RELOC_M68HC12_9_PCREL
+ENUMDOC
+  Motorola 68HC12/XGATE reloc.
+  This is a PCREL9 branch.
+ENUM
+  BFD_RELOC_M68HC12_10_PCREL
+ENUMDOC
+  Motorola 68HC12/XGATE reloc.
+  This is a PCREL10 branch.
+ENUM
+  BFD_RELOC_M68HC12_LO8XG
+ENUMDOC
+  Motorola 68HC12/XGATE reloc.
+  This is the 8 bit low part of an absolute address and immediately precedes
+  a matching HI8XG part.
+ENUM
+  BFD_RELOC_M68HC12_HI8XG
+ENUMDOC
+  Motorola 68HC12/XGATE reloc.
+  This is the 8 bit high part of an absolute address and immediately follows
+  a matching LO8XG part.
 ENUM
   BFD_RELOC_16C_NUM08
 ENUMX

@@ -2206,7 +2206,7 @@ m32c_return_by_passed_buf (struct type *type)
 
 static enum return_value_convention
 m32c_return_value (struct gdbarch *gdbarch,
-		   struct type *func_type,
+		   struct value *function,
 		   struct type *valtype,
 		   struct regcache *regcache,
 		   gdb_byte *readbuf,
@@ -2587,7 +2587,7 @@ m32c_virtual_frame_pointer (struct gdbarch *gdbarch, CORE_ADDR pc,
 			    LONGEST *frame_offset)
 {
   const char *name;
-  CORE_ADDR func_addr, func_end, sal_end;
+  CORE_ADDR func_addr, func_end;
   struct m32c_prologue p;
 
   struct regcache *regcache = get_current_regcache ();

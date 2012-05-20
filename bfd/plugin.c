@@ -1,5 +1,5 @@
 /* Plugin support for BFD.
-   Copyright 2009, 2010, 2011
+   Copyright 2009, 2010, 2011, 2012
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -19,7 +19,7 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "config.h"
+#include "sysdep.h"
 #include "bfd.h"
 
 #if BFD_SUPPORTS_PLUGINS
@@ -34,7 +34,6 @@
 #endif
 #include <stdarg.h>
 #include "plugin-api.h"
-#include "sysdep.h"
 #include "plugin.h"
 #include "libbfd.h"
 #include "libiberty.h"

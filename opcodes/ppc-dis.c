@@ -20,11 +20,10 @@
    Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include <stdio.h>
 #include "sysdep.h"
+#include <stdio.h>
 #include "dis-asm.h"
 #include "elf-bfd.h"
-#include "elf32-ppc.h"
 #include "elf/ppc.h"
 #include "opintl.h"
 #include "opcode/ppc.h"
@@ -200,7 +199,10 @@ get_powerpc_dialect (struct disassemble_info *info)
 
   /* Disassemble according to the section headers flags for VLE-mode.  */
   if (dialect & PPC_OPCODE_VLE
-      && is_ppc_vle (info->section))
+      && info->section->owner != NULL
+      && bfd_get_flavour (info->section->owner) == bfd_target_elf_flavour
+      && elf_object_id (info->section->owner) == PPC32_ELF_DATA
+      && (elf_section_flags (info->section) & SHF_PPC_VLE) != 0)
     return dialect;
   else
     return dialect & ~ PPC_OPCODE_VLE;

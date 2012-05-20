@@ -1041,23 +1041,25 @@ do_ppc_sysv_return_value (struct gdbarch *gdbarch, struct type *func_type,
 }
 
 enum return_value_convention
-ppc_sysv_abi_return_value (struct gdbarch *gdbarch, struct type *func_type,
+ppc_sysv_abi_return_value (struct gdbarch *gdbarch, struct value *function,
 			   struct type *valtype, struct regcache *regcache,
 			   gdb_byte *readbuf, const gdb_byte *writebuf)
 {
-  return do_ppc_sysv_return_value (gdbarch, func_type, valtype, regcache,
-				   readbuf, writebuf, 0);
+  return do_ppc_sysv_return_value (gdbarch,
+				   function ? value_type (function) : NULL,
+				   valtype, regcache, readbuf, writebuf, 0);
 }
 
 enum return_value_convention
 ppc_sysv_abi_broken_return_value (struct gdbarch *gdbarch,
-				  struct type *func_type,
+				  struct value *function,
 				  struct type *valtype,
 				  struct regcache *regcache,
 				  gdb_byte *readbuf, const gdb_byte *writebuf)
 {
-  return do_ppc_sysv_return_value (gdbarch, func_type, valtype, regcache,
-				   readbuf, writebuf, 1);
+  return do_ppc_sysv_return_value (gdbarch,
+				   function ? value_type (function) : NULL,
+				   valtype, regcache, readbuf, writebuf, 1);
 }
 
 /* The helper function for 64-bit SYSV push_dummy_call.  Converts the
@@ -1077,7 +1079,6 @@ convert_code_addr_to_desc_addr (CORE_ADDR code_addr, CORE_ADDR *desc_addr)
   struct obj_section *dot_fn_section;
   struct minimal_symbol *dot_fn;
   struct minimal_symbol *fn;
-  CORE_ADDR toc;
   /* Find the minimal symbol that corresponds to CODE_ADDR (should
      have a name of the form ".FN").  */
   dot_fn = lookup_minimal_symbol_by_pc (code_addr);
@@ -1710,12 +1711,13 @@ ppc64_sysv_abi_push_dummy_call (struct gdbarch *gdbarch,
    location; when READBUF is non-NULL, fill the buffer from the
    corresponding register return-value location.  */
 enum return_value_convention
-ppc64_sysv_abi_return_value (struct gdbarch *gdbarch, struct type *func_type,
+ppc64_sysv_abi_return_value (struct gdbarch *gdbarch, struct value *function,
 			     struct type *valtype, struct regcache *regcache,
 			     gdb_byte *readbuf, const gdb_byte *writebuf)
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
+  struct type *func_type = function ? value_type (function) : NULL;
   int opencl_abi = func_type? ppc_sysv_use_opencl_abi (func_type) : 0;
 
   /* This function exists to support a calling convention that

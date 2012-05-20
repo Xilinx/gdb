@@ -3,6 +3,8 @@
 
 *** Changes since GDB 7.4
 
+* GDB now supports debugging microMIPS binaries.
+
 * The "info os" command on GNU/Linux can now display information on
   several new classes of objects managed by the operating system:
     "info os procgroups" lists process groups
@@ -147,6 +149,12 @@
      resumes your program's execution, so it is like a printf that you
      can insert dynamically at runtime instead of at compiletime.
 
+  ** "set print symbol"
+     "show print symbol"
+     Controls whether GDB attempts to display the symbol, if any,
+     corresponding to addresses it prints.  This defaults to "on", but
+     you can set it to "off" to restore GDB's previous behavior.
+
 * New targets
 
 Renesas RL78			rl78-*-elf
@@ -159,6 +167,14 @@ HP OpenVMS ia64			ia64-hp-openvms*
   evaluates to true.
 
 * New options
+
+set mips compression
+show mips compression
+  Select the compressed ISA encoding used in functions that have no symbol
+  information available.  The encoding can be set to either of:
+    mips16
+    micromips
+  and is updated automatically from ELF file flags if available.
 
 set breakpoint condition-evaluation
 show breakpoint condition-evaluation
@@ -223,8 +239,8 @@ show dprintf-channel
 
 --with-auto-load-dir
   Configure default value for the 'set auto-load scripts-directory'
-  setting above.  It defaults to '$ddir/auto-load', $ddir representing
-  GDB's data directory (available via show data-directory).
+  setting above.  It defaults to '$datadir/auto-load', $datadir
+  representing GDB's data directory (available via show data-directory).
 
 --with-auto-load-safe-path
   Configure default value for the 'set auto-load safe-path' setting

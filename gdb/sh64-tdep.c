@@ -858,7 +858,6 @@ sh64_analyze_prologue (struct gdbarch *gdbarch,
 		       CORE_ADDR func_pc,
 		       CORE_ADDR current_pc)
 {
-  int reg_nr;
   int pc;
   int opc;
   int insn;
@@ -1070,7 +1069,6 @@ sh64_push_dummy_call (struct gdbarch *gdbarch,
   CORE_ADDR regval;
   char *val;
   char valbuf[8];
-  char valbuf_tmp[8];
   int len;
   int argreg_size;
   int fp_args[12];
@@ -1328,7 +1326,7 @@ sh64_store_return_value (struct type *type, struct regcache *regcache,
 }
 
 static enum return_value_convention
-sh64_return_value (struct gdbarch *gdbarch, struct type *func_type,
+sh64_return_value (struct gdbarch *gdbarch, struct value *function,
 		   struct type *type, struct regcache *regcache,
 		   gdb_byte *readbuf, const gdb_byte *writebuf)
 {

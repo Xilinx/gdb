@@ -267,7 +267,6 @@ f_val_print (struct type *type, const gdb_byte *valaddr, int embedded_offset,
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   unsigned int i = 0;	/* Number of characters printed.  */
   struct type *elttype;
-  LONGEST val;
   CORE_ADDR addr;
   int index;
 
@@ -310,19 +309,26 @@ f_val_print (struct type *type, const gdb_byte *valaddr, int embedded_offset,
 	}
       else
 	{
+	  int want_space = 0;
+
 	  addr = unpack_pointer (type, valaddr + embedded_offset);
 	  elttype = check_typedef (TYPE_TARGET_TYPE (type));
 
 	  if (TYPE_CODE (elttype) == TYPE_CODE_FUNC)
 	    {
 	      /* Try to print what function it points to.  */
-	      print_function_pointer_address (gdbarch, addr, stream,
-					      options->addressprint);
+	      print_function_pointer_address (options, gdbarch, addr, stream);
 	      return;
 	    }
 
-	  if (options->addressprint && options->format != 's')
-	    fputs_filtered (paddress (gdbarch, addr), stream);
+	  if (options->symbol_print)
+	    want_space = print_address_demangle (options, gdbarch, addr,
+						 stream, demangle);
+	  else if (options->addressprint && options->format != 's')
+	    {
+	      fputs_filtered (paddress (gdbarch, addr), stream);
+	      want_space = 1;
+	    }
 
 	  /* For a pointer to char or unsigned char, also print the string
 	     pointed to, unless pointer is null.  */
@@ -330,8 +336,12 @@ f_val_print (struct type *type, const gdb_byte *valaddr, int embedded_offset,
 	      && TYPE_CODE (elttype) == TYPE_CODE_INT
 	      && (options->format == 0 || options->format == 's')
 	      && addr != 0)
-	    i = val_print_string (TYPE_TARGET_TYPE (type), NULL, addr, -1,
-				  stream, options);
+	    {
+	      if (want_space)
+		fputs_filtered (" ", stream);
+	      i = val_print_string (TYPE_TARGET_TYPE (type), NULL, addr, -1,
+				    stream, options);
+	    }
 	  return;
 	}
       break;

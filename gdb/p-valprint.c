@@ -72,8 +72,8 @@ pascal_val_print (struct type *type, const gdb_byte *valaddr,
   unsigned eltlen;
   int length_pos, length_size, string_pos;
   struct type *char_type;
-  LONGEST val;
   CORE_ADDR addr;
+  int want_space = 0;
 
   CHECK_TYPEDEF (type);
   switch (TYPE_CODE (type))
@@ -157,7 +157,7 @@ pascal_val_print (struct type *type, const gdb_byte *valaddr,
 	  /* Extract the address, assume that it is unsigned.  */
 	  addr = extract_unsigned_integer (valaddr + embedded_offset,
 					   TYPE_LENGTH (type), byte_order);
-	  print_address_demangle (gdbarch, addr, stream, demangle);
+	  print_address_demangle (options, gdbarch, addr, stream, demangle);
 	  break;
 	}
       check_typedef (TYPE_TARGET_TYPE (type));
@@ -169,13 +169,14 @@ pascal_val_print (struct type *type, const gdb_byte *valaddr,
       if (TYPE_CODE (elttype) == TYPE_CODE_FUNC)
 	{
 	  /* Try to print what function it points to.  */
-	  print_address_demangle (gdbarch, addr, stream, demangle);
+	  print_address_demangle (options, gdbarch, addr, stream, demangle);
 	  return;
 	}
 
       if (options->addressprint && options->format != 's')
 	{
 	  fputs_filtered (paddress (gdbarch, addr), stream);
+	  want_space = 1;
 	}
 
       /* For a pointer to char or unsigned char, also print the string
@@ -188,6 +189,8 @@ pascal_val_print (struct type *type, const gdb_byte *valaddr,
 	  && (options->format == 0 || options->format == 's')
 	  && addr != 0)
 	{
+	  if (want_space)
+	    fputs_filtered (" ", stream);
 	  /* No wide string yet.  */
 	  i = val_print_string (elttype, NULL, addr, -1, stream, options);
 	}
@@ -203,6 +206,8 @@ pascal_val_print (struct type *type, const gdb_byte *valaddr,
 	  ULONGEST string_length;
 	  void *buffer;
 
+	  if (want_space)
+	    fputs_filtered (" ", stream);
 	  buffer = xmalloc (length_size);
 	  read_memory (addr + length_pos, buffer, length_size);
 	  string_length = extract_unsigned_integer (buffer, length_size,
@@ -220,12 +225,17 @@ pascal_val_print (struct type *type, const gdb_byte *valaddr,
 	  struct minimal_symbol *msymbol =
 	    lookup_minimal_symbol_by_pc (vt_address);
 
-	  if ((msymbol != NULL)
+	  /* If 'symbol_print' is set, we did the work above.  */
+	  if (!options->symbol_print
+	      && (msymbol != NULL)
 	      && (vt_address == SYMBOL_VALUE_ADDRESS (msymbol)))
 	    {
-	      fputs_filtered (" <", stream);
+	      if (want_space)
+		fputs_filtered (" ", stream);
+	      fputs_filtered ("<", stream);
 	      fputs_filtered (SYMBOL_PRINT_NAME (msymbol), stream);
 	      fputs_filtered (">", stream);
+	      want_space = 1;
 	    }
 	  if (vt_address && options->vtblprint)
 	    {
@@ -234,6 +244,9 @@ pascal_val_print (struct type *type, const gdb_byte *valaddr,
 	      struct type *wtype;
 	      struct block *block = (struct block *) NULL;
 	      int is_this_fld;
+
+	      if (want_space)
+		fputs_filtered (" ", stream);
 
 	      if (msymbol != NULL)
 		wsym = lookup_symbol (SYMBOL_LINKAGE_NAME (msymbol), block,
@@ -292,7 +305,7 @@ pascal_val_print (struct type *type, const gdb_byte *valaddr,
 	     -fvtable_thunks.  (Otherwise, look under TYPE_CODE_PTR.)  */
 	  /* Extract the address, assume that it is unsigned.  */
 	  print_address_demangle
-	    (gdbarch,
+	    (options, gdbarch,
 	     extract_unsigned_integer (valaddr + embedded_offset
 				       + TYPE_FIELD_BITPOS (type,
 							    VTBL_FNADDR_OFFSET) / 8,

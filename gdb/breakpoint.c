@@ -752,7 +752,6 @@ static void
 set_condition_evaluation_mode (char *args, int from_tty,
 			       struct cmd_list_element *c)
 {
-  struct breakpoint *b;
   const char *old_mode, *new_mode;
 
   if ((condition_evaluation_mode_1 == condition_evaluation_target)
@@ -6598,9 +6597,10 @@ set_breakpoint_location_function (struct bp_location *loc, int explicit_loc)
     {
       int is_gnu_ifunc;
       const char *function_name;
+      CORE_ADDR func_addr;
 
       find_pc_partial_function_gnu_ifunc (loc->address, &function_name,
-					  NULL, NULL, &is_gnu_ifunc);
+					  &func_addr, NULL, &is_gnu_ifunc);
 
       if (is_gnu_ifunc && !explicit_loc)
 	{
@@ -6621,6 +6621,9 @@ set_breakpoint_location_function (struct bp_location *loc, int explicit_loc)
 	      /* Create only the whole new breakpoint of this type but do not
 		 mess more complicated breakpoints with multiple locations.  */
 	      b->type = bp_gnu_ifunc_resolver;
+	      /* Remember the resolver's address for use by the return
+	         breakpoint.  */
+	      loc->related_address = func_addr;
 	    }
 	}
 
@@ -7456,7 +7459,6 @@ catch_load_or_unload (char *arg, int from_tty, int is_load,
   struct solib_catchpoint *c;
   struct gdbarch *gdbarch = get_current_arch ();
   int tempflag;
-  regex_t compiled;
   struct cleanup *cleanup;
 
   tempflag = get_cmd_context (command) == CATCH_TEMPORARY;
@@ -7724,7 +7726,6 @@ print_it_catch_syscall (bpstat bs)
   ptid_t ptid;
   struct target_waitstatus last;
   struct syscall s;
-  char *syscall_id;
 
   get_last_target_status (&ptid, &last);
 
@@ -8564,7 +8565,7 @@ init_breakpoint_sal (struct breakpoint *b, struct gdbarch *gdbarch,
 	  init_raw_breakpoint (b, gdbarch, sal, type, ops);
 	  b->thread = thread;
 	  b->task = task;
-  
+
 	  b->cond_string = cond_string;
 	  b->extra_string = extra_string;
 	  b->ignore_count = ignore_count;
@@ -8629,7 +8630,7 @@ init_breakpoint_sal (struct breakpoint *b, struct gdbarch *gdbarch,
 	  char *arg = b->cond_string;
 	  loc->cond = parse_exp_1 (&arg, block_for_pc (loc->address), 0);
 	  if (*arg)
-              error (_("Garbage %s follows condition"), arg);
+              error (_("Garbage '%s' follows condition"), arg);
 	}
 
       /* Dynamic printf requires and uses additional arguments on the
@@ -8642,8 +8643,8 @@ init_breakpoint_sal (struct breakpoint *b, struct gdbarch *gdbarch,
 	    error (_("Format string required"));
 	}
       else if (b->extra_string)
-	error (_("Garbage %s at end of command"), b->extra_string);
-    }   
+	error (_("Garbage '%s' at end of command"), b->extra_string);
+    }
 
   b->display_canonical = display_canonical;
   if (addr_string)
@@ -8875,8 +8876,9 @@ check_fast_tracepoint_sals (struct gdbarch *gdbarch,
    PC identifies the context at which the condition should be parsed.
    If no condition is found, *COND_STRING is set to NULL.
    If no thread is found, *THREAD is set to -1.  */
-static void 
-find_condition_and_thread (char *tok, CORE_ADDR pc, 
+
+static void
+find_condition_and_thread (char *tok, CORE_ADDR pc,
 			   char **cond_string, int *thread, int *task,
 			   char **rest)
 {
@@ -8898,9 +8900,9 @@ find_condition_and_thread (char *tok, CORE_ADDR pc,
 	}
 
       end_tok = skip_to_space (tok);
-      
+
       toklen = end_tok - tok;
-      
+
       if (toklen >= 1 && strncmp (tok, "if", toklen) == 0)
 	{
 	  struct expression *expr;
@@ -8909,13 +8911,12 @@ find_condition_and_thread (char *tok, CORE_ADDR pc,
 	  expr = parse_exp_1 (&tok, block_for_pc (pc), 0);
 	  xfree (expr);
 	  cond_end = tok;
-	  *cond_string = savestring (cond_start, 
-				     cond_end - cond_start);
+	  *cond_string = savestring (cond_start, cond_end - cond_start);
 	}
       else if (toklen >= 1 && strncmp (tok, "thread", toklen) == 0)
 	{
 	  char *tmptok;
-	  
+
 	  tok = end_tok + 1;
 	  tmptok = tok;
 	  *thread = strtol (tok, &tok, 0);
@@ -8953,8 +8954,6 @@ decode_static_tracepoint_spec (char **arg_p)
 {
   VEC(static_tracepoint_marker_p) *markers = NULL;
   struct symtabs_and_lines sals;
-  struct symtab_and_line sal;
-  struct symbol *sym;
   struct cleanup *old_chain;
   char *p = &(*arg_p)[3];
   char *endp;
@@ -9024,7 +9023,6 @@ create_breakpoint (struct gdbarch *gdbarch,
   struct linespec_result canonical;
   struct cleanup *old_chain;
   struct cleanup *bkpt_chain = NULL;
-  int i;
   int pending = 0;
   int task = 0;
   int prev_bkpt_count = breakpoint_count;
@@ -13336,7 +13334,6 @@ update_static_tracepoint (struct breakpoint *b, struct symtab_and_line sal)
   struct tracepoint *tp = (struct tracepoint *) b;
   struct static_tracepoint_marker marker;
   CORE_ADDR pc;
-  int i;
 
   pc = sal.pc;
   if (sal.line)

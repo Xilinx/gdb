@@ -21,8 +21,8 @@
    Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include <stdio.h>
 #include "sysdep.h"
+#include <stdio.h>
 #include "opcode/ppc.h"
 #include "opintl.h"
 
@@ -1825,8 +1825,7 @@ insert_sprg (unsigned long insn,
 	     const char **errmsg)
 {
   if (value > 7
-      || (value > 3
-	  && (dialect & ALLOW8_SPRG) == 0))
+      || (value > 3 && (dialect & ALLOW8_SPRG) == 0))
     *errmsg = _("invalid sprg number");
 
   /* If this is mfsprg4..7 then use spr 260..263 which can be read in
@@ -1845,8 +1844,8 @@ extract_sprg (unsigned long insn,
   unsigned long val = (insn >> 16) & 0x1f;
 
   /* mfsprg can use 260..263 and 272..279.  mtsprg only uses spr 272..279
-     If not BOOKE or 405, then both use only 272..275.  */
-  if ((val - 0x10 > 3 && (dialect & (PPC_OPCODE_BOOKE | PPC_OPCODE_405)) == 0)
+     If not BOOKE, 405 or VLE, then both use only 272..275.  */
+  if ((val - 0x10 > 3 && (dialect & ALLOW8_SPRG) == 0)
       || (val - 0x10 > 7 && (insn & 0x100) != 0)
       || val <= 3
       || (val & 8) != 0)
@@ -6451,6 +6450,18 @@ const struct powerpc_macro powerpc_macros[] = {
 {"clrrwi.",  3,	PPCCOM,	"rlwinm. %0,%1,0,0,31-(%2)"},
 {"clrlslwi", 4,	PPCCOM,	"rlwinm %0,%1,%3,(%2)-(%3),31-(%3)"},
 {"clrlslwi.",4, PPCCOM,	"rlwinm. %0,%1,%3,(%2)-(%3),31-(%3)"},
+
+{"e_extlwi", 4,	PPCVLE, "e_rlwinm %0,%1,%3,0,(%2)-1"},
+{"e_extrwi", 4,	PPCVLE, "e_rlwinm %0,%1,((%2)+(%3))&((%2)+(%3)<>32),32-(%2),31"},
+{"e_inslwi", 4,	PPCVLE, "e_rlwimi %0,%1,(-(%3)!31)&((%3)|31),%3,(%2)+(%3)-1"},
+{"e_insrwi", 4,	PPCVLE, "e_rlwimi %0,%1,32-((%2)+(%3)),%3,(%2)+(%3)-1"},
+{"e_rotlwi", 3,	PPCVLE, "e_rlwinm %0,%1,%2,0,31"},
+{"e_rotrwi", 3,	PPCVLE, "e_rlwinm %0,%1,(-(%2)!31)&((%2)|31),0,31"},
+{"e_slwi",   3,	PPCVLE, "e_rlwinm %0,%1,%2,0,31-(%2)"},
+{"e_srwi",   3,	PPCVLE, "e_rlwinm %0,%1,(-(%2)!31)&((%2)|31),%2,31"},
+{"e_clrlwi", 3,	PPCVLE, "e_rlwinm %0,%1,0,%2,31"},
+{"e_clrrwi", 3,	PPCVLE, "e_rlwinm %0,%1,0,0,31-(%2)"},
+{"e_clrlslwi",4, PPCVLE, "e_rlwinm %0,%1,%3,(%2)-(%3),31-(%3)"},
 };
 
 const int powerpc_num_macros =

@@ -1,3 +1,101 @@
+2012-05-18  Thiago Jung Bauermann  <thiago.bauermann@linaro.org>
+
+	* gdb.python/py-prompt.exp: Quit if the target is remote.
+
+2012-05-18  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix ERROR: internal buffer is full.
+	* gdb.base/info-os.exp (expect_multiline): New function.
+	(get process list, get process groups, get threads)
+	(get file descriptors, get internet-domain sockets)
+	(get shared-memory regions, get semaphores, get message queues): Use
+	it for these tests.
+
+2012-05-18  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.mi/mi-var-cmd.exp: Update.
+	* gdb.objc/basicclass.exp (do_objc_tests): Update.
+	* gdb.cp/virtbase.exp: Update.
+	* gdb.cp/classes.exp (test_static_members): Update.
+	* gdb.cp/casts.exp: Update.
+	* gdb.base/pointers.exp: Update.
+	* gdb.base/funcargs.exp (pointer_args): Update.
+	(structs_by_reference): Update.
+	* gdb.base/find.exp: Update.
+	* gdb.base/call-strs.exp: Send "set print symbol off".
+	* gdb.base/call-ar-st.exp: Update.
+	* gdb.ada/fun_addr.exp: Update.
+	* gdb.base/printcmds.exp (test_print_symbol): New proc.
+	Call it.
+	(test_print_repeats_10, test_print_strings)
+	(test_print_char_arrays): Update.
+
+2012-05-18  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.base/charset.exp (string_display): Update.
+
+2012-05-18  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.mi/mi2-var-display.exp: Update.
+	* gdb.mi/mi-var-display.exp: Update.
+	* gdb.mi/mi-var-child.exp: Update.
+	* gdb.cp/expand-psymtabs-cxx.exp: Update.
+	* gdb.cp/cp-relocate.exp (get_func_address): Update.
+
+2012-05-17  Doug Evans  <dje@google.com>
+
+	* info-macros.exp: Pass "debug" to prepare_for_testing.
+
+	* Makefile.in (clean): Remove Fission .dwo and .dwp files.
+	* gdb.ada/Makefile.in (clean): Ditto.
+	* gdb.arch/Makefile.in (clean): Ditto.
+	* gdb.asm/Makefile.in (clean): Ditto.
+	* gdb.base/Makefile.in (clean): Ditto.
+	* gdb.cell/Makefile.in (clean): Ditto.
+	* gdb.cp/Makefile.in (clean): Ditto.
+	* gdb.disasm/Makefile.in (clean): Ditto.
+	* gdb.dwarf2/Makefile.in (clean): Ditto.
+	* gdb.fortran/Makefile.in (clean): Ditto.
+	* gdb.go/Makefile.in (clean): Ditto.
+	* gdb.hp/Makefile.in (clean): Ditto.
+	* gdb.hp/gdb.aCC/Makefile.in (clean): Ditto.
+	* gdb.hp/gdb.base-hp/Makefile.in (clean): Ditto.
+	* gdb.hp/gdb.compat/Makefile.in (clean): Ditto.
+	* gdb.hp/gdb.defects/Makefile.in (clean): Ditto.
+	* gdb.hp/gdb.objdbg/Makefile.in (clean): Ditto.
+	* gdb.java/Makefile.in (clean): Ditto.
+	* gdb.linespec/Makefile.in (clean): Ditto.
+	* gdb.mi/Makefile.in (clean): Ditto.
+	* gdb.modula2/Makefile.in (clean): Ditto.
+	* gdb.multi/Makefile.in (clean): Ditto.
+	* gdb.objc/Makefile.in (clean): Ditto.
+	* gdb.opencl/Makefile.in (clean): Ditto.
+	* gdb.opt/Makefile.in (clean): Ditto.
+	* gdb.pascal/Makefile.in (clean): Ditto.
+	* gdb.python/Makefile.in (clean): Ditto.
+	* gdb.reverse/Makefile.in (clean): Ditto.
+	* gdb.server/Makefile.in (clean): Ditto.
+	* gdb.stabs/Makefile.in (clean): Ditto.
+	* gdb.threads/Makefile.in (clean): Ditto.
+	* gdb.trace/Makefile.in (clean): Ditto.
+	* gdb.xml/Makefile.in (clean): Ditto.
+
+2012-05-16  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.base/macscp1.c (macscp_expr): Add comment.
+	* gdb.base/macscp.exp: Test __FILE__ and __LINE__.
+
+2012-05-16  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* gdb.base/return-nodebug.exp: Also test float and double types.
+
+2012-05-15  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	PR testsuite/12649
+	* gdb.base/dprintf.exp: Replace gdb_run_cmd by runto main.
+
+	* gdb.base/dprintf.exp: Remove now redundant breakpoint for main.
+
 2012-05-14  Sergio Durigan Junior  <sergiodj@redhat.com>
 
 	* gdb.base/stap-probe.exp (stap_test): Remove calls to
@@ -27,9 +125,9 @@
 
 2012-05-10  Joel Brobecker  <brobecker@adacore.com>
 
-	* config/djgpp/fnchange.lst: Add entries for print-file-var-lib1.c,
-	print-file-var-lib2.c, print-file-var-main.c and
-	print-file-var.exp (located in gdb/testsuite/gdb.base).
+	* gdb.base/print-file-var-lib1.c, gdb.base/print-file-var-lib2.c,
+	gdb.base/print-file-var-main.c, gdb.base/print-file-var.exp:
+	New files.
 
 2012-05-10  Joel Brobecker  <brobecker@adacore.com>
 
