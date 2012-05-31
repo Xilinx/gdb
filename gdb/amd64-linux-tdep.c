@@ -1572,7 +1572,6 @@ amd64_x32_linux_init_abi (struct gdbarch_info info,
 			  struct gdbarch *gdbarch)
 {
   amd64_linux_init (info, gdbarch, tdesc_x32_linux);
-
   amd64_x32_init (gdbarch);
 
    /* GNU/Linux uses SVR4-style shared libraries.  */

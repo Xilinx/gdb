@@ -2669,8 +2669,9 @@ static const int amd64_record_regmap[] =
   AMD64_DS_REGNUM, AMD64_ES_REGNUM, AMD64_FS_REGNUM, AMD64_GS_REGNUM
 };
 
-void
-amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
+static void
+amd64_init (struct gdbarch_info info, struct gdbarch *gdbarch,
+	    const struct target_desc *amd64_tdesc)
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   const struct target_desc *tdesc = info.target_desc;
@@ -2680,12 +2681,13 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   tdep->sizeof_fpregset = I387_SIZEOF_FXSAVE;
 
   if (! tdesc_has_registers (tdesc))
-    tdesc = tdesc_amd64;
+    tdesc = amd64_tdesc;
   tdep->tdesc = tdesc;
 
   tdep->num_core_regs = AMD64_NUM_GREGS + I387_NUM_REGS;
   tdep->register_names = amd64_register_names;
 
+  /* tdep->tdesc can't be changed after being used here.  */
   if (tdesc_find_feature (tdesc, "org.gnu.gdb.i386.avx") != NULL)
     {
       tdep->ymmh_register_names = amd64_ymmh_names;
@@ -2794,6 +2796,12 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 }
 
 void
+amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
+{
+  amd64_init (info, gdbarch, tdesc_amd64);
+}
+
+void
 amd64_x32_init (struct gdbarch *gdbarch)
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
@@ -2811,15 +2819,7 @@ amd64_x32_init (struct gdbarch *gdbarch)
 void
 amd64_x32_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
-  const struct target_desc *tdesc = info.target_desc;
-
-  amd64_init_abi (info, gdbarch);
-
-  if (! tdesc_has_registers (tdesc))
-    tdesc = tdesc_x32;
-  tdep->tdesc = tdesc;
-
+  amd64_init (info, gdbarch, tdesc_x32);
   amd64_x32_init (gdbarch);
 }
 

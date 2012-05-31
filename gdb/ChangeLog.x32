@@ -1,5 +1,12 @@
 2012-05-31  H.J. Lu  <hongjiu.lu@intel.com>
 
+	* amd64-tdep.c (amd64_init_abi): Renamed to ...
+	(amd64_init): This.  Add an argument, amd64_tdesc.
+	(amd64_init_abi): Call amd64_init.
+	(amd64_x32_init_abi): Likewise.
+
+2012-05-31  H.J. Lu  <hongjiu.lu@intel.com>
+
 	* amd64-linux-tdep.c (amd64_linux_init_abi): Renamed to ...
 	(amd64_linux_init): This.  Drop fetch_func.
 	(amd64_lp64_linux_init_abi): Renamed to ...
