@@ -1260,6 +1260,14 @@ svr4_current_sos (void)
   int ignore_first;
   struct svr4_library_list library_list;
 
+  /* Fall back to manual examination of the target if the packet is not
+     supported or gdbserver failed to find DT_DEBUG.  gdb.server/solib-list.exp
+     tests a case where gdbserver cannot find the shared libraries list while
+     GDB itself is able to find it via SYMFILE_OBJFILE.
+
+     Unfortunately statically linked inferiors will also fall back through this
+     suboptimal code path.  */
+
   if (svr4_current_sos_via_xfer_libraries (&library_list))
     {
       if (library_list.main_lm)
@@ -2249,13 +2257,13 @@ svr4_solib_create_inferior_hook (int from_tty)
 
   clear_proceed_status ();
   inf->control.stop_soon = STOP_QUIETLY;
-  tp->suspend.stop_signal = TARGET_SIGNAL_0;
+  tp->suspend.stop_signal = GDB_SIGNAL_0;
   do
     {
       target_resume (pid_to_ptid (-1), 0, tp->suspend.stop_signal);
       wait_for_inferior ();
     }
-  while (tp->suspend.stop_signal != TARGET_SIGNAL_TRAP);
+  while (tp->suspend.stop_signal != GDB_SIGNAL_TRAP);
   inf->control.stop_soon = NO_STOP_QUIETLY;
 #endif /* defined(_SCO_DS) */
 }

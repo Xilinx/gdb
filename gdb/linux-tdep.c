@@ -585,14 +585,14 @@ linux_find_memory_regions (struct gdbarch *gdbarch,
 static int
 find_signalled_thread (struct thread_info *info, void *data)
 {
-  if (info->suspend.stop_signal != TARGET_SIGNAL_0
+  if (info->suspend.stop_signal != GDB_SIGNAL_0
       && ptid_get_pid (info->ptid) == ptid_get_pid (inferior_ptid))
     return 1;
 
   return 0;
 }
 
-static enum target_signal
+static enum gdb_signal
 find_stop_signal (void)
 {
   struct thread_info *info =
@@ -601,7 +601,7 @@ find_stop_signal (void)
   if (info)
     return info->suspend.stop_signal;
   else
-    return TARGET_SIGNAL_0;
+    return GDB_SIGNAL_0;
 }
 
 /* Generate corefile notes for SPU contexts.  */
@@ -683,7 +683,7 @@ static char *
 linux_collect_thread_registers (const struct regcache *regcache,
 				ptid_t ptid, bfd *obfd,
 				char *note_data, int *note_size,
-				enum target_signal stop_signal)
+				enum gdb_signal stop_signal)
 {
   struct gdbarch *gdbarch = get_regcache_arch (regcache);
   struct core_regset_section *sect_list;
@@ -714,7 +714,7 @@ linux_collect_thread_registers (const struct regcache *regcache,
       if (strcmp (sect_list->sect_name, ".reg") == 0)
 	note_data = (char *) elfcore_write_prstatus
 			       (obfd, note_data, note_size, lwp,
-				target_signal_to_host (stop_signal), buf);
+				gdb_signal_to_host (stop_signal), buf);
       else
 	note_data = (char *) elfcore_write_register_note
 			       (obfd, note_data, note_size,
@@ -737,7 +737,7 @@ struct linux_corefile_thread_data
   char *note_data;
   int *note_size;
   int num_notes;
-  enum target_signal stop_signal;
+  enum gdb_signal stop_signal;
   linux_collect_thread_registers_ftype collect;
 };
 

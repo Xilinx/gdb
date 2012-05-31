@@ -970,7 +970,7 @@ aix_thread_detach (struct target_ops *ops, char *args, int from_tty)
 
 static void
 aix_thread_resume (struct target_ops *ops,
-                   ptid_t ptid, int step, enum target_signal sig)
+                   ptid_t ptid, int step, enum gdb_signal sig)
 {
   struct thread_info *thread;
   pthdb_tid_t tid[2];
@@ -999,10 +999,10 @@ aix_thread_resume (struct target_ops *ops,
 
       if (arch64)
 	ptrace64aix (PTT_CONTINUE, tid[0], 1, 
-		     target_signal_to_host (sig), (void *) tid);
+		     gdb_signal_to_host (sig), (void *) tid);
       else
 	ptrace32 (PTT_CONTINUE, tid[0], (int *) 1,
-		  target_signal_to_host (sig), (void *) tid);
+		  gdb_signal_to_host (sig), (void *) tid);
     }
 }
 
@@ -1028,7 +1028,7 @@ aix_thread_wait (struct target_ops *ops,
 
   /* Check whether libpthdebug might be ready to be initialized.  */
   if (!pd_active && status->kind == TARGET_WAITKIND_STOPPED
-      && status->value.sig == TARGET_SIGNAL_TRAP)
+      && status->value.sig == GDB_SIGNAL_TRAP)
     {
       struct regcache *regcache = get_thread_regcache (ptid);
       struct gdbarch *gdbarch = get_regcache_arch (regcache);

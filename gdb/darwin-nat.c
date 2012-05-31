@@ -91,9 +91,9 @@ extern boolean_t exc_server (mach_msg_header_t *in, mach_msg_header_t *out);
 static void darwin_stop (ptid_t);
 
 static void darwin_resume_to (struct target_ops *ops, ptid_t ptid, int step,
-                              enum target_signal signal);
+                              enum gdb_signal signal);
 static void darwin_resume (ptid_t ptid, int step,
-			   enum target_signal signal);
+			   enum gdb_signal signal);
 
 static ptid_t darwin_wait_to (struct target_ops *ops, ptid_t ptid,
                               struct target_waitstatus *status, int options);
@@ -787,7 +787,7 @@ darwin_suspend_inferior_threads (struct inferior *inf)
 }
 
 static void
-darwin_resume (ptid_t ptid, int step, enum target_signal signal)
+darwin_resume (ptid_t ptid, int step, enum gdb_signal signal)
 {
   struct target_waitstatus status;
   int pid;
@@ -801,10 +801,10 @@ darwin_resume (ptid_t ptid, int step, enum target_signal signal)
     (2, _("darwin_resume: pid=%d, tid=0x%x, step=%d, signal=%d\n"),
      ptid_get_pid (ptid), ptid_get_tid (ptid), step, signal);
 
-  if (signal == TARGET_SIGNAL_0)
+  if (signal == GDB_SIGNAL_0)
     nsignal = 0;
   else
-    nsignal = target_signal_to_host (signal);
+    nsignal = gdb_signal_to_host (signal);
 
   /* Don't try to single step all threads.  */
   if (step)
@@ -853,7 +853,7 @@ darwin_resume (ptid_t ptid, int step, enum target_signal signal)
 
 static void
 darwin_resume_to (struct target_ops *ops, ptid_t ptid, int step,
-                  enum target_signal signal)
+                  enum gdb_signal signal)
 {
   return darwin_resume (ptid, step, signal);
 }
@@ -913,10 +913,10 @@ darwin_decode_message (mach_msg_header_t *hdr,
 	  if (thread->event.ex_data[0] == EXC_SOFT_SIGNAL)
 	    {
 	      status->value.sig =
-		target_signal_from_host (thread->event.ex_data[1]);
+		gdb_signal_from_host (thread->event.ex_data[1]);
 	      inferior_debug (5, _("  (signal %d: %s)\n"),
 			      thread->event.ex_data[1],
-			      target_signal_to_name (status->value.sig));
+			      gdb_signal_to_name (status->value.sig));
 
 	      /* If the thread is stopped because it has received a signal
 		 that gdb has just sent, continue.  */
@@ -933,12 +933,12 @@ darwin_decode_message (mach_msg_header_t *hdr,
 	  break;
 	case EXC_BREAKPOINT:
 	  /* Many internal GDB routines expect breakpoints to be reported
-	     as TARGET_SIGNAL_TRAP, and will report TARGET_EXC_BREAKPOINT
+	     as GDB_SIGNAL_TRAP, and will report TARGET_EXC_BREAKPOINT
 	     as a spurious signal.  */
-	  status->value.sig = TARGET_SIGNAL_TRAP;
+	  status->value.sig = GDB_SIGNAL_TRAP;
 	  break;
 	default:
-	  status->value.sig = TARGET_SIGNAL_UNKNOWN;
+	  status->value.sig = GDB_SIGNAL_UNKNOWN;
 	  break;
 	}
 
@@ -1052,7 +1052,7 @@ darwin_wait (ptid_t ptid, struct target_waitstatus *status)
       darwin_inf_fake_stop = NULL;
 
       status->kind = TARGET_WAITKIND_STOPPED;
-      status->value.sig = TARGET_SIGNAL_TRAP;
+      status->value.sig = GDB_SIGNAL_TRAP;
       thread = VEC_index (darwin_thread_t, inf->private->threads, 0);
       thread->msg_state = DARWIN_STOPPED;
       return ptid_build (inf->pid, 0, thread->gdb_port);
@@ -1263,7 +1263,7 @@ darwin_stop_inferior (struct inferior *inf)
     {
       ptid = darwin_wait (inferior_ptid, &wstatus);
       if (wstatus.kind == TARGET_WAITKIND_STOPPED
-	  && wstatus.value.sig == TARGET_SIGNAL_STOP)
+	  && wstatus.value.sig == GDB_SIGNAL_STOP)
 	break;
     }
 }

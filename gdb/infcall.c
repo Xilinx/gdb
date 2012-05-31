@@ -159,7 +159,7 @@ value_arg_coerce (struct gdbarch *gdbarch, struct value *arg,
 	struct value *new_value;
 
 	if (TYPE_CODE (arg_type) == TYPE_CODE_REF)
-	  return value_cast_pointers (type, arg);
+	  return value_cast_pointers (type, arg, 0);
 
 	/* Cast the value to the reference's target type, and then
 	   convert it back to a reference.  This will issue an error
@@ -399,7 +399,7 @@ run_inferior_call (struct thread_info *call_thread, CORE_ADDR real_pc)
 
   TRY_CATCH (e, RETURN_MASK_ALL)
     {
-      proceed (real_pc, TARGET_SIGNAL_0, 0);
+      proceed (real_pc, GDB_SIGNAL_0, 0);
 
       /* Inferior function calls are always synchronous, even if the
 	 target supports asynchronous execution.  Do here what

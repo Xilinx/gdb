@@ -431,7 +431,7 @@ startup_inferior (int ntraps)
 
   while (1)
     {
-      enum target_signal resume_signal = TARGET_SIGNAL_0;
+      enum gdb_signal resume_signal = GDB_SIGNAL_0;
       ptid_t event_ptid;
 
       struct target_waitstatus ws;
@@ -458,8 +458,8 @@ startup_inferior (int ntraps)
 	    target_terminal_ours ();
 	    target_mourn_inferior ();
 	    error (_("During startup program terminated with signal %s, %s."),
-		   target_signal_to_name (ws.value.sig),
-		   target_signal_to_string (ws.value.sig));
+		   gdb_signal_to_name (ws.value.sig),
+		   gdb_signal_to_string (ws.value.sig));
 	    return;
 
 	  case TARGET_WAITKIND_EXITED:
@@ -475,7 +475,7 @@ startup_inferior (int ntraps)
 	  case TARGET_WAITKIND_EXECD:
 	    /* Handle EXEC signals as if they were SIGTRAP signals.  */
 	    xfree (ws.value.execd_pathname);
-	    resume_signal = TARGET_SIGNAL_TRAP;
+	    resume_signal = GDB_SIGNAL_TRAP;
 	    switch_to_thread (event_ptid);
 	    break;
 
@@ -485,7 +485,7 @@ startup_inferior (int ntraps)
 	    break;
 	}
 
-      if (resume_signal != TARGET_SIGNAL_TRAP)
+      if (resume_signal != GDB_SIGNAL_TRAP)
 	{
 	  /* Let shell child handle its own signals in its own way.  */
 	  target_resume (resume_ptid, 0, resume_signal);
@@ -514,7 +514,7 @@ startup_inferior (int ntraps)
 	    break;
 
 	  /* Just make it go on.  */
-	  target_resume (resume_ptid, 0, TARGET_SIGNAL_0);
+	  target_resume (resume_ptid, 0, GDB_SIGNAL_0);
 	}
     }
 

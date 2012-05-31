@@ -1,3 +1,46 @@
+2012-05-28  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.server/solib-list-lib.c: New file.
+	* gdb.server/solib-list-main.c: New file.
+	* gdb.server/solib-list.exp: New file.
+
+2012-05-25  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* gdb.trace/unavailable.exp (gdb_collect_globals_test): Update
+	for 'set print symbol' change.
+
+2012-05-24  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.dwarf2/dw2-icc-opaque.S: Add debug_info_seg3 and
+	.debug_abbrev_seg3.
+
+2012-05-24  John Steele Scott  <toojays@toojays.net>
+
+	PR symtab/13277: Resolving opaque structures in ICC generated binaries.
+	* gdb.dwarf2/dw2-icc-opaque.S: New file.
+	* gdb.dwarf2/dw2-icc-opaque.exp: New file.
+
+2012-05-23  Stan Shebs  <stan@codesourcery.com>
+
+	* gdb.mi/mi-info-os.exp: New file.
+
+2012-05-23  Keith Seitz  <keiths@redhat.com>
+
+	* gdb.trace/stap-trace.exp: If compile_stap_bin fails,
+	return -1 to suppress the rest of the tests.
+	(compile_stap_bin): Return boolean success value.
+
+2012-05-21  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.cp/inherit.exp (test_print_mi_members): Expect errors.
+	Remove kfails.
+	(test_print_mi_member_types): Likewise.
+
+2012-05-21  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.base/callfuncs.exp (do_function_calls): Update for 'set
+	print symbol' change.
+
 2012-05-18  Thiago Jung Bauermann  <thiago.bauermann@linaro.org>
 
 	* gdb.python/py-prompt.exp: Quit if the target is remote.

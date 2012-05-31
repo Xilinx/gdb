@@ -16465,8 +16465,11 @@ debug information files, in the indicated order:
 @file{/usr/lib/debug/usr/bin/ls.debug}.
 @end itemize
 
-You can set the global debugging info directories, and view the
-list @value{GDBN} is currently using.
+@anchor{debug-file-directory}
+Global debugging info directories default to what is set by @value{GDBN}
+configure option @option{--with-separate-debug-dir}.  During @value{GDBN} run
+you can also set the global debugging info directories, and view the list
+@value{GDBN} is currently using.
 
 @table @code
 
@@ -21232,9 +21235,9 @@ local-gdbinit:  Auto-loading of .gdbinit script from current directory
                 is on.
 python-scripts:  Auto-loading of Python scripts is on.
 safe-path:  List of directories from which it is safe to auto-load files
-            is $datadir/auto-load.
+            is $debugdir:$datadir/auto-load.
 scripts-directory:  List of directories from which to load auto-loaded scripts
-                    is $datadir/auto-load.
+                    is $debugdir:$datadir/auto-load.
 @end smallexample
 
 @anchor{info auto-load}
@@ -21450,9 +21453,11 @@ get loaded:
 $ ./gdb -q ./gdb
 Reading symbols from /home/user/gdb/gdb...done.
 warning: File "/home/user/gdb/gdb-gdb.gdb" auto-loading has been
-         declined by your `auto-load safe-path' set to "$datadir/auto-load".
+         declined by your `auto-load safe-path' set
+         to "$debugdir:$datadir/auto-load".
 warning: File "/home/user/gdb/gdb-gdb.py" auto-loading has been
-         declined by your `auto-load safe-path' set to "$datadir/auto-load".
+         declined by your `auto-load safe-path' set
+         to "$debugdir:$datadir/auto-load".
 @end smallexample
 
 The list of trusted directories is controlled by the following commands:
@@ -21485,11 +21490,10 @@ host platform path separator in use.
 @end table
 
 This variable defaults to what @code{--with-auto-load-dir} has been configured
-to (@pxref{with-auto-load-dir}).  @file{$datadir} substituation applies the same
-as for @xref{set auto-load scripts-directory}.
-The default @code{set
-auto-load safe-path} value can be also overriden by @value{GDBN} configuration
-option @option{--with-auto-load-safe-path}.
+to (@pxref{with-auto-load-dir}).  @file{$debugdir} and @file{$datadir}
+substitution applies the same as for @ref{set auto-load scripts-directory}.
+The default @code{set auto-load safe-path} value can be also overriden by
+@value{GDBN} configuration option @option{--with-auto-load-safe-path}.
 
 Setting this variable to @file{/} disables this security protection,
 corresponding @value{GDBN} configuration option is
@@ -25701,12 +25705,7 @@ that the file name is absolute, following all symlinks, and resolving
 @code{.} and @code{..} components.  If this file exists and is
 readable, @value{GDBN} will evaluate it as a Python script.
 
-If this file does not exist, and if the parameter
-@code{debug-file-directory} is set (@pxref{Separate Debug Files}),
-then @value{GDBN} will look for @var{script-name} in all of the
-directories mentioned in the value of @code{debug-file-directory}.
-
-Finally, if this file does not exist, then @value{GDBN} will look for
+If this file does not exist, then @value{GDBN} will look for
 @var{script-name} file in all of the directories as specified below.
 
 Note that loading of this script file also requires accordingly configured
@@ -25724,14 +25723,17 @@ Each entry here needs to be covered also by the security setting
 @code{set auto-load safe-path} (@pxref{set auto-load safe-path}).
 
 @anchor{with-auto-load-dir}
-This variable defaults to @file{$datadir/auto-load}.  The default @code{set
-auto-load safe-path} value can be also overriden by @value{GDBN} configuration
-option @option{--with-auto-load-dir}.
+This variable defaults to @file{$debugdir:$datadir/auto-load}.  The default
+@code{set auto-load safe-path} value can be also overriden by @value{GDBN}
+configuration option @option{--with-auto-load-dir}.
 
-Any used string @file{$datadir} will get replaced by @var{data-directory} which
-is determined at @value{GDBN} startup (@pxref{Data Files}).  @file{$datadir}
-must be placed as a directory component --- either alone or delimited by
-@file{/} or @file{\} directory separators, depending on the host platform.
+Any reference to @file{$debugdir} will get replaced by
+@var{debug-file-directory} value (@pxref{Separate Debug Files}) and any
+reference to @file{$datadir} will get replaced by @var{data-directory} which is
+determined at @value{GDBN} startup (@pxref{Data Files}).  @file{$debugdir} and
+@file{$datadir} must be placed as a directory component --- either alone or
+delimited by @file{/} or @file{\} directory separators, depending on the host
+platform.
 
 The list of directories uses path separator (@samp{:} on GNU and Unix
 systems, @samp{;} on MS-Windows and MS-DOS) to separate directories, similarly
@@ -32609,6 +32611,62 @@ and only if there is a corresponding executable file.
                         @{id="2",target-id="Thread 0xb7e14b90",cores=[2]@}]@},...]
 @end smallexample
 
+@subheading The @code{-info-os} Command
+@findex -info-os
+
+@subsubheading Synopsis
+
+@smallexample
+-info-os [ @var{type} ]
+@end smallexample
+
+If no argument is supplied, the command returns a table of available
+operating-system-specific information types.  If one of these types is
+supplied as an argument @var{type}, then the command returns a table
+of data of that type.
+
+The types of information available depend on the target operating
+system.
+
+@subsubheading @value{GDBN} Command
+
+The corresponding @value{GDBN} command is @samp{info os}.
+
+@subsubheading Example
+
+When run on a @sc{gnu}/Linux system, the output will look something
+like this:
+
+@smallexample
+@value{GDBP}
+-info-os
+^done,OSDataTable=@{nr_rows="9",nr_cols="2",
+hdr=[@{width="10",alignment="-1",col_name="col0",colhdr="Type"@},
+     @{width="10",alignment="-1",col_name="col1",colhdr="Description"@}],
+body=[item=@{col0="processes",col1="Listing of all processes"@},
+      item=@{col0="procgroups",col1="Listing of all process groups"@},
+      item=@{col0="threads",col1="Listing of all threads"@},
+      item=@{col0="files",col1="Listing of all file descriptors"@},
+      item=@{col0="sockets",col1="Listing of all internet-domain sockets"@},
+      item=@{col0="shm",col1="Listing of all shared-memory regions"@},
+      item=@{col0="semaphores",col1="Listing of all semaphores"@},
+      item=@{col0="msg",col1="Listing of all message queues"@},
+      item=@{col0="modules",col1="Listing of all loaded kernel modules"@}]@}
+@value{GDBP}
+-info-os processes
+^done,OSDataTable=@{nr_rows="190",nr_cols="4",
+hdr=[@{width="10",alignment="-1",col_name="col0",colhdr="pid"@},
+     @{width="10",alignment="-1",col_name="col1",colhdr="user"@},
+     @{width="10",alignment="-1",col_name="col2",colhdr="command"@},
+     @{width="10",alignment="-1",col_name="col3",colhdr="cores"@}],
+body=[item=@{col0="1",col1="root",col2="/sbin/init",col3="0"@},
+      item=@{col0="2",col1="root",col2="[kthreadd]",col3="1"@},
+      item=@{col0="3",col1="root",col2="[ksoftirqd/0]",col3="0"@},
+      ...
+      item=@{col0="26446",col1="stan",col2="bash",col3="0"@},
+      item=@{col0="28152",col1="stan",col2="bash",col3="1"@}]@}
+(gdb)
+@end smallexample
 
 @subheading The @code{-add-inferior} Command
 @findex -add-inferior

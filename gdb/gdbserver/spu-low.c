@@ -455,7 +455,7 @@ spu_wait (ptid_t ptid, struct target_waitstatus *ourstatus, int options)
     {
       fprintf (stderr, "\nChild terminated with signal = %x \n", WTERMSIG (w));
       ourstatus->kind = TARGET_WAITKIND_SIGNALLED;
-      ourstatus->value.sig = target_signal_from_host (WTERMSIG (w));
+      ourstatus->value.sig = gdb_signal_from_host (WTERMSIG (w));
       clear_inferiors ();
       return pid_to_ptid (ret);
     }
@@ -465,12 +465,12 @@ spu_wait (ptid_t ptid, struct target_waitstatus *ourstatus, int options)
   if (!server_waiting)
     {
       ourstatus->kind = TARGET_WAITKIND_STOPPED;
-      ourstatus->value.sig = TARGET_SIGNAL_0;
+      ourstatus->value.sig = GDB_SIGNAL_0;
       return ptid_build (ret, ret, 0);
     }
 
   ourstatus->kind = TARGET_WAITKIND_STOPPED;
-  ourstatus->value.sig = target_signal_from_host (WSTOPSIG (w));
+  ourstatus->value.sig = gdb_signal_from_host (WSTOPSIG (w));
   return ptid_build (ret, ret, 0);
 }
 

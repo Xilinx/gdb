@@ -934,7 +934,7 @@ monitor_supply_register (struct regcache *regcache, int regno, char *valstr)
 
 static void
 monitor_resume (struct target_ops *ops,
-		ptid_t ptid, int step, enum target_signal sig)
+		ptid_t ptid, int step, enum gdb_signal sig)
 {
   /* Some monitors require a different command when starting a program.  */
   monitor_debug ("MON resume\n");
@@ -1162,7 +1162,7 @@ monitor_wait (struct target_ops *ops,
 #endif
 
   status->kind = TARGET_WAITKIND_STOPPED;
-  status->value.sig = TARGET_SIGNAL_TRAP;
+  status->value.sig = GDB_SIGNAL_TRAP;
 
   discard_cleanups (old_chain);
 

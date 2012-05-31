@@ -23,6 +23,7 @@
 #include "gdb_string.h"
 #include "target.h"
 #include "inferior.h"
+#include "inf-child.h"
 #include "inf-ptrace.h"
 #include "regcache.h"
 #include "symfile.h"
@@ -461,7 +462,7 @@ spu_child_wait (struct target_ops *ops,
 
       /* Claim it exited with unknown signal.  */
       ourstatus->kind = TARGET_WAITKIND_SIGNALLED;
-      ourstatus->value.sig = TARGET_SIGNAL_UNKNOWN;
+      ourstatus->value.sig = GDB_SIGNAL_UNKNOWN;
       return inferior_ptid;
     }
 

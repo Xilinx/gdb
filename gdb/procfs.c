@@ -112,7 +112,7 @@
 static void procfs_attach (struct target_ops *, char *, int);
 static void procfs_detach (struct target_ops *, char *, int);
 static void procfs_resume (struct target_ops *,
-			   ptid_t, int, enum target_signal);
+			   ptid_t, int, enum gdb_signal);
 static void procfs_stop (ptid_t);
 static void procfs_files_info (struct target_ops *);
 static void procfs_fetch_registers (struct target_ops *,
@@ -2122,7 +2122,7 @@ proc_set_current_signal (procinfo *pi, int signo)
   get_last_target_status (&wait_ptid, &wait_status);
   if (ptid_equal (wait_ptid, inferior_ptid)
       && wait_status.kind == TARGET_WAITKIND_STOPPED
-      && wait_status.value.sig == target_signal_from_host (signo)
+      && wait_status.value.sig == gdb_signal_from_host (signo)
       && proc_get_status (pi)
 #ifdef NEW_PROC_API
       && pi->prstatus.pr_lwp.pr_info.si_signo == signo
@@ -3786,7 +3786,7 @@ wait_again:
 		    else
 		      {
 			/* How to keep going without returning to wfi: */
-			target_resume (ptid, 0, TARGET_SIGNAL_0);
+			target_resume (ptid, 0, GDB_SIGNAL_0);
 			goto wait_again;
 		      }
 		  }
@@ -3812,7 +3812,7 @@ wait_again:
 		    /* This is an internal event and should be transparent
 		       to wfi, so resume the execution and wait again.	See
 		       comment in procfs_init_inferior() for more details.  */
-		    target_resume (ptid, 0, TARGET_SIGNAL_0);
+		    target_resume (ptid, 0, GDB_SIGNAL_0);
 		    goto wait_again;
 		  }
 #endif
@@ -4182,7 +4182,7 @@ make_signal_thread_runnable (procinfo *process, procinfo *pi, void *ptr)
 
 static void
 procfs_resume (struct target_ops *ops,
-	       ptid_t ptid, int step, enum target_signal signo)
+	       ptid_t ptid, int step, enum gdb_signal signo)
 {
   procinfo *pi, *thread;
   int native_signo;
@@ -4211,10 +4211,10 @@ procfs_resume (struct target_ops *ops,
 
   /* Convert signal to host numbering.  */
   if (signo == 0 ||
-      (signo == TARGET_SIGNAL_STOP && pi->ignore_next_sigstop))
+      (signo == GDB_SIGNAL_STOP && pi->ignore_next_sigstop))
     native_signo = 0;
   else
-    native_signo = target_signal_to_host (signo);
+    native_signo = gdb_signal_to_host (signo);
 
   pi->ignore_next_sigstop = 0;
 
@@ -4273,7 +4273,7 @@ procfs_pass_signals (int numsigs, unsigned char *pass_signals)
 
   for (signo = 0; signo < NSIG; signo++)
     {
-      int target_signo = target_signal_from_host (signo);
+      int target_signo = gdb_signal_from_host (signo);
       if (target_signo < numsigs && pass_signals[target_signo])
 	gdb_prdelset (&signals, signo);
     }
@@ -5411,7 +5411,7 @@ procfs_first_available (void)
 static char *
 procfs_do_thread_registers (bfd *obfd, ptid_t ptid,
 			    char *note_data, int *note_size,
-			    enum target_signal stop_signal)
+			    enum gdb_signal stop_signal)
 {
   struct regcache *regcache = get_thread_regcache (ptid);
   gdb_gregset_t gregs;
@@ -5462,7 +5462,7 @@ struct procfs_corefile_thread_data {
   bfd *obfd;
   char *note_data;
   int *note_size;
-  enum target_signal stop_signal;
+  enum gdb_signal stop_signal;
 };
 
 static int
@@ -5485,14 +5485,14 @@ procfs_corefile_thread_callback (procinfo *pi, procinfo *thread, void *data)
 static int
 find_signalled_thread (struct thread_info *info, void *data)
 {
-  if (info->suspend.stop_signal != TARGET_SIGNAL_0
+  if (info->suspend.stop_signal != GDB_SIGNAL_0
       && ptid_get_pid (info->ptid) == ptid_get_pid (inferior_ptid))
     return 1;
 
   return 0;
 }
 
-static enum target_signal
+static enum gdb_signal
 find_stop_signal (void)
 {
   struct thread_info *info =
@@ -5501,7 +5501,7 @@ find_stop_signal (void)
   if (info)
     return info->suspend.stop_signal;
   else
-    return TARGET_SIGNAL_0;
+    return GDB_SIGNAL_0;
 }
 
 static char *
@@ -5518,7 +5518,7 @@ procfs_make_note_section (bfd *obfd, int *note_size)
   struct procfs_corefile_thread_data thread_args;
   gdb_byte *auxv;
   int auxv_len;
-  enum target_signal stop_signal;
+  enum gdb_signal stop_signal;
 
   if (get_exec_file (0))
     {

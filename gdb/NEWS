@@ -3,6 +3,8 @@
 
 *** Changes since GDB 7.4
 
+* GDB now supports access to MIPS DSP registers on Linux targets.
+
 * GDB now supports debugging microMIPS binaries.
 
 * The "info os" command on GNU/Linux can now display information on
@@ -114,6 +116,10 @@
 
 * GDB can now support 'breakpoint always-inserted mode' in 'record'
   target.
+
+* MI changes
+
+  ** New command -info-os is the MI equivalent of "info os".
 
 * New commands
 
@@ -239,8 +245,10 @@ show dprintf-channel
 
 --with-auto-load-dir
   Configure default value for the 'set auto-load scripts-directory'
-  setting above.  It defaults to '$datadir/auto-load', $datadir
-  representing GDB's data directory (available via show data-directory).
+  setting above.  It defaults to '$debugdir:$datadir/auto-load',
+  $debugdir representing global debugging info directories (available
+  via 'show debug-file-directory') and $datadir representing GDB's data
+  directory (available via 'show data-directory').
 
 --with-auto-load-safe-path
   Configure default value for the 'set auto-load safe-path' setting

@@ -1216,15 +1216,15 @@ _bfd_elf_merge_symbol (bfd *abfd,
 	    h = *sym_hash;
 	}
 
-      if ((h->root.u.undef.next || info->hash->undefs_tail == &h->root)
-	  && bfd_is_und_section (sec))
+      /* If the old symbol was undefined before, then it will still be
+	 on the undefs list.  If the new symbol is undefined or
+	 common, we can't make it bfd_link_hash_new here, because new
+	 undefined or common symbols will be added to the undefs list
+	 by _bfd_generic_link_add_one_symbol.  Symbols may not be
+	 added twice to the undefs list.  Also, if the new symbol is
+	 undefweak then we don't want to lose the strong undef.  */
+      if (h->root.u.undef.next || info->hash->undefs_tail == &h->root)
 	{
-	  /* If the new symbol is undefined and the old symbol was
-	     also undefined before, we need to make sure
-	     _bfd_generic_link_add_one_symbol doesn't mess
-	     up the linker hash table undefs list.  Since the old
-	     definition came from a dynamic object, it is still on the
-	     undefs list.  */
 	  h->root.type = bfd_link_hash_undefined;
 	  h->root.u.undef.abfd = abfd;
 	}
@@ -1234,11 +1234,18 @@ _bfd_elf_merge_symbol (bfd *abfd,
 	  h->root.u.undef.abfd = NULL;
 	}
 
-      if (h->def_dynamic)
+      if (ELF_ST_VISIBILITY (sym->st_other) != STV_PROTECTED)
 	{
-	  h->def_dynamic = 0;
-	  h->ref_dynamic = 1;
+	  /* If the new symbol is hidden or internal, completely undo
+	     any dynamic link state.  */
+	  (*bed->elf_backend_hide_symbol) (info, h, TRUE);
+	  h->forced_local = 0;
+	  h->ref_dynamic = 0;
 	}
+      else
+	h->ref_dynamic = 1;
+      h->def_dynamic = 0;
+      h->dynamic_def = 0;
       /* FIXME: Should we check type and size for protected symbol?  */
       h->size = 0;
       h->type = 0;
@@ -5584,17 +5591,9 @@ bfd_elf_size_dynamic_sections (bfd *output_bfd,
       && ! (*bed->elf_backend_always_size_sections) (output_bfd, info))
     return FALSE;
 
-  if (! _bfd_elf_maybe_strip_eh_frame_hdr (info))
-    return FALSE;
-
   dynobj = elf_hash_table (info)->dynobj;
 
-  /* If there were no dynamic objects in the link, there is nothing to
-     do here.  */
-  if (dynobj == NULL)
-    return TRUE;
-
-  if (elf_hash_table (info)->dynamic_sections_created)
+  if (dynobj != NULL && elf_hash_table (info)->dynamic_sections_created)
     {
       struct elf_info_failed eif;
       struct elf_link_hash_entry *h;
@@ -5897,11 +5896,15 @@ bfd_elf_size_dynamic_sections (bfd *output_bfd,
 
   /* The backend must work out the sizes of all the other dynamic
      sections.  */
-  if (bed->elf_backend_size_dynamic_sections
+  if (dynobj != NULL
+      && bed->elf_backend_size_dynamic_sections != NULL
       && ! (*bed->elf_backend_size_dynamic_sections) (output_bfd, info))
     return FALSE;
 
-  if (elf_hash_table (info)->dynamic_sections_created)
+  if (! _bfd_elf_maybe_strip_eh_frame_hdr (info))
+    return FALSE;
+
+  if (dynobj != NULL && elf_hash_table (info)->dynamic_sections_created)
     {
       unsigned long section_sym_count;
       struct bfd_elf_version_tree *verdefs;
@@ -12002,12 +12005,14 @@ bfd_elf_gc_sections (bfd *abfd, struct bfd_link_info *info)
       struct elf_reloc_cookie cookie;
 
       sec = bfd_get_section_by_name (sub, ".eh_frame");
-      if (sec && init_reloc_cookie_for_section (&cookie, info, sec))
+      while (sec && init_reloc_cookie_for_section (&cookie, info, sec))
 	{
 	  _bfd_elf_parse_eh_frame (sub, info, sec, &cookie);
-	  if (elf_section_data (sec)->sec_info)
+	  if (elf_section_data (sec)->sec_info
+	      && (sec->flags & SEC_LINKER_CREATED) == 0)
 	    elf_eh_frame_section (sub) = sec;
 	  fini_reloc_cookie_for_section (&cookie, sec);
+	  sec = bfd_get_next_section_by_name (sec);
 	}
     }
   _bfd_elf_end_eh_frame_parsing (info);
@@ -12482,17 +12487,14 @@ bfd_elf_discard_info (bfd *output_bfd, struct bfd_link_info *info)
 
       bed = get_elf_backend_data (abfd);
 
-      if ((abfd->flags & DYNAMIC) != 0)
-	continue;
-
       eh = NULL;
       if (!info->relocatable)
 	{
 	  eh = bfd_get_section_by_name (abfd, ".eh_frame");
-	  if (eh != NULL
-	      && (eh->size == 0
-		  || bfd_is_abs_section (eh->output_section)))
-	    eh = NULL;
+	  while (eh != NULL
+		 && (eh->size == 0
+		     || bfd_is_abs_section (eh->output_section)))
+	    eh = bfd_get_next_section_by_name (eh);
 	}
 
       stab = bfd_get_section_by_name (abfd, ".stab");
@@ -12522,8 +12524,8 @@ bfd_elf_discard_info (bfd *output_bfd, struct bfd_link_info *info)
 	  fini_reloc_cookie_rels (&cookie, stab);
 	}
 
-      if (eh != NULL
-	  && init_reloc_cookie_rels (&cookie, info, abfd, eh))
+      while (eh != NULL
+	     && init_reloc_cookie_rels (&cookie, info, abfd, eh))
 	{
 	  _bfd_elf_parse_eh_frame (abfd, info, eh, &cookie);
 	  if (_bfd_elf_discard_section_eh_frame (abfd, info, eh,
@@ -12531,6 +12533,7 @@ bfd_elf_discard_info (bfd *output_bfd, struct bfd_link_info *info)
 						 &cookie))
 	    ret = TRUE;
 	  fini_reloc_cookie_rels (&cookie, eh);
+	  eh = bfd_get_next_section_by_name (eh);
 	}
 
       if (bed->elf_backend_discard_info != NULL

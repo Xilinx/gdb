@@ -429,12 +429,13 @@ struct dwarf2_cu
      unoptimized code.  For a future better test see GCC PR other/32998.  */
   unsigned int has_loclist : 1;
 
-  /* These cache the results of producer_is_gxx_lt_4_6.
-     CHECKED_PRODUCER is set if PRODUCER_IS_GXX_LT_4_6 is valid.  This
-     information is cached because profiling CU expansion showed
-     excessive time spent in producer_is_gxx_lt_4_6.  */
+  /* These cache the results for producer_is_gxx_lt_4_6 and producer_is_icc.
+     CHECKED_PRODUCER is set if both PRODUCER_IS_GXX_LT_4_6 and PRODUCER_IS_ICC
+     are valid.  This information is cached because profiling CU expansion
+     showed excessive time spent in producer_is_gxx_lt_4_6.  */
   unsigned int checked_producer : 1;
   unsigned int producer_is_gxx_lt_4_6 : 1;
+  unsigned int producer_is_icc : 1;
 
   /* Non-zero if DW_AT_addr_base was found.
      Used when processing DWO files.  */
@@ -606,6 +607,9 @@ struct die_reader_specs
 
   /* die_section->buffer.  */
   gdb_byte *buffer;
+
+  /* The end of the buffer.  */
+  const gdb_byte *buffer_end;
 };
 
 /* Type of function passed to init_cutu_and_read_dies, et.al.  */
@@ -968,11 +972,13 @@ dwarf2_const_value_length_mismatch_complaint (const char *arg1, int arg2,
 }
 
 static void
-dwarf2_macros_too_long_complaint (struct dwarf2_section_info *section)
+dwarf2_section_buffer_overflow_complaint (struct dwarf2_section_info *section)
 {
   complaint (&symfile_complaints,
-	     _("macro info runs off end of `%s' section"),
-	     section->asection->name);
+	     _("debug info runs off end of %s section"
+	       " [in module %s]"),
+	     section->asection->name,
+	     bfd_get_filename (section->asection->owner));
 }
 
 static void
@@ -1103,8 +1109,6 @@ static CORE_ADDR read_addr_index_from_leb128 (struct dwarf2_cu *, gdb_byte *,
 
 static char *read_str_index (const struct die_reader_specs *reader,
 			     struct dwarf2_cu *cu, ULONGEST str_index);
-
-static gdb_byte *skip_leb128 (bfd *, gdb_byte *);
 
 static void set_cu_language (unsigned int, struct dwarf2_cu *);
 
@@ -3003,9 +3007,12 @@ recursively_find_pc_sect_symtab (struct symtab *symtab, CORE_ADDR pc)
       && blockvector_contains_pc (BLOCKVECTOR (symtab), pc))
     return symtab;
 
+  if (symtab->includes == NULL)
+    return NULL;
+
   for (i = 0; symtab->includes[i]; ++i)
     {
-      struct symtab *s;
+      struct symtab *s = symtab->includes[i];
 
       s = recursively_find_pc_sect_symtab (s, pc);
       if (s != NULL)
@@ -3653,6 +3660,7 @@ init_cu_die_reader (struct die_reader_specs *reader,
   reader->dwo_file = dwo_file;
   reader->die_section = section;
   reader->buffer = section->buffer;
+  reader->buffer_end = section->buffer + section->size;
 }
 
 /* Find the base address of the compilation unit for range lists and
@@ -5031,6 +5039,8 @@ skip_one_die (const struct die_reader_specs *reader, gdb_byte *info_ptr,
   bfd *abfd = reader->abfd;
   struct dwarf2_cu *cu = reader->cu;
   gdb_byte *buffer = reader->buffer;
+  const gdb_byte *buffer_end = reader->buffer_end;
+  gdb_byte *start_info_ptr = info_ptr;
   unsigned int form, i;
 
   for (i = 0; i < abbrev->num_attrs; i++)
@@ -5109,7 +5119,7 @@ skip_one_die (const struct die_reader_specs *reader, gdb_byte *info_ptr,
 	case DW_FORM_ref_udata:
 	case DW_FORM_GNU_addr_index:
 	case DW_FORM_GNU_str_index:
-	  info_ptr = skip_leb128 (abfd, info_ptr);
+	  info_ptr = (gdb_byte *) safe_skip_leb128 (info_ptr, buffer_end);
 	  break;
 	case DW_FORM_indirect:
 	  form = read_unsigned_leb128 (abfd, info_ptr, &bytes_read);
@@ -6947,7 +6957,6 @@ try_open_dwo_file (const char *file_name)
   sym_bfd = bfd_fopen (absolute_name, gnutarget, FOPEN_RB, desc);
   if (!sym_bfd)
     {
-      close (desc);
       xfree (absolute_name);
       return NULL;
     }
@@ -8262,16 +8271,14 @@ dwarf2_record_block_ranges (struct die_info *die, struct block *block,
     }
 }
 
-/* Check for GCC PR debug/45124 fix which is not present in any G++ version up
-   to 4.5.any while it is present already in G++ 4.6.0 - the PR has been fixed
-   during 4.6.0 experimental.  */
+/* Check whether the producer field indicates either of GCC < 4.6, or the
+   Intel C/C++ compiler, and cache the result in CU.  */
 
-static int
-producer_is_gxx_lt_4_6 (struct dwarf2_cu *cu)
+static void
+check_producer (struct dwarf2_cu *cu)
 {
   const char *cs;
   int major, minor, release;
-  int result = 0;
 
   if (cu->producer == NULL)
     {
@@ -8283,22 +8290,11 @@ producer_is_gxx_lt_4_6 (struct dwarf2_cu *cu)
 	 for their space efficiency GDB cannot workaround gcc-4.5.x -gdwarf-4
 	 combination.  gcc-4.5.x -gdwarf-4 binaries have DW_AT_accessibility
 	 interpreted incorrectly by GDB now - GCC PR debug/48229.  */
-
-      return 0;
     }
-
-  if (cu->checked_producer)
-    return cu->producer_is_gxx_lt_4_6;
-
-  /* Skip any identifier after "GNU " - such as "C++" or "Java".  */
-
-  if (strncmp (cu->producer, "GNU ", strlen ("GNU ")) != 0)
+  else if (strncmp (cu->producer, "GNU ", strlen ("GNU ")) == 0)
     {
-      /* For non-GCC compilers expect their behavior is DWARF version
-	 compliant.  */
-    }
-  else
-    {
+      /* Skip any identifier after "GNU " - such as "C++" or "Java".  */
+
       cs = &cu->producer[strlen ("GNU ")];
       while (*cs && !isdigit (*cs))
 	cs++;
@@ -8307,13 +8303,30 @@ producer_is_gxx_lt_4_6 (struct dwarf2_cu *cu)
 	  /* Not recognized as GCC.  */
 	}
       else
-	result = major < 4 || (major == 4 && minor < 6);
+	cu->producer_is_gxx_lt_4_6 = major < 4 || (major == 4 && minor < 6);
+    }
+  else if (strncmp (cu->producer, "Intel(R) C", strlen ("Intel(R) C")) == 0)
+    cu->producer_is_icc = 1;
+  else
+    {
+      /* For other non-GCC compilers, expect their behavior is DWARF version
+	 compliant.  */
     }
 
   cu->checked_producer = 1;
-  cu->producer_is_gxx_lt_4_6 = result;
+}
 
-  return result;
+/* Check for GCC PR debug/45124 fix which is not present in any G++ version up
+   to 4.5.any while it is present already in G++ 4.6.0 - the PR has been fixed
+   during 4.6.0 experimental.  */
+
+static int
+producer_is_gxx_lt_4_6 (struct dwarf2_cu *cu)
+{
+  if (!cu->checked_producer)
+    check_producer (cu);
+
+  return cu->producer_is_gxx_lt_4_6;
 }
 
 /* Return the default accessibility type if it is not overriden by
@@ -8996,6 +9009,18 @@ quirk_gcc_member_function_pointer (struct type *type, struct objfile *objfile)
   smash_to_methodptr_type (type, new_type);
 }
 
+/* Return non-zero if the CU's PRODUCER string matches the Intel C/C++ compiler
+   (icc).  */
+
+static int
+producer_is_icc (struct dwarf2_cu *cu)
+{
+  if (!cu->checked_producer)
+    check_producer (cu);
+
+  return cu->producer_is_icc;
+}
+
 /* Called when we find the DIE that starts a structure or union scope
    (definition) to create a type for the structure or union.  Fill in
    the type's name and general properties; the members will not be
@@ -9098,7 +9123,14 @@ read_structure_type (struct die_info *die, struct dwarf2_cu *cu)
       TYPE_LENGTH (type) = 0;
     }
 
-  TYPE_STUB_SUPPORTED (type) = 1;
+  if (producer_is_icc (cu))
+    {
+      /* ICC does not output the required DW_AT_declaration
+	 on incomplete types, but gives them a size of zero.  */
+    }
+  else
+    TYPE_STUB_SUPPORTED (type) = 1;
+
   if (die_is_declaration (die, cu))
     TYPE_STUB (type) = 1;
   else if (attr == NULL && die->child == NULL
@@ -12268,22 +12300,6 @@ read_str_index (const struct die_reader_specs *reader,
 	     " .debug_str.dwo section in CU at offset 0x%lx [in module %s]"),
 	   (long) cu->header.offset.sect_off, dwo_name);
   return (char *) (sections->str.buffer + str_offset);
-}
-
-/* Return a pointer to just past the end of an LEB128 number in BUF.  */
-
-static gdb_byte *
-skip_leb128 (bfd *abfd, gdb_byte *buf)
-{
-  int byte;
-
-  while (1)
-    {
-      byte = bfd_get_8 (abfd, buf);
-      buf++;
-      if ((byte & 128) == 0)
-	return buf;
-    }
 }
 
 /* Return the length of an LEB128 number in BUF.  */
@@ -15780,7 +15796,7 @@ parse_macro_definition (struct macro_source_file *file, int line,
    Returns the new pointer.  */
 
 static gdb_byte *
-skip_form_bytes (bfd *abfd, gdb_byte *bytes,
+skip_form_bytes (bfd *abfd, gdb_byte *bytes, gdb_byte *buffer_end,
 		 enum dwarf_form form,
 		 unsigned int offset_size,
 		 struct dwarf2_section_info *section)
@@ -15835,7 +15851,12 @@ skip_form_bytes (bfd *abfd, gdb_byte *bytes,
     case DW_FORM_udata:
     case DW_FORM_GNU_addr_index:
     case DW_FORM_GNU_str_index:
-      bytes = skip_leb128 (abfd, bytes);
+      bytes = (gdb_byte *) gdb_skip_leb128 (bytes, buffer_end);
+      if (bytes == NULL)
+	{
+	  dwarf2_section_buffer_overflow_complaint (section);
+	  return NULL;
+	}
       break;
 
     default:
@@ -15859,7 +15880,7 @@ skip_form_bytes (bfd *abfd, gdb_byte *bytes,
 static gdb_byte *
 skip_unknown_opcode (unsigned int opcode,
 		     gdb_byte **opcode_definitions,
-		     gdb_byte *mac_ptr,
+		     gdb_byte *mac_ptr, gdb_byte *mac_end,
 		     bfd *abfd,
 		     unsigned int offset_size,
 		     struct dwarf2_section_info *section)
@@ -15882,7 +15903,8 @@ skip_unknown_opcode (unsigned int opcode,
 
   for (i = 0; i < arg; ++i)
     {
-      mac_ptr = skip_form_bytes (abfd, mac_ptr, defn[i], offset_size, section);
+      mac_ptr = skip_form_bytes (abfd, mac_ptr, mac_end, defn[i], offset_size,
+				 section);
       if (mac_ptr == NULL)
 	{
 	  /* skip_form_bytes already issued the complaint.  */
@@ -15993,7 +16015,7 @@ dwarf_decode_macro_bytes (bfd *abfd, gdb_byte *mac_ptr, gdb_byte *mac_end,
       /* Do we at least have room for a macinfo type byte?  */
       if (mac_ptr >= mac_end)
 	{
-	  dwarf2_macros_too_long_complaint (section);
+	  dwarf2_section_buffer_overflow_complaint (section);
 	  break;
 	}
 
@@ -16120,7 +16142,7 @@ dwarf_decode_macro_bytes (bfd *abfd, gdb_byte *mac_ptr, gdb_byte *mac_end,
                   /* Do we at least have room for a macinfo type byte?  */
                   if (mac_ptr >= mac_end)
                     {
-		      dwarf2_macros_too_long_complaint (section);
+		      dwarf2_section_buffer_overflow_complaint (section);
                       return;
                     }
 
@@ -16188,7 +16210,7 @@ dwarf_decode_macro_bytes (bfd *abfd, gdb_byte *mac_ptr, gdb_byte *mac_end,
 
 	default:
 	  mac_ptr = skip_unknown_opcode (macinfo_type, opcode_definitions,
-					 mac_ptr, abfd, offset_size,
+					 mac_ptr, mac_end, abfd, offset_size,
 					 section);
 	  if (mac_ptr == NULL)
 	    return;
@@ -16331,7 +16353,7 @@ dwarf_decode_macros (struct line_header *lh, unsigned int offset,
 
 	default:
 	  mac_ptr = skip_unknown_opcode (macinfo_type, opcode_definitions,
-					 mac_ptr, abfd, offset_size,
+					 mac_ptr, mac_end, abfd, offset_size,
 					 section);
 	  if (mac_ptr == NULL)
 	    return;
@@ -16447,6 +16469,7 @@ fill_in_loclist_baton (struct dwarf2_cu *cu,
   baton->size = section->size - DW_UNSND (attr);
   baton->data = section->buffer + DW_UNSND (attr);
   baton->base_address = cu->base_address;
+  baton->from_dwo = cu->dwo_unit != NULL;
 }
 
 static void

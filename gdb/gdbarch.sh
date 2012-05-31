@@ -770,14 +770,14 @@ M:int:process_record:struct regcache *regcache, CORE_ADDR addr:regcache, addr
 
 # Save process state after a signal.
 # Return -1 if something goes wrong, 0 otherwise.
-M:int:process_record_signal:struct regcache *regcache, enum target_signal signal:regcache, signal
+M:int:process_record_signal:struct regcache *regcache, enum gdb_signal signal:regcache, signal
 
-# Signal translation: translate inferior's signal (host's) number into
-# GDB's representation.
-m:enum target_signal:target_signal_from_host:int signo:signo::default_target_signal_from_host::0
-# Signal translation: translate GDB's signal number into inferior's host
-# signal number.
-m:int:target_signal_to_host:enum target_signal ts:ts::default_target_signal_to_host::0
+# Signal translation: translate inferior's signal (target's) number
+# into GDB's representation.  This is mainly used when cross-debugging
+# core files --- "Live" targets hide the translation behind the target
+# interface (target_wait, target_resume, etc.).  The default is to do
+# the translation using host signal numbers.
+m:enum gdb_signal:gdb_signal_from_target:int signo:signo::default_gdb_signal_from_target::0
 
 # Extra signal info inspection.
 #

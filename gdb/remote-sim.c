@@ -118,7 +118,7 @@ struct sim_inferior_data {
   ptid_t remote_sim_ptid;
 
   /* Signal with which to resume.  */
-  enum target_signal resume_siggnal;
+  enum gdb_signal resume_siggnal;
 
   /* Flag which indicates whether resume should step or not.  */
   int resume_step;
@@ -217,7 +217,7 @@ get_sim_inferior_data (struct inferior *inf, int sim_instance_needed)
       /* Initialize the other instance variables.  */
       sim_data->program_loaded = 0;
       sim_data->gdbsim_desc = sim_desc;
-      sim_data->resume_siggnal = TARGET_SIGNAL_0;
+      sim_data->resume_siggnal = GDB_SIGNAL_0;
       sim_data->resume_step = 0;
     }
   else if (sim_desc)
@@ -838,7 +838,7 @@ gdbsim_detach (struct target_ops *ops, char *args, int from_tty)
 
 struct resume_data
 {
-  enum target_signal siggnal;
+  enum gdb_signal siggnal;
   int step;
 };
 
@@ -867,7 +867,7 @@ gdbsim_resume_inferior (struct inferior *inf, void *arg)
 
 static void
 gdbsim_resume (struct target_ops *ops,
-	       ptid_t ptid, int step, enum target_signal siggnal)
+	       ptid_t ptid, int step, enum gdb_signal siggnal)
 {
   struct resume_data rd;
   struct sim_inferior_data *sim_data
@@ -1028,11 +1028,11 @@ gdbsim_wait (struct target_ops *ops,
     case sim_stopped:
       switch (sigrc)
 	{
-	case TARGET_SIGNAL_ABRT:
+	case GDB_SIGNAL_ABRT:
 	  quit ();
 	  break;
-	case TARGET_SIGNAL_INT:
-	case TARGET_SIGNAL_TRAP:
+	case GDB_SIGNAL_INT:
+	case GDB_SIGNAL_TRAP:
 	default:
 	  status->kind = TARGET_WAITKIND_STOPPED;
 	  status->value.sig = sigrc;

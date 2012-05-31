@@ -1,3 +1,49 @@
+2012-05-30  Thiago Jung Bauermann  <thiago.bauermann@linaro.org>
+
+	* linux-low.c (get_r_debug): Disable code using DT_MIPS_RLD_MAP
+	if the platform doesn't know about it.
+
+2012-05-30  Jeff Kenton  <jkenton@tilera.com>
+
+	* Makefile.in (SFILES): Add linux-tile-low.c.
+	(linux-tile-low.o, reg-tilegx.o, reg-tilegx.c): New rules.
+	* configure.srv: Handle tilegx-*-linux*.
+	* linux-tile-low.c: New file.
+
+2012-05-28  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* linux-low.c (linux_qxfer_libraries_svr4): Return -1 if R_DEBUG is -1.
+
+2012-05-24  Pedro Alves  <palves@redhat.com>
+
+	PR gdb/7205
+
+        Replace TARGET_SIGNAL_ with GDB_SIGNAL_ throughout.
+
+2012-05-24  Pedro Alves  <palves@redhat.com>
+
+	PR gdb/7205
+
+	Replace target_signal with gdb_signal throughout.
+
+2012-05-22  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* linux-low.c (linux_store_registers): Avoid the copying sequence
+	when no data has been retrieved by ptrace.
+
+2012-05-22  Will Deacon  <will.deacon@arm.com>
+
+	* linux-low (__UCLIBC__ && !(__UCLIBC_HAS_MMU__ || __ARCH_HAS_MMU__)):
+	Include asm/ptrace.h.
+	(PT_TEXT_ADDR, PT_DATA_ADDR, PT_TEXT_END_ADDR): Define only if not
+	already defined.
+
+2012-05-21  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* linux-low.c (linux_store_registers): Don't re-retrieve data
+	with ptrace that has already been obtained from /proc.  Always
+	copy any data retrieved with ptrace to the buffer supplied.
+
 2012-05-11  Yao Qi  <yao@codesourcery.com>
 	    Pedro Alves  <palves@redhat.com>
 

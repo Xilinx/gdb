@@ -1,3 +1,329 @@
+2012-05-31  Matthew Gretton-Dann  <matthew.gretton-dann@arm.com>
+
+	* ada-lang.c (standard_lookup): Prevent uninitialized variable
+	warning.
+
+2012-05-30  Jeff Kenton  <jkenton@tilera.com>
+
+	* configure.host (gdb_host_cpu): Handle tilegx*.
+	(gdb_host): Handle tilegx-*-linux*.
+	* tilegx-linux-nat.c: New file.
+	* config/tilegx/linux.mh: New file.
+
+2012-05-30  Jeff Kenton  <jkenton@tilera.com>
+
+	* Makefile.in (ALL_TARGET_OBJS): Add tilegx-tdep.o and
+	tilegx-linux-tdep.o.
+	(ALLDEPFILES): Add tilegx-linux-nat.c, tilegx-tdep.c and
+	tilegx-linux-tdep.c.
+	* configure.tgt: Handle tilegx-*-linux*.
+	* tilegx-tdep.h: New file.
+	* tilegx-tdep.c: New file.
+	* tilegx-linux-tdep.c: New file.
+	* regformats/reg-tilegx.dat: New file.
+
+2012-05-30  Edjunior Machado  <emachado@linux.vnet.ibm.com>
+
+	* ppc-linux-nat.c (ppc_linux_can_use_hw_breakpoint): fix
+	accounting of hw watchpoints on ppc.
+
+2012-05-30  Thiago Jung Bauermann  <thiago.bauermann@linaro.org>
+
+	* source.c (openp): Expand tilde in path entries.
+
+2012-05-29  Doug Evans  <dje@google.com>
+
+	* buildsym.c (block_compar): Fix comment.
+	(end_symtab): Fix and clarify some comments.
+
+	* stabsread.h (cleanup_undefined_stabs_types): Renamed from
+	cleanup_undefined_types.
+	* stabsread.c (cleanup_undefined_stabs_types): Ditto.
+	All callers updated.
+
+2012-05-29  Tom Tromey  <tromey@redhat.com>
+
+	* symfile.c (symfile_bfd_open): Don't close desc if bfd_fopen
+	fails.
+	* solib.c (solib_bfd_fopen): Don't close fd if bfd_fopen fails.
+	* exec.c (exec_file_attach): Don't close scratch_chan if bfd_fopen
+	fails.
+	* dwarf2read.c (try_open_dwo_file): Don't close fd if bfd_fopen
+	fails.
+
+2012-05-29  Tristan Gingold  <gingold@adacore.com>
+
+	* solib-darwin.c (dyld_all_image_addr, dyld_all_image): Move into...
+	(struct darwin_info): ... New struct.
+	(solib_darwin_pspace_data): New variable.
+	(darwin_pspace_data_cleanup): New function.
+	(get_darwin_info): Likewise.
+	(darwin_dyld_version_ok, darwin_load_image_infos)
+	(darwin_solib_get_all_image_info_addr_at_init)
+	(darwin_solib_read_all_image_info_addr): Add info argument.
+	Adjust code.
+	(darwin_current_sos): Use per pspace structure.
+	(darwin_solib_create_inferior_hook): Likewise.
+	(darwin_clear_solib): Likewise.
+	(_initialize_darwin_solib): Initialize solib_darwin_pspace_data.
+
+2012-05-28  Pedro Alves  <palves@redhat.com>
+
+	* infrun.c (wait_for_inferior): Move ecss and ecs locals to the
+	block that uses them.  Clear ecss before handling each event.
+
+2012-05-28  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* solib-svr4.c (svr4_current_sos): New comment on
+	svr4_current_sos_via_xfer_libraries fall back.
+
+2012-05-24  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* psymtab.c (lookup_symbol_aux_psymtabs): New variable stab_best.  Use
+	it as a fallback for TYPE_IS_OPAQUE.
+	* symfile.h (struct quick_symbol_functions): Mention TYPE_OPAQUE
+	symbols for lookup_symbol.
+
+2012-05-24  John Steele Scott  <toojays@toojays.net>
+
+	PR symtab/13277: Resolving opaque structures in ICC generated binaries.
+	* dwarf2read.c (struct dwarf2_cu) <producer_is_icc>: New field.
+	(producer_is_gxx_lt_4_6): Move the checking and caching to...
+	(check_producer): ... this new function, which also checks for ICC
+	and caches the result.
+	(producer_is_icc): New function.
+	(read_structure_type): Don't set TYPE_STUB_SUPPORTED if the
+	producer was ICC.
+
+2012-05-24  Pedro Alves  <palves@redhat.com>
+
+	PR gdb/7205
+
+	* arch-utils.c (default_gdb_signal_to_host): Rename to ...
+	(default_gdb_signal_to_target): ... this.  Add comment.
+	(default_gdb_signal_from_host): Rename to ...
+	(default_gdb_signal_from_target): ... this.  Add comment.
+	* arch-utils.h (default_gdb_signal_to_host): Rename to ...
+	(default_gdb_signal_to_target): ... this.
+	(default_gdb_signal_from_host): Rename to ...
+	(default_gdb_signal_from_target): ... this.
+	* corelow.c (core_open): Adjust to naming change.  Replace comment.
+	* gdbarch.sh (gdb_signal_from_host): Rename to ...
+	(gdb_signal_from_target): ... this.  Adjust to
+	default_gdb_signal_from_host naming change.  Extend comment.
+	(gdb_signal_to_host): Rename to ...
+	(gdb_signal_to_target): ... this.  Adjust to
+	default_gdb_signal_to_host naming change.
+	* gdbarch.h, gdbarch.c: Renegerate.
+
+2012-05-24  Pedro Alves  <palves@redhat.com>
+
+	PR gdb/7205
+
+        Replace TARGET_SIGNAL_ with GDB_SIGNAL_ throughout.
+
+2012-05-24  Pedro Alves  <palves@redhat.com>
+
+	PR gdb/7205
+
+	Replace target_signal with gdb_signal throughout.
+
+2012-05-24  Pedro Alves  <palves@redhat.com>
+
+	PR tui/14159
+
+	* tui/tui-hooks.c (tui_query_hook): Pre-compute the question
+	string, instead of reusing the va_list argument.
+
+2012-05-24  Tom Tromey  <tromey@redhat.com>
+
+	* cp-support.h (cp_finalize_namespace, cp_initialize_namespace):
+	Remove.
+
+2012-05-23  Doug Evans  <dje@google.com>
+
+	* symtab.c (search_symbols): Formatting fixes.
+	(print_symbol_info): Formatting fixes.
+
+	* dwarf2-frame.c (execute_cfa_program): Update to handle long long ->
+	int64_t change to leb128 API.
+	(read_encoded_value, decode_frame_entry_1): Ditto.
+	* dwarf2expr.c (safe_read_uleb128, safe_read_sleb128): Ditto.
+	(dwarf_block_to_dwarf_reg, dwarf_block_to_dwarf_reg_deref): Ditto.
+	(dwarf_block_to_fb_offset, dwarf_block_to_sp_offset): Ditto.
+	(execute_stack_op): Ditto.
+	* dwarf2expr.h (gdb_read_uleb128, gdb_read_sleb128): Ditto.
+	(safe_read_uleb128, safe_read_sleb128): Ditto.
+	* dwarf2loc.c (decode_debug_loc_dwo_addresses): Ditto.
+	(dwarf2_compile_expr_to_ax): Ditto.
+	(locexpr_describe_location_piece): Ditto.
+	(disassemble_dwarf_expression): Ditto.
+	(locexpr_describe_location_1): Ditto.
+
+2012-05-23  Stan Shebs  <stan@codesourcery.com>
+	    Kwok Cheung Yeung  <kcy@codesourcery.com>
+
+	* Makefile.in (SUBDIR_MI_OBS): Add mi-cmd-info.o.
+	(SUBDIR_MI_SRCS): Add mi-cmd-info.c.
+	(mi-cmd-info.o): New rule.
+	* osdata.h (info_osdata_command): New declaration.
+	* osdata.c (info_osdata_command): Change to non-static.
+	* mi/mi-cmds.h (mi_cmd_info_os): New declaration.
+	* mi/mi-cmds.c (mi_cmds): Add -info-os MI command.
+	* mi/mi-cmd-info.c: New file.
+
+2012-05-23  Doug Evans  <dje@google.com>
+
+	* symtab.c (search_symbols): Pass NULL for file_matcher to
+	expand_symtabs_matching if there are no files to match.
+
+	* gdbtypes.c (lookup_typename): Simplify.
+
+2012-05-23  Pedro Alves  <palves@redhat.com>
+
+	* arch-utils.h (default_target_signal_to_host): Delete.
+	* arch-utils.c (default_target_signal_to_host): Delete.
+	* gdbarch.sh (target_signal_to_host): Remove.
+	* gdbarch.h, gdbarch.c: Regenerate.
+
+2012-05-22  Doug Evans  <dje@google.com>
+
+	* dwarf2-frame.c (struct dwarf2_cie): Make initial_instructions, end
+	"const gdb_byte *".
+	(struct dwarf2_fde): Make instructions, end "const gdb_byte *".
+	(execute_cfa_program): Update to match API of leb128 functions.
+	(read_1_byte, read_4_bytes, read_8_bytes): Make buf parameter
+	"const gdb_byte *".
+	(read_unsigned_leb128, read_signed_leb128): Delete.
+	(read_initial_length): Change type of buf argument to
+	"const gdb_byte *".
+	(read_encoded_value): Update to match API of leb128 functions.
+	(decode_frame_entry): Change result to "const gdb_byte *", and
+	similarly for "start" parameter.
+	(decode_frame_entry_1): Ditto.  Use new leb128 reader functions.
+	(dwarf2_build_frame_info): Change local frame_ptr to
+	"const gdb_byte *".
+	* dwarf2expr.c (safe_read_uleb128, safe_read_sleb128): Replaces
+	read_uleb128, read_sleb128.  All callers updated.
+	(safe_skip_leb128): New function.
+	(dwarf_block_to_dwarf_reg): Update to match API of leb128 functions.
+	Call gdb_read_uleb128, gdb_skip_leb128 instead of read_uleb128.
+	(dwarf_block_to_dwarf_reg_deref): Update to match API of leb128
+	functions.  Call gdb_read_uleb128, gdb_read_sleb128 instead of
+	read_uleb128, read_sleb128.
+	(dwarf_block_to_fb_offset, dwarf_block_to_sp_offset): Ditto.
+	(execute_stack_op): Update to match API of leb128 functions.
+	* dwarf2expr.h: #include "leb128.h".
+	(read_uleb128, read_sleb128): Delete.
+	(gdb_read_uleb128, gdb_read_sleb128, gdb_skip_leb128): New functions.
+	(safe_read_uleb128, safe_read_sleb128, safe_skip_leb128): Declare.
+	* dwarf2loc.c (debug_loc_kind): New enum.
+	(decode_debug_loc_addresses): New function.
+	(decode_debug_loc_dwo_addresses): New function.
+	(dwarf2_find_location_expression): Rewrite.
+	(dwarf2_compile_expr_to_ax): Update to match API of leb128 functions.
+	(locexpr_describe_location_piece): Ditto.
+	(disassemble_dwarf_expression): Ditto.
+	(locexpr_describe_location_1): Ditto.
+	(loclist_describe_location): Rewrite.
+	* dwarf2loc.h (dwarf2_loclist_baton): New member "from_dwo".
+	* dwarf2read.c (die_reader_specs): New member "buffer_end".
+	(dwarf2_section_buffer_overflow_complaint): Renamed from
+	dwarf2_macros_too_long_complaint.  All callers updated.
+	(skip_leb128): Delete.
+	(init_cu_die_reader): Initialize reader->buffer_end.
+	(skip_one_die): Replace call to skip_leb128 with safe_skip_leb128.
+	(skip_form_bytes): New arg buffer_end.  All callers updated.
+	Replace call to skip_leb128 with gdb_skip_leb128.
+	(skip_unknown_opcode): New arg mac_end.  All callers updated.
+	(fill_in_loclist_baton): Initialize baton->from_dwo.
+
+2012-05-22  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* mips-linux-nat.c (mips_linux_read_description): Use a more
+	verbose error message.
+
+2012-05-22  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* NEWS: Add MIPS/Linux DSP support.
+	* mips-linux-tdep.c: Document post-2.6.12 o32 sigcontext layout.
+	(SIGCONTEXT_DSPCTL): New macro.
+	(SIGCONTEXT_HI1, SIGCONTEXT_LO1): Likewise.
+	(SIGCONTEXT_HI2, SIGCONTEXT_LO2): Likewise.
+	(SIGCONTEXT_HI3, SIGCONTEXT_LO3): Likewise.
+	(N64_SIGCONTEXT_HI1, N64_SIGCONTEXT_HI2): Likewise.
+	(N64_SIGCONTEXT_HI3): Likewise.
+	(N64_SIGCONTEXT_LO1, N64_SIGCONTEXT_LO2): Likewise.
+	(N64_SIGCONTEXT_LO3): Likewise.
+	(N64_SIGCONTEXT_DSPCTL): Likewise.
+	(N64_SIGCONTEXT_FPCSR): Clarify definition.
+	(mips_linux_o32_sigframe_init): Handle DSP registers.
+	(mips_linux_n32n64_sigframe_init): Likewise.
+
+2012-05-22  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* common/buffer.c (buffer_grow): ARI fix: Remove unneeded
+	call to abort.
+
+2012-05-22  Pedro Alves  <palves@redhat.com>
+
+	* target.h (store_waitstatus): Move declaration ...
+	* inf-child.h (store_waitstatus): ... here.
+	* target.c: Move inclusion of gdb_wait.h, and ...
+	(store_waitstatus): ... this ...
+	* inf-child.c: ... here.
+	* linux-nat.c: Include inf-child.h.
+	* rs6000-nat.c: Include inf-child.h.
+	* spu-linux-nat.c: Include inf-child.h.
+
+2012-05-22  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	* tracepoint.c (start_tracing): Add missing i18n markup.
+	(stop_tracing, set_trace_user): Ditto.
+	(set_trace_notes, set_trace_stop_notes): Ditto.
+
+2012-05-21  Tom Tromey  <tromey@redhat.com>
+
+	PR c++/7173:
+	* gnu-v3-abi.c (gnuv3_baseclass_offset): Return early for Java
+	types.
+	* value.h (value_cast_pointers): Update.
+	* valops.c (value_cast_pointers): Add 'subclass_check' argument.
+	(value_cast): Update.
+	(update_search_result): New function.
+	(do_search_struct_field): New, from search_struct_field.  Check
+	for ambiguous results.
+	(search_struct_field): Rewrite.
+	* infcall.c (value_arg_coerce): Update.
+	* eval.c (evaluate_subexp_standard) <STRUCTOP_MEMBER>: Use
+	value_cast_pointers.
+	* ada-lang.c (ada_convert_actual): Update.
+
+2012-05-21  Tom Tromey  <tromey@redhat.com>
+
+	* macroexp.c (macro_stringify): Terminate the string.
+
+2012-05-20  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* NEWS (--with-auto-load-dir): Prepend $debugdir to the default path.
+	Describe it.
+	* auto-load.c (auto_load_expand_dir_vars): New function.
+	(auto_load_safe_path_vec_update): Use it, remove the
+	substitute_path_component call thanks to it.
+	(auto_load_objfile_script): Remove the debug_file_directory processing.
+	Use auto_load_expand_dir_vars, remove the substitute_path_component
+	call thanks to it.
+	* configure: Regenerate.
+	* configure.ac (--with-auto-load-dir): Prepend $debugdir to the default
+	path.  Escape $ also for $debugdir.
+	(--with_auto_load_safe_path): Escape $ also for $debugdir.
+	* utils.c (substitute_path_component): Accept also DIRNAME_SEPARATOR.
+
+2012-05-20  Doug Evans  <dje@google.com>
+
+	* dwarf2read.c (recursively_find_pc_sect_symtab): Initialize "s"
+	before use.  Check for symtab->includes == NULL before scanning it.
+
 2012-05-18  Maciej W. Rozycki  <macro@codesourcery.com>
 
 	* mips-tdep.c (mips_reg3_to_reg): Optimize storage.
