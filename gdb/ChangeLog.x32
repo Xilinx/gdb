@@ -1,3 +1,24 @@
+2012-05-31  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-linux-tdep.c (amd64_linux_init_abi): Renamed to ...
+	(amd64_linux_init): This.  Drop fetch_func.
+	(amd64_lp64_linux_init_abi): Renamed to ...
+	(amd64_linux_init_abi): This.
+	(amd64_ilp32_linux_init_abi): Renamed to ...
+	(amd64_x32_linux_init_abi): This.
+	(_initialize_amd64_linux_tdep): Updated.
+
+	* amd64-tdep.c (amd64_dword_names): Add "eip".
+	(amd64_pseudo_register_type): Renamed to ...
+	(amd64_x32_pseudo_register_type): This.
+	(amd64_pseudo_register_name): Restored.
+	(amd64_init_abi): Don't call set_tdesc_pseudo_register_type.
+	(amd64_x32_init): New function.
+	(amd64_x32_init_abi): Likewise.
+
+	* amd64-tdep.h (amd64_x32_init_abi): New prototype.
+	(amd64_x32_init): Likewise.
+
 2012-05-20  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* amd64-tdep.c (amd64_word_names): Remove "eip".

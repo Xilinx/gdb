@@ -258,29 +258,27 @@ static const char *amd64_word_names[] =
 static const char *amd64_dword_names[] =
 {
   "eax", "ebx", "ecx", "edx", "esi", "edi", "ebp", "esp", 
-  "r8d", "r9d", "r10d", "r11d", "r12d", "r13d", "r14d", "r15d"
+  "r8d", "r9d", "r10d", "r11d", "r12d", "r13d", "r14d", "r15d",
+  "eip"
 };
 
 /* Return the GDB type object for the "standard" data type of data in
-   register REGNUM.  */
+   register REGNUM.  Only used for x32.  */
 
 static struct type *
-amd64_pseudo_register_type (struct gdbarch *gdbarch, int regnum)
+amd64_x32_pseudo_register_type (struct gdbarch *gdbarch, int regnum)
 {
   /* Use pointer types for ebp, esp and eip registers in x32.  */
-  if (gdbarch_ptr_bit (gdbarch) == 32)
+  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  switch (regnum - tdep->eax_regnum)
     {
-      struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
-      switch (regnum - tdep->eax_regnum)
-	{
-	default:
-	  break;
-	case AMD64_RBP_REGNUM:	/* ebp  */
-	case AMD64_RSP_REGNUM:	/* esp	*/
-	  return builtin_type (gdbarch)->builtin_data_ptr;
-	case AMD64_RIP_REGNUM:	/* eip */
-	  return builtin_type (gdbarch)->builtin_func_ptr;
-	}
+    default:
+      break;
+    case AMD64_RBP_REGNUM:	/* ebp  */
+    case AMD64_RSP_REGNUM:	/* esp	*/
+      return builtin_type (gdbarch)->builtin_data_ptr;
+    case AMD64_RIP_REGNUM:	/* eip */
+      return builtin_type (gdbarch)->builtin_func_ptr;
     }
 
   return i386_pseudo_register_type (gdbarch, regnum);
@@ -299,12 +297,7 @@ amd64_pseudo_register_name (struct gdbarch *gdbarch, int regnum)
   else if (i386_word_regnum_p (gdbarch, regnum))
     return amd64_word_names[regnum - tdep->ax_regnum];
   else if (i386_dword_regnum_p (gdbarch, regnum))
-    {
-      regnum -= tdep->eax_regnum;
-      if (regnum == AMD64_RIP_REGNUM)
-	return gdbarch_ptr_bit (gdbarch) == 32 ? "eip" : "";
-      return amd64_dword_names[regnum];
-    }
+    return amd64_dword_names[regnum - tdep->eax_regnum];
   else
     return i386_pseudo_register_name (gdbarch, regnum);
 }
@@ -2702,7 +2695,7 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 
   tdep->num_byte_regs = 20;
   tdep->num_word_regs = 16;
-  tdep->num_dword_regs = 17;
+  tdep->num_dword_regs = 16;
   /* Avoid wiring in the MMX registers for now.  */
   tdep->num_mmx_regs = 0;
 
@@ -2711,7 +2704,6 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   set_gdbarch_pseudo_register_write (gdbarch,
 				     amd64_pseudo_register_write);
 
-  set_tdesc_pseudo_register_type (gdbarch, amd64_pseudo_register_type);
   set_tdesc_pseudo_register_name (gdbarch, amd64_pseudo_register_name);
 
   /* AMD64 has an FPU and 16 SSE registers.  */
@@ -2799,6 +2791,36 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 				      i386_stap_is_single_operand);
   set_gdbarch_stap_parse_special_token (gdbarch,
 					i386_stap_parse_special_token);
+}
+
+void
+amd64_x32_init (struct gdbarch *gdbarch)
+{
+  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+
+  tdep->num_dword_regs = 17;
+  tdep->sp_regnum_from_eax = AMD64_RSP_REGNUM;
+  tdep->pc_regnum_from_eax = AMD64_RIP_REGNUM;
+
+  set_tdesc_pseudo_register_type (gdbarch, amd64_x32_pseudo_register_type);
+
+  set_gdbarch_long_bit (gdbarch, 32);
+  set_gdbarch_ptr_bit (gdbarch, 32);
+}
+
+void
+amd64_x32_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
+{
+  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  const struct target_desc *tdesc = info.target_desc;
+
+  amd64_init_abi (info, gdbarch);
+
+  if (! tdesc_has_registers (tdesc))
+    tdesc = tdesc_x32;
+  tdep->tdesc = tdesc;
+
+  amd64_x32_init (gdbarch);
 }
 
 /* Provide a prototype to silence -Wmissing-prototypes.  */
