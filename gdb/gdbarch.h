@@ -69,6 +69,12 @@ struct stap_parse_info;
    GDB, this global should be made target-specific.  */
 extern struct gdbarch *target_gdbarch;
 
+/* Callback type for the 'iterate_over_objfiles_in_search_order'
+   gdbarch  method.  */
+
+typedef int (iterate_over_objfiles_in_search_order_cb_ftype)
+  (struct objfile *objfile, void *cb_data);
+
 
 /* The following are pre-initialized by GDBARCH.  */
 
@@ -450,6 +456,16 @@ extern int gdbarch_return_value_p (struct gdbarch *gdbarch);
 typedef enum return_value_convention (gdbarch_return_value_ftype) (struct gdbarch *gdbarch, struct value *function, struct type *valtype, struct regcache *regcache, gdb_byte *readbuf, const gdb_byte *writebuf);
 extern enum return_value_convention gdbarch_return_value (struct gdbarch *gdbarch, struct value *function, struct type *valtype, struct regcache *regcache, gdb_byte *readbuf, const gdb_byte *writebuf);
 extern void set_gdbarch_return_value (struct gdbarch *gdbarch, gdbarch_return_value_ftype *return_value);
+
+/* Return true if the return value of function is stored in the first hidden
+   parameter.  In theory, this feature should be language-dependent, specified
+   by language and its ABI, such as C++.  Unfortunately, compiler may
+   implement it to a target-dependent feature.  So that we need such hook here
+   to be aware of this in GDB. */
+
+typedef int (gdbarch_return_in_first_hidden_param_p_ftype) (struct gdbarch *gdbarch, struct type *type);
+extern int gdbarch_return_in_first_hidden_param_p (struct gdbarch *gdbarch, struct type *type);
+extern void set_gdbarch_return_in_first_hidden_param_p (struct gdbarch *gdbarch, gdbarch_return_in_first_hidden_param_p_ftype *return_in_first_hidden_param_p);
 
 typedef CORE_ADDR (gdbarch_skip_prologue_ftype) (struct gdbarch *gdbarch, CORE_ADDR ip);
 extern CORE_ADDR gdbarch_skip_prologue (struct gdbarch *gdbarch, CORE_ADDR ip);
@@ -940,10 +956,14 @@ extern int gdbarch_process_record_signal (struct gdbarch *gdbarch, struct regcac
 extern void set_gdbarch_process_record_signal (struct gdbarch *gdbarch, gdbarch_process_record_signal_ftype *process_record_signal);
 
 /* Signal translation: translate inferior's signal (target's) number
-   into GDB's representation.  This is mainly used when cross-debugging
-   core files --- "Live" targets hide the translation behind the target
-   interface (target_wait, target_resume, etc.).  The default is to do
-   the translation using host signal numbers. */
+   into GDB's representation.  The implementation of this method must
+   be host independent.  IOW, don't rely on symbols of the NAT_FILE
+   header (the nm-*.h files), the host <signal.h> header, or similar
+   headers.  This is mainly used when cross-debugging core files ---
+   "Live" targets hide the translation behind the target interface
+   (target_wait, target_resume, etc.). */
+
+extern int gdbarch_gdb_signal_from_target_p (struct gdbarch *gdbarch);
 
 typedef enum gdb_signal (gdbarch_gdb_signal_from_target_ftype) (struct gdbarch *gdbarch, int signo);
 extern enum gdb_signal gdbarch_gdb_signal_from_target (struct gdbarch *gdbarch, int signo);
@@ -1170,6 +1190,24 @@ extern int gdbarch_info_proc_p (struct gdbarch *gdbarch);
 typedef void (gdbarch_info_proc_ftype) (struct gdbarch *gdbarch, char *args, enum info_proc_what what);
 extern void gdbarch_info_proc (struct gdbarch *gdbarch, char *args, enum info_proc_what what);
 extern void set_gdbarch_info_proc (struct gdbarch *gdbarch, gdbarch_info_proc_ftype *info_proc);
+
+/* Iterate over all objfiles in the order that makes the most sense
+   for the architecture to make global symbol searches.
+  
+   CB is a callback function where OBJFILE is the objfile to be searched,
+   and CB_DATA a pointer to user-defined data (the same data that is passed
+   when calling this gdbarch method).  The iteration stops if this function
+   returns nonzero.
+  
+   CB_DATA is a pointer to some user-defined data to be passed to
+   the callback.
+  
+   If not NULL, CURRENT_OBJFILE corresponds to the objfile being
+   inspected when the symbol search was requested. */
+
+typedef void (gdbarch_iterate_over_objfiles_in_search_order_ftype) (struct gdbarch *gdbarch, iterate_over_objfiles_in_search_order_cb_ftype *cb, void *cb_data, struct objfile *current_objfile);
+extern void gdbarch_iterate_over_objfiles_in_search_order (struct gdbarch *gdbarch, iterate_over_objfiles_in_search_order_cb_ftype *cb, void *cb_data, struct objfile *current_objfile);
+extern void set_gdbarch_iterate_over_objfiles_in_search_order (struct gdbarch *gdbarch, gdbarch_iterate_over_objfiles_in_search_order_ftype *iterate_over_objfiles_in_search_order);
 
 /* Definition for an unknown syscall, used basically in error-cases.  */
 #define UNKNOWN_SYSCALL (-1)

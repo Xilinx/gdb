@@ -1,3 +1,28 @@
+2012-06-13  Yao Qi  <yao@codesourcery.com>
+
+	* server.c (start_inferior): Remove duplicated writes to fields
+	'last_resume_kind' and 'last_status' of 'current_inferior'.
+
+2012-06-12  Yao Qi  <yao@codesourcery.com>
+	    Pedro Alves  <palves@redhat.com>
+
+	* linux-low.c (linux_set_resume_request): Simplify predicate.  Add
+	comment.
+	* server.c (handle_v_cont): Extend comment.
+
+2012-06-11  Yao Qi  <yao@codesourcery.com>
+
+	* linux-low.c (linux_attach): Add 'static'.
+
+2012-06-06  Yao Qi  <yao@codesourcery.com>
+
+	* ax.c (gdb_eval_agent_expr): Print `top' in hex.
+
+2012-06-01  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix gcc -flto compilation warning.
+	* server.c (main): Make variable multi_mode and attach volatile.
+
 2012-05-30  Thiago Jung Bauermann  <thiago.bauermann@linaro.org>
 
 	* linux-low.c (get_r_debug): Disable code using DT_MIPS_RLD_MAP

@@ -23,6 +23,11 @@ AC_INIT(main.c)
 AC_CONFIG_HEADER(config.h:config.in)
 AM_MAINTAINER_MODE
 
+# Provide more thorough testing by -lmcheck.
+# Set it to 'true' for development snapshots, 'false' for releases or
+# pre-releases.
+development=true
+
 AC_PROG_CC
 AC_USE_SYSTEM_EXTENSIONS
 ACX_LARGEFILE
@@ -639,6 +644,11 @@ AC_SUBST(READLINE)
 AC_SUBST(READLINE_DEPS)
 AC_SUBST(READLINE_CFLAGS)
 AC_SUBST(READLINE_TEXI_INCFLAG)
+
+dnl -lmcheck provides cheap enough memory mangling for debugging purposes.
+if $development; then
+  AC_CHECK_LIB(mcheck, main)
+fi
 
 # Generate jit-reader.h
 
@@ -1822,8 +1832,8 @@ AC_ARG_ENABLE(werror,
      *) AC_MSG_ERROR(bad value ${enableval} for --enable-werror) ;;
    esac])
 
-# Enable -Werror by default when using gcc
-if test "${GCC}" = yes -a -z "${ERROR_ON_WARNING}" ; then
+# Enable -Werror by default when using gcc.  Turn it off for releases.
+if test "${GCC}" = yes -a -z "${ERROR_ON_WARNING}" && $development; then
     ERROR_ON_WARNING=yes
 fi
 

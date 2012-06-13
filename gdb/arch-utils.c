@@ -31,6 +31,7 @@
 #include "osabi.h"
 #include "target-descriptions.h"
 #include "objfiles.h"
+#include "language.h"
 
 #include "version.h"
 
@@ -793,13 +794,14 @@ default_gen_return_address (struct gdbarch *gdbarch,
   error (_("This architecture has no method to collect a return address."));
 }
 
-enum gdb_signal
-default_gdb_signal_from_target (struct gdbarch *gdbarch, int signo)
+int
+default_return_in_first_hidden_param_p (struct gdbarch *gdbarch,
+					struct type *type)
 {
-  /* Lacking a better mapping, assume host signal numbers.  If
-     debugging a cross-core, most likely this translation will be
-     incorrect.  */
-  return gdb_signal_from_host (signo);
+  /* Usually, the return value's address is stored the in the "first hidden"
+     parameter if the return value should be passed by reference, as
+     specified in ABI.  */
+  return language_pass_by_reference (type);
 }
 
 /* */

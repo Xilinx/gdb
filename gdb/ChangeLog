@@ -1,3 +1,505 @@
+2012-06-13  Mark Kettenis  <kettenis@gnu.org>
+	    Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	PR tdep/14222
+	* i386-tdep.c (i386_push_dummy_call): Unconditionally align the
+	stack on a 16-byte boundary.
+
+2012-06-13  Kaushik Srenevasan  <kaushik@twitter.com>
+
+	* jit.c (finalize_symtab): Set function's return type to 'void' by
+	default.
+
+2012-06-13  Mark Kettenis  <kettenis@gnu.org>
+	    H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-linux-tdep.c (amd64_linux_init_abi_common): New function.
+	Move bits common to both the classic LP64 and the new x32 ILP32
+	ABI here.
+	(amd64_linux_init_abi): Call amd64_linux_init_abi_common.
+	(amd64_x32_linux_init_abi): New function.
+	(_initialize_amd64_linux_tdep): Register osabi for bfd_mach_x64_32
+	subtype.
+
+	* i386-tdep.h (i386_pseudo_register_name): New prototype.
+	* i386-tdep.c (i386_pseudo_register_name): Make public.
+	* amd64-tdep.h (amd64_x32_init_abi): New prototype.
+	* amd64-tdep.c (amd64_dword_names): Add "eip".
+	(amd64_x32_pseudo_register_type): New function
+	(amd64_x32_init_abi): New function.
+
+2012-06-13  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	PR build/14003
+	* inferior.h (struct inferior_suspend_state): Comment out.
+	(struct inferior): Comment out the field suspend.
+	* infrun.c (struct infcall_suspend_state): Comment out the field
+	inferior_suspend.
+	(save_infcall_suspend_state, restore_infcall_suspend_state): Comment
+	out its assignment.
+
+2012-06-13  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	PR c++/14177 - Fix parsing TYPENAME:: in parentheses.
+	* c-exp.y (classify_inner_name): Remove caller assumptions in the
+	function comment.  Return ERROR for unresolved cases.  Implement
+	returning proper NAME.
+	(yylex): Accept also NAME from classify_inner_name.
+	* cp-namespace.c (cp_lookup_nested_type): Rename to ...
+	(cp_lookup_nested_symbol): ... here.  Return any found symbol, not just
+	LOC_TYPEDEF type.
+	* cp-support.h (cp_lookup_nested_type): Update its declaration.
+
+2012-06-13  Tom Tromey  <tromey@redhat.com>
+
+	* breakpoint.c (condition_completer): New function.
+	(_initialize_breakpoint): Use it.
+	* value.c (complete_internalvar): New function.
+	* value.h (complete_internalvar): Declare.
+
+2012-06-13  Tom Tromey  <tromey@redhat.com>
+
+	* ada-lang.c (ada_make_symbol_completion_list): Return a VEC.
+	* breakpoint.c (catch_syscall_completer): Return a VEC.
+	* cli/cli-cmds.c (complete_command): Update.
+	* cli/cli-decode.c (complete_on_cmdlist): Return a VEC.
+	(complete_on_enum): Likewise.
+	* command.h: Include gdb_vecs.h.
+	(completer_ftype): Change return type.
+	(complete_on_cmdlist, complete_on_enum): Likewise.
+	* completer.c (noop_completer, filename_completer)
+	(location_completer): Return a VEC.
+	(add_struct_fields): Remove 'nextp' argument.  Change 'output'
+	to a VEC.
+	(expression_completer, complete_line_internal, complete_line)
+	(command_completer): Return a VEC.
+	(gdb_completion_word_break_characters, line_completion_function):
+	Update.
+	* completer.h: Include gdb_vecs.h.
+	(complete_line, noop_completer, filename_completer)
+	(expression_completer, location_completer, command_completer):
+	Update.
+	* f-lang.c (f_word_break_characters): Return a VEC.
+	* interps.c (interpreter_completer): Return a VEC.
+	* language.h (struct language_defn)
+	<la_make_symbol_completion_list>: Return a VEC.
+	* python/py-cmd.c (cmdpy_completer): Return a VEC.
+	* symtab.c (free_completion_list): Take a VEC.
+	(return_val_size, return_val_index): Remove.
+	(return_val): Now a VEC.
+	(completion_list_add_name): Update.
+	(default_make_symbol_completion_list_break_on)
+	(default_make_symbol_completion_list, make_symbol_completion_list)
+	(make_symbol_completion_list_fn, make_file_symbol_completion_list):
+	Return a VEC.
+	(add_filename_to_list): Update.
+	(struct add_partial_filename_data) <list_used, list_alloced>: Remove.
+	<list>: Now a VEC.
+	(maybe_add_partial_symtab_filename): Update.
+	(make_source_files_completion_list): Return a VEC.
+	* symtab.h (default_make_symbol_completion_list_break_on)
+	(default_make_symbol_completion_list, make_symbol_completion_list)
+	(make_symbol_completion_list_fn, make_file_symbol_completion_list)
+	(make_source_files_completion_list): Update.
+
+2012-06-13  Tom Tromey  <tromey@redhat.com>
+
+	* breakpoint.c (add_catch_command): Use completer_ftype.
+	* breakpoint.h: Include command.h.
+	(add_catch_command): Use completer_ftype.
+	* cli/cli-decode.c (set_cmd_completer): Use completer_ftype.
+	* cli/cli-decode.h (struct cmd_list_element) <completer>:
+	Use completer_ftype.
+	* command.h (completer_ftype): New typedef.
+	(set_cmd_completer): Use it.
+	* python/py-cmd.c (struct cmdpy_completer) <completer>: Use
+	completer_ftype.
+
+2012-06-13  Pedro Alves  <palves@redhat.com>
+
+	Partial revert of previous change.
+
+	* serial.c (scb_base): New global.
+	(serial_for_fd): New.
+	(serial_open, serial_fdopen_ops): Link new serial in open serials
+	chain.
+	(do_serial_close): Unlink serial from the open serials chain.
+
+2012-06-12  Pedro Alves  <palves@redhat.com>
+
+	* infrun.c (infrun_thread_stop_requested_callback): Don't switch
+	threads here.
+	(prepare_for_detach): No longer context switch here in non-stop
+	mode.
+	(fetch_inferior_event): Ditto.
+	(handle_inferior_event) <STOP_QUIETLY || NO_STOP_QUIETLY>: Switch
+	to the event thread before removing breakpoints.  Switch to the
+	event thread before inserting breakpoints and resuming.
+	(handle_inferior_event) <TARGET_WAITKIND_SPURIOUS>: Switch to the
+	event thread before resuming.
+	(handle_inferior_event) <stepping_past_singlestep_breakpoint>:
+	Switch to the event thread before removing breakpoints.
+
+2012-06-12  Eli Zaretskii  <eliz@gnu.org>
+
+	* infcmd.c (construct_inferior_arguments) [__MINGW32__]: Quote
+	special characters correctly for the Windows shells.  See
+	http://sourceware.org/ml/gdb/2012-06/msg00047.html for the bug
+	report.
+	[!__MINGW32__]: Remove extra double quote character from special
+	characters.
+
+2012-06-11  Stan Shebs  <stan@codesourcery.com>
+
+	* ui-out.h: Remove #if 0 declarations.
+	* ui-out.c: Remove #if 0 functions.
+
+2012-06-11  Pedro Alves  <palves@redhat.com>
+
+	* ser-base.c (run_async_handler_and_reschedule): New.
+	(fd_event, push_event): Use it.
+	* serial.c (serial_open, serial_fdopen_ops): Set the initial
+	reference count to 1.
+	(do_serial_close): Set the bufp field to NULL.  Use serial_unref
+	instead of xfree.
+	(serial_is_open, serial_ref, serial_unref): New.
+	* serial.h (serial_open): Adjust comment.
+	(serial_is_open): Declare.
+	(serial_close): Adjust comment.
+	(serial_ref, serial_unref) Declare.
+	(struct serial): New field 'refcnt'.
+
+2012-06-11  Pedro Alves  <palves@redhat.com>
+
+	Remove #if 0'd "connect" command, and unnecessary associated
+	refcounting and serial reuse bits.
+
+	* serial.h (struct serial): Remove fields 'next' and 'refcnt'.
+	* serial.c (last_serial_opened): Delete.
+	(scb_base): Delete.
+	(serial_open): Adjust.
+	(serial_for_fd): Delete.
+	(serial_fdopen_ops, do_serial_close): Adjust.
+	(serial_fdopen_ops): Adjust.
+
+2012-06-11  Pedro Alves  <palves@redhat.com>
+
+	* serial.c (do_serial_close): Remove early return when SCB is
+	null.
+
+2012-06-11  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2read.c (dw2_get_file_names_reader): Ignore partial units.
+
+2012-06-11  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix regression by the "ambiguous linespec" series.
+	* breakpoint.c (parse_breakpoint_sals): New variable cursal.  Use
+	get_last_displayed_symtab and get_last_displayed_line and depending
+	on CURSAL.
+
+2012-06-11  Tom Tromey  <tromey@redhat.com>
+
+	* dwarf2read.c (dw2_get_primary_filename_reader): New function.
+	(dw2_find_symbol_file): Use it.
+
+2012-06-11  Michael Eager  <eager@eagercon.com>
+
+	* mips-linux-tdep.c (mips_gdb_signal_from_target): New
+	* mips-linux-tdep.h (mips_signals): New
+
+2012-06-11  Tom Tromey  <tromey@redhat.com>
+
+	* infrun.c (handle_inferior_event)
+	<BPSTAT_WHAT_SET_LONGJMP_RESUME>: Don't delete the step-resume
+	breakpoint.
+	<BPSTAT_WHAT_CLEAR_LONGJMP_RESUME>: Remove longjmp logic; use
+	exception logic in all cases.  Update comments.
+	(insert_longjmp_resume_breakpoint): Set the exception resume
+	breakpoint.
+
+2012-06-11  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* mips-tdep.c (mips_push_dummy_code): Handle microMIPS code.
+
+2012-06-09  Siva Chandra Reddy  <sivachandra@google.com>
+
+	* valarith.c (binop_types_user_defined_p): Fix a typo.
+
+2012-06-08  Yao Qi  <yao@codesourcery.com>
+            Chung-Lin Tang <cltang@codesourcery.com>
+
+	* arch-utils.c (default_return_in_first_hidden_param_p): New.
+	* arch-utils.h: Declare.
+	* gdbarch.sh: Add return_in_first_hidden_param_p.
+	* gdbarch.c, gdbarch.h: Regenerated.
+	* infcall.c (call_function_by_hand): Call
+	gdbarch_return_in_first_hidden_param_p instead of
+	language_pass_by_reference.
+
+	* m68k-tdep.c (m68k_return_in_first_hidden_param_p): New.
+	(m68k_gdbarch_init): Install m68k_return_in_first_hidden_param_p.
+	* sh-tdep.c (sh_return_in_first_hidden_param_p): New.
+	(sh_gdbarch_init): Install sh_return_in_first_hidden_param_p.
+	* tic6x-tdep.c (tic6x_push_dummy_call): Remove local variable
+	`cplus_return_struct_by_reference'.
+	(tic6x_return_value): Handle language cplusplus.
+	(tic6x_return_in_first_hidden_param_p): New.
+	(tic6x_gdbarch_init): Install tic6x_return_in_first_hidden_param_p.
+
+2012-06-07  Doug Evans  <dje@google.com>
+
+	* dwarf2read.c (dwarf2_cu): Add comment.
+
+2012-06-06  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* mips-tdep.c (mips_pseudo_register_type): Remove tdep local
+	variable.
+	(mips_eabi_push_dummy_call): Likewise.
+	(mips_n32n64_push_dummy_call): Likewise.
+	(mips_o32_push_dummy_call): Likewise.
+	(mips_o64_push_dummy_call): Likewise.
+
+2012-06-06  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* mips-tdep.c (mips_convert_register_p): Correct coding style.
+
+2012-06-06  Maciej W. Rozycki  <macro@codesourcery.com>
+
+	* mips-tdep.c (mips_pseudo_register_type): Use
+	mips_float_register_p.
+
+2012-06-06  Pedro Alves  <palves@redhat.com>
+
+	* infrun.c (handle_inferior_event): Remove calls to
+	reinit_frame_cache that follow a context_switch call.
+
+2012-06-06  Pedro Alves  <palves@redhat.com>
+
+	* infrun.c (handle_inferior_event) <deferred_step_ptid>: Use
+	context_switch and remove stale comment.
+
+2012-06-06  Pedro Alves  <palves@redhat.com>
+
+	* infrun.c (struct execution_control_state): Remove
+	`new_thread_event' field.
+	(handle_inferior_event): Simplify new threads handling; don't
+	resume the inferior if we find a new thread.
+
+2012-06-06  Thomas Schwinge  <thomas@codesourcery.com>
+
+	* NEWS: Document the deprecation of SH's 'regs' command.
+	* inferior.h (all_registers_info): Add function declaration.
+	* sh-tdep.c (sh_show_regs): Remove variable.
+	(sh_generic_show_regs, sh3_show_regs, sh2e_show_regs, sh2a_show_regs)
+	(sh2a_nofpu_show_regs, sh3e_show_regs, sh3_dsp_show_regs)
+	(sh4_show_regs, sh4_nofpu_show_regs, sh_dsp_show_regs)
+	(sh_show_regs_command): Remove functions.
+	(sh_gdbarch_init): Don't set sh_show_regs.
+	(_initialize_sh_tdep): Make the 'regs' command an deprecated alias to
+	'info all-registers'.
+	* sh64-tdep.c (sh64_show_media_regs, sh64_show_compact_regs)
+	(sh64_show_regs): Remove functions.
+	* sh64-tdep.h (sh64_show_regs): Remove function declaration.
+
+2012-06-06  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* configure.ac: Move development=true below AC_INIT.
+	* configure: Regenerate.
+
+2012-06-05  Stan Shebs  <stan@codesourcery.com>
+
+	* mi/mi-interp.c (mi_interpreter_init): Set raw_stdout from
+	gdb_stdout.
+
+2012-06-05  Siddhesh Poyarekar  <siddhesh@redhat.com>
+
+	* corefile.c (read_memory, read_stack, write_memory): Accept LEN
+	argument as ssize_t.
+	* gdbcore.h (read_memory, read_stack, write_memory): Likewise.
+	* remote.c (remote_write_bytes_aux, remote_write_bytes): Likewise.
+	* target.c (target_read_stack, target_write_memory)
+	(target_write_raw_memory): Likewise.
+	* target.h (target_read_stack, target_write_memory)
+	(target_write_raw_memory): Likewise.
+
+2012-06-05  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* symfile-mem.c: Change gdb_static_assert to ssize_t.
+	(target_read_memory_bfd): Cast gdb_assert LEN to ssize_t.
+	* target.c (target_read_memory): Change LEN to ssize_t.
+	* target.h (target_read_memory): Change LEN to ssize_t.
+
+2012-06-05  Pedro Alves  <palves@redhat.com>
+
+	PR backtrace/13866
+
+	* breakpoint.c (until_break_command): Only fetch the selected
+	frame after decode_line_1.
+
+2012-06-05  Joakim Tjernlund  <Joakim.Tjernlund@transmode.se>
+
+	* solib-svr4.c (enable_break): Don't fallback to setting the solib
+	event breakpoint at _start, __start or main if a program
+	interpreter is not found.
+
+2012-06-05  Joel Brobecker  <brobecker@adacore.com>
+
+	* windows-tdep.h (windows_iterate_over_objfiles_in_search_order):
+	Add declaration.
+	* windows-tdep.c: #include "objfiles.h".
+	(windows_iterate_over_objfiles_in_search_order): New function.
+	* amd64-windows-tdep.c (amd64_windows_init_abi): Set
+	iterate_over_objfiles_in_search_order gdbarch method to
+	windows_iterate_over_objfiles_in_search_order.
+	* i386-cygwin-tdep.c (i386_cygwin_init_abi): Likewise.
+
+2012-06-05  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdbarch.sh: Add generation of
+	"iterate_over_objfiles_in_search_order_cb_ftype" typedef in
+	gdbarch.h.  Add include of "objfiles.h" in gdbarch.c.
+	(iterate_over_objfiles_in_search_order): New gdbarch method.
+	* gdbarch.h, gdbarch.c: Regenerate.
+	* objfiles.h (default_iterate_over_objfiles_in_search_order):
+	Add declaration.
+	* objfiles.c (default_iterate_over_objfiles_in_search_order):
+	New function.
+	* symtab.c (lookup_symbol_aux_objfile): New function, extracted
+	out of lookup_symbol_aux_symtabs.
+	(lookup_symbol_aux_symtabs): Replace extracted-out code by
+	call to lookup_symbol_aux_objfile.
+	(struct global_sym_lookup_data): New type.
+	(lookup_symbol_global_iterator_cb): New function.
+	(lookup_symbol_global): Search for symbol using
+	gdbarch_iterate_over_objfiles_in_search_order and
+	lookup_symbol_global_iterator_cb.
+	* findvar.c (struct minsym_lookup_data): New type.
+	(minsym_lookup_iterator_cb): New function.
+	(default_read_var_value) [case LOC_UNRESOLVED]: Resolve the
+	symbol's address via gdbarch_iterate_over_objfiles_in_search_order
+	and minsym_lookup_iterator_cb.
+
+2012-06-05  Joel Brobecker  <brobecker@adacore.com>
+
+	Revert the following patch:
+	* findvar.c (default_read_var_value): For LOC_UNRESOLVED symbols,
+	try locating the symbol in the symbol's own objfile first, before
+	extending the search to all objfiles.
+	* symtab.c (lookup_symbol_aux_objfile): New function, extracted
+	out of lookup_symbol_aux_symtabs.
+	(lookup_symbol_aux_symtabs): Add new parameter "exclude_objfile".
+	Replace extracted-out code by call to lookup_symbol_aux_objfile.
+	Do not search EXCLUDE_OBJFILE.
+	(lookup_static_symbol_aux): Update call to lookup_symbol_aux_symtabs.
+	(lookup_symbol_global): Search for matches in the block's objfile
+	first, before searching all other objfiles.
+
+2012-06-05  Joel Brobecker  <brobecker@adacore.com>
+
+	* breakpoint.c (find_condition_and_thread): Stop parsing
+	as soon as the first invalid keyword is found.
+
+2012-06-05  Joel Brobecker  <brobecker@adacore.com>
+
+	* copyright.py (EXCLUDE_LIST): Add 'gdb/CONTRIBUTE' to list.
+
+2012-06-05  Joel Brobecker  <brobecker@adacore.com>
+
+	* config/djgpp/djcheck.sh: Add copyright header.
+
+2012-06-05  Joel Brobecker  <brobecker@adacore.com>
+
+	* copyright.py (update_files, main): Fix path to update-copyright
+	script.
+
+2012-06-05  Joel Brobecker  <brobecker@adacore.com>
+
+	* copyright.py (MULTIPLE_COPYRIGHT_HEADERS): New constant.
+	(main): Add MULTIPLE_COPYRIGHT_HEADERS to the list of files
+	for which a reminder to update by hand is printed.
+
+2012-06-04  Doug Evans  <dje@google.com>
+
+	* buildsym.c (make_blockvector): Add comment.
+
+2012-06-04  Pedro Alves  <palves@redhat.com>
+
+	* arch-utils.c (default_gdb_signal_from_target): Delete.
+	* arch-utils.h (default_gdb_signal_from_target): Delete.
+	* corelow.c (core_open) <signal mapping>: Extended comment.  Check
+	gdbarch_gdb_signal_from_target_p.
+	* gdbarch.sh (gdb_signal_from_target): Make it an M method (with
+	predicate).
+	* gdbarch.h: Regenerate.
+	* gdbarch.c: Regenerate.
+
+2012-06-04  Pedro Alves  <palves@redhat.com>
+
+	* gdbarch.sh (gdb_signal_from_target): Mention that the
+	implementation of the method must be host independent.
+	* gdbarch.h: Regenerate.
+
+2012-06-04  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* symfile-mem.c: 3 new gdb_static_assert for target_read_memory_bfd
+	parameters.
+	(target_read_memory_bfd): New function.
+	(symbol_file_add_from_memory): Use it.
+
+2012-06-03  Doug Evans  <dje@google.com>
+
+	* symtab.c (lookup_global_symbol_from_objfile): Only scan blockvector
+	of primary symtab.
+	(basic_lookup_transparent_type): Ditto.
+
+	* objfiles.h (ALL_OBJFILE_PRIMARY_SYMTABS): New macro.
+	(ALL_PRIMARY_SYMTABS): Use it.
+	(ALL_PSPACE_PRIMARY_SYMTABS): Ditto.
+	* dwarf2read.c (dw2_find_symbol_file): Ditto.
+	* linespec.c (iterate_over_all_matching_symtabs): Ditto.
+	* symtab.c (lookup_symbol_aux_objfile): Ditto.
+	(basic_lookup_transparent_type): Ditto.
+
+2012-06-02  Sergio Durigan Junior  <sergiodj@redhat.com>
+
+	* symtab.c (symbol_demangled_name): New variable `dem_name'.  Use
+	it to optimize resolution of demangled name.
+
+2012-06-01  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* configure.ac (development): Define new variable.
+	Call AC_CHECK_LIB for mcheck if $development.
+	(ERROR_ON_WARNING): Enable it by default only if $development.
+	* config.in: Regenerate.
+	* configure: Regenerate.
+
+2012-06-01  Siddhesh Poyarekar  <siddhesh@redhat.com>
+
+	* target.c (target_read_memory): Make LEN argument as size_t.
+	* target.h (target_read_memory): Likewise.
+
+2012-06-01  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* tilegx-linux-tdep.c (tilegx_l): Use ULL for 64-bit values.
+
+2012-05-31  Edjunior Machado  <emachado@linux.vnet.ibm.com>
+
+	* ppc-linux-nat.c (have_ptrace_booke_interface): Disable ptrace
+	BookE interface for PowerPC server processors if not available
+	in the Linux Kernel.
+
+2012-05-31  Keith Seitz  <keiths@redhat.com>
+
+	* linespec.c (decode_objc): Add cleanup to free
+	INFO.FILE_SYMTABS.
+	(find_linespec_symbols): Add cleanup to free CLASSES.
+	* symfile.c (find_separate_debug_file_by_debuglink): Add
+	cleanup to free DEBUGLINK.
+	* ui-out.c (clear_header_list): No need to check if
+	HEADER_NEXT.COLHDR is NULL.
+	Free HEADER_NEXT.COL_NAME.
+
 2012-05-31  Matthew Gretton-Dann  <matthew.gretton-dann@arm.com>
 
 	* ada-lang.c (standard_lookup): Prevent uninitialized variable

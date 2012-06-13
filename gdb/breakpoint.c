@@ -947,6 +947,62 @@ set_breakpoint_condition (struct breakpoint *b, char *exp,
   observer_notify_breakpoint_modified (b);
 }
 
+/* Completion for the "condition" command.  */
+
+static VEC (char_ptr) *
+condition_completer (struct cmd_list_element *cmd, char *text, char *word)
+{
+  char *space;
+
+  text = skip_spaces (text);
+  space = skip_to_space (text);
+  if (*space == '\0')
+    {
+      int len;
+      struct breakpoint *b;
+      VEC (char_ptr) *result = NULL;
+
+      if (text[0] == '$')
+	{
+	  /* We don't support completion of history indices.  */
+	  if (isdigit (text[1]))
+	    return NULL;
+	  return complete_internalvar (&text[1]);
+	}
+
+      /* We're completing the breakpoint number.  */
+      len = strlen (text);
+
+      ALL_BREAKPOINTS (b)
+      {
+	int single = b->loc->next == NULL;
+	struct bp_location *loc;
+	int count = 1;
+
+	for (loc = b->loc; loc; loc = loc->next)
+	  {
+	    char location[50];
+
+	    if (single)
+	      sprintf (location, "%d", b->number);
+	    else
+	      sprintf (location, "%d.%d", b->number, count);
+
+	    if (strncmp (location, text, len) == 0)
+	      VEC_safe_push (char_ptr, result, xstrdup (location));
+
+	    ++count;
+	  }
+      }
+
+      return result;
+    }
+
+  /* We're completing the expression part.  */
+  text = skip_spaces (space);
+  return expression_completer (cmd, text, word);
+}
+
 /* condition N EXP -- set break condition of breakpoint N to EXP.  */
 
 static void
@@ -8802,19 +8858,26 @@ parse_breakpoint_sals (char **address,
     }
   else
     {
+      struct symtab_and_line cursal = get_current_source_symtab_and_line ();
+
       /* Force almost all breakpoints to be in terms of the
          current_source_symtab (which is decode_line_1's default).
          This should produce the results we want almost all of the
-         time while leaving default_breakpoint_* alone.  */
-      if (last_displayed_sal_is_valid ())
+         time while leaving default_breakpoint_* alone.
+
+	 ObjC: However, don't match an Objective-C method name which
+	 may have a '+' or '-' succeeded by a '['.  */
+      if (last_displayed_sal_is_valid ()
+	  && (!cursal.symtab
+	      || ((strchr ("+-", (*address)[0]) != NULL)
+		  && ((*address)[1] != '['))))
 	decode_line_full (address, DECODE_LINE_FUNFIRSTLINE,
 			  get_last_displayed_symtab (),
 			  get_last_displayed_line (),
 			  canonical, NULL, NULL);
       else
 	decode_line_full (address, DECODE_LINE_FUNFIRSTLINE,
-			  (struct symtab *) NULL, 0,
-			  canonical, NULL, NULL);
+			  cursal.symtab, cursal.line, canonical, NULL, NULL);
     }
 }
 
@@ -8940,7 +9003,7 @@ find_condition_and_thread (char *tok, CORE_ADDR pc,
       else if (rest)
 	{
 	  *rest = savestring (tok, strlen (tok));
-	  tok += toklen;
+	  return;
 	}
       else
 	error (_("Junk at end of arguments."));
@@ -10815,10 +10878,10 @@ until_break_command (char *arg, int from_tty, int anywhere)
 {
   struct symtabs_and_lines sals;
   struct symtab_and_line sal;
-  struct frame_info *frame = get_selected_frame (NULL);
-  struct gdbarch *frame_gdbarch = get_frame_arch (frame);
-  struct frame_id stack_frame_id = get_stack_frame_id (frame);
-  struct frame_id caller_frame_id = frame_unwind_caller_id (frame);
+  struct frame_info *frame;
+  struct gdbarch *frame_gdbarch;
+  struct frame_id stack_frame_id;
+  struct frame_id caller_frame_id;
   struct breakpoint *breakpoint;
   struct breakpoint *breakpoint2 = NULL;
   struct cleanup *old_chain;
@@ -10854,8 +10917,15 @@ until_break_command (char *arg, int from_tty, int anywhere)
 
   old_chain = make_cleanup (null_cleanup, NULL);
 
-  /* Installing a breakpoint invalidates the frame chain (as it may
-     need to switch threads), so do any frame handling first.  */
+  /* Note linespec handling above invalidates the frame chain.
+     Installing a breakpoint also invalidates the frame chain (as it
+     may need to switch threads), so do any frame handling before
+     that.  */
+
+  frame = get_selected_frame (NULL);
+  frame_gdbarch = get_frame_arch (frame);
+  stack_frame_id = get_stack_frame_id (frame);
+  caller_frame_id = frame_unwind_caller_id (frame);
 
   /* Keep within the current frame, or in frames called by the current
      one.  */
@@ -14564,12 +14634,12 @@ catching_syscall_number (int syscall_number)
 }
 
 /* Complete syscall names.  Used by "catch syscall".  */
-static char **
+static VEC (char_ptr) *
 catch_syscall_completer (struct cmd_list_element *cmd,
                          char *text, char *word)
 {
   const char **list = get_syscall_names ();
-  char **retlist
+  VEC (char_ptr) *retlist
     = (list == NULL) ? NULL : complete_on_enum (list, text, word);
 
   xfree (list);
@@ -15186,8 +15256,7 @@ void
 add_catch_command (char *name, char *docstring,
 		   void (*sfunc) (char *args, int from_tty,
 				  struct cmd_list_element *command),
-                   char **(*completer) (struct cmd_list_element *cmd,
-                                         char *text, char *word),
+		   completer_ftype *completer,
 		   void *user_data_catch,
 		   void *user_data_tcatch)
 {
@@ -15515,10 +15584,11 @@ Type a line containing \"end\" to indicate the end of them.\n\
 Give \"silent\" as the first line to make the breakpoint silent;\n\
 then no output is printed when it is hit, except what the commands print."));
 
-  add_com ("condition", class_breakpoint, condition_command, _("\
+  c = add_com ("condition", class_breakpoint, condition_command, _("\
 Specify breakpoint number N to break only if COND is true.\n\
 Usage is `condition N COND', where N is an integer and COND is an\n\
 expression to be evaluated whenever breakpoint N is reached."));
+  set_cmd_completer (c, condition_completer);
 
   c = add_com ("tbreak", class_breakpoint, tbreak_command, _("\
 Set a temporary breakpoint.\n\

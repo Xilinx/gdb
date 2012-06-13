@@ -2393,7 +2393,6 @@ struct execution_control_state
   CORE_ADDR stop_func_start;
   CORE_ADDR stop_func_end;
   const char *stop_func_name;
-  int new_thread_event;
   int wait_some_more;
 };
 
@@ -2437,8 +2436,6 @@ infrun_thread_stop_requested_callback (struct thread_info *info, void *arg)
       memset (ecs, 0, sizeof (*ecs));
 
       old_chain = make_cleanup_restore_current_thread ();
-
-      switch_to_thread (info->ptid);
 
       /* Go through handle_inferior_event/normal_stop, so we always
 	 have consistent output as if the stop event had been
@@ -2656,14 +2653,6 @@ prepare_for_detach (void)
       old_chain_2 = make_cleanup (finish_thread_state_cleanup,
 				  &minus_one_ptid);
 
-      /* In non-stop mode, each thread is handled individually.
-	 Switch early, so the global state is set correctly for this
-	 thread.  */
-      if (non_stop
-	  && ecs->ws.kind != TARGET_WAITKIND_EXITED
-	  && ecs->ws.kind != TARGET_WAITKIND_SIGNALLED)
-	context_switch (ecs->ptid);
-
       /* Now figure out what to do with the result of the result.  */
       handle_inferior_event (ecs);
 
@@ -2789,16 +2778,6 @@ fetch_inferior_event (void *client_data)
 
   if (debug_infrun)
     print_target_wait_results (waiton_ptid, ecs->ptid, &ecs->ws);
-
-  if (non_stop
-      && ecs->ws.kind != TARGET_WAITKIND_IGNORE
-      && ecs->ws.kind != TARGET_WAITKIND_NO_RESUMED
-      && ecs->ws.kind != TARGET_WAITKIND_EXITED
-      && ecs->ws.kind != TARGET_WAITKIND_SIGNALLED)
-    /* In non-stop mode, each thread is handled individually.  Switch
-       early, so the global state is set correctly for this
-       thread.  */
-    context_switch (ecs->ptid);
 
   /* If an error happens while handling the event, propagate GDB's
      knowledge of the executing state to the frontend/user running
@@ -3229,17 +3208,15 @@ handle_inferior_event (struct execution_control_state *ecs)
       return;
     }
 
-  /* If it's a new process, add it to the thread database.  */
-
-  ecs->new_thread_event = (!ptid_equal (ecs->ptid, inferior_ptid)
-			   && !ptid_equal (ecs->ptid, minus_one_ptid)
-			   && !in_thread_list (ecs->ptid));
-
   if (ecs->ws.kind != TARGET_WAITKIND_EXITED
-      && ecs->ws.kind != TARGET_WAITKIND_SIGNALLED && ecs->new_thread_event)
-    add_thread (ecs->ptid);
-
-  ecs->event_thread = find_thread_ptid (ecs->ptid);
+      && ecs->ws.kind != TARGET_WAITKIND_SIGNALLED
+      && !ptid_equal (ecs->ptid, minus_one_ptid))
+    {
+      ecs->event_thread = find_thread_ptid (ecs->ptid);
+      /* If it's a new thread, add it to the thread database.  */
+      if (ecs->event_thread == NULL)
+	ecs->event_thread = add_thread (ecs->ptid);
+    }
 
   /* Dependent on valid ECS->EVENT_THREAD.  */
   adjust_pc_after_break (ecs);
@@ -3383,6 +3360,9 @@ handle_inferior_event (struct execution_control_state *ecs)
 	 we're attaching or setting up a remote connection.  */
       if (stop_soon == STOP_QUIETLY || stop_soon == NO_STOP_QUIETLY)
 	{
+	  if (!ptid_equal (ecs->ptid, inferior_ptid))
+	    context_switch (ecs->ptid);
+
 	  /* Loading of shared libraries might have changed breakpoint
 	     addresses.  Make sure new breakpoints are inserted.  */
 	  if (stop_soon == NO_STOP_QUIETLY
@@ -3398,6 +3378,9 @@ handle_inferior_event (struct execution_control_state *ecs)
     case TARGET_WAITKIND_SPURIOUS:
       if (debug_infrun)
         fprintf_unfiltered (gdb_stdlog, "infrun: TARGET_WAITKIND_SPURIOUS\n");
+      if (!ptid_equal (ecs->ptid, inferior_ptid)
+	  && !ptid_equal (ecs->ptid, minus_one_ptid))
+	context_switch (ecs->ptid);
       resume (0, GDB_SIGNAL_0);
       prepare_to_wait (ecs);
       return;
@@ -3514,10 +3497,7 @@ handle_inferior_event (struct execution_control_state *ecs)
       }
 
       if (!ptid_equal (ecs->ptid, inferior_ptid))
-	{
-	  context_switch (ecs->ptid);
-	  reinit_frame_cache ();
-	}
+	context_switch (ecs->ptid);
 
       /* Immediately detach breakpoints from the child before there's
 	 any chance of letting the user delete breakpoints from the
@@ -3634,10 +3614,7 @@ handle_inferior_event (struct execution_control_state *ecs)
         fprintf_unfiltered (gdb_stdlog, "infrun: TARGET_WAITKIND_EXECD\n");
 
       if (!ptid_equal (ecs->ptid, inferior_ptid))
-	{
-	  context_switch (ecs->ptid);
-	  reinit_frame_cache ();
-	}
+	context_switch (ecs->ptid);
 
       singlestep_breakpoints_inserted_p = 0;
       cancel_single_step_breakpoints ();
@@ -3713,30 +3690,6 @@ handle_inferior_event (struct execution_control_state *ecs)
       return;
     }
 
-  if (ecs->new_thread_event)
-    {
-      if (non_stop)
-	/* Non-stop assumes that the target handles adding new threads
-	   to the thread list.  */
-	internal_error (__FILE__, __LINE__,
-			"targets should add new threads to the thread "
-			"list themselves in non-stop mode.");
-
-      /* We may want to consider not doing a resume here in order to
-	 give the user a chance to play with the new thread.  It might
-	 be good to make that a user-settable option.  */
-
-      /* At this point, all threads are stopped (happens automatically
-	 in either the OS or the native code).  Therefore we need to
-	 continue all threads in order to make progress.  */
-
-      if (!ptid_equal (ecs->ptid, inferior_ptid))
-	context_switch (ecs->ptid);
-      target_resume (RESUME_ALL, 0, GDB_SIGNAL_0);
-      prepare_to_wait (ecs);
-      return;
-    }
-
   if (ecs->ws.kind == TARGET_WAITKIND_STOPPED)
     {
       /* Do we need to clean up the state of a thread that has
@@ -3802,6 +3755,8 @@ handle_inferior_event (struct execution_control_state *ecs)
 				"infrun: stepping_past_"
 				"singlestep_breakpoint\n");
 	  /* Pull the single step breakpoints out of the target.  */
+	  if (!ptid_equal (ecs->ptid, inferior_ptid))
+	    context_switch (ecs->ptid);
 	  remove_single_step_breakpoints ();
 	  singlestep_breakpoints_inserted_p = 0;
 
@@ -3834,15 +3789,15 @@ handle_inferior_event (struct execution_control_state *ecs)
 	  /* Pull the single step breakpoints out of the target.  */
 	  if (singlestep_breakpoints_inserted_p)
 	    {
+	      if (!ptid_equal (ecs->ptid, inferior_ptid))
+		context_switch (ecs->ptid);
 	      remove_single_step_breakpoints ();
 	      singlestep_breakpoints_inserted_p = 0;
 	    }
 
 	  ecs->event_thread->control.trap_expected = 0;
 
-	  /* Note: We do not call context_switch at this point, as the
-	     context is already set up for stepping the original thread.  */
-	  switch_to_thread (deferred_step_ptid);
+	  context_switch (deferred_step_ptid);
 	  deferred_step_ptid = null_ptid;
 	  /* Suppress spurious "Switching to ..." message.  */
 	  previous_inferior_ptid = inferior_ptid;
@@ -4458,10 +4413,6 @@ process_event_stop_test:
 		return;
 	      }
 
-	    /* We're going to replace the current step-resume breakpoint
-	       with a longjmp-resume breakpoint.  */
-	    delete_step_resume_breakpoint (ecs->event_thread);
-
 	    /* Insert a breakpoint at resume address.  */
 	    insert_longjmp_resume_breakpoint (gdbarch, jmp_buf_pc);
 	  }
@@ -4471,62 +4422,59 @@ process_event_stop_test:
 	return;
 
       case BPSTAT_WHAT_CLEAR_LONGJMP_RESUME:
-        if (debug_infrun)
-	  fprintf_unfiltered (gdb_stdlog,
-			      "infrun: BPSTAT_WHAT_CLEAR_LONGJMP_RESUME\n");
+	{
+	  struct frame_info *init_frame;
 
-	if (what.is_longjmp)
-	  {
-	    gdb_assert (ecs->event_thread->control.step_resume_breakpoint
-			!= NULL);
-	    delete_step_resume_breakpoint (ecs->event_thread);
-	  }
-	else
-	  {
-	    /* There are several cases to consider.
+	  /* There are several cases to consider.
 
-	       1. The initiating frame no longer exists.  In this case
-	       we must stop, because the exception has gone too far.
+	     1. The initiating frame no longer exists.  In this case
+	     we must stop, because the exception or longjmp has gone
+	     too far.
 
-	       2. The initiating frame exists, and is the same as the
-	       current frame.  We stop, because the exception has been
-	       caught.
+	     2. The initiating frame exists, and is the same as the
+	     current frame.  We stop, because the exception or longjmp
+	     has been caught.
 
-	       3. The initiating frame exists and is different from
-	       the current frame.  This means the exception has been
-	       caught beneath the initiating frame, so keep going.  */
-	    struct frame_info *init_frame
-	      = frame_find_by_id (ecs->event_thread->initiating_frame);
+	     3. The initiating frame exists and is different from the
+	     current frame.  This means the exception or longjmp has
+	     been caught beneath the initiating frame, so keep
+	     going.  */
 
-	    gdb_assert (ecs->event_thread->control.exception_resume_breakpoint
-			!= NULL);
-	    delete_exception_resume_breakpoint (ecs->event_thread);
+	  if (debug_infrun)
+	    fprintf_unfiltered (gdb_stdlog,
+				"infrun: BPSTAT_WHAT_CLEAR_LONGJMP_RESUME\n");
 
-	    if (init_frame)
-	      {
-		struct frame_id current_id
-		  = get_frame_id (get_current_frame ());
-		if (frame_id_eq (current_id,
-				 ecs->event_thread->initiating_frame))
-		  {
-		    /* Case 2.  Fall through.  */
-		  }
-		else
-		  {
-		    /* Case 3.  */
-		    keep_going (ecs);
-		    return;
-		  }
-	      }
+	  init_frame = frame_find_by_id (ecs->event_thread->initiating_frame);
 
-	    /* For Cases 1 and 2, remove the step-resume breakpoint,
-	       if it exists.  */
-	    delete_step_resume_breakpoint (ecs->event_thread);
-	  }
+	  gdb_assert (ecs->event_thread->control.exception_resume_breakpoint
+		      != NULL);
+	  delete_exception_resume_breakpoint (ecs->event_thread);
 
-	ecs->event_thread->control.stop_step = 1;
-	print_end_stepping_range_reason ();
-	stop_stepping (ecs);
+	  if (init_frame)
+	    {
+	      struct frame_id current_id
+		= get_frame_id (get_current_frame ());
+	      if (frame_id_eq (current_id,
+			       ecs->event_thread->initiating_frame))
+		{
+		  /* Case 2.  Fall through.  */
+		}
+	      else
+		{
+		  /* Case 3.  */
+		  keep_going (ecs);
+		  return;
+		}
+	    }
+
+	  /* For Cases 1 and 2, remove the step-resume breakpoint,
+	     if it exists.  */
+	  delete_step_resume_breakpoint (ecs->event_thread);
+
+	  ecs->event_thread->control.stop_step = 1;
+	  print_end_stepping_range_reason ();
+	  stop_stepping (ecs);
+	}
 	return;
 
       case BPSTAT_WHAT_SINGLE:
@@ -5496,17 +5444,17 @@ insert_step_resume_breakpoint_at_caller (struct frame_info *next_frame)
 static void
 insert_longjmp_resume_breakpoint (struct gdbarch *gdbarch, CORE_ADDR pc)
 {
-  /* There should never be more than one step-resume or longjmp-resume
-     breakpoint per thread, so we should never be setting a new
+  /* There should never be more than one longjmp-resume breakpoint per
+     thread, so we should never be setting a new
      longjmp_resume_breakpoint when one is already active.  */
-  gdb_assert (inferior_thread ()->control.step_resume_breakpoint == NULL);
+  gdb_assert (inferior_thread ()->control.exception_resume_breakpoint == NULL);
 
   if (debug_infrun)
     fprintf_unfiltered (gdb_stdlog,
 			"infrun: inserting longjmp-resume breakpoint at %s\n",
 			paddress (gdbarch, pc));
 
-  inferior_thread ()->control.step_resume_breakpoint =
+  inferior_thread ()->control.exception_resume_breakpoint =
     set_momentary_breakpoint_at_pc (gdbarch, pc, bp_longjmp_resume);
 }
 
@@ -6681,7 +6629,9 @@ siginfo_make_value (struct gdbarch *gdbarch, struct internalvar *var,
 struct infcall_suspend_state
 {
   struct thread_suspend_state thread_suspend;
+#if 0 /* Currently unused and empty structures are not valid C.  */
   struct inferior_suspend_state inferior_suspend;
+#endif
 
   /* Other fields:  */
   CORE_ADDR stop_pc;
@@ -6735,7 +6685,9 @@ save_infcall_suspend_state (void)
     }
 
   inf_state->thread_suspend = tp->suspend;
+#if 0 /* Currently unused and empty structures are not valid C.  */
   inf_state->inferior_suspend = inf->suspend;
+#endif
 
   /* run_inferior_call will not use the signal due to its `proceed' call with
      GDB_SIGNAL_0 anyway.  */
@@ -6759,7 +6711,9 @@ restore_infcall_suspend_state (struct infcall_suspend_state *inf_state)
   struct gdbarch *gdbarch = get_regcache_arch (regcache);
 
   tp->suspend = inf_state->thread_suspend;
+#if 0 /* Currently unused and empty structures are not valid C.  */
   inf->suspend = inf_state->inferior_suspend;
+#endif
 
   stop_pc = inf_state->stop_pc;
 

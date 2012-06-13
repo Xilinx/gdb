@@ -845,8 +845,8 @@ static int
 mips_convert_register_p (struct gdbarch *gdbarch,
 			 int regnum, struct type *type)
 {
-  return mips_convert_register_float_case_p (gdbarch, regnum, type)
-      || mips_convert_register_gpreg_case_p (gdbarch, regnum, type);
+  return (mips_convert_register_float_case_p (gdbarch, regnum, type)
+	  || mips_convert_register_gpreg_case_p (gdbarch, regnum, type));
 }
 
 static int
@@ -1004,7 +1004,6 @@ static struct type *
 mips_pseudo_register_type (struct gdbarch *gdbarch, int regnum)
 {
   const int num_regs = gdbarch_num_regs (gdbarch);
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   int rawnum = regnum % num_regs;
   struct type *rawtype;
 
@@ -1015,8 +1014,7 @@ mips_pseudo_register_type (struct gdbarch *gdbarch, int regnum)
   if (TYPE_LENGTH (rawtype) == 0)
     return rawtype;
 
-  if (rawnum >= mips_regnum (gdbarch)->fp0
-      && rawnum < mips_regnum (gdbarch)->fp0 + 32)
+  if (mips_float_register_p (gdbarch, rawnum))
     /* Present the floating point registers however the hardware did;
        do not try to convert between FPU layouts.  */
     return rawtype;
@@ -4199,11 +4197,18 @@ mips_push_dummy_code (struct gdbarch *gdbarch, CORE_ADDR sp,
 		      CORE_ADDR *real_pc, CORE_ADDR *bp_addr,
 		      struct regcache *regcache)
 {
-  CORE_ADDR nop_addr;
   static gdb_byte nop_insn[] = { 0, 0, 0, 0 };
+  CORE_ADDR nop_addr;
+  CORE_ADDR bp_slot;
 
   /* Reserve enough room on the stack for our breakpoint instruction.  */
-  *bp_addr = sp - sizeof (nop_insn);
+  bp_slot = sp - sizeof (nop_insn);
+
+  /* Return to microMIPS mode if calling microMIPS code to avoid
+     triggering an address error exception on processors that only
+     support microMIPS execution.  */
+  *bp_addr = (mips_pc_is_micromips (gdbarch, funaddr)
+	      ? make_compact_addr (bp_slot) : bp_slot);
 
   /* The breakpoint layer automatically adjusts the address of
      breakpoints inserted in a branch delay slot.  With enough
@@ -4212,7 +4217,7 @@ mips_push_dummy_code (struct gdbarch *gdbarch, CORE_ADDR sp,
      trigger the adjustement, and break the function call entirely.
      So, we reserve those 4 bytes and write a nop instruction
      to prevent that from happening.  */
-  nop_addr = *bp_addr - sizeof (nop_insn);
+  nop_addr = bp_slot - sizeof (nop_insn);
   write_memory (nop_addr, nop_insn, sizeof (nop_insn));
   sp = mips_frame_align (gdbarch, nop_addr);
 
@@ -4233,7 +4238,6 @@ mips_eabi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   int argnum;
   int len = 0;
   int stack_offset = 0;
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   CORE_ADDR func_addr = find_function_addr (function, NULL);
   int regsize = mips_abi_regsize (gdbarch);
@@ -4641,7 +4645,6 @@ mips_n32n64_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   int argnum;
   int len = 0;
   int stack_offset = 0;
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   CORE_ADDR func_addr = find_function_addr (function, NULL);
 
@@ -5098,7 +5101,6 @@ mips_o32_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   int argnum;
   int len = 0;
   int stack_offset = 0;
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   CORE_ADDR func_addr = find_function_addr (function, NULL);
 
@@ -5628,7 +5630,6 @@ mips_o64_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   int argnum;
   int len = 0;
   int stack_offset = 0;
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   CORE_ADDR func_addr = find_function_addr (function, NULL);
 

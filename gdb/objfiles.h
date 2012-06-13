@@ -525,6 +525,11 @@ extern void *objfile_data (struct objfile *objfile,
 extern struct bfd *gdb_bfd_ref (struct bfd *abfd);
 extern void gdb_bfd_unref (struct bfd *abfd);
 extern int gdb_bfd_close_or_warn (struct bfd *abfd);
+
+extern void default_iterate_over_objfiles_in_search_order
+  (struct gdbarch *gdbarch,
+   iterate_over_objfiles_in_search_order_cb_ftype *cb,
+   void *cb_data, struct objfile *current_objfile);
 
 
 /* Traverse all object files in the current program space.
@@ -556,6 +561,12 @@ extern int gdb_bfd_close_or_warn (struct bfd *abfd);
 #define	ALL_OBJFILE_SYMTABS(objfile, s) \
     for ((s) = (objfile) -> symtabs; (s) != NULL; (s) = (s) -> next)
 
+/* Traverse all primary symtabs in one objfile.  */
+
+#define ALL_OBJFILE_PRIMARY_SYMTABS(objfile, s) \
+  ALL_OBJFILE_SYMTABS ((objfile), (s)) \
+    if ((s)->primary)
+
 /* Traverse all minimal symbols in one objfile.  */
 
 #define	ALL_OBJFILE_MSYMBOLS(objfile, m) \
@@ -578,13 +589,11 @@ extern int gdb_bfd_close_or_warn (struct bfd *abfd);
 
 #define ALL_PRIMARY_SYMTABS(objfile, s) \
   ALL_OBJFILES (objfile)		\
-    ALL_OBJFILE_SYMTABS (objfile, s)	\
-      if ((s)->primary)
+    ALL_OBJFILE_PRIMARY_SYMTABS (objfile, s)
 
 #define ALL_PSPACE_PRIMARY_SYMTABS(pspace, objfile, s)	\
   ALL_PSPACE_OBJFILES (ss, objfile)			\
-    ALL_OBJFILE_SYMTABS (objfile, s)			\
-      if ((s)->primary)
+    ALL_OBJFILE_PRIMARY_SYMTABS (objfile, s)
 
 /* Traverse all minimal symbols in all objfiles in the current symbol
    space.  */

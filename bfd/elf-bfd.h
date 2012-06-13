@@ -1186,7 +1186,8 @@ struct elf_backend_data
      see elf.c, elfcode.h.  */
   bfd *(*elf_backend_bfd_from_remote_memory)
      (bfd *templ, bfd_vma ehdr_vma, bfd_vma *loadbasep,
-      int (*target_read_memory) (bfd_vma vma, bfd_byte *myaddr, int len));
+      int (*target_read_memory) (bfd_vma vma, bfd_byte *myaddr,
+				 bfd_size_type len));
 
   /* This function is used by `_bfd_elf_get_synthetic_symtab';
      see elf.c.  */
@@ -1222,10 +1223,11 @@ struct elf_backend_data
   /* Return TRUE if type is a function symbol type.  */
   bfd_boolean (*is_function_type) (unsigned int type);
 
-  /* Return TRUE if symbol may be a function.  Set *CODE_SEC and *CODE_VAL
-     to the function's entry point.  */
-  bfd_boolean (*maybe_function_sym) (const asymbol *sym,
-				     asection **code_sec, bfd_vma *code_off);
+  /* If the ELF symbol SYM might be a function in SEC, return the
+     function size and set *CODE_OFF to the function's entry point,
+     otherwise return zero.  */
+  bfd_size_type (*maybe_function_sym) (const asymbol *sym, asection *sec,
+				       bfd_vma *code_off);
 
   /* Used to handle bad SHF_LINK_ORDER input.  */
   bfd_error_handler_type link_order_error_handler;
@@ -2207,8 +2209,8 @@ extern bfd_boolean _bfd_elf_map_sections_to_segments
 
 extern bfd_boolean _bfd_elf_is_function_type (unsigned int);
 
-extern bfd_boolean _bfd_elf_maybe_function_sym (const asymbol *,
-						asection **, bfd_vma *);
+extern bfd_size_type _bfd_elf_maybe_function_sym (const asymbol *, asection *,
+						  bfd_vma *);
 
 extern int bfd_elf_get_default_section_type (flagword);
 
@@ -2260,10 +2262,10 @@ extern char *elfcore_write_register_note
 
 extern bfd *_bfd_elf32_bfd_from_remote_memory
   (bfd *templ, bfd_vma ehdr_vma, bfd_vma *loadbasep,
-   int (*target_read_memory) (bfd_vma, bfd_byte *, int));
+   int (*target_read_memory) (bfd_vma, bfd_byte *, bfd_size_type));
 extern bfd *_bfd_elf64_bfd_from_remote_memory
   (bfd *templ, bfd_vma ehdr_vma, bfd_vma *loadbasep,
-   int (*target_read_memory) (bfd_vma, bfd_byte *, int));
+   int (*target_read_memory) (bfd_vma, bfd_byte *, bfd_size_type));
 
 extern bfd_vma bfd_elf_obj_attr_size (bfd *);
 extern void bfd_elf_set_obj_attr_contents (bfd *, bfd_byte *, bfd_vma);

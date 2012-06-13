@@ -1,3 +1,84 @@
+2012-06-13  Nick Clifton  <nickc@redhat.com>
+
+	* elf32-arm.c (bfd_arm_get_mach_from_attributes): New function.
+	(elf32_arm_object_p): If the machine number could not be deduced
+	from the notes, call bfd_arm_get_mach_from_attributes to get the
+	number from the attributes.
+
+2012-06-12  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR bfd/14207
+	* elf.c (assign_file_positions_for_non_load_sections): Abort if
+	PT_GNU_RELRO segment doesn't fit in PT_LOAD segment.
+
+2012-06-12  Alan Modra  <amodra@gmail.com>
+
+	PR ld/14207
+	* elf.c (_bfd_elf_map_sections_to_segments): Disregard bss type
+	sections at end of PT_LOAD segment when searching for segment
+	that contains end of relro extent.
+
+2012-06-11  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf.c (assign_file_positions_for_non_load_sections): Reindent.
+
+2012-06-11  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf.c (_bfd_elf_map_sections_to_segments): Reindent.
+
+2012-06-06  Alan Modra  <amodra@gmail.com>
+
+	* elflink.c (elf_link_input_bfd): Provide a file symbol for
+	each input file with local syms, if the input lacks such.
+	(bfd_elf_final_link): Add a file symbol to mark end of locals
+	for which we can associate with input files.
+	(struct elf_final_link_info): Add filesym_count field.
+	(struct elf_outext_info): Add need_second_pass and second_pass.
+	(elf_link_output_extsym): Detect symbols defined in the output
+	file, emit them on second pass over locals.
+
+2012-06-04  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* bfd-in.h (bfd_elf_bfd_from_remote_memory): Make LEN argument
+	of target_read_memory as bfd_size_type.
+	* bfd-in2.h: Regenerate.
+	* elf-bfd.h (elf_backend_bfd_from_remote_memory): Make LEN
+	argument of target_read_memory as bfd_size_type.
+	(_bfd_elf32_bfd_from_remote_memory): Likewise.
+	(_bfd_elf64_bfd_from_remote_memory): Likewise.
+	* elf.c (bfd_elf_bfd_from_remote_memory): Likewise.
+	* elfcode.h (NAME(_bfd_elf,bfd_from_remote_memory)): Likewise.
+
+2012-06-03  Alan Modra  <amodra@gmail.com>
+
+	PR binutils/13897
+	* elf.c (elf_find_function): Cache last function sym info.
+	(_bfd_elf_maybe_function_sym): Return function size, pass in
+	section of interest.
+	* elf-bfd.h (struct elf_backend_data <maybe_function_sym>): Likewise.
+	(_bfd_elf_maybe_function_sym): Likewise.
+	* elf64-ppc.c (ppc64_elf_maybe_function_sym): Likewise.
+	(opd_entry_value): Add in_code_sec param.  Revert caching code.
+	Return -1 if in_code_sec and function found in wrong section.
+	Update all calls.
+
+2012-06-01  Siddhesh Poyarekar  <siddhesh@redhat.com>
+
+	* bfd-in.h (bfd_elf_bfd_from_remote_memory): Make LEN argument
+	of target_read_memory as size_t.
+	* bfd-in2.h: Regenerate.
+	* elf-bfd.h (elf_backend_bfd_from_remote_memory): Make LEN
+	argument of target_read_memory as size_t.
+	(_bfd_elf32_bfd_from_remote_memory): Likewise.
+	(_bfd_elf64_bfd_from_remote_memory): Likewise.
+	* elf.c (bfd_elf_bfd_from_remote_memory): Likewise.
+	* elfcode.h (NAME(_bfd_elf,bfd_from_remote_memory)): Likewise.
+
+2012-06-01  Alan Modra  <amodra@gmail.com>
+
+	PR binutils/13897
+	* elf64-ppc.c (opd_entry_value): Rewrite cache code.
+
 2012-05-29  Tom Tromey  <tromey@redhat.com>
 
 	* opncls.c (bfd_fopen): Always close fd on failure.

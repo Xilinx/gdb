@@ -1,3 +1,109 @@
+2012-06-13  Keith Seitz  <keiths@redhat.com>
+
+	PR breakpoints/13798 and mi/11541
+	* gdb.linespec/ls-errs.exp: Add a few more tests for
+	filenames with spaces and colons.
+
+2012-06-13  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	PR c++/14177 - Fix parsing TYPENAME:: in parentheses.
+	* gdb.cp/cpexprs.cc (class CV, CV::i, ATTRIBUTE_USED, CV_f): New.
+	(test_function): Call CV_f.
+	* gdb.cp/cpexprs.exp (p 'CV::m(int)', p CV::m(int))
+	(p 'CV::m(int) const', p CV::m(int) const, p 'CV::m(int) volatile')
+	(p CV::m(int) volatile, p 'CV::m(int) const volatile')
+	(p CV::m(int) const volatile, p CV_f(int), p CV_f(CV::t))
+	(p CV_f(CV::i)): New tests.
+
+2012-06-13  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.base/condbreak.exp: Add tests for "condition" completion.
+
+2012-06-11  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Fix regression by the "ambiguous linespec" series.
+	* gdb.base/break.exp (list marker1, break lineno, delete $bpnum): New
+	tests.
+
+2012-06-11  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* lib/future.exp: Set $use_gdb_compile even if only find_go_linker is
+	missing.
+
+2012-06-11  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.base/longjmp.c (hidden_longjmp): Move expected catch
+	location...
+	(main): ...here.
+
+2012-06-07  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.trace/strace.exp: Shorten some too-long lines.
+
+2012-06-06  Pedro Alves  <palves@redhat.com>
+
+	* gdb.threads/clone-new-thread-event.c: New file.
+	* gdb.threads/clone-new-thread-event.exp: New file.
+
+2012-06-06  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.base/dprintf.c (main): Add extra parameter when calling
+	printf and fprintf.
+	(bar): New function.  It is a dead function, but to ensure
+	'malloc' is linked explicitly.
+
+2012-06-06  Yao Qi  <yao@codesourcery.com>
+
+	* gdb.base/info-proc.exp: Return if target doesn't support
+	'info proc'.
+
+2012-06-05  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.base/freebpcmd.exp (set lines): Check valid range of I.
+	(run program with breakpoint commands): XFAIl if it is not.
+
+2012-06-05  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.base/ctxobj-f.c (GET_VERSION): Introduce local variable
+	and add comment.
+	* gdb.base/ctxobj-m.c (main): Rewrite, and add comment.
+	* gdb.base/ctxobj.exp: Insert breakpoint in ctxobj-f.c using
+	"STOP" marker.  Adjust testing strategy to make it work on
+	all targets.
+
+	* gdb.base/print-file-var-main.c (main): Rewrite using local
+	variables and adjust get_version_2's return value check.
+	Add small comment.
+	* gdb.base/print-file-var.exp: Insert breakpoint using "STOP"
+	marker.  Adjust testing strategy to make it work on all targets.
+
+2012-06-05  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdb.ada/bad-task-bp-keyword: New testcase.
+
+2012-06-03  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.base/code_elim.exp (add-symbol-file ${testfile1} 0x100000):
+	Simplify it to ...
+	(symbol-file ${testfile1}): ... here.
+	(test eliminated var my_global_symbol)
+	(test eliminated var my_static_symbol)
+	(test eliminated var my_global_func, get address of main): Wrap them to
+	'single psymtabs' and 'single symtabs'
+	(get address of my_global_symbol, get address of my_static_symbol)
+	(get address of my_global_func, get address of main): Wrap them to
+	'order1' and 'order2'.
+
+	* gdb.base/code_elim.exp
+	(add-symbol-file ${testfile1} 0x100000)
+	(add-symbol-file ${testfile2} 0x200000): Wrap them to 'order1' and
+	'order2'.
+	(order1: add-symbol-file ${testfile1} 0x100000)
+	(order1: add-symbol-file ${testfile2} 0x200000)
+	(order2: add-symbol-file ${testfile2} 0x200000)
+	(order2: add-symbol-file ${testfile1} 0x100000): Add -s .data and -s
+	.bss as appropriate.
+
 2012-05-28  Jan Kratochvil  <jan.kratochvil@redhat.com>
 
 	* gdb.server/solib-list-lib.c: New file.

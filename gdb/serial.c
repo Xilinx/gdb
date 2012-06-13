@@ -33,10 +33,6 @@ static int global_serial_debug_p;
 
 static struct serial_ops *serial_ops_list = NULL;
 
-/* This is the last serial stream opened.  Used by connect command.  */
-
-static struct serial *last_serial_opened = NULL;
-
 /* Pointer to list of scb's.  */
 
 static struct serial *scb_base;
@@ -165,6 +161,21 @@ serial_add_interface (struct serial_ops *optable)
   serial_ops_list = optable;
 }
 
+/* Return the open serial device for FD, if found, or NULL if FD is
+   not already opened.  */
+
+struct serial *
+serial_for_fd (int fd)
+{
+  struct serial *scb;
+
+  for (scb = scb_base; scb; scb = scb->next)
+    if (scb->fd == fd)
+      return scb;
+
+  return NULL;
+}
+
 /* Open up a device or a network socket, depending upon the syntax of NAME.  */
 
 struct serial *
@@ -173,13 +184,6 @@ serial_open (const char *name)
   struct serial *scb;
   struct serial_ops *ops;
   const char *open_name = name;
-
-  for (scb = scb_base; scb; scb = scb->next)
-    if (scb->name && strcmp (scb->name, name) == 0)
-      {
-	scb->refcnt++;
-	return scb;
-      }
 
   if (strcmp (name, "pc") == 0)
     ops = serial_interface_lookup ("pc");
@@ -211,6 +215,7 @@ serial_open (const char *name)
   scb->bufcnt = 0;
   scb->bufp = scb->buf;
   scb->error_fd = -1;
+  scb->refcnt = 1;
 
   /* `...->open (...)' would get expanded by the open(2) syscall macro.  */
   if ((*scb->ops->open) (scb, open_name))
@@ -221,14 +226,11 @@ serial_open (const char *name)
 
   scb->name = xstrdup (name);
   scb->next = scb_base;
-  scb->refcnt = 1;
   scb->debug_p = 0;
   scb->async_state = 0;
   scb->async_handler = NULL;
   scb->async_context = NULL;
   scb_base = scb;
-
-  last_serial_opened = scb;
 
   if (serial_logfile != NULL)
     {
@@ -240,21 +242,6 @@ serial_open (const char *name)
   return scb;
 }
 
-/* Return the open serial device for FD, if found, or NULL if FD
-   is not already opened.  */
-
-struct serial *
-serial_for_fd (int fd)
-{
-  struct serial *scb;
-
-  for (scb = scb_base; scb; scb = scb->next)
-    if (scb->fd == fd)
-      return scb;
-
-  return NULL;
-}
-
 /* Open a new serial stream using a file handle, using serial
    interface ops OPS.  */
 
@@ -262,13 +249,6 @@ static struct serial *
 serial_fdopen_ops (const int fd, struct serial_ops *ops)
 {
   struct serial *scb;
-
-  scb = serial_for_fd (fd);
-  if (scb)
-    {
-      scb->refcnt++;
-      return scb;
-    }
 
   if (!ops)
     {
@@ -287,10 +267,10 @@ serial_fdopen_ops (const int fd, struct serial_ops *ops)
   scb->bufcnt = 0;
   scb->bufp = scb->buf;
   scb->error_fd = -1;
+  scb->refcnt = 1;
 
   scb->name = NULL;
   scb->next = scb_base;
-  scb->refcnt = 1;
   scb->debug_p = 0;
   scb->async_state = 0;
   scb->async_handler = NULL;
@@ -301,8 +281,6 @@ serial_fdopen_ops (const int fd, struct serial_ops *ops)
     (*ops->fdopen) (scb, fd);
   else
     scb->fd = fd;
-
-  last_serial_opened = scb;
 
   return scb;
 }
@@ -318,8 +296,6 @@ do_serial_close (struct serial *scb, int really_close)
 {
   struct serial *tmp_scb;
 
-  last_serial_opened = NULL;
-
   if (serial_logfp)
     {
       fputs_unfiltered ("\nEnd of log\n", serial_logfp);
@@ -330,16 +306,6 @@ do_serial_close (struct serial *scb, int really_close)
       serial_logfp = NULL;
     }
 
-/* This is bogus.  It's not our fault if you pass us a bad scb...!  Rob, you
-   should fix your code instead.  */
-
-  if (!scb)
-    return;
-
-  scb->refcnt--;
-  if (scb->refcnt > 0)
-    return;
-
   /* ensure that the FD has been taken out of async mode.  */
   if (scb->async_handler != NULL)
     serial_async (scb, NULL, NULL);
@@ -349,6 +315,9 @@ do_serial_close (struct serial *scb, int really_close)
 
   if (scb->name)
     xfree (scb->name);
+
+  /* For serial_is_open.  */
+  scb->bufp = NULL;
 
   if (scb_base == scb)
     scb_base = scb_base->next;
@@ -362,7 +331,7 @@ do_serial_close (struct serial *scb, int really_close)
 	break;
       }
 
-  xfree (scb);
+  serial_unref (scb);
 }
 
 void
@@ -375,6 +344,26 @@ void
 serial_un_fdopen (struct serial *scb)
 {
   do_serial_close (scb, 0);
+}
+
+int
+serial_is_open (struct serial *scb)
+{
+  return scb->bufp != NULL;
+}
+
+void
+serial_ref (struct serial *scb)
+{
+  scb->refcnt++;
+}
+
+void
+serial_unref (struct serial *scb)
+{
+  --scb->refcnt;
+  if (scb->refcnt == 0)
+    xfree (scb);
 }
 
 int
@@ -623,129 +612,6 @@ serial_pipe (struct serial *scbs[2])
   scbs[1] = serial_fdopen_ops (fildes[1], ops);
   return 0;
 }
-
-#if 0
-/* The connect command is #if 0 because I hadn't thought of an elegant
-   way to wait for I/O on two `struct serial *'s simultaneously.  Two
-   solutions came to mind:
-
-   1) Fork, and have have one fork handle the to user direction,
-   and have the other hand the to target direction.  This
-   obviously won't cut it for MSDOS.
-
-   2) Use something like select.  This assumes that stdin and
-   the target side can both be waited on via the same
-   mechanism.  This may not be true for DOS, if GDB is
-   talking to the target via a TCP socket.
-   -grossman, 8 Jun 93 */
-
-/* Connect the user directly to the remote system.  This command acts just like
-   the 'cu' or 'tip' command.  Use <CR>~. or <CR>~^D to break out.  */
-
-static struct serial *tty_desc;	/* Controlling terminal */
-
-static void
-cleanup_tty (serial_ttystate ttystate)
-{
-  printf_unfiltered ("\r\n[Exiting connect mode]\r\n");
-  serial_set_tty_state (tty_desc, ttystate);
-  xfree (ttystate);
-  serial_close (tty_desc);
-}
-
-static void
-connect_command (char *args, int fromtty)
-{
-  int c;
-  char cur_esc = 0;
-  serial_ttystate ttystate;
-  struct serial *port_desc;		/* TTY port */
-
-  dont_repeat ();
-
-  if (args)
-    fprintf_unfiltered (gdb_stderr,
-			"This command takes no args.  "
-			"They have been ignored.\n");
-
-  printf_unfiltered ("[Entering connect mode.  Use ~. or ~^D to escape]\n");
-
-  tty_desc = serial_fdopen (0);
-  port_desc = last_serial_opened;
-
-  ttystate = serial_get_tty_state (tty_desc);
-
-  serial_raw (tty_desc);
-  serial_raw (port_desc);
-
-  make_cleanup (cleanup_tty, ttystate);
-
-  while (1)
-    {
-      int mask;
-
-      mask = serial_wait_2 (tty_desc, port_desc, -1);
-
-      if (mask & 2)
-	{			/* tty input */
-	  char cx;
-
-	  while (1)
-	    {
-	      c = serial_readchar (tty_desc, 0);
-
-	      if (c == SERIAL_TIMEOUT)
-		break;
-
-	      if (c < 0)
-		perror_with_name (_("connect"));
-
-	      cx = c;
-	      serial_write (port_desc, &cx, 1);
-
-	      switch (cur_esc)
-		{
-		case 0:
-		  if (c == '\r')
-		    cur_esc = c;
-		  break;
-		case '\r':
-		  if (c == '~')
-		    cur_esc = c;
-		  else
-		    cur_esc = 0;
-		  break;
-		case '~':
-		  if (c == '.' || c == '\004')
-		    return;
-		  else
-		    cur_esc = 0;
-		}
-	    }
-	}
-
-      if (mask & 1)
-	{			/* Port input */
-	  char cx;
-
-	  while (1)
-	    {
-	      c = serial_readchar (port_desc, 0);
-
-	      if (c == SERIAL_TIMEOUT)
-		break;
-
-	      if (c < 0)
-		perror_with_name (_("connect"));
-
-	      cx = c;
-
-	      serial_write (tty_desc, &cx, 1);
-	    }
-	}
-    }
-}
-#endif /* 0 */
 
 /* Serial set/show framework.  */
 

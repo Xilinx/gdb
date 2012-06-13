@@ -412,7 +412,15 @@ struct dwarf2_cu
   /* To be copied to symtab->call_site_htab.  */
   htab_t call_site_htab;
 
-  /* Non-NULL if this CU came from a DWO file.  */
+  /* Non-NULL if this CU came from a DWO file.
+     There is an invariant here that is important to remember:
+     Except for attributes copied from the top level DIE in the "main"
+     (or "stub") file in preparation for reading the DWO file
+     (e.g., DW_AT_GNU_addr_base), we KISS: there is only *one* CU.
+     Either there isn't a DWO file (in which case this is NULL and the point
+     is moot), or there is and either we're not going to read it (in which
+     case this is NULL) or there is and we are reading it (in which case this
+     is non-NULL).  */
   struct dwo_unit *dwo_unit;
 
   /* The DW_AT_addr_base attribute if present, zero otherwise
@@ -2441,6 +2449,14 @@ dw2_get_file_names_reader (const struct die_reader_specs *reader,
   struct quick_file_names *qfn;
   unsigned int line_offset;
 
+  /* Our callers never want to match partial units -- instead they
+     will match the enclosing full CU.  */
+  if (comp_unit_die->tag == DW_TAG_partial_unit)
+    {
+      this_cu->v.quick->no_file_data = 1;
+      return;
+    }
+
   lh = NULL;
   slot = NULL;
   line_offset = 0;
@@ -2828,12 +2844,34 @@ dw2_expand_symtabs_with_filename (struct objfile *objfile,
     }
 }
 
+/* A helper function for dw2_find_symbol_file that finds the primary
+   file name for a given CU.  This is a die_reader_func.  */
+
+static void
+dw2_get_primary_filename_reader (const struct die_reader_specs *reader,
+				 gdb_byte *info_ptr,
+				 struct die_info *comp_unit_die,
+				 int has_children,
+				 void *data)
+{
+  const char **result_ptr = data;
+  struct dwarf2_cu *cu = reader->cu;
+  struct attribute *attr;
+
+  attr = dwarf2_attr (comp_unit_die, DW_AT_name, cu);
+  if (attr == NULL)
+    *result_ptr = NULL;
+  else
+    *result_ptr = DW_STRING (attr);
+}
+
 static const char *
 dw2_find_symbol_file (struct objfile *objfile, const char *name)
 {
   struct dwarf2_per_cu_data *per_cu;
   offset_type *vec;
   struct quick_file_names *file_data;
+  const char *filename;
 
   dw2_setup (objfile);
 
@@ -2842,16 +2880,15 @@ dw2_find_symbol_file (struct objfile *objfile, const char *name)
     {
       struct symtab *s;
 
-      ALL_OBJFILE_SYMTABS (objfile, s)
-	if (s->primary)
-	  {
-	    struct blockvector *bv = BLOCKVECTOR (s);
-	    const struct block *block = BLOCKVECTOR_BLOCK (bv, GLOBAL_BLOCK);
-	    struct symbol *sym = lookup_block_symbol (block, name, VAR_DOMAIN);
+      ALL_OBJFILE_PRIMARY_SYMTABS (objfile, s)
+	{
+	  struct blockvector *bv = BLOCKVECTOR (s);
+	  const struct block *block = BLOCKVECTOR_BLOCK (bv, GLOBAL_BLOCK);
+	  struct symbol *sym = lookup_block_symbol (block, name, VAR_DOMAIN);
 
-	    if (sym)
-	      return sym->symtab->filename;
-	  }
+	  if (sym)
+	    return sym->symtab->filename;
+	}
       return NULL;
     }
 
@@ -2866,12 +2903,17 @@ dw2_find_symbol_file (struct objfile *objfile, const char *name)
   /* vec[0] is the length, which must always be >0.  */
   per_cu = dw2_get_cu (MAYBE_SWAP (vec[1]));
 
-  file_data = dw2_get_file_names (objfile, per_cu);
-  if (file_data == NULL
-      || file_data->num_file_names == 0)
-    return NULL;
+  if (per_cu->v.quick->symtab != NULL)
+    return per_cu->v.quick->symtab->filename;
 
-  return file_data->file_names[file_data->num_file_names - 1];
+  if (per_cu->is_debug_types)
+    init_cutu_and_read_dies (per_cu, 0, 0, dw2_get_primary_filename_reader,
+			     &filename);
+  else
+    init_cutu_and_read_dies_simple (per_cu, dw2_get_primary_filename_reader,
+				    &filename);
+
+  return filename;
 }
 
 static void
