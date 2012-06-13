@@ -315,7 +315,6 @@ extern int i386_dword_regnum_p (struct gdbarch *gdbarch, int regnum);
 extern int i386_xmm_regnum_p (struct gdbarch *gdbarch, int regnum);
 extern int i386_ymm_regnum_p (struct gdbarch *gdbarch, int regnum);
 
-extern struct type *i386_pseudo_register_type (struct gdbarch *, int);
 extern const char *i386_pseudo_register_name (struct gdbarch *gdbarch,
 					      int regnum);
 extern struct type *i386_pseudo_register_type (struct gdbarch *gdbarch,
