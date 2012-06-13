@@ -82,7 +82,6 @@ extern void amd64_displaced_step_fixup (struct gdbarch *gdbarch,
 extern void amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch);
 extern void amd64_x32_init_abi (struct gdbarch_info info,
 				struct gdbarch *gdbarch);
-extern void amd64_x32_init (struct gdbarch *gdbarch);
 
 /* Fill register REGNUM in REGCACHE with the appropriate
    floating-point or SSE register value from *FXSAVE.  If REGNUM is

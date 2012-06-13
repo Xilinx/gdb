@@ -1,3 +1,18 @@
+2012-06-13  Mark Kettenis  <kettenis@gnu.org>
+	    H.J. Lu  <hongjiu.lu@intel.com>
+
+	* amd64-linux-tdep.c (amd64_linux_init_abi_common): New.
+	(amd64_linux_init_abi): Use it.
+	(amd64_x32_linux_init_abi): Use amd64_x32_init_abi and
+	amd64_linux_init_abi_common.
+
+	* amd64-tdep.c (amd64_init): Removed.
+	(amd64_x32_init): Likewise.
+	(amd64_init_abi): Restored.
+	(amd64_x32_init_abi): Likewise.
+
+	* amd64-tdep.h (amd64_x32_init): Removed.
+
 2012-05-31  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* amd64-tdep.c (amd64_init_abi): Renamed to ...
