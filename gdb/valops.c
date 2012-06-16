@@ -2512,7 +2512,7 @@ find_method_list (struct value **argp, const char *method,
       method.
    BOFFSET is the offset of the base subobject which defines the method.  */
 
-struct fn_field *
+static struct fn_field *
 value_find_oload_method_list (struct value **argp, const char *method,
 			      int offset, int *num_fns, 
 			      struct type **basetype, int *boffset)
@@ -2681,8 +2681,7 @@ find_overload_match (struct value **args, int nargs,
          and non member function, the first argument must now be
          dereferenced.  */
       if (method == BOTH)
-	deprecated_set_value_type (args[0],
-				   TYPE_TARGET_TYPE (value_type (args[0])));
+	args[0] = value_ind (args[0]);
 
       if (fsym)
         {

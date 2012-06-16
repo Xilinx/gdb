@@ -4069,12 +4069,19 @@ handle_inferior_event (struct execution_control_state *ecs)
 	 skip_inline_frames call would break things.  Fortunately
 	 that's an extremely unlikely scenario.  */
       if (!pc_at_non_inline_function (aspace, stop_pc, &ecs->ws)
-          && !(ecs->event_thread->suspend.stop_signal == GDB_SIGNAL_TRAP
-               && ecs->event_thread->control.trap_expected
-               && pc_at_non_inline_function (aspace,
-                                             ecs->event_thread->prev_pc,
+	  && !(ecs->event_thread->suspend.stop_signal == GDB_SIGNAL_TRAP
+	       && ecs->event_thread->control.trap_expected
+	       && pc_at_non_inline_function (aspace,
+					     ecs->event_thread->prev_pc,
 					     &ecs->ws)))
-	skip_inline_frames (ecs->ptid);
+	{
+	  skip_inline_frames (ecs->ptid);
+
+	  /* Re-fetch current thread's frame in case that invalidated
+	     the frame cache.  */
+	  frame = get_current_frame ();
+	  gdbarch = get_frame_arch (frame);
+	}
     }
 
   if (ecs->event_thread->suspend.stop_signal == GDB_SIGNAL_TRAP
