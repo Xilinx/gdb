@@ -479,12 +479,45 @@ ps_get_thread_area (const struct ps_prochandle *ph,
       switch (idx)
 	{
 	case FS:
+#ifdef __ILP32__
+	    {
+	      /* PTRACE_ARCH_PRCTL is obsolete since 2.6.25, where the
+		 fs_base and gs_base fields of user_regs_struct can be
+		 used directly.  Since x32 support was added to kernel
+		 3.4.0 and PTRACE_ARCH_PRCTL support was removed for x32,
+		 we should always use fs_base for x32.  */
+	      unsigned long fs;
+	      errno = 0;
+	      fs = ptrace (PTRACE_PEEKUSER, lwpid,
+			   offsetof (struct user_regs_struct, fs_base), 0);
+	      if (errno == 0)
+		{
+		  *base = (void *) fs;
+		  return PS_OK;
+		}
+	    }
+#else
 	  if (ptrace (PTRACE_ARCH_PRCTL, lwpid, base, ARCH_GET_FS) == 0)
 	    return PS_OK;
+#endif
 	  break;
 	case GS:
+#ifdef __ILP32__
+	    {
+	      unsigned long gs;
+	      errno = 0;
+	      gs = ptrace (PTRACE_PEEKUSER, lwpid,
+			   offsetof (struct user_regs_struct, gs_base), 0);
+	      if (errno == 0)
+		{
+		  *base = (void *) gs;
+		  return PS_OK;
+		}
+	    }
+#else
 	  if (ptrace (PTRACE_ARCH_PRCTL, lwpid, base, ARCH_GET_GS) == 0)
 	    return PS_OK;
+#endif
 	  break;
 	default:                   /* Should not happen.  */
 	  return PS_BADADDR;
