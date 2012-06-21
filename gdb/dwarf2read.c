@@ -7812,6 +7812,7 @@ read_call_site_scope (struct die_info *die, struct dwarf2_cu *cu)
        child_die = sibling_die (child_die))
     {
       struct call_site_parameter *parameter;
+      struct attribute *loc, *origin;
 
       if (child_die->tag != DW_TAG_GNU_call_site_parameter)
 	{
@@ -7822,11 +7823,23 @@ read_call_site_scope (struct die_info *die, struct dwarf2_cu *cu)
       gdb_assert (call_site->parameter_count < nparams);
       parameter = &call_site->parameter[call_site->parameter_count];
 
-      /* DW_AT_location specifies the register number.  Value of the data
-	 assumed for the register is contained in DW_AT_GNU_call_site_value.  */
+      /* DW_AT_location specifies the register number or DW_AT_abstract_origin
+	 specifies DW_TAG_formal_parameter.  Value of the data assumed for the
+	 register is contained in DW_AT_GNU_call_site_value.  */
 
-      attr = dwarf2_attr (child_die, DW_AT_location, cu);
-      if (!attr || !attr_form_is_block (attr))
+      loc = dwarf2_attr (child_die, DW_AT_location, cu);
+      origin = dwarf2_attr (child_die, DW_AT_abstract_origin, cu);
+      if (loc == NULL && origin != NULL && is_ref_attr (origin))
+	{
+	  sect_offset offset;
+
+	  parameter->kind = CALL_SITE_PARAMETER_PARAM_OFFSET;
+	  offset = dwarf2_get_ref_die_offset (origin);
+	  gdb_assert (offset.sect_off >= cu->header.offset.sect_off);
+	  parameter->u.param_offset.cu_off = (offset.sect_off
+	                                      - cu->header.offset.sect_off);
+	}
+      else if (loc == NULL || origin != NULL || !attr_form_is_block (loc))
 	{
 	  complaint (&symfile_complaints,
 		     _("No DW_FORM_block* DW_AT_location for "
@@ -7834,19 +7847,26 @@ read_call_site_scope (struct die_info *die, struct dwarf2_cu *cu)
 		     child_die->offset.sect_off, objfile->name);
 	  continue;
 	}
-      parameter->dwarf_reg = dwarf_block_to_dwarf_reg (DW_BLOCK (attr)->data,
-				 &DW_BLOCK (attr)->data[DW_BLOCK (attr)->size]);
-      if (parameter->dwarf_reg == -1
-	  && !dwarf_block_to_sp_offset (gdbarch, DW_BLOCK (attr)->data,
-				  &DW_BLOCK (attr)->data[DW_BLOCK (attr)->size],
-					&parameter->fb_offset))
+      else
 	{
-	  complaint (&symfile_complaints,
-		     _("Only single DW_OP_reg or DW_OP_fbreg is supported "
-		       "for DW_FORM_block* DW_AT_location for "
-		       "DW_TAG_GNU_call_site child DIE 0x%x [in module %s]"),
-		     child_die->offset.sect_off, objfile->name);
-	  continue;
+	  parameter->u.dwarf_reg = dwarf_block_to_dwarf_reg
+	    (DW_BLOCK (loc)->data, &DW_BLOCK (loc)->data[DW_BLOCK (loc)->size]);
+	  if (parameter->u.dwarf_reg != -1)
+	    parameter->kind = CALL_SITE_PARAMETER_DWARF_REG;
+	  else if (dwarf_block_to_sp_offset (gdbarch, DW_BLOCK (loc)->data,
+				    &DW_BLOCK (loc)->data[DW_BLOCK (loc)->size],
+					     &parameter->u.fb_offset))
+	    parameter->kind = CALL_SITE_PARAMETER_FB_OFFSET;
+	  else
+	    {
+	      complaint (&symfile_complaints,
+			 _("Only single DW_OP_reg or DW_OP_fbreg is supported "
+			   "for DW_FORM_block* DW_AT_location is supported for "
+			   "DW_TAG_GNU_call_site child DIE 0x%x "
+			   "[in module %s]"),
+			 child_die->offset.sect_off, objfile->name);
+	      continue;
+	    }
 	}
 
       attr = dwarf2_attr (child_die, DW_AT_GNU_call_site_value, cu);
@@ -15492,6 +15512,7 @@ decode_locdesc (struct dwarf_block *blk, struct dwarf2_cu *cu)
 	  break;
 
 	case DW_OP_GNU_addr_index:
+	case DW_OP_GNU_const_index:
 	  stack[++stacki] = read_addr_index_from_leb128 (cu, &data[i],
 							 &bytes_read);
 	  i += bytes_read;

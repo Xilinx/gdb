@@ -727,6 +727,12 @@ execute_stack_op (struct dwarf_expr_context *ctx,
 	case DW_OP_GNU_addr_index:
 	  op_ptr = safe_read_uleb128 (op_ptr, op_end, &uoffset);
 	  result = (ctx->funcs->get_addr_index) (ctx->baton, uoffset);
+	  result += ctx->offset;
+	  result_val = value_from_ulongest (address_type, result);
+	  break;
+	case DW_OP_GNU_const_index:
+	  op_ptr = safe_read_uleb128 (op_ptr, op_end, &uoffset);
+	  result = (ctx->funcs->get_addr_index) (ctx->baton, uoffset);
 	  result_val = value_from_ulongest (address_type, result);
 	  break;
 
@@ -1355,33 +1361,35 @@ execute_stack_op (struct dwarf_expr_context *ctx,
 	case DW_OP_GNU_entry_value:
 	  {
 	    uint64_t len;
-	    int dwarf_reg;
 	    CORE_ADDR deref_size;
+	    union call_site_parameter_u kind_u;
 
 	    op_ptr = safe_read_uleb128 (op_ptr, op_end, &len);
 	    if (op_ptr + len > op_end)
 	      error (_("DW_OP_GNU_entry_value: too few bytes available."));
 
-	    dwarf_reg = dwarf_block_to_dwarf_reg (op_ptr, op_ptr + len);
-	    if (dwarf_reg != -1)
+	    kind_u.dwarf_reg = dwarf_block_to_dwarf_reg (op_ptr, op_ptr + len);
+	    if (kind_u.dwarf_reg != -1)
 	      {
 		op_ptr += len;
-		ctx->funcs->push_dwarf_reg_entry_value (ctx, dwarf_reg,
-							0 /* unused */,
+		ctx->funcs->push_dwarf_reg_entry_value (ctx,
+						  CALL_SITE_PARAMETER_DWARF_REG,
+							kind_u,
 							-1 /* deref_size */);
 		goto no_push;
 	      }
 
-	    dwarf_reg = dwarf_block_to_dwarf_reg_deref (op_ptr, op_ptr + len,
-							&deref_size);
-	    if (dwarf_reg != -1)
+	    kind_u.dwarf_reg = dwarf_block_to_dwarf_reg_deref (op_ptr,
+							       op_ptr + len,
+							       &deref_size);
+	    if (kind_u.dwarf_reg != -1)
 	      {
 		if (deref_size == -1)
 		  deref_size = ctx->addr_size;
 		op_ptr += len;
-		ctx->funcs->push_dwarf_reg_entry_value (ctx, dwarf_reg,
-							0 /* unused */,
-							deref_size);
+		ctx->funcs->push_dwarf_reg_entry_value (ctx,
+						  CALL_SITE_PARAMETER_DWARF_REG,
+							kind_u, deref_size);
 		goto no_push;
 	      }
 
@@ -1389,6 +1397,20 @@ execute_stack_op (struct dwarf_expr_context *ctx,
 		     "supported only for single DW_OP_reg* "
 		     "or for DW_OP_breg*(0)+DW_OP_deref*"));
 	  }
+
+	case DW_OP_GNU_parameter_ref:
+	  {
+	    union call_site_parameter_u kind_u;
+
+	    kind_u.param_offset.cu_off = extract_unsigned_integer (op_ptr, 4,
+								   byte_order);
+	    op_ptr += 4;
+	    ctx->funcs->push_dwarf_reg_entry_value (ctx,
+					       CALL_SITE_PARAMETER_PARAM_OFFSET,
+						    kind_u,
+						    -1 /* deref_size */);
+	  }
+	  goto no_push;
 
 	case DW_OP_GNU_const_type:
 	  {
@@ -1533,7 +1555,8 @@ ctx_no_get_base_type (struct dwarf_expr_context *ctx, cu_offset die)
 
 void
 ctx_no_push_dwarf_reg_entry_value (struct dwarf_expr_context *ctx,
-				   int dwarf_reg, CORE_ADDR fb_offset,
+				   enum call_site_parameter_kind kind,
+				   union call_site_parameter_u kind_u,
 				   int deref_size)
 {
   internal_error (__FILE__, __LINE__,

@@ -1,3 +1,142 @@
+2012-06-20  Yao Qi  <yao@codesourcery.com>
+
+	* python/py-inferior.c: Update comments of infpy_read_memory
+	and infpy_write_memory.
+
+2012-06-19  Tom Tromey  <tromey@redhat.com>
+
+	PR exp/9514:
+	* parser-defs.h (insert_type, insert_type_address_space): Declare.
+	(push_type_address_space): Remove.
+	* parse.c (insert_into_type_stack): New function.
+	(insert_type): Likewise.
+	(insert_type_address_space): Rename from push_type_address_space.
+	Insert tp_space_identifier.
+	* c-exp.y (ptr_operator): New production.
+	(abs_decl): Use ptr_operator.
+	(space_identifier): Call insert_type_address_space.
+	(ptype): Don't use const_or_volatile_or_space_identifier.
+	(const_or_volatile_noopt): Call insert_type.
+	(conversion_type_id, conversion_declarator): New productions.
+	(operator): Use conversion_type_id.
+
+2012-06-18  Doug Evans  <dje@google.com>
+
+	* symtab.h (minimal_symbol): New member created_by_gdb.
+	* elfread.c (elf_symtab_read): Set created_by_gdb for @plt minsym
+	created by gdb.
+	* symtab.c (lookup_symbol_in_objfile_from_linkage_name): New function.
+	(search_symbols): Call it instead of lookup_symbol.
+	Skip symbols created by gdb.  Only scan minsyms if nfiles == 0.
+
+	* dwarf2expr.c (execute_stack_op): Handle DW_OP_GNU_const_index.
+	Adjust address for DW_OP_GNU_addr_index.
+	* dwarf2expr.h (dwarf_expr_context): Update comment.
+	* dwarf2loc.c (locexpr_describe_location_piece): New arg per_cu,
+	all callers updated.  Handle TLS vars described with
+	DW_OP_GNU_const_index.
+	(disassemble_dwarf_expression): Handle DW_OP_GNU_addr_index
+	and DW_OP_GNU_const_index.
+	* dwarf2read.c (decode_locdesc): Handle DW_OP_GNU_addr_index.
+
+	* block.c (find_block_in_blockvector): Make explicit the fact that we
+	ignore GLOBAL_BLOCK.
+
+2012-06-18  Tom Tromey  <tromey@redhat.com>
+
+	* c-exp.y (operator): Remove trailing space after "delete" and
+	"delete[]".
+
+2012-06-18  Mark Kettenis  <kettenis@gnu.org>
+	    Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Switch i386 and derived targets to ON_STACK.
+	* amd64-dicos-tdep.c (amd64_dicos_push_dummy_code): Remove.
+	(amd64_dicos_init_abi): Remove its installment.
+	* dicos-tdep.c (dicos_init_abi): Remove the
+	set_gdbarch_call_dummy_location call.  Update the comment here.
+	* i386-dicos-tdep.c (i386_dicos_push_dummy_code): Remove.
+	(i386_dicos_init_abi): Remove its installment.
+	* i386-tdep.c (i386_push_dummy_code): New function.
+	(i386_gdbarch_init): Call set_gdbarch_call_dummy_location, install
+	i386_push_dummy_code.
+
+2012-06-18  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Remove stale dummy frames.
+	* breakpoint.c: Include dummy-frame.h.
+	(longjmp_breakpoint_ops): New variable.
+	(update_breakpoints_after_exec, breakpoint_init_inferior): Delete also
+	bp_longjmp_call_dummy.
+	(bpstat_what, bptype_string, print_one_breakpoint_location)
+	(init_bp_location): Support bp_longjmp_call_dummy.
+	(set_longjmp_breakpoint): Use longjmp_breakpoint_ops.  Comment why.
+	(set_longjmp_breakpoint_for_call_dummy)
+	(check_longjmp_breakpoint_for_call_dummy, longjmp_bkpt_dtor): New
+	functions.
+	(initialize_breakpoint_ops): Initialize longjmp_breakpoint_ops.
+	* breakpoint.h (enum bptype): New item bp_longjmp_call_dummy.  Delete
+	FIXME comment and extend the other comment for bp_call_dummy.
+	(set_longjmp_breakpoint_for_call_dummy)
+	(check_longjmp_breakpoint_for_call_dummy): New declarations.
+	* dummy-frame.c: Include gdbthread.h.
+	(pop_dummy_frame_bpt): New function.
+	(pop_dummy_frame): Call pop_dummy_frame_bpt.
+	(dummy_frame_discard): New function.
+	(cleanup_dummy_frames): Update the comment about longjmps.
+	* dummy-frame.h (dummy_frame_discard): New declaration.
+	* gdbthread.h (struct thread_info): Extend initiating_frame comment.
+	* infcall.c (call_function_by_hand): New variable longjmp_b.  Call
+	set_longjmp_breakpoint_for_call_dummy.  Chain its breakpoints with BPT.
+	* infrun.c (handle_inferior_event) <BPSTAT_WHAT_CLEAR_LONGJMP_RESUME>:
+	Add case 4 comment.  Call check_longjmp_breakpoint_for_call_dummy and
+	keep_going if IS_LONGJMP and there is no other reason to stop.
+
+2012-06-18  Greta Yorsh  <Greta.Yorsh@arm.com>
+
+	* remote-sim.c (sim_command_completer): Initialize
+	variable 'result'.
+
+2012-06-17  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* dwarf2expr.c (execute_stack_op): Support DW_OP_GNU_parameter_ref.
+	* dwarf2loc.c (call_site_parameter_matches): Support
+	CALL_SITE_PARAMETER_PARAM_OFFSET.
+	(needs_dwarf_reg_entry_value): Push stub value.
+	* dwarf2read.c (read_call_site_scope): New variable origin.  Support
+	CALL_SITE_PARAMETER_PARAM_OFFSET and its DW_AT_abstract_origin.
+	* gdbtypes.h (enum call_site_parameter_kind): New item
+	CALL_SITE_PARAMETER_PARAM_OFFSET.
+	(struct call_site.parameter.u): New field param_offset.
+
+2012-06-17  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Code cleanup: Generalize call_site.parameter key.
+	* dwarf2expr.c (execute_stack_op) <DW_OP_GNU_entry_value>: Remove
+	variable dwarf_reg.  New variable kind_u.  Update parameters to
+	push_dwarf_reg_entry_value.
+	(ctx_no_push_dwarf_reg_entry_value): Update parameters.
+	* dwarf2expr.h (enum call_site_parameter_kind)
+	(union call_site_parameter_u): Forward declarations.
+	(struct dwarf_expr_context_funcs): Update parameters and their
+	description for push_dwarf_reg_entry_value.
+	(ctx_no_push_dwarf_reg_entry_value): Update parameters.
+	* dwarf2loc.c (call_site_parameter_matches): New function.
+	(dwarf_expr_reg_to_entry_parameter): Update parameters and their
+	description.  Use call_site_parameter_matches.
+	(dwarf_expr_push_dwarf_reg_entry_value, value_of_dwarf_reg_entry):
+	Update parameters and their description.
+	(value_of_dwarf_block_entry): Remove variables dwarf_reg and fb_offset.
+	New variable kind_u.  Adjust the caller for updated parameters.
+	(needs_dwarf_reg_entry_value): Update parameters.
+	* dwarf2read.c (read_call_site_scope): New variable loc.  Use it
+	instead of attr.  Update for the changed fields of struct
+	call_site_parameter.
+	* gdbtypes.h: Include dwarf2expr.h.
+	(enum call_site_parameter_kind): New.
+	(struct call_site.parameter): New field kind.  Wrap dwarf_reg and
+	fb_offset into new union u.
+
 2012-06-16  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* amd64-tdep.c (amd64_x32_analyze_stack_align): New function.

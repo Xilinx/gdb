@@ -1,3 +1,32 @@
+2012-06-19  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.base/whatis.exp: Add tests.
+
+2012-06-19  Tom Tromey  <tromey@redhat.com>
+
+	* gdb.cp/m-static.cc (keepalive): New function.
+	(gnu_obj_1::method): Use it.
+
+2012-06-18  Doug Evans  <dje@google.com>
+
+	* gdb.base/info-fun.exp: New file.
+	* gdb.base/info-fun.c: New file.
+	* gdb.base/info-fun-solib.c: New file.
+
+2012-06-18  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	Remove stale dummy frames.
+	* gdb.base/call-signal-resume.exp (maintenance print dummy-frames)
+	(maintenance info breakpoints): New tests.
+	* gdb.base/stale-infcall.c: New file.
+	* gdb.base/stale-infcall.exp: New file.
+
+2012-06-17  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.arch/amd64-entry-value-param.S: New file.
+	* gdb.arch/amd64-entry-value-param.c: New file.
+	* gdb.arch/amd64-entry-value-param.exp: New file.
+
 2012-06-15  Tom Tromey  <tromey@redhat.com>
 
 	* gdb.cp/namespace.exp: Add "show lang" test.

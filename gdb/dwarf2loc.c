@@ -948,16 +948,36 @@ call_site_find_chain (struct gdbarch *gdbarch, CORE_ADDR caller_pc,
   return retval;
 }
 
-/* Fetch call_site_parameter from caller matching the parameters.  FRAME is for
-   callee.  See DWARF_REG and FB_OFFSET description at struct
-   dwarf_expr_context_funcs->push_dwarf_reg_entry_value.
+/* Return 1 if KIND and KIND_U match PARAMETER.  Return 0 otherwise.  */
+
+static int
+call_site_parameter_matches (struct call_site_parameter *parameter,
+			     enum call_site_parameter_kind kind,
+			     union call_site_parameter_u kind_u)
+{
+  if (kind == parameter->kind)
+    switch (kind)
+      {
+      case CALL_SITE_PARAMETER_DWARF_REG:
+	return kind_u.dwarf_reg == parameter->u.dwarf_reg;
+      case CALL_SITE_PARAMETER_FB_OFFSET:
+	return kind_u.fb_offset == parameter->u.fb_offset;
+      case CALL_SITE_PARAMETER_PARAM_OFFSET:
+	return kind_u.param_offset.cu_off == parameter->u.param_offset.cu_off;
+      }
+  return 0;
+}
+
+/* Fetch call_site_parameter from caller matching KIND and KIND_U.
+   FRAME is for callee.
 
    Function always returns non-NULL, it throws NO_ENTRY_VALUE_ERROR
    otherwise.  */
 
 static struct call_site_parameter *
-dwarf_expr_reg_to_entry_parameter (struct frame_info *frame, int dwarf_reg,
-				   CORE_ADDR fb_offset,
+dwarf_expr_reg_to_entry_parameter (struct frame_info *frame,
+				   enum call_site_parameter_kind kind,
+				   union call_site_parameter_u kind_u,
 				   struct dwarf2_per_cu_data **per_cu_return)
 {
   CORE_ADDR func_addr = get_frame_func (frame);
@@ -1020,12 +1040,7 @@ dwarf_expr_reg_to_entry_parameter (struct frame_info *frame, int dwarf_reg,
   for (iparams = 0; iparams < call_site->parameter_count; iparams++)
     {
       parameter = &call_site->parameter[iparams];
-      if (parameter->dwarf_reg == -1 && dwarf_reg == -1)
-	{
-	  if (parameter->fb_offset == fb_offset)
-	    break;
-	}
-      else if (parameter->dwarf_reg == dwarf_reg)
+      if (call_site_parameter_matches (parameter, kind, kind_u))
 	break;
     }
   if (iparams == call_site->parameter_count)
@@ -1082,17 +1097,17 @@ dwarf_entry_parameter_to_value (struct call_site_parameter *parameter,
   return dwarf2_evaluate_loc_desc (type, caller_frame, data, size + 1, per_cu);
 }
 
-/* Execute call_site_parameter's DWARF block matching DEREF_SIZE for caller of
-   the CTX's frame.  CTX must be of dwarf_expr_ctx_funcs kind.  See DWARF_REG
-   and FB_OFFSET description at struct
-   dwarf_expr_context_funcs->push_dwarf_reg_entry_value.
+/* Execute DWARF block of call_site_parameter which matches KIND and KIND_U.
+   Choose DEREF_SIZE value of that parameter.  Search caller of the CTX's
+   frame.  CTX must be of dwarf_expr_ctx_funcs kind.
 
    The CTX caller can be from a different CU - per_cu_dwarf_call implementation
    can be more simple as it does not support cross-CU DWARF executions.  */
 
 static void
 dwarf_expr_push_dwarf_reg_entry_value (struct dwarf_expr_context *ctx,
-				       int dwarf_reg, CORE_ADDR fb_offset,
+				       enum call_site_parameter_kind kind,
+				       union call_site_parameter_u kind_u,
 				       int deref_size)
 {
   struct dwarf_expr_baton *debaton;
@@ -1109,7 +1124,7 @@ dwarf_expr_push_dwarf_reg_entry_value (struct dwarf_expr_context *ctx,
   frame = debaton->frame;
   caller_frame = get_prev_frame (frame);
 
-  parameter = dwarf_expr_reg_to_entry_parameter (frame, dwarf_reg, fb_offset,
+  parameter = dwarf_expr_reg_to_entry_parameter (frame, kind, kind_u,
 						 &caller_per_cu);
   data_src = deref_size == -1 ? parameter->value : parameter->data_value;
   size = deref_size == -1 ? parameter->value_size : parameter->data_value_size;
@@ -1206,17 +1221,17 @@ static const struct lval_funcs entry_data_value_funcs =
   entry_data_value_free_closure
 };
 
-/* Read parameter of TYPE at (callee) FRAME's function entry.  DWARF_REG and
-   FB_OFFSET are used to match DW_AT_location at the caller's
-   DW_TAG_GNU_call_site_parameter.  See DWARF_REG and FB_OFFSET description at
-   struct dwarf_expr_context_funcs->push_dwarf_reg_entry_value.
+/* Read parameter of TYPE at (callee) FRAME's function entry.  KIND and KIND_U
+   are used to match DW_AT_location at the caller's
+   DW_TAG_GNU_call_site_parameter.
 
    Function always returns non-NULL value.  It throws NO_ENTRY_VALUE_ERROR if it
    cannot resolve the parameter for any reason.  */
 
 static struct value *
 value_of_dwarf_reg_entry (struct type *type, struct frame_info *frame,
-			  int dwarf_reg, CORE_ADDR fb_offset)
+			  enum call_site_parameter_kind kind,
+			  union call_site_parameter_u kind_u)
 {
   struct type *checked_type = check_typedef (type);
   struct type *target_type = TYPE_TARGET_TYPE (checked_type);
@@ -1226,7 +1241,7 @@ value_of_dwarf_reg_entry (struct type *type, struct frame_info *frame,
   struct dwarf2_per_cu_data *caller_per_cu;
   CORE_ADDR addr;
 
-  parameter = dwarf_expr_reg_to_entry_parameter (frame, dwarf_reg, fb_offset,
+  parameter = dwarf_expr_reg_to_entry_parameter (frame, kind, kind_u,
 						 &caller_per_cu);
 
   outer_val = dwarf_entry_parameter_to_value (parameter, -1 /* deref_size */,
@@ -1278,15 +1293,16 @@ static struct value *
 value_of_dwarf_block_entry (struct type *type, struct frame_info *frame,
 			    const gdb_byte *block, size_t block_len)
 {
-  int dwarf_reg;
-  CORE_ADDR fb_offset;
+  union call_site_parameter_u kind_u;
 
-  dwarf_reg = dwarf_block_to_dwarf_reg (block, block + block_len);
-  if (dwarf_reg != -1)
-    return value_of_dwarf_reg_entry (type, frame, dwarf_reg, 0 /* unused */);
+  kind_u.dwarf_reg = dwarf_block_to_dwarf_reg (block, block + block_len);
+  if (kind_u.dwarf_reg != -1)
+    return value_of_dwarf_reg_entry (type, frame, CALL_SITE_PARAMETER_DWARF_REG,
+				     kind_u);
 
-  if (dwarf_block_to_fb_offset (block, block + block_len, &fb_offset))
-    return value_of_dwarf_reg_entry (type, frame, -1, fb_offset);
+  if (dwarf_block_to_fb_offset (block, block + block_len, &kind_u.fb_offset))
+    return value_of_dwarf_reg_entry (type, frame, CALL_SITE_PARAMETER_FB_OFFSET,
+                                     kind_u);
 
   /* This can normally happen - throw NO_ENTRY_VALUE_ERROR to get the message
      suppressed during normal operation.  The expression can be arbitrary if
@@ -2377,11 +2393,15 @@ needs_frame_dwarf_call (struct dwarf_expr_context *ctx, cu_offset die_offset)
 
 static void
 needs_dwarf_reg_entry_value (struct dwarf_expr_context *ctx,
-			     int dwarf_reg, CORE_ADDR fb_offset, int deref_size)
+			     enum call_site_parameter_kind kind,
+			     union call_site_parameter_u kind_u, int deref_size)
 {
   struct needs_frame_baton *nf_baton = ctx->baton;
 
   nf_baton->needs_frame = 1;
+
+  /* The expression may require some stub values on DWARF stack.  */
+  dwarf_expr_push_address (ctx, 0, 0);
 }
 
 /* DW_OP_GNU_addr_index doesn't require a frame.  */
@@ -3273,10 +3293,12 @@ locexpr_regname (struct gdbarch *gdbarch, int dwarf_regnum)
 static const gdb_byte *
 locexpr_describe_location_piece (struct symbol *symbol, struct ui_file *stream,
 				 CORE_ADDR addr, struct objfile *objfile,
+				 struct dwarf2_per_cu_data *per_cu,
 				 const gdb_byte *data, const gdb_byte *end,
 				 unsigned int addr_size)
 {
   struct gdbarch *gdbarch = get_objfile_arch (objfile);
+  size_t leb128_size;
 
   if (data[0] >= DW_OP_reg0 && data[0] <= DW_OP_reg31)
     {
@@ -3396,6 +3418,29 @@ locexpr_describe_location_piece (struct symbol *symbol, struct ui_file *stream,
 
       data += 1 + addr_size + 1;
     }
+
+  /* With -gsplit-dwarf a TLS variable can also look like this:
+     DW_AT_location    : 3 byte block: fc 4 e0
+                        (DW_OP_GNU_const_index: 4;
+			 DW_OP_GNU_push_tls_address)  */
+  else if (data + 3 <= end
+	   && data + 1 + (leb128_size = skip_leb128 (data + 1, end)) < end
+	   && data[0] == DW_OP_GNU_const_index
+	   && leb128_size > 0
+	   && data[1 + leb128_size] == DW_OP_GNU_push_tls_address
+	   && piece_end_p (data + 2 + leb128_size, end))
+    {
+      ULONGEST offset;
+
+      data = safe_read_uleb128 (data + 1, end, &offset);
+      offset = dwarf2_read_addr_index (per_cu, offset);
+      fprintf_filtered (stream, 
+			_("a thread-local variable at offset 0x%s "
+			  "in the thread-local storage for `%s'"),
+			phex_nz (offset, addr_size), objfile->name);
+      ++data;
+    }
+
   else if (data[0] >= DW_OP_lit0
 	   && data[0] <= DW_OP_lit31
 	   && data + 1 < end
@@ -3751,6 +3796,17 @@ disassemble_dwarf_expression (struct ui_file *stream,
 					all, per_cu);
 	  data += ul;
 	  continue;
+
+	case DW_OP_GNU_addr_index:
+	  data = safe_read_uleb128 (data, end, &ul);
+	  ul = dwarf2_read_addr_index (per_cu, ul);
+	  fprintf_filtered (stream, " 0x%s", phex_nz (ul, addr_size));
+	  break;
+	case DW_OP_GNU_const_index:
+	  data = safe_read_uleb128 (data, end, &ul);
+	  ul = dwarf2_read_addr_index (per_cu, ul);
+	  fprintf_filtered (stream, " %s", pulongest (ul));
+	  break;
 	}
 
       fprintf_filtered (stream, "\n");
@@ -3785,7 +3841,7 @@ locexpr_describe_location_1 (struct symbol *symbol, CORE_ADDR addr,
       if (!dwarf2_always_disassemble)
 	{
 	  data = locexpr_describe_location_piece (symbol, stream,
-						  addr, objfile,
+						  addr, objfile, per_cu,
 						  data, end, addr_size);
 	  /* If we printed anything, or if we have an empty piece,
 	     then don't disassemble.  */
