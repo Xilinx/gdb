@@ -96,7 +96,7 @@
 /* New Mask for msrset, msrclr insns.  */
 #define OPCODE_MASK_H23N  0xFC1F8000 /* High 6 and bits 11 - 16.  */
 /* Mask for mbar insn.  */
-#define OPCODE_MASK_HN 0xFC020004 /* High 6 bits and bits 14, 29.  */
+#define OPCODE_MASK_HN 0xFF020004 /* High 16 bits and bits 14, 29.  */
 
 #define DELAY_SLOT 1
 #define NO_DELAY_SLOT 0
@@ -174,6 +174,7 @@ struct op_code_struct
   {"wic",   INST_TYPE_R1_R2_SPECIAL, INST_NO_OFFSET, NO_DELAY_SLOT, IMMVAL_MASK_NON_SPECIAL, 0x90000068, OPCODE_MASK_H34B, wic, special_inst },
   {"wdc",   INST_TYPE_R1_R2_SPECIAL, INST_NO_OFFSET, NO_DELAY_SLOT, IMMVAL_MASK_NON_SPECIAL, 0x90000064, OPCODE_MASK_H34B, wdc, special_inst },
   {"mbar",  INST_TYPE_IMM5, INST_PC_OFFSET, NO_DELAY_SLOT, IMMVAL_MASK_NON_SPECIAL, 0xB8020004, OPCODE_MASK_HN, mbar, special_inst },
+  {"sleep", INST_TYPE_NONE, INST_PC_OFFSET, NO_DELAY_SLOT, IMMVAL_MASK_NON_SPECIAL, 0xBA020004, OPCODE_MASK_HN, invalid_inst, special_inst }, /* translates to mbar 16.  */
   {"wdc.clear", INST_TYPE_R1_R2_SPECIAL, INST_NO_OFFSET, NO_DELAY_SLOT, IMMVAL_MASK_NON_SPECIAL, 0x90000066, OPCODE_MASK_H34B, wdcclear, special_inst },    
   {"wdc.flush", INST_TYPE_R1_R2_SPECIAL, INST_NO_OFFSET, NO_DELAY_SLOT, IMMVAL_MASK_NON_SPECIAL, 0x90000074, OPCODE_MASK_H34B, wdcflush, special_inst },
   {"mts",   INST_TYPE_SPECIAL_R1, INST_NO_OFFSET, NO_DELAY_SLOT, IMMVAL_MASK_MTS, 0x9400C000, OPCODE_MASK_H13S, mts, special_inst },
