@@ -1476,7 +1476,7 @@ ALLDEPFILES = \
 	m68kbsd-nat.c m68kbsd-tdep.c \
 	m68klinux-nat.c m68klinux-tdep.c \
 	m88k-tdep.c m88kbsd-nat.c \
-	microblaze-tdep.c microblaze-linux-tdep.c \
+	microblaze-tdep.c microblaze-linux-nat.c microblaze-linux-tdep.c \
 	mingw-hdep.c \
 	mips-linux-nat.c mips-linux-tdep.c \
 	mips-irix-tdep.c \
