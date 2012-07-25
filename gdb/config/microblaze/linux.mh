@@ -1,7 +1,5 @@
 # Host: Microblaze, running Linux
 
-XM_CLIBS=
-
 NAT_FILE= config/nm-linux.h
 NATDEPFILES= inf-ptrace.o fork-child.o \
 	microblaze-linux-nat.o proc-service.o linux-thread-db.o \
