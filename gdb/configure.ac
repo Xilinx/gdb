@@ -645,11 +645,6 @@ AC_SUBST(READLINE_DEPS)
 AC_SUBST(READLINE_CFLAGS)
 AC_SUBST(READLINE_TEXI_INCFLAG)
 
-dnl -lmcheck provides cheap enough memory mangling for debugging purposes.
-if $development; then
-  AC_CHECK_LIB(mcheck, main)
-fi
-
 # Generate jit-reader.h
 
 # This is typedeffed to GDB_CORE_ADDR in jit-reader.h
@@ -1000,6 +995,23 @@ if test "${have_libpython}" != no; then
            fi
            ;;
   esac
+
+  # Note that "python -m threading" cannot be used to check for
+  # threading support due to a bug in Python 2.7.3
+  # (http://bugs.python.org/issue15567).
+  AC_MSG_CHECKING(whether python supports threads)
+  saved_CPPFLAGS="${CPPFLAGS}"
+  CPPFLAGS="${PYTHON_CPPFLAGS}"
+  # Note that the test is reversed so that python_has_threads=yes on
+  # unexpected failures.
+  AC_PREPROC_IFELSE(AC_LANG_SOURCE([[
+#include <Python.h>
+#ifdef WITH_THREAD
+# error
+#endif
+  ]]), [python_has_threads=no], [python_has_threads=yes])
+  AC_MSG_RESULT(${python_has_threads})
+  CPPFLAGS="${saved_CPPFLAGS}"
 else
   # Even if Python support is not compiled in, we need to have these files
   # included.
@@ -1010,6 +1022,36 @@ fi
 AC_SUBST(PYTHON_CFLAGS)
 AC_SUBST(PYTHON_CPPFLAGS)
 AC_SUBST(PYTHON_LIBS)
+
+# Provide a --enable-libmcheck/--disable-libmcheck set of options
+# allowing a user to enable this option even when building releases,
+# or to disable it when building a snapshot.
+AC_ARG_ENABLE(libmcheck,
+  AS_HELP_STRING([--enable-libmcheck],
+                 [Try building GDB with -lmcheck if available]),
+  [case "${enableval}" in
+     yes | y) ENABLE_LIBMCHECK="yes" ;;
+     no | n)  ENABLE_LIBMCHECK="no" ;;
+     *) AC_MSG_ERROR(bad value ${enableval} for --enable-libmcheck) ;;
+   esac])
+
+# Enable -lmcheck by default (it provides cheap-enough memory mangling),
+# but turn it off if Python is enabled with threads, since -lmcheck is
+# not thread safe (http://sourceware.org/bugzilla/show_bug.cgi?id=9939),
+# and for releases.
+if test -z "${ENABLE_LIBMCHECK}" \
+        -a \( "${have_libpython}" = "no" \
+	     -o "${python_has_threads}" = "no" \) \
+    && $development; then
+  ENABLE_LIBMCHECK=yes
+fi
+
+if test "$ENABLE_LIBMCHECK" = "yes" ; then
+  if test "${have_libpython}" != "no" -a "${python_has_threads}" = "yes" ; then
+    AC_MSG_WARN(--enable-libmcheck may lead to spurious crashes if threads are used in python)
+  fi
+  AC_CHECK_LIB(mcheck, main)
+fi
 
 # ------------------------- #
 # Checks for header files.  #
@@ -1022,7 +1064,7 @@ AC_HEADER_STDC
 # FIXME: kettenis/20030102: In most cases we include these (ctype.h, time.h)
 # unconditionally, so what's the point in checking these?
 AC_CHECK_HEADERS([nlist.h machine/reg.h poll.h sys/poll.h proc_service.h \
-                  thread_db.h gnu/libc-version.h signal.h stddef.h \
+                  thread_db.h signal.h stddef.h \
 		  stdlib.h string.h memory.h strings.h sys/fault.h \
 		  sys/file.h sys/filio.h sys/ioctl.h sys/param.h \
 		  sys/resource.h sys/procfs.h sys/ptrace.h ptrace.h \
@@ -1273,6 +1315,12 @@ fi
 # Older i386 BSD's don't have the r_fs and r_gs members of `struct reg'.
 AC_CHECK_MEMBERS([struct reg.r_fs, struct reg.r_gs], [], [],
                  [#include <machine/reg.h>])
+
+# See if <sys/user.h> supports the %fs_base and %gs_bas amd64 segment registers.
+# Older amd64 Linux's don't have the fs_base and gs_base members of
+# `struct user_regs_struct'.
+AC_CHECK_MEMBERS([struct user_regs_struct.fs_base, struct user_regs_struct.gs_base],
+		 [], [], [#include <sys/user.h>])
 
 # See if <sys/ptrace.h> provides the PTRACE_GETREGS request.
 AC_MSG_CHECKING(for PTRACE_GETREGS)
@@ -1671,6 +1719,13 @@ if test ${build} = ${host} -a ${host} = ${target} ; then
          [Define if using Solaris thread debugging.])
          CONFIG_OBS="${CONFIG_OBS} sol-thread.o"
          CONFIG_SRCS="${CONFIG_SRCS} sol-thread.c"
+         # On SPARC CPUs, we also need to build sparc-sol-thread.
+         case ${host_cpu} in
+           sparc*)
+             CONFIG_OBS="${CONFIG_OBS} sparc-sol-thread.o"
+             CONFIG_SRCS="${CONFIG_SRCS} sparc-sol-thread.c"
+             ;;
+         esac
          AC_CHECK_LIB(dl, dlopen)
 	 CONFIG_LDFLAGS="${CONFIG_LDFLAGS} $RDYNAMIC"
 	 # Sun randomly tweaked the prototypes in <proc_service.h>
@@ -1850,7 +1905,8 @@ fi
 build_warnings="-Wall -Wdeclaration-after-statement -Wpointer-arith \
 -Wformat-nonliteral -Wno-pointer-sign \
 -Wno-unused -Wunused-value -Wunused-function \
--Wno-switch -Wno-char-subscripts -Wmissing-prototypes"
+-Wno-switch -Wno-char-subscripts -Wmissing-prototypes \
+-Wdeclaration-after-statement"
 
 # Enable -Wno-format by default when using gcc on mingw since many
 # GCC versions complain about %I64.

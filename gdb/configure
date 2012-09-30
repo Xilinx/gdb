@@ -801,6 +801,7 @@ with_gnu_ld
 enable_rpath
 with_libexpat_prefix
 with_python
+enable_libmcheck
 with_included_regex
 with_sysroot
 with_system_gdbinit
@@ -1466,6 +1467,7 @@ Optional Features:
   --enable-gdbtk          enable gdbtk graphical user interface (GUI)
   --enable-profiling      enable profiling of GDB
   --disable-rpath         do not hardcode runtime library paths
+  --enable-libmcheck      Try building GDB with -lmcheck if available
   --enable-werror         treat compile warnings as errors
   --enable-build-warnings enable build-time compiler warnings if gcc is used
   --enable-gdb-build-warnings
@@ -7039,48 +7041,6 @@ fi
 
 
 
-if $development; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for main in -lmcheck" >&5
-$as_echo_n "checking for main in -lmcheck... " >&6; }
-if test "${ac_cv_lib_mcheck_main+set}" = set; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lmcheck  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-
-int
-main ()
-{
-return main ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_mcheck_main=yes
-else
-  ac_cv_lib_mcheck_main=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_mcheck_main" >&5
-$as_echo "$ac_cv_lib_mcheck_main" >&6; }
-if test "x$ac_cv_lib_mcheck_main" = x""yes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBMCHECK 1
-_ACEOF
-
-  LIBS="-lmcheck $LIBS"
-
-fi
-
-fi
-
 # Generate jit-reader.h
 
 # This is typedeffed to GDB_CORE_ADDR in jit-reader.h
@@ -8518,6 +8478,34 @@ $as_echo "${PYTHON_CFLAGS}" >&6; }
            fi
            ;;
   esac
+
+  # Note that "python -m threading" cannot be used to check for
+  # threading support due to a bug in Python 2.7.3
+  # (http://bugs.python.org/issue15567).
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether python supports threads" >&5
+$as_echo_n "checking whether python supports threads... " >&6; }
+  saved_CPPFLAGS="${CPPFLAGS}"
+  CPPFLAGS="${PYTHON_CPPFLAGS}"
+  # Note that the test is reversed so that python_has_threads=yes on
+  # unexpected failures.
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <Python.h>
+#ifdef WITH_THREAD
+# error
+#endif
+
+_ACEOF
+if ac_fn_c_try_cpp "$LINENO"; then :
+  python_has_threads=no
+else
+  python_has_threads=yes
+fi
+rm -f conftest.err conftest.$ac_ext
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: ${python_has_threads}" >&5
+$as_echo "${python_has_threads}" >&6; }
+  CPPFLAGS="${saved_CPPFLAGS}"
 else
   # Even if Python support is not compiled in, we need to have these files
   # included.
@@ -8528,6 +8516,76 @@ fi
 
 
 
+
+# Provide a --enable-libmcheck/--disable-libmcheck set of options
+# allowing a user to enable this option even when building releases,
+# or to disable it when building a snapshot.
+# Check whether --enable-libmcheck was given.
+if test "${enable_libmcheck+set}" = set; then :
+  enableval=$enable_libmcheck; case "${enableval}" in
+     yes | y) ENABLE_LIBMCHECK="yes" ;;
+     no | n)  ENABLE_LIBMCHECK="no" ;;
+     *) as_fn_error "bad value ${enableval} for --enable-libmcheck" "$LINENO" 5 ;;
+   esac
+fi
+
+
+# Enable -lmcheck by default (it provides cheap-enough memory mangling),
+# but turn it off if Python is enabled with threads, since -lmcheck is
+# not thread safe (http://sourceware.org/bugzilla/show_bug.cgi?id=9939),
+# and for releases.
+if test -z "${ENABLE_LIBMCHECK}" \
+        -a \( "${have_libpython}" = "no" \
+	     -o "${python_has_threads}" = "no" \) \
+    && $development; then
+  ENABLE_LIBMCHECK=yes
+fi
+
+if test "$ENABLE_LIBMCHECK" = "yes" ; then
+  if test "${have_libpython}" != "no" -a "${python_has_threads}" = "yes" ; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: --enable-libmcheck may lead to spurious crashes if threads are used in python" >&5
+$as_echo "$as_me: WARNING: --enable-libmcheck may lead to spurious crashes if threads are used in python" >&2;}
+  fi
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for main in -lmcheck" >&5
+$as_echo_n "checking for main in -lmcheck... " >&6; }
+if test "${ac_cv_lib_mcheck_main+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lmcheck  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+
+int
+main ()
+{
+return main ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_mcheck_main=yes
+else
+  ac_cv_lib_mcheck_main=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_mcheck_main" >&5
+$as_echo "$ac_cv_lib_mcheck_main" >&6; }
+if test "x$ac_cv_lib_mcheck_main" = x""yes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBMCHECK 1
+_ACEOF
+
+  LIBS="-lmcheck $LIBS"
+
+fi
+
+fi
 
 # ------------------------- #
 # Checks for header files.  #
@@ -8850,7 +8908,7 @@ fi
 # FIXME: kettenis/20030102: In most cases we include these (ctype.h, time.h)
 # unconditionally, so what's the point in checking these?
 for ac_header in nlist.h machine/reg.h poll.h sys/poll.h proc_service.h \
-                  thread_db.h gnu/libc-version.h signal.h stddef.h \
+                  thread_db.h signal.h stddef.h \
 		  stdlib.h string.h memory.h strings.h sys/fault.h \
 		  sys/file.h sys/filio.h sys/ioctl.h sys/param.h \
 		  sys/resource.h sys/procfs.h sys/ptrace.h ptrace.h \
@@ -10612,6 +10670,31 @@ _ACEOF
 fi
 
 
+# See if <sys/user.h> supports the %fs_base and %gs_bas amd64 segment registers.
+# Older amd64 Linux's don't have the fs_base and gs_base members of
+# `struct user_regs_struct'.
+ac_fn_c_check_member "$LINENO" "struct user_regs_struct" "fs_base" "ac_cv_member_struct_user_regs_struct_fs_base" "#include <sys/user.h>
+"
+if test "x$ac_cv_member_struct_user_regs_struct_fs_base" = x""yes; then :
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_STRUCT_USER_REGS_STRUCT_FS_BASE 1
+_ACEOF
+
+
+fi
+ac_fn_c_check_member "$LINENO" "struct user_regs_struct" "gs_base" "ac_cv_member_struct_user_regs_struct_gs_base" "#include <sys/user.h>
+"
+if test "x$ac_cv_member_struct_user_regs_struct_gs_base" = x""yes; then :
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_STRUCT_USER_REGS_STRUCT_GS_BASE 1
+_ACEOF
+
+
+fi
+
+
 # See if <sys/ptrace.h> provides the PTRACE_GETREGS request.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for PTRACE_GETREGS" >&5
 $as_echo_n "checking for PTRACE_GETREGS... " >&6; }
@@ -11886,6 +11969,13 @@ $as_echo "#define HAVE_THREAD_DB_LIB 1" >>confdefs.h
 
          CONFIG_OBS="${CONFIG_OBS} sol-thread.o"
          CONFIG_SRCS="${CONFIG_SRCS} sol-thread.c"
+         # On SPARC CPUs, we also need to build sparc-sol-thread.
+         case ${host_cpu} in
+           sparc*)
+             CONFIG_OBS="${CONFIG_OBS} sparc-sol-thread.o"
+             CONFIG_SRCS="${CONFIG_SRCS} sparc-sol-thread.c"
+             ;;
+         esac
          { $as_echo "$as_me:${as_lineno-$LINENO}: checking for dlopen in -ldl" >&5
 $as_echo_n "checking for dlopen in -ldl... " >&6; }
 if test "${ac_cv_lib_dl_dlopen+set}" = set; then :
@@ -12365,7 +12455,8 @@ fi
 build_warnings="-Wall -Wdeclaration-after-statement -Wpointer-arith \
 -Wformat-nonliteral -Wno-pointer-sign \
 -Wno-unused -Wunused-value -Wunused-function \
--Wno-switch -Wno-char-subscripts -Wmissing-prototypes"
+-Wno-switch -Wno-char-subscripts -Wmissing-prototypes \
+-Wdeclaration-after-statement"
 
 # Enable -Wno-format by default when using gcc on mingw since many
 # GCC versions complain about %I64.

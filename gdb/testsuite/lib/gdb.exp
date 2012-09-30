@@ -469,7 +469,7 @@ proc gdb_continue_to_breakpoint {name {location_pattern .*}} {
 
     send_gdb "continue\n"
     gdb_expect {
-	-re "Breakpoint .* (at|in) $location_pattern\r\n$gdb_prompt $" {
+	-re "(?:Breakpoint|Temporary breakpoint) .* (at|in) $location_pattern\r\n$gdb_prompt $" {
 	    pass $full_name
 	}
 	-re ".*$gdb_prompt $" {
@@ -1277,6 +1277,11 @@ proc gdb_file_cmd { arg } {
             perror "($arg) No such file or directory"
 	    return -1
         }
+	-re "A problem internal to GDB has been detected" {
+	    fail "($arg) GDB internal error"
+	    gdb_internal_error_resync
+	    return -1
+	}
         -re "$gdb_prompt $" {
             perror "couldn't load $arg into $GDB."
 	    return -1
@@ -1827,7 +1832,7 @@ proc skip_altivec_tests {} {
 
     # Make sure we have a compiler that understands altivec.
     set compile_flags {debug nowarnings}
-    if [get_compiler_info not-used] {
+    if [get_compiler_info] {
        warning "Could not get compiler info"
        return 1
     }
@@ -1916,7 +1921,7 @@ proc skip_vsx_tests {} {
 
     # Make sure we have a compiler that understands altivec.
     set compile_flags {debug nowarnings quiet}
-    if [get_compiler_info not-used] {
+    if [get_compiler_info] {
        warning "Could not get compiler info"
        return 1
     }
@@ -2093,6 +2098,36 @@ proc skip_hw_watchpoint_access_tests {} {
     return 0
 }
 
+# Return 1 if we should skip tests that require the runtime unwinder
+# hook.  This must be invoked while gdb is running, after shared
+# libraries have been loaded.  This is needed because otherwise a
+# shared libgcc won't be visible.
+
+proc skip_unwinder_tests {} {
+    global gdb_prompt
+
+    set ok 0
+    gdb_test_multiple "print _Unwind_DebugHook" "check for unwinder hook" {
+	-re "= .*no debug info.*_Unwind_DebugHook.*\r\n$gdb_prompt $" {
+	}
+	-re "= .*_Unwind_DebugHook.*\r\n$gdb_prompt $" {
+	    set ok 1
+	}
+	-re "No symbol .* in current context.\r\n$gdb_prompt $" {
+	}
+    }
+    if {!$ok} {
+	gdb_test_multiple "info probe" "check for stap probe in unwinder" {
+	    -re ".*libgcc.*unwind.*\r\n$gdb_prompt $" {
+		set ok 1
+	    }
+	    -re "\r\n$gdb_prompt $" {
+	    }
+	}
+    }
+    return $ok
+}
+
 set compiler_info		"unknown"
 set gcc_compiled		0
 set hp_cc_compiler		0
@@ -2100,10 +2135,7 @@ set hp_aCC_compiler		0
 
 # Figure out what compiler I am using.
 #
-# BINFILE is a "compiler information" output file.  This implementation
-# does not use BINFILE.
-#
-# ARGS can be empty or "C++".  If empty, "C" is assumed.
+# ARG can be empty or "C++".  If empty, "C" is assumed.
 #
 # There are several ways to do this, with various problems.
 #
@@ -2152,7 +2184,7 @@ set hp_aCC_compiler		0
 #
 # -- chastain 2004-01-06
 
-proc get_compiler_info {binfile args} {
+proc get_compiler_info {{arg ""}} {
     # For compiler.c and compiler.cc
     global srcdir
 
@@ -2170,7 +2202,7 @@ proc get_compiler_info {binfile args} {
 
     # Choose which file to preprocess.
     set ifile "${srcdir}/lib/compiler.c"
-    if { [llength $args] > 0 && [lindex $args 0] == "c++" } {
+    if { $arg == "c++" } {
 	set ifile "${srcdir}/lib/compiler.cc"
     }
 
@@ -2181,12 +2213,12 @@ proc get_compiler_info {binfile args} {
 	# We have to use -E and -o together, despite the comments
 	# above, because of how DejaGnu handles remote host testing.
 	set ppout "$outdir/compiler.i"
-	gdb_compile "${ifile}" "$ppout" preprocess [list "$args" quiet]
+	gdb_compile "${ifile}" "$ppout" preprocess [list "$arg" quiet]
 	set file [open $ppout r]
 	set cppout [read $file]
 	close $file
     } else {
-	set cppout [ gdb_compile "${ifile}" "" preprocess [list "$args" quiet] ]
+	set cppout [ gdb_compile "${ifile}" "" preprocess [list "$arg" quiet] ]
     }
     log_file -a "$outdir/$tool.log" 
 
@@ -3027,11 +3059,14 @@ proc gdb_continue { function } {
 proc default_gdb_init { args } {
     global gdb_wrapper_initialized
     global gdb_wrapper_target
+    global gdb_test_file_name
     global cleanfiles
     
     set cleanfiles {}
 
     gdb_clear_suppressed;
+
+    set gdb_test_file_name [file rootname [file tail [lindex $args 0]]]
 
     # Make sure that the wrapper is rebuilt
     # with the appropriate multilib option.
@@ -3063,6 +3098,84 @@ proc default_gdb_init { args } {
     global use_gdb_stub
     if [info exists use_gdb_stub] {
 	unset use_gdb_stub
+    }
+}
+
+# Turn BASENAME into a full file name in the standard output
+# directory.  It is ok if BASENAME is the empty string; in this case
+# the directory is returned.
+
+proc standard_output_file {basename} {
+    global objdir subdir
+
+    return [file join $objdir $subdir $basename]
+}
+
+# Set 'testfile', 'srcfile', and 'binfile'.
+#
+# ARGS is a list of source file specifications.
+# Without any arguments, the .exp file's base name is used to
+# compute the source file name.  The ".c" extension is added in this case.
+# If ARGS is not empty, each entry is a source file specification.
+# If the specification starts with a ".", it is treated as a suffix
+# to append to the .exp file's base name.
+# If the specification is the empty string, it is treated as if it
+# were ".c".
+# Otherwise it is a file name.
+# The first file in the list is used to set the 'srcfile' global.
+# Each subsequent name is used to set 'srcfile2', 'srcfile3', etc.
+#
+# Most tests should call this without arguments.
+#
+# If a completely different binary file name is needed, then it
+# should be handled in the .exp file with a suitable comment.
+
+proc standard_testfile {args} {
+    global gdb_test_file_name
+    global subdir
+    global gdb_test_file_last_vars
+
+    # Outputs.
+    global testfile binfile
+
+    set testfile $gdb_test_file_name
+    set binfile [standard_output_file ${testfile}]
+
+    if {[llength $args] == 0} {
+	set args .c
+    }
+
+    # Unset our previous output variables.
+    # This can help catch hidden bugs.
+    if {[info exists gdb_test_file_last_vars]} {
+	foreach varname $gdb_test_file_last_vars {
+	    global $varname
+	    catch {unset $varname}
+	}
+    }
+    # 'executable' is often set by tests.
+    set gdb_test_file_last_vars {executable}
+
+    set suffix ""
+    foreach arg $args {
+	set varname srcfile$suffix
+	global $varname
+
+	# Handle an extension.
+	if {$arg == ""} {
+	    set arg $testfile.c
+	} elseif {[string range $arg 0 0] == "."} {
+	    set arg $testfile$arg
+	}
+
+	set $varname $arg
+	lappend gdb_test_file_last_vars $varname
+
+	if {$suffix == ""} {
+	    set suffix 2
+	} else {
+	    incr suffix
+	}
     }
 }
 
@@ -3656,29 +3769,31 @@ proc test_prefix_command_help { command_list expected_initial_lines args } {
     }
 }
 
-# Build executable named EXECUTABLE, from SOURCES.  If SOURCES are not
-# provided, uses $EXECUTABLE.c.  The TESTNAME paramer is the name of test
-# to pass to untested, if something is wrong.  OPTIONS are passed
-# to gdb_compile directly.
-proc build_executable { testname executable {sources ""} {options {debug}} } {
-
-    global objdir
+# Build executable named EXECUTABLE from specifications that allow
+# different options to be passed to different sub-compilations.
+# TESTNAME is the name of the test; this is passed to 'untested' if
+# something fails.
+# OPTIONS is passed to the final link, using gdb_compile.
+# ARGS is a flat list of source specifications, of the form:
+#    { SOURCE1 OPTIONS1 [ SOURCE2 OPTIONS2 ]... }
+# Each SOURCE is compiled to an object file using its OPTIONS,
+# using gdb_compile.
+# Returns 0 on success, -1 on failure.
+proc build_executable_from_specs {testname executable options args} {
     global subdir
     global srcdir
-    if {[llength $sources]==0} {
-        set sources ${executable}.c
-    }
 
-    set binfile ${objdir}/${subdir}/${executable}
+    set binfile [standard_output_file $executable]
 
     set objects {}
-    for {set i 0} "\$i<[llength $sources]" {incr i} {
-        set s [lindex $sources $i]
-        if  { [gdb_compile "${srcdir}/${subdir}/${s}" "${binfile}${i}.o" object $options] != "" } {
+    set i 0
+    foreach {s local_options} $args {
+        if  { [gdb_compile "${srcdir}/${subdir}/${s}" "${binfile}${i}.o" object $local_options] != "" } {
             untested $testname
             return -1
         }
         lappend objects "${binfile}${i}.o"
+	incr i
     }
     
     if  { [gdb_compile $objects "${binfile}" executable $options] != "" } {
@@ -3690,24 +3805,59 @@ proc build_executable { testname executable {sources ""} {options {debug}} } {
     if { [lsearch -exact $options "c++"] >= 0 } {
 	set info_options "c++"
     }
-    if [get_compiler_info ${binfile} ${info_options}] {
+    if [get_compiler_info ${info_options}] {
         return -1
     }
     return 0
 }
 
+# Build executable named EXECUTABLE, from SOURCES.  If SOURCES are not
+# provided, uses $EXECUTABLE.c.  The TESTNAME paramer is the name of test
+# to pass to untested, if something is wrong.  OPTIONS are passed
+# to gdb_compile directly.
+proc build_executable { testname executable {sources ""} {options {debug}} } {
+    if {[llength $sources]==0} {
+        set sources ${executable}.c
+    }
+
+    set arglist [list $testname $executable $options]
+    foreach source $sources {
+	lappend arglist $source $options
+    }
+
+    return [eval build_executable_from_specs $arglist]
+}
+
 # Starts fresh GDB binary and loads EXECUTABLE into GDB. EXECUTABLE is
-# the name of binary in ${objdir}/${subdir}.
+# the basename of the binary.
 proc clean_restart { executable } {
     global srcdir
-    global objdir
     global subdir
-    set binfile ${objdir}/${subdir}/${executable}
+    set binfile [standard_output_file ${executable}]
 
     gdb_exit
     gdb_start
     gdb_reinitialize_dir $srcdir/$subdir
     gdb_load ${binfile}
+}
+
+# Prepares for testing by calling build_executable_full, then
+# clean_restart.
+# TESTNAME is the name of the test.
+# Each element in ARGS is a list of the form
+#    { EXECUTABLE OPTIONS SOURCE_SPEC... }
+# These are passed to build_executable_from_specs, which see.
+# The last EXECUTABLE is passed to clean_restart.
+# Returns 0 on success, non-zero on failure.
+proc prepare_for_testing_full {testname args} {
+    foreach spec $args {
+	if {[eval build_executable_from_specs [list $testname] $spec] == -1} {
+	    return -1
+	}
+	set executable [lindex $spec 0]
+    }
+    clean_restart $executable
+    return 0
 }
 
 # Prepares for testing, by calling build_executable, and then clean_restart.
@@ -3871,7 +4021,7 @@ proc core_find {binfile {deletefiles {}} {arg ""}} {
     # could have many core files lying around, and it may be difficult to
     # tell which one is ours, so let's run the program in a subdirectory.
     set found 0
-    set coredir "${objdir}/${subdir}/coredir.[getpid]"
+    set coredir [standard_output_file coredir.[getpid]]
     file mkdir $coredir
     catch "system \"(cd ${coredir}; ulimit -c unlimited; ${binfile} ${arg}; true) >/dev/null 2>&1\""
     #      remote_exec host "${binfile}"

@@ -40,6 +40,7 @@
 #include "inferior.h"
 #include <ctype.h>
 #include "regcache.h"
+#include "gdb_bfd.h"
 
 /*
  * All this stuff just to get my host computer's IP address!
@@ -124,13 +125,15 @@ m32r_load (char *filename, int from_tty)
   bfd *abfd;
   unsigned int data_count = 0;
   struct timeval start_time, end_time;
+  struct cleanup *cleanup;
 
   if (filename == NULL || filename[0] == 0)
     filename = get_exec_file (1);
 
-  abfd = bfd_openr (filename, 0);
+  abfd = gdb_bfd_open (filename, NULL, -1);
   if (!abfd)
     error (_("Unable to open file %s."), filename);
+  cleanup = make_cleanup_bfd_unref (abfd);
   if (bfd_check_format (abfd, bfd_object) == 0)
     error (_("File is not an object file."));
   gettimeofday (&start_time, NULL);
@@ -188,6 +191,7 @@ m32r_load (char *filename, int from_tty)
      confused...  */
 
   clear_symtab_users (0);
+  do_cleanups (cleanup);
 }
 
 static void
@@ -434,6 +438,7 @@ m32r_upload_command (char *args, int from_tty)
   char buf[1024];
   struct hostent *hostent;
   struct in_addr inet_addr;
+  struct cleanup *cleanup;
 
   /* First check to see if there's an ethernet port!  */
   monitor_printf ("ust\r");
@@ -524,7 +529,8 @@ m32r_upload_command (char *args, int from_tty)
     printf_filtered (" -- Ethernet load complete.\n");
 
   gettimeofday (&end_time, NULL);
-  abfd = bfd_openr (args, 0);
+  abfd = gdb_bfd_open (args, NULL, -1);
+  cleanup = make_cleanup_bfd_unref (abfd);
   if (abfd != NULL)
     {		/* Download is done -- print section statistics.  */
       if (bfd_check_format (abfd, bfd_object) == 0)
@@ -565,6 +571,7 @@ m32r_upload_command (char *args, int from_tty)
      confused...  */
 
   clear_symtab_users (0);
+  do_cleanups (cleanup);
 }
 
 /* Provide a prototype to silence -Wmissing-prototypes.  */

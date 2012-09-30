@@ -46,6 +46,7 @@
 #include "solib.h"
 #include "interps.h"
 #include "filesystem.h"
+#include "gdb_bfd.h"
 
 /* Architecture-specific operations.  */
 
@@ -299,11 +300,6 @@ solib_find (char *in_pathname, int *fd)
   if (found_file < 0)
     temp_pathname = NULL;
 
-  /* If not found, search the solib_search_path (if any).  */
-  if (found_file < 0 && solib_search_path != NULL)
-    found_file = openp (solib_search_path, OPF_TRY_CWD_FIRST,
-			in_pathname, O_RDONLY | O_BINARY, &temp_pathname);
-
   /* If the search in gdb_sysroot failed, and the path name is
      absolute at this point, make it relative.  (openp will try and open the
      file according to its absolute path otherwise, which is not what we want.)
@@ -360,9 +356,9 @@ solib_find (char *in_pathname, int *fd)
    it is used as file handle to open the file.  Throws an error if the file
    could not be opened.  Handles both local and remote file access.
 
-   PATHNAME must be malloc'ed by the caller.  If successful, the new BFD's
-   name will point to it.  If unsuccessful, PATHNAME will be freed and the
-   FD will be closed (unless FD was -1).  */
+   PATHNAME must be malloc'ed by the caller.  It will be freed by this
+   function.  If unsuccessful, the FD will be closed (unless FD was
+   -1).  */
 
 bfd *
 solib_bfd_fopen (char *pathname, int fd)
@@ -376,7 +372,7 @@ solib_bfd_fopen (char *pathname, int fd)
     }
   else
     {
-      abfd = bfd_fopen (pathname, gnutarget, FOPEN_RB, fd);
+      abfd = gdb_bfd_open (pathname, gnutarget, fd);
 
       if (abfd)
 	bfd_set_cacheable (abfd, 1);
@@ -388,6 +384,8 @@ solib_bfd_fopen (char *pathname, int fd)
       error (_("Could not open `%s' as an executable file: %s"),
 	     pathname, bfd_errmsg (bfd_get_error ()));
     }
+
+  xfree (pathname);
 
   return abfd;
 }
@@ -420,17 +418,16 @@ solib_bfd_open (char *pathname)
   /* Check bfd format.  */
   if (!bfd_check_format (abfd, bfd_object))
     {
-      bfd_close (abfd);
-      make_cleanup (xfree, found_pathname);
+      make_cleanup_bfd_unref (abfd);
       error (_("`%s': not in executable format: %s"),
-	     found_pathname, bfd_errmsg (bfd_get_error ()));
+	     bfd_get_filename (abfd), bfd_errmsg (bfd_get_error ()));
     }
 
   /* Check bfd arch.  */
   b = gdbarch_bfd_arch_info (target_gdbarch);
   if (!b->compatible (b, bfd_get_arch_info (abfd)))
     warning (_("`%s': Shared library architecture %s is not compatible "
-               "with target architecture %s."), found_pathname,
+               "with target architecture %s."), bfd_get_filename (abfd),
              bfd_get_arch_info (abfd)->printable_name, b->printable_name);
 
   return abfd;
@@ -466,7 +463,7 @@ solib_map_sections (struct so_list *so)
     return 0;
 
   /* Leave bfd open, core_xfer_memory and "info files" need it.  */
-  so->abfd = gdb_bfd_ref (abfd);
+  so->abfd = abfd;
 
   /* copy full path name into so_name, so that later symbol_file_add
      can find it.  */
@@ -502,7 +499,7 @@ solib_map_sections (struct so_list *so)
      section tables.  Do this immediately after mapping the object so
      that later nodes in the list can query this object, as is needed
      in solib-osf.c.  */
-  add_target_sections (so->sections, so->sections_end);
+  add_target_sections (so, so->sections, so->sections_end);
 
   return 1;
 }
@@ -770,7 +767,7 @@ update_solib_list (int from_tty, struct target_ops *target)
 
 	  /* Some targets' section tables might be referring to
 	     sections from so->abfd; remove them.  */
-	  remove_target_sections (gdb->abfd);
+	  remove_target_sections (gdb, gdb->abfd);
 
 	  free_so (gdb);
 	  gdb = *gdb_link;
@@ -1152,7 +1149,7 @@ clear_solib (void)
       so_list_head = so->next;
       observer_notify_solib_unloaded (so);
       if (so->abfd)
-	remove_target_sections (so->abfd);
+	remove_target_sections (so, so->abfd);
       free_so (so);
     }
 
@@ -1233,7 +1230,7 @@ reload_shared_libraries_1 (int from_tty)
 	{
 	  found_pathname = xstrdup (bfd_get_filename (abfd));
 	  make_cleanup (xfree, found_pathname);
-	  gdb_bfd_close_or_warn (abfd);
+	  gdb_bfd_unref (abfd);
 	}
 
       /* If this shared library is no longer associated with its previous
@@ -1245,7 +1242,7 @@ reload_shared_libraries_1 (int from_tty)
 	  if (so->objfile && ! (so->objfile->flags & OBJF_USERLOADED)
 	      && !solib_used (so))
 	    free_objfile (so->objfile);
-	  remove_target_sections (so->abfd);
+	  remove_target_sections (so, so->abfd);
 	  free_so_symbols (so);
 	}
 

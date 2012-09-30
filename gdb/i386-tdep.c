@@ -3933,22 +3933,17 @@ struct i386_record_s
   const int *regmap;
 };
 
-/* Parse "modrm" part in current memory address that irp->addr point to
-   Return -1 if something wrong.  */
+/* Parse the "modrm" part of the memory address irp->addr points at.
+   Returns -1 if something goes wrong, 0 otherwise.  */
 
 static int
 i386_record_modrm (struct i386_record_s *irp)
 {
   struct gdbarch *gdbarch = irp->gdbarch;
 
-  if (target_read_memory (irp->addr, &irp->modrm, 1))
-    {
-      if (record_debug)
-	printf_unfiltered (_("Process record: error reading memory at "
-			     "addr %s len = 1.\n"),
-			   paddress (gdbarch, irp->addr));
-      return -1;
-    }
+  if (record_read_memory (gdbarch, irp->addr, &irp->modrm, 1))
+    return -1;
+
   irp->addr++;
   irp->mod = (irp->modrm >> 6) & 3;
   irp->reg = (irp->modrm >> 3) & 7;
@@ -3957,9 +3952,8 @@ i386_record_modrm (struct i386_record_s *irp)
   return 0;
 }
 
-/* Get the memory address that current instruction  write to and set it to
-   the argument "addr".
-   Return -1 if something wrong.  */
+/* Extract the memory address that the current instruction writes to,
+   and return it in *ADDR.  Return -1 if something goes wrong.  */
 
 static int
 i386_record_lea_modrm_addr (struct i386_record_s *irp, uint64_t *addr)
@@ -3982,14 +3976,8 @@ i386_record_lea_modrm_addr (struct i386_record_s *irp, uint64_t *addr)
       if (base == 4)
 	{
 	  havesib = 1;
-	  if (target_read_memory (irp->addr, &byte, 1))
-	    {
-	      if (record_debug)
-		printf_unfiltered (_("Process record: error reading memory "
-				     "at addr %s len = 1.\n"),
-				   paddress (gdbarch, irp->addr));
-	      return -1;
-	    }
+	  if (record_read_memory (gdbarch, irp->addr, &byte, 1))
+	    return -1;
 	  irp->addr++;
 	  scale = (byte >> 6) & 3;
 	  index = ((byte >> 3) & 7) | irp->rex_x;
@@ -4003,14 +3991,8 @@ i386_record_lea_modrm_addr (struct i386_record_s *irp, uint64_t *addr)
 	  if ((base & 7) == 5)
 	    {
 	      base = 0xff;
-	      if (target_read_memory (irp->addr, buf, 4))
-		{
-		  if (record_debug)
-		    printf_unfiltered (_("Process record: error reading "
-				         "memory at addr %s len = 4.\n"),
-				       paddress (gdbarch, irp->addr));
-		  return -1;
-		}
+	      if (record_read_memory (gdbarch, irp->addr, buf, 4))
+		return -1;
 	      irp->addr += 4;
 	      *addr = extract_signed_integer (buf, 4, byte_order);
 	      if (irp->regmap[X86_RECORD_R8_REGNUM] && !havesib)
@@ -4018,26 +4000,14 @@ i386_record_lea_modrm_addr (struct i386_record_s *irp, uint64_t *addr)
 	    }
 	  break;
 	case 1:
-	  if (target_read_memory (irp->addr, buf, 1))
-	    {
-	      if (record_debug)
-		printf_unfiltered (_("Process record: error reading memory "
-				     "at addr %s len = 1.\n"),
-				   paddress (gdbarch, irp->addr));
-	      return -1;
-	    }
+	  if (record_read_memory (gdbarch, irp->addr, buf, 1))
+	    return -1;
 	  irp->addr++;
 	  *addr = (int8_t) buf[0];
 	  break;
 	case 2:
-	  if (target_read_memory (irp->addr, buf, 4))
-	    {
-	      if (record_debug)
-		printf_unfiltered (_("Process record: error reading memory "
-				     "at addr %s len = 4.\n"),
-				   paddress (gdbarch, irp->addr));
-	      return -1;
-	    }
+	  if (record_read_memory (gdbarch, irp->addr, buf, 4))
+	    return -1;
 	  *addr = extract_signed_integer (buf, 4, byte_order);
 	  irp->addr += 4;
 	  break;
@@ -4076,14 +4046,8 @@ i386_record_lea_modrm_addr (struct i386_record_s *irp, uint64_t *addr)
 	case 0:
 	  if (irp->rm == 6)
 	    {
-	      if (target_read_memory (irp->addr, buf, 2))
-		{
-		  if (record_debug)
-		    printf_unfiltered (_("Process record: error reading "
-					 "memory at addr %s len = 2.\n"),
-				       paddress (gdbarch, irp->addr));
-		  return -1;
-		}
+	      if (record_read_memory (gdbarch, irp->addr, buf, 2))
+		return -1;
 	      irp->addr += 2;
 	      *addr = extract_signed_integer (buf, 2, byte_order);
 	      irp->rm = 0;
@@ -4091,26 +4055,14 @@ i386_record_lea_modrm_addr (struct i386_record_s *irp, uint64_t *addr)
 	    }
 	  break;
 	case 1:
-	  if (target_read_memory (irp->addr, buf, 1))
-	    {
-	      if (record_debug)
-		printf_unfiltered (_("Process record: error reading memory "
-				     "at addr %s len = 1.\n"),
-				   paddress (gdbarch, irp->addr));
-	      return -1;
-	    }
+	  if (record_read_memory (gdbarch, irp->addr, buf, 1))
+	    return -1;
 	  irp->addr++;
 	  *addr = (int8_t) buf[0];
 	  break;
 	case 2:
-	  if (target_read_memory (irp->addr, buf, 2))
-	    {
-	      if (record_debug)
-		printf_unfiltered (_("Process record: error reading memory "
-				     "at addr %s len = 2.\n"),
-				   paddress (gdbarch, irp->addr));
-	      return -1;
-	    }
+	  if (record_read_memory (gdbarch, irp->addr, buf, 2))
+	    return -1;
 	  irp->addr += 2;
 	  *addr = extract_signed_integer (buf, 2, byte_order);
 	  break;
@@ -4190,9 +4142,9 @@ i386_record_lea_modrm_addr (struct i386_record_s *irp, uint64_t *addr)
   return 0;
 }
 
-/* Record the value of the memory that willbe changed in current instruction
-   to "record_arch_list".
-   Return -1 if something wrong.  */
+/* Record the address and contents of the memory that will be changed
+   by the current instruction.  Return -1 if something goes wrong, 0
+   otherwise.  */
 
 static int
 i386_record_lea_modrm (struct i386_record_s *irp)
@@ -4229,8 +4181,8 @@ Do you want to stop the program?"),
   return 0;
 }
 
-/* Record the push operation to "record_arch_list".
-   Return -1 if something wrong.  */
+/* Record the effects of a push operation.  Return -1 if something
+   goes wrong, 0 otherwise.  */
 
 static int
 i386_record_push (struct i386_record_s *irp, int size)
@@ -4255,9 +4207,9 @@ i386_record_push (struct i386_record_s *irp, int size)
 #define I386_SAVE_FPU_ENV               0xfffe
 #define I386_SAVE_FPU_ENV_REG_STACK     0xffff
 
-/* Record the value of floating point registers which will be changed
-   by the current instruction to "record_arch_list".  Return -1 if
-   something is wrong.  */
+/* Record the values of the floating point registers which will be
+   changed by the current instruction.  Returns -1 if something is
+   wrong, 0 otherwise.  */
 
 static int i386_record_floats (struct gdbarch *gdbarch,
                                struct i386_record_s *ir,
@@ -4317,9 +4269,9 @@ static int i386_record_floats (struct gdbarch *gdbarch,
   return 0;
 }
 
-/* Parse the current instruction and record the values of the registers and
-   memory that will be changed in current instruction to "record_arch_list".
-   Return -1 if something wrong.  */
+/* Parse the current instruction, and record the values of the
+   registers and memory that will be changed by the current
+   instruction.  Returns -1 if something goes wrong, 0 otherwise.  */
 
 #define I386_RECORD_ARCH_LIST_ADD_REG(regnum) \
     record_arch_list_add_reg (ir.regcache, ir.regmap[(regnum)])
@@ -4360,14 +4312,8 @@ i386_process_record (struct gdbarch *gdbarch, struct regcache *regcache,
   /* prefixes */
   while (1)
     {
-      if (target_read_memory (ir.addr, &opcode8, 1))
-	{
-	  if (record_debug)
-	    printf_unfiltered (_("Process record: error reading memory at "
-				 "addr %s len = 1.\n"),
-			       paddress (gdbarch, ir.addr));
-	  return -1;
-	}
+      if (record_read_memory (gdbarch, ir.addr, &opcode8, 1))
+	return -1;
       ir.addr++;
       switch (opcode8)	/* Instruction prefixes */
 	{
@@ -4458,14 +4404,8 @@ i386_process_record (struct gdbarch *gdbarch, struct regcache *regcache,
   switch (opcode)
     {
     case 0x0f:
-      if (target_read_memory (ir.addr, &opcode8, 1))
-	{
-	  if (record_debug)
-	    printf_unfiltered (_("Process record: error reading memory at "
-				 "addr %s len = 1.\n"),
-			       paddress (gdbarch, ir.addr));
-	  return -1;
-	}
+      if (record_read_memory (gdbarch, ir.addr, &opcode8, 1))
+	return -1;
       ir.addr++;
       opcode = (uint32_t) opcode8 | 0x0f00;
       goto reswitch;
@@ -5130,40 +5070,22 @@ Do you want to stop the program?"),
 	    ir.ot = ir.dflag + OT_WORD;
 	  if (ir.aflag == 2)
 	    {
-              if (target_read_memory (ir.addr, buf, 8))
-		{
-	          if (record_debug)
-		    printf_unfiltered (_("Process record: error reading "
-	                    		 "memory at addr 0x%s len = 8.\n"),
-				       paddress (gdbarch, ir.addr));
-		  return -1;
-		}
+              if (record_read_memory (gdbarch, ir.addr, buf, 8))
+		return -1;
 	      ir.addr += 8;
 	      addr = extract_unsigned_integer (buf, 8, byte_order);
 	    }
           else if (ir.aflag)
 	    {
-              if (target_read_memory (ir.addr, buf, 4))
-		{
-	          if (record_debug)
-		    printf_unfiltered (_("Process record: error reading "
-	                    		 "memory at addr 0x%s len = 4.\n"),
-				       paddress (gdbarch, ir.addr));
-		  return -1;
-		}
+              if (record_read_memory (gdbarch, ir.addr, buf, 4))
+		return -1;
 	      ir.addr += 4;
               addr = extract_unsigned_integer (buf, 4, byte_order);
 	    }
           else
 	    {
-              if (target_read_memory (ir.addr, buf, 2))
-		{
-	          if (record_debug)
-		    printf_unfiltered (_("Process record: error reading "
-	                    		 "memory at addr 0x%s len = 2.\n"),
-				       paddress (gdbarch, ir.addr));
-		  return -1;
-		}
+              if (record_read_memory (gdbarch, ir.addr, buf, 2))
+		return -1;
 	      ir.addr += 2;
               addr = extract_unsigned_integer (buf, 2, byte_order);
 	    }
@@ -6135,14 +6057,8 @@ Do you want to stop the program?"),
       break;
 
     case 0x9b:    /* fwait */
-      if (target_read_memory (ir.addr, &opcode8, 1))
-        {
-          if (record_debug)
-            printf_unfiltered (_("Process record: error reading memory at "
-				 "addr 0x%s len = 1.\n"),
-			       paddress (gdbarch, ir.addr));
-          return -1;
-        }
+      if (record_read_memory (gdbarch, ir.addr, &opcode8, 1))
+	return -1;
       opcode = (uint32_t) opcode8;
       ir.addr++;
       goto reswitch;
@@ -6161,14 +6077,8 @@ Do you want to stop the program?"),
       {
 	int ret;
 	uint8_t interrupt;
-	if (target_read_memory (ir.addr, &interrupt, 1))
-	  {
-	    if (record_debug)
-	      printf_unfiltered (_("Process record: error reading memory "
-				   "at addr %s len = 1.\n"),
-				 paddress (gdbarch, ir.addr));
-	    return -1;
-	  }
+	if (record_read_memory (gdbarch, ir.addr, &interrupt, 1))
+	  return -1;
 	ir.addr++;
 	if (interrupt != 0x80
 	    || tdep->i386_intx80_record == NULL)
@@ -6638,13 +6548,8 @@ Do you want to stop the program?"),
     case 0x0f0f:    /* 3DNow! data */
       if (i386_record_modrm (&ir))
 	return -1;
-      if (target_read_memory (ir.addr, &opcode8, 1))
-        {
-	  printf_unfiltered (_("Process record: error reading memory at "
-	                       "addr %s len = 1.\n"),
-	                     paddress (gdbarch, ir.addr));
-          return -1;
-        }
+      if (record_read_memory (gdbarch, ir.addr, &opcode8, 1))
+	return -1;
       ir.addr++;
       switch (opcode8)
         {
@@ -6911,13 +6816,8 @@ reswitch_prefix_add:
         case 0xf20f38:
         case 0x0f3a:
         case 0x660f3a:
-          if (target_read_memory (ir.addr, &opcode8, 1))
-            {
-	      printf_unfiltered (_("Process record: error reading memory at "
-	                           "addr %s len = 1.\n"),
-	                         paddress (gdbarch, ir.addr));
-              return -1;
-            }
+          if (record_read_memory (gdbarch, ir.addr, &opcode8, 1))
+	    return -1;
           ir.addr++;
           opcode = (uint32_t) opcode8 | opcode << 8;
           goto reswitch_prefix_add;

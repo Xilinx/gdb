@@ -18,19 +18,11 @@
 
 load_lib gdb-python.exp
 
-set testfile "py-symbol"
-set srcfile ${testfile}.c
-set binfile ${objdir}/${subdir}/${testfile}
-if { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable {debug}] != "" } {
-    untested "Couldn't compile ${srcfile}"
+standard_testfile py-symbol.c
+
+if {[prepare_for_testing $testfile.exp $testfile $srcfile debug]} {
     return -1
 }
-
-# Start with a fresh gdb.
-gdb_exit
-gdb_start
-gdb_reinitialize_dir $srcdir/$subdir
-gdb_load ${binfile}
 
 # Skip all tests if Python scripting is not enabled.
 if { [skip_python_tests] } { continue }
@@ -54,10 +46,13 @@ gdb_py_test_silent_cmd "python static_block = symtab.static_block()" "Get static
 gdb_py_test_silent_cmd "python global_symbols = \[\]; static_symbols = \[\]" "Set up symbol name lists" 0
 gdb_py_test_silent_cmd "python for sym in global_block: global_symbols.append(sym.name)" "Get global symbol names" 0
 gdb_py_test_silent_cmd "python for sym in static_block: static_symbols.append(sym.name)" "Get static symbol names" 0
+gdb_py_test_silent_cmd "step" "Step to the next line" 0
+gdb_py_test_silent_cmd "python new_pc = gdb.selected_frame().find_sal().pc" "Get new PC" 0
 
 # Test sal.
 gdb_test "python print sal.symtab" ".*gdb.python/py-symbol.c.*" "Test symtab"
 gdb_test "python print sal.pc" "${decimal}" "Test sal.pc"
+gdb_test "python print sal.last == (new_pc - 1)" "True" "Test sal.last"
 gdb_test "python print sal.line" "$line_no" "Test sal.line"
 gdb_test "python print sal.is_valid()" "True" "Test sal.is_valid"
 

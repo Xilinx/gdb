@@ -4294,7 +4294,7 @@ bfd_mach_o_fat_member_init (bfd *abfd,
       abfd->filename = name;
     }
 
-  areltdata = bfd_zalloc (abfd, sizeof (struct areltdata));
+  areltdata = bfd_zmalloc (sizeof (struct areltdata));
   areltdata->parsed_size = entry->size;
   abfd->arelt_data = areltdata;
   abfd->iostream = NULL;
@@ -4836,7 +4836,7 @@ bfd_mach_o_find_nearest_line (bfd *abfd,
   if (_bfd_dwarf2_find_nearest_line (abfd, dwarf_debug_sections,
 				     section, symbols, offset,
 				     filename_ptr, functionname_ptr,
-				     line_ptr, 0,
+				     line_ptr, NULL, 0,
 				     &mdata->dwarf2_find_line_info))
     return TRUE;
   return FALSE;

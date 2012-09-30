@@ -1648,7 +1648,7 @@ mi_cmd_data_write_memory (char *command, char **argv, int argc)
   old_chain = make_cleanup (xfree, buffer);
   store_signed_integer (buffer, word_size, byte_order, value);
   /* Write it down to memory.  */
-  write_memory (addr, buffer, word_size);
+  write_memory_with_notification (addr, buffer, word_size);
   /* Free the buffer.  */
   do_cleanups (old_chain);
 }
@@ -1672,6 +1672,10 @@ mi_cmd_data_write_memory_bytes (char *command, char **argv, int argc)
 
   addr = parse_and_eval_address (argv[0]);
   cdata = argv[1];
+  if (strlen (cdata) % 2)
+    error (_("Hex-encoded '%s' must have an even number of characters."),
+	   cdata);
+
   len = strlen (cdata)/2;
 
   data = xmalloc (len);
@@ -1684,9 +1688,7 @@ mi_cmd_data_write_memory_bytes (char *command, char **argv, int argc)
       data[i] = (gdb_byte) x;
     }
 
-  r = target_write_memory (addr, data, len);
-  if (r != 0)
-    error (_("Could not write memory"));
+  write_memory_with_notification (addr, data, len);
 
   do_cleanups (back_to);
 }
@@ -2097,10 +2099,10 @@ mi_cmd_execute (struct mi_parse *parse)
 
   current_context = parse;
 
-  if (strncmp (parse->command, "break-", sizeof ("break-") - 1 ) == 0)
+  if (parse->cmd->suppress_notification != NULL)
     {
-      make_cleanup_restore_integer (&mi_suppress_breakpoint_notifications);
-      mi_suppress_breakpoint_notifications = 1;
+      make_cleanup_restore_integer (parse->cmd->suppress_notification);
+      *parse->cmd->suppress_notification = 1;
     }
 
   if (parse->cmd->argv_func != NULL)
@@ -2436,7 +2438,8 @@ mi_cmd_trace_find (char *command, char **argv, int argc)
       if (argc != 2)
 	error (_("Line is required"));
 
-      sals = decode_line_spec (argv[1], DECODE_LINE_FUNFIRSTLINE);
+      sals = decode_line_with_current_source (argv[1],
+					      DECODE_LINE_FUNFIRSTLINE);
       back_to = make_cleanup (xfree, sals.sals);
 
       sal = sals.sals[0];

@@ -27,15 +27,19 @@ if {[skip_gdbserver_tests] || [skip_shlib_tests]} {
     return
 }
 
-set testfile "solib-list"
-set srclibfile ${testfile}-lib.c
-set srcfile ${testfile}-main.c
-set binlibfile ${objdir}/${subdir}/${testfile}.so
-set executable ${testfile}
-set objfile ${objdir}/${subdir}/${executable}.o
-set binfile ${objdir}/${subdir}/${executable}
+# This test case (currently) does not support remote targets, since it
+# assumes the ELF interpreter can be found on the host system
+if [is_remote target] then {
+    return
+}
 
-if { [get_compiler_info unused]
+standard_testfile solib-list-main.c
+set srclibfile ${testfile}-lib.c
+set binlibfile [standard_output_file ${testfile}.so]
+set executable ${testfile}
+set objfile ${binfile}.o
+
+if { [get_compiler_info]
      || [gdb_compile_shlib "${srcdir}/${subdir}/${srclibfile}" "${binlibfile}" [list debug ldflags=-Wl,-soname,${binlibfile}]] != ""
      || [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${objfile}" object {debug}] != ""
      || [gdb_compile "${objfile} ${binlibfile}" "${binfile}" executable {}] != "" } {

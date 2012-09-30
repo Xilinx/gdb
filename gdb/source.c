@@ -243,7 +243,8 @@ select_source_symtab (struct symtab *s)
      if one exists.  */
   if (lookup_symbol (main_name (), 0, VAR_DOMAIN, 0))
     {
-      sals = decode_line_spec (main_name (), DECODE_LINE_FUNFIRSTLINE);
+      sals = decode_line_with_current_source (main_name (),
+					      DECODE_LINE_FUNFIRSTLINE);
       sal = sals.sals[0];
       xfree (sals.sals);
       current_source_pspace = sal.pspace;
@@ -1405,7 +1406,7 @@ line_info (char *arg, int from_tty)
     }
   else
     {
-      sals = decode_line_spec_1 (arg, DECODE_LINE_LIST_MODE);
+      sals = decode_line_with_last_displayed (arg, DECODE_LINE_LIST_MODE);
 
       dont_repeat ();
     }
@@ -1964,12 +1965,12 @@ The matching line number is also stored as the value of \"$_\"."));
       add_com_alias ("?", "reverse-search", class_files, 0);
     }
 
-  add_setshow_integer_cmd ("listsize", class_support, &lines_to_list, _("\
+  add_setshow_zuinteger_unlimited_cmd ("listsize", class_support,
+				       &lines_to_list, _("\
 Set number of source lines gdb will list by default."), _("\
 Show number of source lines gdb will list by default."), NULL,
-			    NULL,
-			    show_lines_to_list,
-			    &setlist, &showlist);
+				       NULL, show_lines_to_list,
+				       &setlist, &showlist);
 
   add_cmd ("substitute-path", class_files, set_substitute_path_command,
            _("\

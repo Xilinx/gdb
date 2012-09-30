@@ -31,6 +31,8 @@ create_new_objfile_event_object (struct objfile *objfile)
   if (!objfile_event)
     goto fail;
 
+  /* Note that objfile_to_objfile_object returns a borrowed reference,
+     so we don't need a decref here.  */
   py_objfile = objfile_to_objfile_object (objfile);
   if (!py_objfile || evpy_add_attribute (objfile_event,
                                          "new_objfile",

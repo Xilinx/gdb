@@ -60,6 +60,7 @@ static void mi_on_normal_stop (struct bpstats *bs, int print_frame);
 
 static void mi_new_thread (struct thread_info *t);
 static void mi_thread_exit (struct thread_info *t, int silent);
+static void mi_record_changed (struct inferior*, int);
 static void mi_inferior_added (struct inferior *inf);
 static void mi_inferior_appeared (struct inferior *inf);
 static void mi_inferior_exit (struct inferior *inf);
@@ -68,9 +69,13 @@ static void mi_on_resume (ptid_t ptid);
 static void mi_solib_loaded (struct so_list *solib);
 static void mi_solib_unloaded (struct so_list *solib);
 static void mi_about_to_proceed (void);
+static void mi_traceframe_changed (int tfnum, int tpnum);
+static void mi_tsv_created (const char *name, LONGEST value);
+static void mi_tsv_deleted (const char *name);
 static void mi_breakpoint_created (struct breakpoint *b);
 static void mi_breakpoint_deleted (struct breakpoint *b);
 static void mi_breakpoint_modified (struct breakpoint *b);
+static void mi_command_param_changed (const char *param, const char *value);
 
 static int report_initial_inferior (struct inferior *inf, void *closure);
 
@@ -120,14 +125,19 @@ mi_interpreter_init (struct interp *interp, int top_level)
       observer_attach_inferior_appeared (mi_inferior_appeared);
       observer_attach_inferior_exit (mi_inferior_exit);
       observer_attach_inferior_removed (mi_inferior_removed);
+      observer_attach_record_changed (mi_record_changed);
       observer_attach_normal_stop (mi_on_normal_stop);
       observer_attach_target_resumed (mi_on_resume);
       observer_attach_solib_loaded (mi_solib_loaded);
       observer_attach_solib_unloaded (mi_solib_unloaded);
       observer_attach_about_to_proceed (mi_about_to_proceed);
+      observer_attach_traceframe_changed (mi_traceframe_changed);
+      observer_attach_tsv_created (mi_tsv_created);
+      observer_attach_tsv_deleted (mi_tsv_deleted);
       observer_attach_breakpoint_created (mi_breakpoint_created);
       observer_attach_breakpoint_deleted (mi_breakpoint_deleted);
       observer_attach_breakpoint_modified (mi_breakpoint_modified);
+      observer_attach_command_param_changed (mi_command_param_changed);
 
       /* The initial inferior is created before this function is
 	 called, so we need to report it explicitly.  Use iteration in
@@ -373,6 +383,19 @@ mi_thread_exit (struct thread_info *t, int silent)
   gdb_flush (mi->event_channel);
 }
 
+/* Emit notification on changing the state of record.  */
+
+static void
+mi_record_changed (struct inferior *inferior, int started)
+{
+  struct mi_interp *mi = top_level_interpreter_data ();
+
+  fprintf_unfiltered (mi->event_channel,  "record-%s,thread-group=\"i%d\"",
+		      started ? "started" : "stopped", inferior->num);
+
+  gdb_flush (mi->event_channel);
+}
+
 static void
 mi_inferior_added (struct inferior *inf)
 {
@@ -501,10 +524,71 @@ mi_about_to_proceed (void)
   mi_proceeded = 1;
 }
 
-/* When non-zero, no MI notifications will be emitted in
-   response to breakpoint change observers.  */
+/* When the element is non-zero, no MI notifications will be emitted in
+   response to the corresponding observers.  */
 
-int mi_suppress_breakpoint_notifications = 0;
+struct mi_suppress_notification mi_suppress_notification =
+  {
+    0,
+    0,
+    0,
+  };
+
+/* Emit notification on changing a traceframe.  */
+
+static void
+mi_traceframe_changed (int tfnum, int tpnum)
+{
+  struct mi_interp *mi = top_level_interpreter_data ();
+
+  if (mi_suppress_notification.traceframe)
+    return;
+
+  target_terminal_ours ();
+
+  if (tfnum >= 0)
+    fprintf_unfiltered (mi->event_channel, "traceframe-changed,"
+			"num=\"%d\",tracepoint=\"%d\"\n",
+			tfnum, tpnum);
+  else
+    fprintf_unfiltered (mi->event_channel, "traceframe-changed,end");
+
+  gdb_flush (mi->event_channel);
+}
+
+/* Emit notification on creating a trace state variable.  */
+
+static void
+mi_tsv_created (const char *name, LONGEST value)
+{
+  struct mi_interp *mi = top_level_interpreter_data ();
+
+  target_terminal_ours ();
+
+  fprintf_unfiltered (mi->event_channel, "tsv-created,"
+		      "name=\"%s\",value=\"%s\"\n",
+		      name, plongest (value));
+
+  gdb_flush (mi->event_channel);
+}
+
+/* Emit notification on deleting a trace state variable.  */
+
+static void
+mi_tsv_deleted (const char *name)
+{
+  struct mi_interp *mi = top_level_interpreter_data ();
+
+  target_terminal_ours ();
+
+  if (name != NULL)
+    fprintf_unfiltered (mi->event_channel, "tsv-deleted,"
+			"name=\"%s\"\n", name);
+  else
+    fprintf_unfiltered (mi->event_channel, "tsv-deleted\n");
+
+  gdb_flush (mi->event_channel);
+}
 
 /* Emit notification about a created breakpoint.  */
 
@@ -515,7 +599,7 @@ mi_breakpoint_created (struct breakpoint *b)
   struct ui_out *mi_uiout = interp_ui_out (top_level_interpreter ());
   volatile struct gdb_exception e;
 
-  if (mi_suppress_breakpoint_notifications)
+  if (mi_suppress_notification.breakpoint)
     return;
 
   if (b->number <= 0)
@@ -546,7 +630,7 @@ mi_breakpoint_deleted (struct breakpoint *b)
 {
   struct mi_interp *mi = top_level_interpreter_data ();
 
-  if (mi_suppress_breakpoint_notifications)
+  if (mi_suppress_notification.breakpoint)
     return;
 
   if (b->number <= 0)
@@ -569,7 +653,7 @@ mi_breakpoint_modified (struct breakpoint *b)
   struct ui_out *mi_uiout = interp_ui_out (top_level_interpreter ());
   volatile struct gdb_exception e;
 
-  if (mi_suppress_breakpoint_notifications)
+  if (mi_suppress_notification.breakpoint)
     return;
 
   if (b->number <= 0)
@@ -730,6 +814,32 @@ mi_solib_unloaded (struct so_list *solib)
   gdb_flush (mi->event_channel);
 }
 
+/* Emit notification about the command parameter change.  */
+
+static void
+mi_command_param_changed (const char *param, const char *value)
+{
+  struct mi_interp *mi = top_level_interpreter_data ();
+  struct ui_out *mi_uiout = interp_ui_out (top_level_interpreter ());
+
+  if (mi_suppress_notification.cmd_param_changed)
+    return;
+
+  target_terminal_ours ();
+
+  fprintf_unfiltered (mi->event_channel,
+		      "cmd-param-changed");
+
+  ui_out_redirect (mi_uiout, mi->event_channel);
+
+  ui_out_field_string (mi_uiout, "param", param);
+  ui_out_field_string (mi_uiout, "value", value);
+
+  ui_out_redirect (mi_uiout, NULL);
+
+  gdb_flush (mi->event_channel);
+}
+
 static int
 report_initial_inferior (struct inferior *inf, void *closure)
 {
@@ -755,6 +865,54 @@ mi_ui_out (struct interp *interp)
   return mi->uiout;
 }
 
+/* Save the original value of raw_stdout here when logging, so we can
+   restore correctly when done.  */
+
+static struct ui_file *saved_raw_stdout;
+
+/* Do MI-specific logging actions; save raw_stdout, and change all
+   the consoles to use the supplied ui-file(s).  */
+
+static int
+mi_set_logging (struct interp *interp, int start_log,
+		struct ui_file *out, struct ui_file *logfile)
+{
+  struct mi_interp *mi = interp_data (interp);
+
+  if (!mi)
+    return 0;
+
+  if (start_log)
+    {
+      /* The tee created already is based on gdb_stdout, which for MI
+	 is a console and so we end up in an infinite loop of console
+	 writing to ui_file writing to console etc.  So discard the
+	 existing tee (it hasn't been used yet, and MI won't ever use
+	 it), and create one based on raw_stdout instead.  */
+      if (logfile)
+	{
+	  ui_file_delete (out);
+	  out = tee_file_new (raw_stdout, 0, logfile, 0);
+	}
+
+      saved_raw_stdout = raw_stdout;
+      raw_stdout = out;
+    }
+  else
+    {
+      raw_stdout = saved_raw_stdout;
+      saved_raw_stdout = NULL;
+    }
+  
+  mi_console_set_raw (mi->out, raw_stdout);
+  mi_console_set_raw (mi->err, raw_stdout);
+  mi_console_set_raw (mi->log, raw_stdout);
+  mi_console_set_raw (mi->targ, raw_stdout);
+  mi_console_set_raw (mi->event_channel, raw_stdout);
+
+  return 1;
+}
+
 extern initialize_file_ftype _initialize_mi_interp; /* -Wmissing-prototypes */
 
 void
@@ -767,7 +925,8 @@ _initialize_mi_interp (void)
       mi_interpreter_suspend,	/* suspend_proc */
       mi_interpreter_exec,	/* exec_proc */
       mi_interpreter_prompt_p,	/* prompt_proc_p */
-      mi_ui_out 		/* ui_out_proc */
+      mi_ui_out, 		/* ui_out_proc */
+      mi_set_logging		/* set_logging_proc */
     };
 
   /* The various interpreter levels.  */

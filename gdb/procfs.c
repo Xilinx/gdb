@@ -45,6 +45,7 @@
 #include "gdb_wait.h"
 #include <signal.h>
 #include <ctype.h>
+#include "gdb_bfd.h"
 #include "gdb_string.h"
 #include "gdb_assert.h"
 #include "inflow.h"
@@ -141,11 +142,7 @@ static int procfs_thread_alive (struct target_ops *ops, ptid_t);
 static void procfs_find_new_threads (struct target_ops *ops);
 static char *procfs_pid_to_str (struct target_ops *, ptid_t);
 
-static int proc_find_memory_regions (int (*) (CORE_ADDR,
-					      unsigned long,
-					      int, int, int,
-					      void *),
-				     void *);
+static int proc_find_memory_regions (find_memory_region_ftype, void *);
 
 static char * procfs_make_note_section (bfd *, int *);
 
@@ -2520,7 +2517,7 @@ proc_set_watchpoint (procinfo *pi, CORE_ADDR addr, int len, int wflags)
    register for the LWP that we're interested in.  Returns the
    matching ssh struct (LDT entry).  */
 
-struct ssd *
+static struct ssd *
 proc_get_LDT_entry (procinfo *pi, int key)
 {
   static struct ssd *ldt_entry = NULL;
@@ -3486,7 +3483,7 @@ insert_dbx_link_bpt_in_file (int fd, CORE_ADDR ignored)
   long storage_needed;
   CORE_ADDR sym_addr;
 
-  abfd = bfd_fdopenr ("unamed", 0, fd);
+  abfd = gdb_bfd_fdopenr ("unamed", 0, fd);
   if (abfd == NULL)
     {
       warning (_("Failed to create a bfd: %s."), bfd_errmsg (bfd_get_error ()));
@@ -3497,7 +3494,7 @@ insert_dbx_link_bpt_in_file (int fd, CORE_ADDR ignored)
     {
       /* Not the correct format, so we can not possibly find the dbx_link
 	 symbol in it.	*/
-      bfd_close (abfd);
+      gdb_bfd_unref (abfd);
       return 0;
     }
 
@@ -3511,14 +3508,14 @@ insert_dbx_link_bpt_in_file (int fd, CORE_ADDR ignored)
       if (dbx_link_bpt == NULL)
 	{
 	  warning (_("Failed to insert dbx_link breakpoint."));
-	  bfd_close (abfd);
+	  gdb_bfd_unref (abfd);
 	  return 0;
 	}
-      bfd_close (abfd);
+      gdb_bfd_unref (abfd);
       return 1;
     }
 
-  bfd_close (abfd);
+  gdb_bfd_unref (abfd);
   return 0;
 }
 
@@ -5074,6 +5071,7 @@ find_memory_regions_callback (struct prmap *map,
 		  (map->pr_mflags & MA_READ) != 0,
 		  (map->pr_mflags & MA_WRITE) != 0,
 		  (map->pr_mflags & MA_EXEC) != 0,
+		  1, /* MODIFIED is unknown, pass it as true.  */
 		  data);
 }
 

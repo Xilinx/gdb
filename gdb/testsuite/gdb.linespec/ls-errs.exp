@@ -15,10 +15,8 @@
 
 # Tests for linespec error conditions
 
-set base ls-errs
-set srcfile "$base.c"
-set testfile "$base.exp"
-set exefile $base
+standard_testfile
+set exefile $testfile
 
 if {[prepare_for_testing $testfile $exefile $srcfile \
 	 {debug nowarnings}]} {
@@ -148,6 +146,8 @@ add the_tests "$srcfile:3 foo" unexpected_opt "string" "foo"
 
 foreach x $invalid_offsets {
     add the_tests "$srcfile:$x" invalid_offset_f $x $srcfile
+    add the_tests "\"$srcfile:$x\"" invalid_offset_f $x $srcfile
+    add the_tests "'$srcfile:$x'" invalid_offset_f $x $srcfile
 }
 
 # Test invalid filespecs starting with function.

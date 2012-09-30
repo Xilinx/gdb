@@ -23,6 +23,7 @@
 #include <time.h>
 #include "gdb_assert.h"
 #include "gdb_string.h"
+#include "gdb_bfd.h"
 
 extern void report_transfer_performance (unsigned long, time_t, time_t);
 
@@ -56,19 +57,22 @@ load_srec (struct serial *desc, const char *file, bfd_vma load_offset,
   int reclen;
   time_t start_time, end_time;
   unsigned long data_count = 0;
+  struct cleanup *cleanup;
 
   srec = (char *) alloca (maxrecsize + 1);
 
-  abfd = bfd_openr (file, 0);
+  abfd = gdb_bfd_open (file, NULL, -1);
   if (!abfd)
     {
       printf_filtered (_("Unable to open file %s\n"), file);
       return;
     }
 
+  cleanup = make_cleanup_bfd_unref (abfd);
   if (bfd_check_format (abfd, bfd_object) == 0)
     {
       printf_filtered (_("File is not an object file\n"));
+      do_cleanups (cleanup);
       return;
     }
 
@@ -170,6 +174,7 @@ load_srec (struct serial *desc, const char *file, bfd_vma load_offset,
   serial_flush_input (desc);
 
   report_transfer_performance (data_count, start_time, end_time);
+  do_cleanups (cleanup);
 }
 
 /*

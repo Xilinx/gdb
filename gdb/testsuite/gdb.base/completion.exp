@@ -71,7 +71,7 @@ if  { [gdb_compile "${binfile}0.o ${binfile}1.o" "${binfile}" executable {debug 
      return -1
 }
 
-if [get_compiler_info ${binfile}] {
+if [get_compiler_info] {
     return -1;
 }
 
@@ -358,6 +358,32 @@ gdb_test_multiple "" "$test" {
 			}
 		    }
 		}
+	    }
+	}
+    }
+}
+
+set test "complete 'handle signal'"
+send_gdb "handle sigq\t"
+gdb_test_multiple "" "$test" {
+    -re "^handle sigqSIGQUIT $" {
+	send_gdb "\n"
+	gdb_test_multiple "" "$test" {
+	    -re "SIGQUIT.*Quit.*$gdb_prompt $" {
+		pass "$test"
+	    }
+	}
+    }
+}
+
+set test "complete 'handle keyword'"
+send_gdb "handle nos\t"
+gdb_test_multiple "" "$test" {
+    -re "^handle nostop $" {
+	send_gdb "\n"
+	gdb_test_multiple "" "$test" {
+	    -re "$gdb_prompt $" {
+		pass "$test"
 	    }
 	}
     }

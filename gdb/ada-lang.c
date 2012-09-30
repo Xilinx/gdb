@@ -581,6 +581,7 @@ coerce_unspec_val_to_type (struct value *val, struct type *type)
       set_value_bitsize (result, value_bitsize (val));
       set_value_bitpos (result, value_bitpos (val));
       set_value_address (result, value_address (val));
+      set_value_optimized_out (result, value_optimized_out (val));
       return result;
     }
 }
@@ -2534,8 +2535,7 @@ ada_value_assign (struct value *toval, struct value *fromval)
       else
         move_bits (buffer, value_bitpos (toval),
 		   value_contents (fromval), 0, bits, 0);
-      write_memory (to_addr, buffer, len);
-      observer_notify_memory_changed (to_addr, len, buffer);
+      write_memory_with_notification (to_addr, buffer, len);
 
       val = value_copy (toval);
       memcpy (value_contents_raw (val), value_contents (fromval),
@@ -4061,7 +4061,7 @@ ada_read_renaming_var_value (struct symbol *renaming_sym,
 
   sym_name = xstrdup (SYMBOL_LINKAGE_NAME (renaming_sym));
   old_chain = make_cleanup (xfree, sym_name);
-  expr = parse_exp_1 (&sym_name, block, 0);
+  expr = parse_exp_1 (&sym_name, 0, block, 0);
   make_cleanup (free_current_contents, &expr);
   value = evaluate_expression (expr);
 
@@ -11141,7 +11141,8 @@ create_excep_cond_exprs (struct ada_catchpoint *c)
 	  s = cond_string;
 	  TRY_CATCH (e, RETURN_MASK_ERROR)
 	    {
-	      exp = parse_exp_1 (&s, block_for_pc (bl->address), 0);
+	      exp = parse_exp_1 (&s, bl->address,
+				 block_for_pc (bl->address), 0);
 	    }
 	  if (e.reason < 0)
 	    warning (_("failed to reevaluate internal exception condition "
@@ -12499,7 +12500,6 @@ const struct language_defn ada_language_defn = {
   "ada",                        /* Language name */
   language_ada,
   range_check_off,
-  type_check_off,
   case_sensitive_on,            /* Yes, Ada is case-insensitive, but
                                    that's not quite what this means.  */
   array_row_major,
@@ -12658,5 +12658,5 @@ With an argument, catch only exceptions with the given name."),
   /* Setup per-inferior data.  */
   observer_attach_inferior_exit (ada_inferior_exit);
   ada_inferior_data
-    = register_inferior_data_with_cleanup (ada_inferior_data_cleanup);
+    = register_inferior_data_with_cleanup (NULL, ada_inferior_data_cleanup);
 }

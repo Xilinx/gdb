@@ -177,7 +177,7 @@ const struct register_alias mips_numeric_register_aliases[] = {
 static int mips_fpu_type_auto = 1;
 static enum mips_fpu_type mips_fpu_type = MIPS_DEFAULT_FPU_TYPE;
 
-static int mips_debug = 0;
+static unsigned int mips_debug = 0;
 
 /* Properties (for struct target_desc) describing the g/G packet
    layout.  */
@@ -1466,8 +1466,38 @@ mips32_bc1_pc (struct gdbarch *gdbarch, struct frame_info *frame,
   return pc;
 }
 
+/* Return nonzero if the gdbarch is an Octeon series.  */
+
+static int
+is_octeon (struct gdbarch *gdbarch)
+{
+  const struct bfd_arch_info *info = gdbarch_bfd_arch_info (gdbarch);
+
+  return (info->mach == bfd_mach_mips_octeon
+         || info->mach == bfd_mach_mips_octeonp
+         || info->mach == bfd_mach_mips_octeon2);
+}
+
+/* Return true if the OP represents the Octeon's BBIT instruction.  */
+
+static int
+is_octeon_bbit_op (int op, struct gdbarch *gdbarch)
+{
+  if (!is_octeon (gdbarch))
+    return 0;
+  /* BBIT0 is encoded as LWC2: 110 010.  */
+  /* BBIT032 is encoded as LDC2: 110 110.  */
+  /* BBIT1 is encoded as SWC2: 111 010.  */
+  /* BBIT132 is encoded as SDC2: 111 110.  */
+  if (op == 50 || op == 54 || op == 58 || op == 62)
+    return 1;
+  return 0;
+}
+
+
 /* Determine where to set a single step breakpoint while considering
    branch prediction.  */
+
 static CORE_ADDR
 mips32_next_pc (struct frame_info *frame, CORE_ADDR pc)
 {
@@ -1475,14 +1505,14 @@ mips32_next_pc (struct frame_info *frame, CORE_ADDR pc)
   unsigned long inst;
   int op;
   inst = mips_fetch_instruction (gdbarch, ISA_MIPS, pc, NULL);
+  op = itype_op (inst);
   if ((inst & 0xe0000000) != 0)		/* Not a special, jump or branch
 					   instruction.  */
     {
-      if (itype_op (inst) >> 2 == 5)
+      if (op >> 2 == 5)
 	/* BEQL, BNEL, BLEZL, BGTZL: bits 0101xx */
 	{
-	  op = (itype_op (inst) & 0x03);
-	  switch (op)
+	  switch (op & 0x03)
 	    {
 	    case 0:		/* BEQL */
 	      goto equal_branch;
@@ -1496,18 +1526,18 @@ mips32_next_pc (struct frame_info *frame, CORE_ADDR pc)
 	      pc += 4;
 	    }
 	}
-      else if (itype_op (inst) == 17 && itype_rs (inst) == 8)
+      else if (op == 17 && itype_rs (inst) == 8)
 	/* BC1F, BC1FL, BC1T, BC1TL: 010001 01000 */
 	pc = mips32_bc1_pc (gdbarch, frame, inst, pc + 4, 1);
-      else if (itype_op (inst) == 17 && itype_rs (inst) == 9
+      else if (op == 17 && itype_rs (inst) == 9
 	       && (itype_rt (inst) & 2) == 0)
 	/* BC1ANY2F, BC1ANY2T: 010001 01001 xxx0x */
 	pc = mips32_bc1_pc (gdbarch, frame, inst, pc + 4, 2);
-      else if (itype_op (inst) == 17 && itype_rs (inst) == 10
+      else if (op == 17 && itype_rs (inst) == 10
 	       && (itype_rt (inst) & 2) == 0)
 	/* BC1ANY4F, BC1ANY4T: 010001 01010 xxx0x */
 	pc = mips32_bc1_pc (gdbarch, frame, inst, pc + 4, 4);
-      else if (itype_op (inst) == 29)
+      else if (op == 29)
 	/* JALX: 011101 */
 	/* The new PC will be alternate mode.  */
 	{
@@ -1517,6 +1547,25 @@ mips32_next_pc (struct frame_info *frame, CORE_ADDR pc)
 	  /* Add 1 to indicate 16-bit mode -- invert ISA mode.  */
 	  pc = ((pc + 4) & ~(CORE_ADDR) 0x0fffffff) + reg + 1;
 	}
+      else if (is_octeon_bbit_op (op, gdbarch))
+	{
+	  int bit, branch_if;
+
+	  branch_if = op == 58 || op == 62;
+	  bit = itype_rt (inst);
+
+	  /* Take into account the *32 instructions.  */
+	  if (op == 54 || op == 62)
+	    bit += 32;
+
+	  if (((get_frame_register_signed (frame,
+					   itype_rs (inst)) >> bit) & 1)
+              == branch_if)
+	    pc += mips32_relative_offset (inst) + 4;
+          else
+	    pc += 8;        /* After the delay slot.  */
+	}
+
       else
 	pc += 4;		/* Not a branch, next instruction is easy.  */
     }
@@ -1524,7 +1573,7 @@ mips32_next_pc (struct frame_info *frame, CORE_ADDR pc)
     {				/* This gets way messy.  */
 
       /* Further subdivide into SPECIAL, REGIMM and other.  */
-      switch (op = itype_op (inst) & 0x07)	/* Extract bits 28,27,26.  */
+      switch (op & 0x07)	/* Extract bits 28,27,26.  */
 	{
 	case 0:		/* SPECIAL */
 	  op = rtype_funct (inst);
@@ -5125,13 +5174,12 @@ mips_o32_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   for (argnum = 0; argnum < nargs; argnum++)
     {
       struct type *arg_type = check_typedef (value_type (args[argnum]));
-      int arglen = TYPE_LENGTH (arg_type);
 
       /* Align to double-word if necessary.  */
       if (mips_type_needs_double_align (arg_type))
 	len = align_up (len, MIPS32_REGSIZE * 2);
       /* Allocate space on the stack.  */
-      len += align_up (arglen, MIPS32_REGSIZE);
+      len += align_up (TYPE_LENGTH (arg_type), MIPS32_REGSIZE);
     }
   sp -= align_up (len, 16);
 
@@ -5654,10 +5702,9 @@ mips_o64_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   for (argnum = 0; argnum < nargs; argnum++)
     {
       struct type *arg_type = check_typedef (value_type (args[argnum]));
-      int arglen = TYPE_LENGTH (arg_type);
 
       /* Allocate space on the stack.  */
-      len += align_up (arglen, MIPS64_REGSIZE);
+      len += align_up (TYPE_LENGTH (arg_type), MIPS64_REGSIZE);
     }
   sp -= align_up (len, 16);
 
@@ -6946,7 +6993,8 @@ mips32_instruction_has_delay_slot (struct gdbarch *gdbarch, CORE_ADDR addr)
     {
       rs = itype_rs (inst);
       rt = itype_rt (inst);
-      return (op >> 2 == 5	/* BEQL, BNEL, BLEZL, BGTZL: bits 0101xx  */
+      return (is_octeon_bbit_op (op, gdbarch) 
+	      || op >> 2 == 5	/* BEQL, BNEL, BLEZL, BGTZL: bits 0101xx  */
 	      || op == 29	/* JALX: bits 011101  */
 	      || (op == 17
 		  && (rs == 8
@@ -8879,13 +8927,13 @@ that would transfer 32 bits for some registers (e.g. SR, FSR) and\n\
 			   &setlist, &showlist);
 
   /* Debug this files internals.  */
-  add_setshow_zinteger_cmd ("mips", class_maintenance,
-			    &mips_debug, _("\
+  add_setshow_zuinteger_cmd ("mips", class_maintenance,
+			     &mips_debug, _("\
 Set mips debugging."), _("\
 Show mips debugging."), _("\
 When non-zero, mips specific debugging is enabled."),
-			    NULL,
-			    NULL, /* FIXME: i18n: Mips debugging is
-				     currently %s.  */
-			    &setdebuglist, &showdebuglist);
+			     NULL,
+			     NULL, /* FIXME: i18n: Mips debugging is
+				      currently %s.  */
+			     &setdebuglist, &showdebuglist);
 }

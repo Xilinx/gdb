@@ -205,7 +205,7 @@ int may_stop = 1;
 
 /* Non-zero if we want to see trace of target level stuff.  */
 
-static int targetdebug = 0;
+static unsigned int targetdebug = 0;
 static void
 show_targetdebug (struct ui_file *file, int from_tty,
 		  struct cmd_list_element *c, const char *value)
@@ -703,6 +703,7 @@ update_current_target (void)
       INHERIT (to_can_use_agent, t);
       INHERIT (to_magic, t);
       INHERIT (to_supports_evaluation_of_breakpoint_conditions, t);
+      INHERIT (to_can_run_breakpoint_commands, t);
       /* Do not inherit to_memory_map.  */
       /* Do not inherit to_flash_erase.  */
       /* Do not inherit to_flash_done.  */
@@ -930,6 +931,9 @@ update_current_target (void)
 	    (struct traceframe_info * (*) (void))
 	    tcomplain);
   de_fault (to_supports_evaluation_of_breakpoint_conditions,
+	    (int (*) (void))
+	    return_zero);
+  de_fault (to_can_run_breakpoint_commands,
 	    (int (*) (void))
 	    return_zero);
   de_fault (to_use_agent,
@@ -2625,13 +2629,17 @@ target_wait (ptid_t ptid, struct target_waitstatus *status, int options)
 	  if (targetdebug)
 	    {
 	      char *status_string;
+	      char *options_string;
 
 	      status_string = target_waitstatus_to_string (status);
+	      options_string = target_options_to_string (options);
 	      fprintf_unfiltered (gdb_stdlog,
-				  "target_wait (%d, status) = %d,   %s\n",
-				  PIDGET (ptid), PIDGET (retval),
-				  status_string);
+				  "target_wait (%d, status, options={%s})"
+				  " = %d,   %s\n",
+				  PIDGET (ptid), options_string,
+				  PIDGET (retval), status_string);
 	      xfree (status_string);
+	      xfree (options_string);
 	    }
 
 	  return retval;
@@ -3881,6 +3889,54 @@ target_waitstatus_to_string (const struct target_waitstatus *ws)
     }
 }
 
+/* Concatenate ELEM to LIST, a comma separate list, and return the
+   result.  The LIST incoming argument is released.  */
+
+static char *
+str_comma_list_concat_elem (char *list, const char *elem)
+{
+  if (list == NULL)
+    return xstrdup (elem);
+  else
+    return reconcat (list, list, ", ", elem, (char *) NULL);
+}
+
+/* Helper for target_options_to_string.  If OPT is present in
+   TARGET_OPTIONS, append the OPT_STR (string version of OPT) in RET.
+   Returns the new resulting string.  OPT is removed from
+   TARGET_OPTIONS.  */
+
+static char *
+do_option (int *target_options, char *ret,
+	   int opt, char *opt_str)
+{
+  if ((*target_options & opt) != 0)
+    {
+      ret = str_comma_list_concat_elem (ret, opt_str);
+      *target_options &= ~opt;
+    }
+
+  return ret;
+}
+
+char *
+target_options_to_string (int target_options)
+{
+  char *ret = NULL;
+
+#define DO_TARG_OPTION(OPT) \
+  ret = do_option (&target_options, ret, OPT, #OPT)
+
+  DO_TARG_OPTION (TARGET_WNOHANG);
+
+  if (target_options != 0)
+    ret = str_comma_list_concat_elem (ret, "unknown???");
+
+  if (ret == NULL)
+    ret = xstrdup ("");
+  return ret;
+}
+
 static void
 debug_print_register (const char * func,
 		      struct regcache *regcache, int regno)
@@ -4718,15 +4774,15 @@ initialize_targets (void)
   add_info ("target", target_info, targ_desc);
   add_info ("files", target_info, targ_desc);
 
-  add_setshow_zinteger_cmd ("target", class_maintenance, &targetdebug, _("\
+  add_setshow_zuinteger_cmd ("target", class_maintenance, &targetdebug, _("\
 Set target debugging."), _("\
 Show target debugging."), _("\
 When non-zero, target debugging is enabled.  Higher numbers are more\n\
 verbose.  Changes do not take effect until the next \"run\" or \"target\"\n\
 command."),
-			    NULL,
-			    show_targetdebug,
-			    &setdebuglist, &showdebuglist);
+			     NULL,
+			     show_targetdebug,
+			     &setdebuglist, &showdebuglist);
 
   add_setshow_boolean_cmd ("trust-readonly-sections", class_support,
 			   &trust_readonly, _("\

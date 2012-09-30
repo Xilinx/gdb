@@ -46,6 +46,7 @@
 #include "filenames.h"
 #include "progspace.h"
 #include "objfiles.h"
+#include "gdb_bfd.h"
 
 #ifndef O_LARGEFILE
 #define O_LARGEFILE 0
@@ -215,9 +216,7 @@ core_close (int quitting)
 	  core_data = NULL;
 	}
 
-      name = bfd_get_filename (core_bfd);
-      gdb_bfd_close_or_warn (core_bfd);
-      xfree (name);
+      gdb_bfd_unref (core_bfd);
       core_bfd = NULL;
     }
   core_vec = NULL;
@@ -319,9 +318,9 @@ core_open (char *filename, int from_tty)
   if (scratch_chan < 0)
     perror_with_name (filename);
 
-  temp_bfd = bfd_fopen (filename, gnutarget, 
-			write_files ? FOPEN_RUB : FOPEN_RB,
-			scratch_chan);
+  temp_bfd = gdb_bfd_fopen (filename, gnutarget, 
+			    write_files ? FOPEN_RUB : FOPEN_RB,
+			    scratch_chan);
   if (temp_bfd == NULL)
     perror_with_name (filename);
 
@@ -332,7 +331,7 @@ core_open (char *filename, int from_tty)
       /* FIXME: should be checking for errors from bfd_close (for one
          thing, on error it does not free all the storage associated
          with the bfd).  */
-      make_cleanup_bfd_close (temp_bfd);
+      make_cleanup_bfd_unref (temp_bfd);
       error (_("\"%s\" is not a core dump: %s"),
 	     filename, bfd_errmsg (bfd_get_error ()));
     }
@@ -340,7 +339,7 @@ core_open (char *filename, int from_tty)
   /* Looks semi-reasonable.  Toss the old core file and work on the
      new.  */
 
-  discard_cleanups (old_chain);	/* Don't free filename any more */
+  do_cleanups (old_chain);
   unpush_target (&core_ops);
   core_bfd = temp_bfd;
   old_chain = make_cleanup (core_close_cleanup, 0 /*ignore*/);

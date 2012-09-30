@@ -950,13 +950,9 @@ gdb_os_poll_quit (host_callback *p)
   if (deprecated_ui_loop_hook != NULL)
     deprecated_ui_loop_hook (0);
 
-  if (quit_flag)		/* gdb's idea of quit */
+  if (check_quit_flag ())	/* gdb's idea of quit */
     {
-      quit_flag = 0;		/* we've stolen it */
-      return 1;
-    }
-  else if (immediate_quit)
-    {
+      clear_quit_flag ();	/* we've stolen it */
       return 1;
     }
   return 0;
@@ -1326,5 +1322,5 @@ _initialize_remote_sim (void)
   set_cmd_completer (c, sim_command_completer);
 
   sim_inferior_data_key
-    = register_inferior_data_with_cleanup (sim_inferior_data_cleanup);
+    = register_inferior_data_with_cleanup (NULL, sim_inferior_data_cleanup);
 }

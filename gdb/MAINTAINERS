@@ -587,6 +587,7 @@ Andrew Pinski					apinski@cavium.com
 Kevin Pouget					kevin.pouget@st.com
 Paul Pluzhnikov					ppluzhnikov@google.com
 Marek Polacek					mpolacek@redhat.com
+Siddhesh Poyarekar				siddhesh@redhat.com
 Vladimir Prus                                   vladimir@codesourcery.com
 Yao Qi						yao@codesourcery.com
 Qinwei						qinwei@sunnorth.com.cn
@@ -644,6 +645,7 @@ Mark Wielaard					mjw@redhat.com
 Nathan Williams					nathanw@wasabisystems.com
 Bob Wilson					bob.wilson@acm.org
 Jim Wilson					wilson@tuliptree.org
+Mike Wrighton					wrighton@codesourcery.com
 Kwok Cheung Yeung				kcy@codesourcery.com
 Elena Zannoni					elena.zannoni@oracle.com
 Eli Zaretskii					eliz@gnu.org
@@ -651,6 +653,7 @@ Jie Zhang					jzhang918@gmail.com
 Wu Zhou						woodzltc@cn.ibm.com
 Yoshinori Sato					ysato@users.sourceforge.jp
 Hui Zhu						teawater@gmail.com
+Khoo Yit Phang					khooyp@cs.umd.edu
 
 			Past Maintainers
 

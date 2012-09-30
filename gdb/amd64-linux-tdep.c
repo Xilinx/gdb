@@ -115,7 +115,7 @@ static const gdb_byte amd64_linux_sigtramp_code[] =
   LINUX_SIGTRAMP_INSN1, 0x05
 };
 
-static const gdb_byte x32_linux_sigtramp_code[] =
+static const gdb_byte amd64_x32_linux_sigtramp_code[] =
 {
   /* mov $__NR_rt_sigreturn, %rax.  */
   LINUX_SIGTRAMP_INSN0, 0xc7, 0xc0, 0x01, 0x02, 0x00, 0x40,
@@ -158,7 +158,7 @@ amd64_linux_sigtramp_start (struct frame_info *this_frame)
 
   gdbarch = get_frame_arch (this_frame);
   if (gdbarch_ptr_bit (gdbarch) == 32)
-    sigtramp_code = x32_linux_sigtramp_code;
+    sigtramp_code = amd64_x32_linux_sigtramp_code;
   else
     sigtramp_code = amd64_linux_sigtramp_code;
   if (memcmp (buf, sigtramp_code, LINUX_SIGTRAMP_LEN) != 0)

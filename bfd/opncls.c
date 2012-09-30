@@ -127,7 +127,7 @@ _bfd_new_bfd_contained_in (bfd *obfd)
 
 /* Delete a BFD.  */
 
-void
+static void
 _bfd_delete_bfd (bfd *abfd)
 {
   if (abfd->memory)
@@ -135,6 +135,8 @@ _bfd_delete_bfd (bfd *abfd)
       bfd_hash_table_free (&abfd->section_htab);
       objalloc_free ((struct objalloc *) abfd->memory);
     }
+
+  free (abfd->arelt_data);
   free (abfd);
 }
 
@@ -707,20 +709,11 @@ bfd_boolean
 bfd_close (bfd *abfd)
 {
   bfd_boolean ret;
-  bfd *nbfd;
-  bfd *next;
 
   if (bfd_write_p (abfd))
     {
       if (! BFD_SEND_FMT (abfd, _bfd_write_contents, (abfd)))
 	return FALSE;
-    }
-
-  /* Close nested archives (if this bfd is a thin archive).  */
-  for (nbfd = abfd->nested_archives; nbfd; nbfd = next)
-    {
-      next = nbfd->archive_next;
-      bfd_close (nbfd);
     }
 
   if (! BFD_SEND (abfd, _close_and_cleanup, (abfd)))

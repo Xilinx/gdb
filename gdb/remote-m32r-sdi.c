@@ -39,6 +39,7 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <time.h>
+#include "gdb_bfd.h"
 
 
 #include "serial.h"
@@ -1257,13 +1258,13 @@ m32r_load (char *args, int from_tty)
   if (!filename)
     filename = get_exec_file (1);
 
-  pbfd = bfd_openr (filename, gnutarget);
+  pbfd = gdb_bfd_open (filename, gnutarget, -1);
   if (pbfd == NULL)
     {
       perror_with_name (filename);
       return;
     }
-  old_chain = make_cleanup_bfd_close (pbfd);
+  old_chain = make_cleanup_bfd_unref (pbfd);
 
   if (!bfd_check_format (pbfd, bfd_object))
     error (_("\"%s\" is not an object file: %s"), filename,

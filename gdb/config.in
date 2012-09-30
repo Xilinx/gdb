@@ -168,9 +168,6 @@
 /* Define to 1 if you have the `getuid' function. */
 #undef HAVE_GETUID
 
-/* Define to 1 if you have the <gnu/libc-version.h> header file. */
-#undef HAVE_GNU_LIBC_VERSION_H
-
 /* Define if <sys/procfs.h> has gregset_t. */
 #undef HAVE_GREGSET_T
 
@@ -446,6 +443,12 @@
 
 /* Define to 1 if `struct thread' is a member of `td_pcb'. */
 #undef HAVE_STRUCT_THREAD_TD_PCB
+
+/* Define to 1 if `struct user_regs_struct' is a member of `fs_base'. */
+#undef HAVE_STRUCT_USER_REGS_STRUCT_FS_BASE
+
+/* Define to 1 if `struct user_regs_struct' is a member of `gs_base'. */
+#undef HAVE_STRUCT_USER_REGS_STRUCT_GS_BASE
 
 /* Define to 1 if you have the `syscall' function. */
 #undef HAVE_SYSCALL

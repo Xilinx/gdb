@@ -83,6 +83,11 @@ print_subexp_standard (struct expression *exp, int *pos,
     {
       /* Common ops */
 
+    case OP_TYPE:
+      (*pos) += 2;
+      type_print (exp->elts[pc + 1].type, "", stream, 0);
+      return;
+
     case OP_SCOPE:
       myprec = PREC_PREFIX;
       assoc = 0;
@@ -203,13 +208,6 @@ print_subexp_standard (struct expression *exp, int *pos,
 	LA_PRINT_STRING (stream, builtin_type (exp->gdbarch)->builtin_char,
 			 &exp->elts[pc + 2].string, nargs, NULL, 0, &opts);
       }
-      return;
-
-    case OP_BITSTRING:
-      nargs = longest_to_int (exp->elts[pc + 1].longconst);
-      (*pos)
-	+= 3 + BYTES_TO_EXP_ELEM ((nargs + HOST_CHAR_BIT - 1) / HOST_CHAR_BIT);
-      fprintf_unfiltered (stream, "B'<unimplemented>'");
       return;
 
     case OP_OBJC_NSSTRING:	/* Objective-C Foundation Class
@@ -362,7 +360,6 @@ print_subexp_standard (struct expression *exp, int *pos,
       return;
 
     case TERNOP_SLICE:
-    case TERNOP_SLICE_COUNT:
       print_subexp (exp, pos, stream, PREC_SUFFIX);
       fputs_filtered ("(", stream);
       print_subexp (exp, pos, stream, PREC_ABOVE_COMMA);
@@ -429,13 +426,23 @@ print_subexp_standard (struct expression *exp, int *pos,
 	fputs_filtered (")", stream);
       return;
 
+    case UNOP_CAST_TYPE:
+      if ((int) prec > (int) PREC_PREFIX)
+	fputs_filtered ("(", stream);
+      fputs_filtered ("(", stream);
+      print_subexp (exp, pos, stream, PREC_PREFIX);
+      fputs_filtered (") ", stream);
+      print_subexp (exp, pos, stream, PREC_PREFIX);
+      if ((int) prec > (int) PREC_PREFIX)
+	fputs_filtered (")", stream);
+      return;
+
     case UNOP_DYNAMIC_CAST:
     case UNOP_REINTERPRET_CAST:
       fputs_filtered (opcode == UNOP_DYNAMIC_CAST ? "dynamic_cast"
 		      : "reinterpret_cast", stream);
       fputs_filtered ("<", stream);
-      (*pos) += 2;
-      type_print (exp->elts[pc + 1].type, "", stream, 0);
+      print_subexp (exp, pos, stream, PREC_PREFIX);
       fputs_filtered ("> (", stream);
       print_subexp (exp, pos, stream, PREC_PREFIX);
       fputs_filtered (")", stream);
@@ -467,6 +474,17 @@ print_subexp_standard (struct expression *exp, int *pos,
 	  fputs_filtered ("} ", stream);
 	  print_subexp (exp, pos, stream, PREC_PREFIX);
 	}
+      if ((int) prec > (int) PREC_PREFIX)
+	fputs_filtered (")", stream);
+      return;
+
+    case UNOP_MEMVAL_TYPE:
+      if ((int) prec > (int) PREC_PREFIX)
+	fputs_filtered ("(", stream);
+      fputs_filtered ("{", stream);
+      print_subexp (exp, pos, stream, PREC_PREFIX);
+      fputs_filtered ("} ", stream);
+      print_subexp (exp, pos, stream, PREC_PREFIX);
       if ((int) prec > (int) PREC_PREFIX)
 	fputs_filtered (")", stream);
       return;
@@ -768,7 +786,6 @@ dump_subexp_body_standard (struct expression *exp,
     {
     case TERNOP_COND:
     case TERNOP_SLICE:
-    case TERNOP_SLICE_COUNT:
       elt = dump_subexp (exp, stream, elt);
       /* FALL THROUGH */
     case BINOP_ADD:
@@ -910,10 +927,17 @@ dump_subexp_body_standard (struct expression *exp,
 	  elt = dump_subexp (exp, stream, elt);
       }
       break;
-    case UNOP_MEMVAL:
-    case UNOP_CAST:
     case UNOP_DYNAMIC_CAST:
     case UNOP_REINTERPRET_CAST:
+    case UNOP_CAST_TYPE:
+    case UNOP_MEMVAL_TYPE:
+      fprintf_filtered (stream, " (");
+      elt = dump_subexp (exp, stream, elt);
+      fprintf_filtered (stream, ")");
+      elt = dump_subexp (exp, stream, elt);
+      break;
+    case UNOP_MEMVAL:
+    case UNOP_CAST:
       fprintf_filtered (stream, "Type @");
       gdb_print_host_address (exp->elts[elt].type, stream);
       fprintf_filtered (stream, " (");
@@ -938,6 +962,12 @@ dump_subexp_body_standard (struct expression *exp,
       type_print (exp->elts[elt].type, NULL, stream, 0);
       fprintf_filtered (stream, ")");
       elt += 2;
+      break;
+    case OP_TYPEOF:
+    case OP_DECLTYPE:
+      fprintf_filtered (stream, "Typeof (");
+      elt = dump_subexp (exp, stream, elt);
+      fprintf_filtered (stream, ")");
       break;
     case STRUCTOP_STRUCT:
     case STRUCTOP_PTR:
@@ -998,7 +1028,6 @@ dump_subexp_body_standard (struct expression *exp,
     case OP_F77_UNDETERMINED_ARGLIST:
     case OP_COMPLEX:
     case OP_STRING:
-    case OP_BITSTRING:
     case OP_BOOL:
     case OP_M2_STRING:
     case OP_THIS:
@@ -1018,10 +1047,7 @@ dump_prefix_expression (struct expression *exp, struct ui_file *stream)
   fprintf_filtered (stream, "Dump of expression @ ");
   gdb_print_host_address (exp, stream);
   fputs_filtered (", after conversion to prefix form:\nExpression: `", stream);
-  if (exp->elts[0].opcode != OP_TYPE)
-    print_expression (exp, stream);
-  else
-    fputs_filtered ("Type printing not yet supported....", stream);
+  print_expression (exp, stream);
   fprintf_filtered (stream, "'\n\tLanguage %s, %d elements, %ld bytes each.\n",
 		    exp->language_defn->la_name, exp->nelts,
 		    (long) sizeof (union exp_element));

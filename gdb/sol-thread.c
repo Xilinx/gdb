@@ -443,11 +443,6 @@ sol_thread_fetch_registers (struct target_ops *ops,
   gdb_fpregset_t *fpregset_p = &fpregset;
   struct target_ops *beneath = find_target_beneath (ops);
 
-#if 0
-  int xregsize;
-  caddr_t xregset;
-#endif
-
   if (!is_thread (inferior_ptid))
     {
       /* It's an LWP; pass the request on to the layer beneath.  */
@@ -488,23 +483,6 @@ sol_thread_fetch_registers (struct target_ops *ops,
 
   supply_gregset (regcache, (const gdb_gregset_t *) gregset_p);
   supply_fpregset (regcache, (const gdb_fpregset_t *) fpregset_p);
-
-#if 0
-  /* FIXME: libthread_db doesn't seem to handle this right.  */
-  val = td_thr_getxregsize (&thandle, &xregsize);
-  if (val != TD_OK && val != TD_NOXREGS)
-    error (_("sol_thread_fetch_registers: td_thr_getxregsize %s"),
-	   td_err_string (val));
-
-  if (val == TD_OK)
-    {
-      xregset = alloca (xregsize);
-      val = td_thr_getxregs (&thandle, xregset);
-      if (val != TD_OK)
-	error (_("sol_thread_fetch_registers: td_thr_getxregs %s"),
-	       td_err_string (val));
-    }
-#endif
 }
 
 static void
@@ -516,10 +494,6 @@ sol_thread_store_registers (struct target_ops *ops,
   td_err_e val;
   prgregset_t gregset;
   prfpregset_t fpregset;
-#if 0
-  int xregsize;
-  caddr_t xregset;
-#endif
 
   if (!is_thread (inferior_ptid))
     {
@@ -557,23 +531,6 @@ sol_thread_store_registers (struct target_ops *ops,
 
       /* Restore new register value.  */
       regcache_raw_supply (regcache, regnum, old_value);
-
-#if 0
-      /* FIXME: libthread_db doesn't seem to handle this right.  */
-      val = td_thr_getxregsize (&thandle, &xregsize);
-      if (val != TD_OK && val != TD_NOXREGS)
-	error (_("sol_thread_store_registers: td_thr_getxregsize %s"),
-	       td_err_string (val));
-
-      if (val == TD_OK)
-	{
-	  xregset = alloca (xregsize);
-	  val = td_thr_getxregs (&thandle, xregset);
-	  if (val != TD_OK)
-	    error (_("sol_thread_store_registers: td_thr_getxregs %s"),
-		   td_err_string (val));
-	}
-#endif
     }
 
   fill_gregset (regcache, (gdb_gregset_t *) &gregset, regnum);
@@ -587,17 +544,6 @@ sol_thread_store_registers (struct target_ops *ops,
   if (val != TD_OK)
     error (_("sol_thread_store_registers: td_thr_setfpregs %s"),
 	   td_err_string (val));
-
-#if 0
-  /* FIXME: libthread_db doesn't seem to handle this right.  */
-  val = td_thr_getxregsize (&thandle, &xregsize);
-  if (val != TD_OK && val != TD_NOXREGS)
-    error (_("sol_thread_store_registers: td_thr_getxregsize %s"),
-	   td_err_string (val));
-
-  /* ??? Should probably do something about writing the xregs here,
-     but what are they?  */
-#endif
 }
 
 /* Perform partial transfers on OBJECT.  See target_read_partial and
@@ -959,80 +905,6 @@ ps_plog (const char *fmt, ...)
   vfprintf_filtered (gdb_stderr, fmt, args);
 }
 
-/* Get size of extra register set.  Currently a noop.  */
-
-ps_err_e
-ps_lgetxregsize (gdb_ps_prochandle_t ph, lwpid_t lwpid, int *xregsize)
-{
-#if 0
-  int lwp_fd;
-  int regsize;
-  ps_err_e val;
-
-  val = get_lwp_fd (ph, lwpid, &lwp_fd);
-  if (val != PS_OK)
-    return val;
-
-  if (ioctl (lwp_fd, PIOCGXREGSIZE, &regsize))
-    {
-      if (errno == EINVAL)
-	return PS_NOFREGS;	/* XXX Wrong code, but this is the closest
-				   thing in proc_service.h  */
-
-      print_sys_errmsg ("ps_lgetxregsize (): PIOCGXREGSIZE", errno);
-      return PS_ERR;
-    }
-#endif
-
-  return PS_OK;
-}
-
-/* Get extra register set.  Currently a noop.  */
-
-ps_err_e
-ps_lgetxregs (gdb_ps_prochandle_t ph, lwpid_t lwpid, caddr_t xregset)
-{
-#if 0
-  int lwp_fd;
-  ps_err_e val;
-
-  val = get_lwp_fd (ph, lwpid, &lwp_fd);
-  if (val != PS_OK)
-    return val;
-
-  if (ioctl (lwp_fd, PIOCGXREG, xregset))
-    {
-      print_sys_errmsg ("ps_lgetxregs (): PIOCGXREG", errno);
-      return PS_ERR;
-    }
-#endif
-
-  return PS_OK;
-}
-
-/* Set extra register set.  Currently a noop.  */
-
-ps_err_e
-ps_lsetxregs (gdb_ps_prochandle_t ph, lwpid_t lwpid, caddr_t xregset)
-{
-#if 0
-  int lwp_fd;
-  ps_err_e val;
-
-  val = get_lwp_fd (ph, lwpid, &lwp_fd);
-  if (val != PS_OK)
-    return val;
-
-  if (ioctl (lwp_fd, PIOCSXREG, xregset))
-    {
-      print_sys_errmsg ("ps_lsetxregs (): PIOCSXREG", errno);
-      return PS_ERR;
-    }
-#endif
-
-  return PS_OK;
-}
-
 /* Get floating-point registers for LWP.  */
 
 ps_err_e
@@ -1108,7 +980,6 @@ ps_lgetLDT (gdb_ps_prochandle_t ph, lwpid_t lwpid,
 	    struct ssd *pldt)
 {
   /* NOTE: only used on Solaris, therefore OK to refer to procfs.c.  */
-  extern struct ssd *procfs_find_LDT_entry (ptid_t);
   struct ssd *ret;
 
   /* FIXME: can't I get the process ID from the prochandle or

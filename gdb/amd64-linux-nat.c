@@ -34,6 +34,7 @@
 #include <sys/debugreg.h>
 #include <sys/syscall.h>
 #include <sys/procfs.h>
+#include <sys/user.h>
 #include <asm/prctl.h>
 /* FIXME ezannoni-2003-07-09: we need <sys/reg.h> to be included after
    <asm/ptrace.h> because the latter redefines FS and GS for no apparent
@@ -479,13 +480,11 @@ ps_get_thread_area (const struct ps_prochandle *ph,
       switch (idx)
 	{
 	case FS:
-#ifdef __ILP32__
+#ifdef HAVE_STRUCT_USER_REGS_STRUCT_FS_BASE
 	    {
 	      /* PTRACE_ARCH_PRCTL is obsolete since 2.6.25, where the
 		 fs_base and gs_base fields of user_regs_struct can be
-		 used directly.  Since x32 support was added to kernel
-		 3.4.0 and PTRACE_ARCH_PRCTL support was removed for x32,
-		 we should always use fs_base for x32.  */
+		 used directly.  */
 	      unsigned long fs;
 	      errno = 0;
 	      fs = ptrace (PTRACE_PEEKUSER, lwpid,
@@ -496,13 +495,12 @@ ps_get_thread_area (const struct ps_prochandle *ph,
 		  return PS_OK;
 		}
 	    }
-#else
+#endif
 	  if (ptrace (PTRACE_ARCH_PRCTL, lwpid, base, ARCH_GET_FS) == 0)
 	    return PS_OK;
-#endif
 	  break;
 	case GS:
-#ifdef __ILP32__
+#ifdef HAVE_STRUCT_USER_REGS_STRUCT_GS_BASE
 	    {
 	      unsigned long gs;
 	      errno = 0;
@@ -514,10 +512,9 @@ ps_get_thread_area (const struct ps_prochandle *ph,
 		  return PS_OK;
 		}
 	    }
-#else
+#endif
 	  if (ptrace (PTRACE_ARCH_PRCTL, lwpid, base, ARCH_GET_GS) == 0)
 	    return PS_OK;
-#endif
 	  break;
 	default:                   /* Should not happen.  */
 	  return PS_BADADDR;

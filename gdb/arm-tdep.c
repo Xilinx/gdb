@@ -1400,7 +1400,8 @@ arm_skip_prologue (struct gdbarch *gdbarch, CORE_ADDR pc)
       if (post_prologue_pc
 	  && (s == NULL
 	      || s->producer == NULL
-	      || strncmp (s->producer, "GNU ", sizeof ("GNU ") - 1) == 0))
+	      || strncmp (s->producer, "GNU ", sizeof ("GNU ") - 1) == 0 
+	      || strncmp (s->producer, "clang ", sizeof ("clang ") - 1) == 0))
 	return post_prologue_pc;
 
       if (post_prologue_pc != 0)
@@ -3217,6 +3218,9 @@ arm_in_function_epilogue_p (struct gdbarch *gdbarch, CORE_ADDR pc)
       else if ((insn & 0x0fff0000) == 0x08bd0000)
 	/* POP (LDMIA).  */
 	found_stack_adjust = 1;
+      else if ((insn & 0x0fff0000) == 0x049d0000)
+	/* POP of a single register.  */
+	found_stack_adjust = 1;
     }
 
   if (found_stack_adjust)
@@ -3282,7 +3286,6 @@ arm_type_align (struct type *t)
     case TYPE_CODE_FLT:
     case TYPE_CODE_SET:
     case TYPE_CODE_RANGE:
-    case TYPE_CODE_BITSTRING:
     case TYPE_CODE_REF:
     case TYPE_CODE_CHAR:
     case TYPE_CODE_BOOL:
@@ -4538,7 +4541,7 @@ thumb_get_next_pc_raw (struct frame_info *frame, CORE_ADDR pc)
   else if ((inst1 & 0xff00) == 0x4700)	/* bx REG, blx REG */
     {
       if (bits (inst1, 3, 6) == 0x0f)
-	nextpc = pc_val;
+	nextpc = UNMAKE_THUMB_ADDR (pc_val);
       else
 	nextpc = get_frame_register_unsigned (frame, bits (inst1, 3, 6));
     }
