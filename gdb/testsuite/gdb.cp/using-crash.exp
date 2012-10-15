@@ -1,5 +1,4 @@
-# Copyright 1999, 2001, 2003, 2007-2012 Free Software Foundation, Inc.
-
+# Copyright 2012 Free Software Foundation, Inc.
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3 of the License, or
@@ -13,24 +12,21 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+standard_testfile .cc
 
-# Some basic checks for the CLI.
-
-load_lib mi-support.exp
-set MIFLAGS "-i=mi2"
-
-gdb_exit
-if [mi_gdb_start] {
-    continue
+if {[prepare_for_testing $testfile.exp $testfile $srcfile {debug c++}]} {
+    return -1
 }
 
-mi_gdb_test "show architecture" \
-	"&\"show architecture\\\\n\"\r\n~\"The target architecture.*\"\r\n\\^done" \
-	"show architecture"
+runto "foo"
 
-mi_gdb_test "47show architecture" \
-	"&\"show architecture\\\\n\"\r\n~\"The target architecture.*\"\r\n47\\^done" \
-	"47show architecture"
-
-mi_gdb_exit
-return 0
+# This would cause reading debug info with using_directives pointing to
+# freed memory.
+# http://sourceware.org/bugzilla/show_bug.cgi?id=14601
+# Note: You may need to compile with -fdebug-types-section to see the crash.
+set test "reload file"
+if { [gdb_file_cmd "$binfile"] == 0 } {
+    pass $test
+} else {
+    fail $test
+}

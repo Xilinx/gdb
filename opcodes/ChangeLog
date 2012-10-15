@@ -1,3 +1,42 @@
+2012-10-15  Yufeng Zhang  <yufeng.zhang@arm.com>
+
+	* aarch64-opc.c (aarch64_sys_regs): Add rmr_el1, rmr_el2 and
+	rmr_el3; remove daifset and daifclr.
+
+2012-10-15  Yufeng Zhang  <yufeng.zhang@arm.com>
+
+	* aarch64-opc.c (operand_general_constraint_met_p): Change to check
+	the alignment of addr.offset.imm instead of that of shifter.amount for
+	operand type AARCH64_OPND_ADDR_UIMM12.
+
+2012-10-11  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
+
+	* arm-dis.c: Use preferred form of vrint instruction variants
+	for disassembly.
+
+2012-10-09  Nagajyothi Eggone  <nagajyothi.eggone@amd.com>
+
+	* i386-gen.c (cpu_flag_init): Add CPU_BDVER3_FLAGS.
+	* i386-init.h: Regenerated.
+
+2012-10-05  Peter Bergner  <bergner@vnet.ibm.com>
+
+	* ppc-dis.c (ppc_opts) <altivec>: Use PPC_OPCODE_ALTIVEC2;
+	* ppc-opc.c (VBA): New define.
+	(powerpc_opcodes) <vcuxwfp, vcsxwfp, vcfpuxws, vcfpsxsw, vmr, vnot,
+	mfppr, mfppr32, mtppr, mtppr32>: New extended mnemonics.
+
+2012-10-04  Nick Clifton  <nickc@redhat.com>
+
+	* v850-dis.c (disassemble): Place square parentheses around second
+	register operand of clr1, not1, set1 and tst1 instructions.
+
+2012-10-04  Andreas Krebbel  <Andreas.Krebbel@de.ibm.com>
+
+	* s390-mkopc.c: Support new option zEC12.
+	* s390-opc.c: Add new instruction formats.
+	* s390-opc.txt: Add new instructions for zEC12.
+
 2012-09-27  Anthony Green  <green@moxielogic.com>
 
 	* moxie-dis.c (print_insn_moxie): Print 'bad' instructions.
@@ -5,8 +44,8 @@
 
 2012-09-25  Saravanan Ekanathan <saravanan.ekanathan@amd.com>
 
-	* i386-gen.c (cpu_flag_init): Add missing Cpu flags in 
-	CPU_BDVER1_FLAGS, CPU_BDVER2_FLAGS, CPU_BTVER1_FLAGS 
+	* i386-gen.c (cpu_flag_init): Add missing Cpu flags in
+	CPU_BDVER1_FLAGS, CPU_BDVER2_FLAGS, CPU_BTVER1_FLAGS
 	and CPU_BTVER2_FLAGS.
 	* i386-init.h: Regenerated.
 

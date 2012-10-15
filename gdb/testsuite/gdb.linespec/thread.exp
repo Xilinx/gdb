@@ -13,22 +13,29 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# [RFA] DWARF frame unwinder executes one too many rows
-# http://sourceware.org/ml/gdb-patches/2012-07/msg00650.html
+# http://sourceware.org/bugzilla/show_bug.cgi?id=14643
+# gdb 7.5 thinks "thread" is a linespec keyword.
 
-if { ![is_x86_like_target] } {
+standard_testfile
+set exefile $testfile
+
+if {[prepare_for_testing $testfile $exefile $srcfile {debug}]} {
+    return -1
+}
+
+if ![runto_main] {
+    fail "Can't run to main"
     return 0
 }
 
-set testfile "i386-cfi-notcurrent"
-set srcfile ${testfile}.S
+set bp_location1 [gdb_get_line_number "set breakpoint 1 here"]
 
-if [prepare_for_testing ${testfile}.exp ${testfile} ${srcfile} {nodebug}] {
-    return -1
-}
+gdb_test "break $srcfile:$bp_location1" \
+    "Breakpoint.*at.* file .*$srcfile, line $bp_location1\\." \
+    "breakpoint line number in file"
 
-if ![runto f] {
-    return -1
-}
+gdb_continue_to_breakpoint "$bp_location1"
 
-gdb_test "backtrace" "#0 \[^\r\n\]* f \[^\r\n\]*\r\n#1 \[^\r\n\]* g \[^\r\n\]*\r\n#2 \[^\r\n\]* main \[^\r\n\]*"
+gdb_breakpoint "thread" "message"
+
+gdb_continue_to_breakpoint "thread function"
