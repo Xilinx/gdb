@@ -37,3 +37,5 @@ expedite:r1,pc
 32:ear
 32:esr
 32:fsr
+32:slr
+32:shr
