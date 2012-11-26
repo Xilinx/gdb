@@ -56,7 +56,7 @@ struct microblaze_frame_cache
   int fp_regnum;
 
   /* Offsets to saved registers.  */
-  int register_offsets[57];	/* Must match MICROBLAZE_NUM_REGS.  */
+  int register_offsets[59];	/* Must match MICROBLAZE_NUM_REGS.  */
 
   /* Table of saved registers.  */
   struct trad_frame_saved_reg *saved_regs;
@@ -121,7 +121,9 @@ enum microblaze_regnum
   MICROBLAZE_RTLBX_REGNUM,
   MICROBLAZE_RTLBSX_REGNUM,
   MICROBLAZE_RTLBLO_REGNUM,
-  MICROBLAZE_RTLBHI_REGNUM
+  MICROBLAZE_RTLBHI_REGNUM,
+  MICROBLAZE_SLR_REGNUM,
+  MICROBLAZE_SHR_REGNUM
 };
 
 /* All registers are 32 bits.  */
