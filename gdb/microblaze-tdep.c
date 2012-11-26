@@ -74,7 +74,8 @@ static const char *microblaze_register_names[] =
   "rpc",  "rmsr", "rear", "resr", "rfsr", "rbtr",
   "rpvr0", "rpvr1", "rpvr2", "rpvr3", "rpvr4", "rpvr5", "rpvr6",
   "rpvr7", "rpvr8", "rpvr9", "rpvr10", "rpvr11",
-  "redr", "rpid", "rzpr", "rtlbx", "rtlbsx", "rtlblo", "rtlbhi"
+  "redr", "rpid", "rzpr", "rtlbx", "rtlbsx", "rtlblo", "rtlbhi",
+  "rslr", "rshr"
 };
 
 #define MICROBLAZE_NUM_REGS ARRAY_SIZE (microblaze_register_names)
@@ -202,10 +203,15 @@ static const gdb_byte *
 microblaze_breakpoint_from_pc (struct gdbarch *gdbarch, CORE_ADDR *pc, 
 			       int *len)
 {
+  enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   static gdb_byte break_insn[] = MICROBLAZE_BREAKPOINT;
+  static gdb_byte break_insn_le[] = MICROBLAZE_BREAKPOINT_LE;
 
   *len = sizeof (break_insn);
-  return break_insn;
+  if (byte_order == BFD_ENDIAN_BIG)
+    return break_insn;
+  else
+    return break_insn_le;
 }
 
 /* Allocate and initialize a frame cache.  */
