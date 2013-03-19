@@ -31,7 +31,7 @@ enum microblaze_instr
   idiv, idivu, bsll, bsra, bsrl, get, put, nget, nput, cget, cput,
   ncget, ncput, muli, bslli, bsrai, bsrli, mului, or, and, xor,
   andn, pcmpbf, pcmpbc, pcmpeq, pcmpne, sra, src, srl, sext8, sext16, 
-  wic, wdc, wdcclear, wdcflush, mts, mfs, mbar, br, brd,
+  wic, wdc, wdcclear, wdcextclear, wdcflush, wdcextflush, mts, mfs, mbar, br, brd,
   brld, bra, brad, brald, microblaze_brk, beq, beqd, bne, bned, blt,
   bltd, ble, bled, bgt, bgtd, bge, bged, ori, andi, xori, andni,
   imm, rtsd, rtid, rtbd, rted, bri, brid, brlid, brai, braid, bralid,
