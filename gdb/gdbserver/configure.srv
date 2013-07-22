@@ -201,6 +201,13 @@ case "${target}" in
 			srv_linux_usrregs=yes
 			srv_linux_thread_db=yes
 			;;
+  microblaze*-*-linux*)	srv_regobj=microblaze-linux.o
+			srv_tgtobj="linux-low.o linux-osdata.o linux-microblaze-low.o "
+			srv_tgtobj="${srv_tgtobj} linux-procfs.o linux-ptrace.o"
+			srv_linux_regsets=yes
+			srv_linux_usrregs=yes
+			srv_linux_thread_db=yes
+			;;
   powerpc*-*-linux*)	srv_regobj="powerpc-32l.o"
 			srv_regobj="${srv_regobj} powerpc-altivec32l.o"
 			srv_regobj="${srv_regobj} powerpc-cell32l.o"

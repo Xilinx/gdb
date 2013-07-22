@@ -43,7 +43,6 @@ static int microblaze_regmap[] =
 
 /* Defined in auto-generated file microblaze-linux.c.  */
 void init_registers_microblaze (void);
-extern const struct target_desc *tdesc_microblaze;
 
 static int
 microblaze_cannot_store_register (int regno)
@@ -108,7 +107,7 @@ microblaze_reinsert_addr (struct regcache *regcache)
 static void
 microblaze_collect_ptrace_register (struct regcache *regcache, int regno, char *buf)
 {
-  int size = register_size (regcache->tdesc, regno);
+  int size = register_size (regno);
 
   memset (buf, 0, sizeof (long));
 
@@ -122,7 +121,7 @@ static void
 microblaze_supply_ptrace_register (struct regcache *regcache,
 			    int regno, const char *buf)
 {
-  int size = register_size (regcache->tdesc, regno);
+  int size = register_size (regno);
 
   if (regno == 0) {
     unsigned long regbuf_0 = 0;
@@ -158,7 +157,7 @@ microblaze_store_gregset (struct regcache *regcache, const void *buf)
 
 #endif /* HAVE_PTRACE_GETREGS */
 
-static struct regset_info microblaze_regsets[] = {
+struct regset_info target_regsets[] = {
 #ifdef HAVE_PTRACE_GETREGS
   { PTRACE_GETREGS, PTRACE_SETREGS, 0, sizeof (elf_gregset_t), GENERAL_REGS, microblaze_fill_gregset, microblaze_store_gregset },
   { 0, 0, 0, -1, -1, NULL, NULL },
@@ -166,41 +165,11 @@ static struct regset_info microblaze_regsets[] = {
   { 0, 0, 0, -1, -1, NULL, NULL }
 };
 
-static struct regsets_info microblaze_regsets_info =
-  {
-    microblaze_regsets, /* regsets */
-    0, /* num_regsets */
-    NULL, /* disabled_regsets */
-  };
-
-static struct usrregs_info microblaze_usrregs_info =
-  {
-    microblaze_num_regs,
-    microblaze_regmap,
-  };
-
-static struct regs_info regs_info =
-  {
-    NULL, /* regset_bitmap */
-    &microblaze_usrregs_info,
-    &microblaze_regsets_info
-  };
-
-static const struct regs_info *
-microblaze_regs_info (void)
-{
-  return &regs_info;
-}
-
-static void
-microblaze_arch_setup (void)
-{
-  current_process ()->tdesc = tdesc_microblaze;
-}
-
 struct linux_target_ops the_low_target = {
-  microblaze_arch_setup,
-  microblaze_regs_info,
+  init_registers_microblaze,
+  microblaze_num_regs,
+  microblaze_regmap,
+  NULL,
   microblaze_cannot_fetch_register,
   microblaze_cannot_store_register,
   NULL, /* fetch_register */
@@ -218,11 +187,3 @@ struct linux_target_ops the_low_target = {
   microblaze_collect_ptrace_register,
   microblaze_supply_ptrace_register,
 };
-
-void
-initialize_low_arch (void)
-{
-  init_registers_microblaze ();
-
-  initialize_regsets_info (&microblaze_regsets_info);
-}
