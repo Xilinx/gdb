@@ -227,6 +227,7 @@ microblaze_alloc_frame_cache (void)
   /* Base address.  */
   cache->base = 0;
   cache->pc = 0;
+  cache->saved_sp = 0;
 
   /* Frameless until proven otherwise.  */
   cache->frameless_p = 1;
@@ -349,6 +350,7 @@ microblaze_analyze_prologue (struct gdbarch *gdbarch, CORE_ADDR pc,
 	  cache->frameless_p = 0; /* Frame found.  */
 	  save_hidden_pointer_found = 0;
 	  non_stack_instruction_found = 0;
+	  cache->register_offsets[rd] = -imm;
 	  continue;
 	}
       else if (IS_SPILL_SP(op, rd, ra))
@@ -510,6 +512,7 @@ microblaze_skip_prologue (struct gdbarch *gdbarch, CORE_ADDR start_pc)
   return start_pc;
 }
 
+enum { REG_UNAVAIL = (CORE_ADDR) -1 };
 /* Normal frames.  */
 
 static struct microblaze_frame_cache *
@@ -517,7 +520,7 @@ microblaze_frame_cache (struct frame_info *next_frame, void **this_cache)
 {
   struct microblaze_frame_cache *cache;
   struct gdbarch *gdbarch = get_frame_arch (next_frame);
-  CORE_ADDR func;
+  CORE_ADDR current_pc;
   int rn;
 
   if (*this_cache)
@@ -531,10 +534,18 @@ microblaze_frame_cache (struct frame_info *next_frame, void **this_cache)
   for (rn = 0; rn < gdbarch_num_regs (gdbarch); rn++)
     cache->register_offsets[rn] = -1;
 
-  func = get_frame_func (next_frame);
+  cache->pc = get_frame_func (next_frame);
+  current_pc = get_frame_pc (next_frame);
+
+  if (cache->pc)
+    microblaze_analyze_prologue (gdbarch, cache->pc, current_pc,
+	                         cache);
 
   cache->base = get_frame_register_unsigned (next_frame, gdbarch_sp_regnum (gdbarch));
-  cache->pc = get_frame_address_in_block (next_frame);
+  cache->saved_sp = cache->base + cache->framesize;
+
+  cache->register_offsets[MICROBLAZE_PREV_PC_REGNUM] = cache->base;
+  cache->register_offsets[MICROBLAZE_SP_REGNUM] = cache->saved_sp;
 
   return cache;
 }
@@ -550,7 +561,7 @@ microblaze_frame_this_id (struct frame_info *next_frame, void **this_cache,
   if (cache->base == 0)
     return;
 
-  (*this_id) = frame_id_build (cache->base, get_frame_pc (next_frame));
+  (*this_id) = frame_id_build (cache->base, cache->pc);
 }
 
 static struct value *
@@ -560,18 +571,23 @@ microblaze_frame_prev_register (struct frame_info *this_frame,
   struct microblaze_frame_cache *cache =
     microblaze_frame_cache (this_frame, this_cache);
 
-  if (cache->frameless_p)
+  if ((regnum == MICROBLAZE_SP_REGNUM &&
+      cache->register_offsets[MICROBLAZE_SP_REGNUM])
+      || (regnum == MICROBLAZE_FP_REGNUM &&
+      cache->register_offsets[MICROBLAZE_SP_REGNUM]))
+
+     return frame_unwind_got_constant (this_frame, regnum,
+                                       cache->register_offsets[MICROBLAZE_SP_REGNUM]);
+
+  if (regnum == MICROBLAZE_PC_REGNUM)
     {
-      if (regnum == MICROBLAZE_PC_REGNUM)
-        regnum = 15;
-      if (regnum == MICROBLAZE_SP_REGNUM)
-        regnum = 1;
-      return trad_frame_get_prev_register (this_frame,
-					   cache->saved_regs, regnum);
+      regnum = 15;
+      return frame_unwind_got_memory (this_frame, regnum,
+                                      cache->register_offsets[MICROBLAZE_PREV_PC_REGNUM]);
     }
-  else
-    return trad_frame_get_prev_register (this_frame, cache->saved_regs,
-					 regnum);
+
+  return trad_frame_get_prev_register (this_frame, cache->saved_regs,
+					regnum);
 
 }
 
