@@ -57,6 +57,7 @@ struct microblaze_frame_cache
 
   /* Offsets to saved registers.  */
   int register_offsets[59];	/* Must match MICROBLAZE_NUM_REGS.  */
+  CORE_ADDR saved_sp;
 
   /* Table of saved registers.  */
   struct trad_frame_saved_reg *saved_regs;
@@ -80,11 +81,11 @@ enum microblaze_regnum
   MICROBLAZE_R12_REGNUM,
   MICROBLAZE_R13_REGNUM,
   MICROBLAZE_R14_REGNUM,
-  MICROBLAZE_R15_REGNUM,
+  MICROBLAZE_R15_REGNUM, MICROBLAZE_PREV_PC_REGNUM = MICROBLAZE_R15_REGNUM,
   MICROBLAZE_R16_REGNUM,
   MICROBLAZE_R17_REGNUM,
   MICROBLAZE_R18_REGNUM,
-  MICROBLAZE_R19_REGNUM,
+  MICROBLAZE_R19_REGNUM, MICROBLAZE_FP_REGNUM = MICROBLAZE_R19_REGNUM,
   MICROBLAZE_R20_REGNUM,
   MICROBLAZE_R21_REGNUM,
   MICROBLAZE_R22_REGNUM,
