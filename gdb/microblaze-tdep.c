@@ -577,6 +577,16 @@ microblaze_frame_prev_register (struct frame_info *this_frame,
      return frame_unwind_got_constant (this_frame, regnum,
                                        cache->register_offsets[MICROBLAZE_SP_REGNUM]);
 
+  if (cache->frameless_p)
+    {
+      if (regnum == MICROBLAZE_PC_REGNUM)
+        regnum = 15;
+      if (regnum == MICROBLAZE_SP_REGNUM)
+        regnum = 1;
+      return trad_frame_get_prev_register (this_frame,
+            cache->saved_regs, regnum);
+    }
+
   if (regnum == MICROBLAZE_PC_REGNUM)
     {
       regnum = 15;
