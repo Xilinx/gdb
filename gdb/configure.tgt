@@ -342,6 +342,7 @@ microblaze*-linux-*|microblaze*-*-linux*)
 	gdb_target_obs="microblaze-tdep.o microblaze-linux-tdep.o microblaze-rom.o glibc-tdep.o \
 			monitor.o dsrec.o solib-svr4.o symfile-mem.o linux-tdep.o"
 	gdb_sim=../sim/microblaze/libsim.a
+	build_gdbserver=yes
 	;;
 microblaze*-*-*)
 	# Target: Xilinx MicroBlaze running standalone
